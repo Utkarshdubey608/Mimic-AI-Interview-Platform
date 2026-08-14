@@ -220,6 +220,26 @@ export const sessionsApi = {
     }),
   twowayReview: (id: string, body: { rating: number; notes: string }) =>
     http<{ ok: boolean }>(`/sessions/${id}/twoway/review`, { method: 'POST', body: JSON.stringify(body) }),
+  // Voice track: mint a locked Gemini Live grant. Resolves the session,
+  // generates questions if the template is adaptive, and locks the whole
+  // setup into the token — the browser connects straight to Google with it.
+  voiceToken: (id: string) =>
+    http<VoiceTokenGrant>(`/sessions/${id}/voice/token`, { method: 'POST' }),
+  // Voice track: forward one finalised utterance (BOTH roles, in order, no
+  // index). The audio never touches the backend, so this POST is the only way
+  // the transcript reaches the record the interview is scored from. The server
+  // fuzzy-matches interviewer turns to the planned questions and returns the
+  // running coverage count.
+  voiceTranscript: (id: string, body: { role: 'interviewer' | 'candidate'; text: string }) =>
+    http<{ ok: boolean; asked?: number; total?: number }>(`/sessions/${id}/voice/transcript`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+}
+
+/** The voice-interview grant: a LiveGrant plus the planned-question count. */
+export interface VoiceTokenGrant extends LiveGrant {
+  totalQuestions: number
 }
 
 /* ─── Chatbot (conversational) track ────────────────────────────────────── */

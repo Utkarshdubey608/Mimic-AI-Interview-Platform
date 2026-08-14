@@ -39,9 +39,11 @@ for (const f of files) {
   assert(`${rel}: no bare '/api' base const`, !/^\s*const\s+BASE\s*=\s*['"]\/api/m.test(body))
 }
 
-console.log('\n=== the four WS call sites use wsUrl() ===')
+// voiceClient.ts is deliberately absent: the Voice Track connects the browser
+// straight to Gemini Live with a backend-minted token (see src/lib/geminiLive.ts),
+// so its socket URL is Google's, not ours.
+console.log('\n=== the three backend WS call sites use wsUrl() ===')
 for (const rel of [
-  'lib/voiceClient.ts',
   'hooks/useAudioAnalysis.ts',
   'hooks/useDeepgramTranscript.ts',
   'features/interview/useAnswerRecorder.ts',
