@@ -31,8 +31,10 @@ from app.web.routes import (
     sessions_avatar,
     sessions_chat,
     sessions_twoway,
+    sessions_twoway_livekit,
     settings,
     templates,
+    twoway_webhook,
     voices,
     ws_deepgram,
 )
@@ -82,9 +84,23 @@ _MODULES = (
 
 def build_router() -> APIRouter:
     """The single router carrying every web route."""
+    from app.config import get_settings
+
+    livekit_two_way = get_settings().twoway_engine.strip().lower() == "livekit"
+
+    # Two-way engine switch (ADDITIVE — the Daily module is never edited): LiveKit
+    # records the call and auto-scores it; Daily does not. When LiveKit is the
+    # engine, swap its module in for the Daily one so `/twoway/*` resolves to it,
+    # and mount the (public, LiveKit-signed) egress webhook.
+    modules = list(_MODULES)
+    if livekit_two_way:
+        modules[modules.index(sessions_twoway)] = sessions_twoway_livekit
+
     router = APIRouter(prefix=PREFIX)
-    for module in _MODULES:
+    for module in modules:
         router.include_router(module.router)
+    if livekit_two_way:
+        router.include_router(twoway_webhook.router)
     return router
 
 
