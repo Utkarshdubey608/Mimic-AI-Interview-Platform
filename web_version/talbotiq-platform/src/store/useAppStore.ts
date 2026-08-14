@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { tavus } from '@/services/tavus'
 import { httpBase } from '@/lib/apiOrigin'
 import type { TavusConversation, SupportedLanguage, PipelineMode } from '@/types/tavus.types'
 import type { HumeEmotion, BatchJobStatus, HumeSessionResult } from '@/types/hume.types'
@@ -134,7 +133,7 @@ export const useAppStore = create<AppState>()(
       sessionTranscript: [],
       deepgramConnected: false,
 
-      setTavusKey: (k) => { set({ tavusKey: k }); tavus.setKey(k) },
+      setTavusKey: (k) => set({ tavusKey: k }),
       setDeepgramKey: (k) => set({ deepgramKey: k }),
       setHumeKey: (k) => set({ humeKey: k }),
       setGeminiKey: (k) => set({ geminiKey: k }),
@@ -181,8 +180,8 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'talbotiq-store',
-      // Only the Tavus key + recruiter preferences persist client-side. The
-      // deepgram/hume/gemini "configured" flags come fresh from the server each load.
+      // Only recruiter preferences persist client-side. The deepgram/hume/gemini
+      // "configured" flags come fresh from the server each load.
       //
       // `awsKey`/`anthropicKey` used to be persisted here too. They were dead —
       // nothing outside this file ever read them (AWS Rekognition goes through the
@@ -190,22 +189,17 @@ export const useAppStore = create<AppState>()(
       // they were storing secrets in localStorage for no functional reason and
       // have been removed entirely.
       //
-      // TODO(phase-1): `tavusKey` is the LAST real secret held client-side. It is
-      // still here because src/services/tavus.ts calls tavusapi.com directly from
-      // the browser for the recruiter Setup/Replicas pages. Route those through a
-      // server proxy (the candidate path already is — see server/routes/avatar.ts),
-      // then drop this line too. See docs/STORAGE_MIGRATION_PROMPT.md Phase 1.
+      // `tavusKey` — the last secret held client-side — went with the common-
+      // backend migration: src/services/tavus.ts now calls the backend proxy,
+      // which attaches the credential server-side. The in-memory field remains
+      // only as UI state for the Settings page's save-to-server input.
       partialize: (s) => ({
-        tavusKey: s.tavusKey,
         webhookUrl: s.webhookUrl,
         defaultReplicaId: s.defaultReplicaId,
         defaultPersonaId: s.defaultPersonaId,
         questions: s.questions,
         drafts: s.drafts,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state?.tavusKey) tavus.setKey(state.tavusKey)
-      },
     },
   ),
 )

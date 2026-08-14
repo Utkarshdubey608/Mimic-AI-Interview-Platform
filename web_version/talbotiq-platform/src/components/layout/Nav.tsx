@@ -103,7 +103,7 @@ export function Nav() {
           {/* Signed-in user + sign out */}
           <div
             className="hidden md:flex w-9 h-9 rounded-full bg-brand-field items-center justify-center text-white text-xs font-bold shadow-primary-sm"
-            title={label + (user?.admin ? ' (admin)' : '')}
+            title={label}
           >
             {initialsOf(label)}
           </div>

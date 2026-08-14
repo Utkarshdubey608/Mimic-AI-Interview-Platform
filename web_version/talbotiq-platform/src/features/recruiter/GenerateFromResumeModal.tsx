@@ -66,7 +66,6 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
   const [model, setModel] = useState<GeminiModel>('gemini-2.5-flash')
   const [name, setName] = useState('')
   const [role, setRole] = useState(defaultRole ?? '')
-  const [apiKey, setApiKey] = useState('')
   const [keySet, setKeySet] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +77,7 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
     // Reset + check whether a server key already exists.
     setStep('form'); setFile(null); setError(null); setQuestions([])
     setStyle('mix'); setTechCount(5); setNonTechCount(3); setDifficulty('mixed')
-    setName(''); setRole(defaultRole ?? ''); setApiKey('')
+    setName(''); setRole(defaultRole ?? '')
     settingsApi.status().then((s) => setKeySet(s.geminiKeySet)).catch(() => setKeySet(false))
   }, [open, defaultRole])
 
@@ -92,7 +91,7 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
 
   const total = style === 'mix' ? techCount + nonTechCount : style === 'technical' ? techCount : nonTechCount
   const needsKey = keySet === false
-  const canGenerate = !!file && total >= 1 && total <= 25 && (!needsKey || apiKey.trim().length > 0)
+  const canGenerate = !!file && total >= 1 && total <= 25
 
   const generate = async () => {
     if (!file) return
@@ -107,7 +106,6 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
       fd.append('model', model)
       if (role.trim()) fd.append('role', role.trim())
       if (name.trim()) fd.append('name', name.trim())
-      if (needsKey && apiKey.trim()) fd.append('apiKey', apiKey.trim())
 
       const result = await questionSetsApi.generateFromResume(fd)
       setQuestions(result.questions.map((q) => ({ ...q, _id: crypto.randomUUID() })))
@@ -269,14 +267,13 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
           </div>
 
           {needsKey && (
-            <div>
-              <label className="field-label" htmlFor="gemini-api-key">Gemini API key</label>
-              <input id="gemini-api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIza…" className="input-base font-mono text-xs" />
-              <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
-                No key saved yet — enter one here, or{' '}
-                <Link to="/settings" className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800" onClick={onClose}>save it in Settings</Link>.
-              </p>
-            </div>
+            // The key input is gone — the server holds the credential (matching
+            // the mobile app, which has no key entry anywhere). Point at Settings.
+            <p className="text-xs leading-relaxed text-neutral-500">
+              No Gemini key is configured on the server yet —{' '}
+              <Link to="/settings" className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800" onClick={onClose}>add one in Settings</Link>{' '}
+              before generating.
+            </p>
           )}
 
           {error && (

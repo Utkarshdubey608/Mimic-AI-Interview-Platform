@@ -69,11 +69,13 @@ export default function SettingsPage() {
     fetch(`${httpBase()}/avatar/status`).then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // The browser holds no Tavus key anymore — every call goes through the
+  // backend proxy, which attaches the SERVER-side key. So "Test connection"
+  // exercises the key currently saved on the server (Save first to test a
+  // freshly pasted key).
   async function testConnection() {
-    if (!tavusKey) { toast.error('Enter your Tavus API key first'); return }
     setConnState('testing')
     try {
-      tavus.setKey(tavusKey)
       const reps = await tavus.listReplicas()
       setConnState('ok')
       toast.success(`Connected — ${Array.isArray(reps) ? reps.length : 0} replica(s) found`)
@@ -86,17 +88,16 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   async function save() {
     setSaving(true)
-    // Local (this browser): recruiter dashboard pages call Tavus with this key.
     store.setTavusKey(tavusKey)
     store.setWebhookUrl(webhook)
-    tavus.setKey(tavusKey)
     // Server (single source of truth): applies the key EVERYWHERE at once —
-    // candidate avatar interviews + any previously-applied Setup config.
+    // candidate avatar interviews, the recruiter dashboard's proxied calls,
+    // and any previously-applied Setup config.
     try {
       await settingsApi.saveTavusKey(tavusKey.trim())
       toast.success('Settings saved — Tavus key applied everywhere')
     } catch (e) {
-      toast.error(`Saved locally, but the server sync failed: ${(e as Error).message}`)
+      toast.error(`Server sync failed: ${(e as Error).message}`)
     } finally {
       setSaving(false)
     }
@@ -150,10 +151,10 @@ export default function SettingsPage() {
                 Test connection
               </Button>
               {connState === 'fail' && (
-                <p className="text-xs text-danger">Tavus rejected the key or was unreachable — check the key, then test again.</p>
+                <p className="text-xs text-danger">Tavus rejected the saved key or was unreachable — save a valid key, then test again.</p>
               )}
               {connState === 'ok' && (
-                <p className="text-xs text-neutral-500">Key verified. Save settings to apply it everywhere.</p>
+                <p className="text-xs text-neutral-500">Server key verified — avatar calls are ready.</p>
               )}
             </div>
           </div>
