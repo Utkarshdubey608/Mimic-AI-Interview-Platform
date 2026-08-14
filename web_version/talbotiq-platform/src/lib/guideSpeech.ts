@@ -7,18 +7,21 @@
  *      text being spoken (shared detectSpeechLocale) — a Telugu answer speaks
  *      Telugu even if the selector shows English. The selector only breaks
  *      script ties (Hindi vs Marathi) and voices Latin-script text.
- *   2. NEURAL-FIRST. Server-side Gemini synthesis (POST /api/help/tts, key
- *      server-side, sentence-streamed) is the PRIMARY voice for every language —
+ *   2. NEURAL-FIRST. Gemini synthesis is the PRIMARY voice for every language —
  *      browsers either lack voices entirely (Telugu, Kannada, …) or default to
- *      robotic local ones. Browser Web Speech is only the fallback when the
- *      server can't synthesize, and never lets an English voice mangle
- *      non-Latin text (silence + a notice beats reading stray English words).
+ *      robotic local ones. The backend mints a locked Live token
+ *      (POST /help/tts-token) and the BROWSER speaks to Google directly; the
+ *      Gemini key never reaches the client. Browser Web Speech is only the
+ *      fallback when the server can't mint, and never lets an English voice
+ *      mangle non-Latin text (silence + a notice beats reading stray English).
  *
  * Speech-to-text: `SPEECH_LOCALES` maps every one of the 55 guide languages to
  * a full BCP-47 locale so recognition works in each language.
  */
 
 import { cancelSpeech, isSpeechSynthesisSupported, speak } from '@/lib/speechSynthesis'
+import { httpBase } from '@/lib/apiOrigin'
+import { speakViaGeminiLive, type LiveGrant } from '@/lib/geminiLive'
 import {
   NON_LATIN_LANGS,
   SPEECH_LOCALES,
@@ -128,27 +131,10 @@ function playPcm(b64: string, rate: number, onEnd?: () => void): () => void {
 
 /* ─── Streaming PCM playback (gapless, stoppable) ───────────────────────── */
 
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64)
-  const out = new Uint8Array(bin.length)
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
-  return out
-}
 function bytesToFloat32(bytes: Uint8Array): Float32Array {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const out = new Float32Array(Math.floor(bytes.byteLength / 2))
   for (let i = 0; i < out.length; i++) out[i] = view.getInt16(i * 2, true) / 0x8000
-  return out
-}
-function concatBytes(parts: Uint8Array[]): Uint8Array {
-  let len = 0
-  for (const p of parts) len += p.byteLength
-  const out = new Uint8Array(len)
-  let o = 0
-  for (const p of parts) {
-    out.set(p, o)
-    o += p.byteLength
-  }
   return out
 }
 function bytesToBase64(bytes: Uint8Array): string {
@@ -244,10 +230,13 @@ function cacheKey(locale: string, text: string): string {
 }
 
 /**
- * Stream an answer's audio from /api/help/tts (newline-delimited base64 PCM),
- * emitting each fragment to `onChunk` as it arrives so playback can start within
- * ~1s, and caching the concatenated clip so the next play is instant. Returns
- * true if any audio was produced.
+ * Synthesize an answer via a backend-minted Gemini Live token: POST
+ * /help/tts-token returns a grant and the BROWSER collects the audio from
+ * Google, emitting each fragment to `onChunk` as it arrives so playback can
+ * start before the turn completes. The server never sees this audio (the old
+ * route's 40-clip server cache went with it), so the finished clip is cached
+ * HERE, keyed lang+text — without that, every Listen press would re-mint and
+ * re-speak. Returns true if any audio was produced.
  */
 async function streamAndCache(
   text: string,
@@ -255,39 +244,19 @@ async function streamAndCache(
   onChunk?: (bytes: Uint8Array) => void,
   signal?: AbortSignal,
 ): Promise<boolean> {
-  const res = await fetch('/api/help/tts', {
+  const res = await fetch(`${httpBase()}/help/tts-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: text.slice(0, 2000), lang: locale }),
     signal,
   })
-  if (!res.ok || !res.body) throw new Error(`tts failed (${res.status})`)
+  if (!res.ok) throw new Error(`tts failed (${res.status})`)
+  const grant = (await res.json()) as LiveGrant
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  const parts: Uint8Array[] = []
-  let buffered = ''
-  const handleLine = (line: string) => {
-    const t = line.trim()
-    if (!t) return
-    const bytes = b64ToBytes(t)
-    parts.push(bytes)
-    onChunk?.(bytes)
-  }
-  for (;;) {
-    const { value, done } = await reader.read()
-    if (done) break
-    buffered += decoder.decode(value, { stream: true })
-    let nl: number
-    while ((nl = buffered.indexOf('\n')) >= 0) {
-      handleLine(buffered.slice(0, nl))
-      buffered = buffered.slice(nl + 1)
-    }
-  }
-  if (buffered) handleLine(buffered)
-  if (parts.length === 0) return false
+  const pcm = await speakViaGeminiLive(grant, { onChunk, signal })
+  if (pcm.byteLength === 0) return false
 
-  audioCache.set(cacheKey(locale, text), bytesToBase64(concatBytes(parts)))
+  audioCache.set(cacheKey(locale, text), bytesToBase64(pcm))
   while (audioCache.size > MAX_AUDIO_CACHE) {
     const oldest = audioCache.keys().next().value
     if (oldest === undefined) break

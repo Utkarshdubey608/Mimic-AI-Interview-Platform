@@ -42,7 +42,8 @@ import type {
   AdvanceResult,
 } from '@shared/types'
 import type { AgentRequest, AgentDecision } from '@shared/autopilot'
-import { httpBase } from './apiOrigin'
+import { httpBase, commonBase } from './apiOrigin'
+import { speakViaGeminiLive, bytesToBase64, type LiveGrant } from './geminiLive'
 
 // Same-origin '/api' in dev (Vite proxy); the absolute Render URL in a
 // VITE_API_BASE build. See src/lib/apiOrigin.ts.
@@ -324,12 +325,24 @@ export const analyticsApi = {
 /* ─── Voice track (catalog + preview; the live call uses a WebSocket) ────── */
 export const voicesApi = {
   catalog: () => http<VoiceCatalog>('/voices'),
-  // Returns base64 PCM (24 kHz) for the preview player.
-  sample: (voiceId: string, text?: string) =>
-    http<{ voiceId: string; mimeType: string; audio: string }>(`/voices/${voiceId}/sample`, {
+  // Returns base64 PCM (24 kHz) for the preview player. The server no longer
+  // renders the audio: the browser mints a preview token and speaks to Google
+  // itself — the same path the Flutter app uses. The token route lives on the
+  // COMMON surface (shared with mobile), so its request fields are snake_case
+  // (the mobile contract) and errors come as FastAPI's default { detail }.
+  sample: async (voiceId: string, text?: string): Promise<{ voiceId: string; mimeType: string; audio: string }> => {
+    const res = await fetch(`${commonBase()}/rt/gemini-preview-token`, {
       method: 'POST',
-      body: JSON.stringify({ text }),
-    }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_name: voiceId, sample_text: text ?? '' }),
+    })
+    const body = await res.text()
+    const data = body ? JSON.parse(body) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
+    if (!res.ok) throw new ApiError((data && (data.detail || data.error)) || `Voice preview failed (${res.status})`, res.status, data)
+    const pcm = await speakViaGeminiLive(data as LiveGrant)
+    return { voiceId, mimeType: 'audio/pcm;rate=24000', audio: bytesToBase64(pcm) }
+  },
 }
 
 /* ─── Mimic Guide Autopilot ───────────────────────────────────────────────── */

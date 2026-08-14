@@ -97,12 +97,22 @@ export function bytesToBase64(bytes: Uint8Array): string {
 
 /* ─── One-shot synthesis (voice preview, guide TTS) ──────────────────────── */
 
+export interface SpeakOptions {
+  timeoutMs?: number
+  /** Fires per decoded audio part as it arrives, so playback can start before
+   *  the turn completes (the guide streams these into its gapless player). */
+  onChunk?: (bytes: Uint8Array) => void
+  /** Aborting closes the socket and rejects with an AbortError. */
+  signal?: AbortSignal
+}
+
 /**
  * Connect with the grant, collect the model's audio until the turn completes,
  * and return the whole clip as 24 kHz PCM16 bytes. The token's locked system
  * instruction decides WHAT is spoken — the 'go' turn only starts it.
  */
-export function speakViaGeminiLive(grant: LiveGrant, timeoutMs = 30_000): Promise<Uint8Array> {
+export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): Promise<Uint8Array> {
+  const { timeoutMs = 30_000, onChunk, signal } = opts
   const socket = new WebSocket(liveSocketUrl(grant))
   socket.binaryType = 'arraybuffer'
   const chunks: Uint8Array[] = []
@@ -113,11 +123,15 @@ export function speakViaGeminiLive(grant: LiveGrant, timeoutMs = 30_000): Promis
       if (settled) return
       settled = true
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
       try { socket.close() } catch { /* already closed */ }
       fn()
     }
     const fail = (m: string) => finish(() => reject(new Error(m)))
     const timer = setTimeout(() => fail('Voice timed out'), timeoutMs)
+    const onAbort = () => finish(() => reject(new DOMException('Aborted', 'AbortError')))
+    if (signal?.aborted) { onAbort(); return }
+    signal?.addEventListener('abort', onAbort, { once: true })
 
     socket.onopen = () => {
       socket.send(JSON.stringify({ setup: { model: grant.model } }))
@@ -133,7 +147,10 @@ export function speakViaGeminiLive(grant: LiveGrant, timeoutMs = 30_000): Promis
       const server = msg.serverContent ?? {}
       for (const part of server.modelTurn?.parts ?? []) {
         const b64 = part.inlineData?.data
-        if (b64) chunks.push(base64ToBytes(b64))   // decode PER PART
+        if (!b64) continue
+        const bytes = base64ToBytes(b64)           // decode PER PART
+        chunks.push(bytes)
+        onChunk?.(bytes)
       }
       if (server.turnComplete) finish(() => resolve(concatBytes(chunks)))
     }
