@@ -38,14 +38,16 @@ export default defineConfig({
   server: {
     port: 3001,
     strictPort: true,
-    // The API key never reaches the client — all /api calls are proxied to the
-    // Express server, which holds GEMINI_API_KEY server-side only. The Voice
-    // Track's realtime audio uses a WebSocket, proxied with ws:true.
+    // Keys never reach the client — /api calls are proxied to the common
+    // FastAPI backend (run it with: uvicorn app.main:app --reload --port 8787),
+    // which holds every vendor credential server-side. The Deepgram caption
+    // relays are WebSockets, proxied with ws:true. The old /api/voice relay is
+    // gone: the Voice Track connects the browser straight to Gemini Live with a
+    // short-lived token minted by the backend.
     proxy: {
       // WS paths (must precede the generic /api http proxy).
-      '/api/voice': { target: 'ws://localhost:8787', ws: true },
-      '/api/avatar/deepgram': { target: 'ws://localhost:8787', ws: true },
-      '/api/interview/deepgram': { target: 'ws://localhost:8787', ws: true }, // Video Interview live transcription
+      '/api/web/avatar/deepgram': { target: 'ws://localhost:8787', ws: true },
+      '/api/web/interview/deepgram': { target: 'ws://localhost:8787', ws: true }, // Video Interview live transcription
       '/api': 'http://localhost:8787',
     },
   },
