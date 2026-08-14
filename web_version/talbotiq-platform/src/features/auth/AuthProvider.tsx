@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { firebaseAuth, firestore, firebaseConfigured, getIdTokenOrNull } from '@/lib/firebase'
+import { httpBase, commonBase } from '@/lib/apiOrigin'
 import type { AppUser, UserRole } from '@shared/types'
 
 /**
@@ -37,19 +38,23 @@ const AuthCtx = createContext<AuthContextValue | null>(null)
 
 /**
  * One-time global fetch interceptor: attach the Firebase ID token to every
- * same-origin /api request. Covers both the typed api.ts client and the raw
- * fetch() calls in the ported avatar UI. External requests and calls that
- * already carry an Authorization header are untouched.
+ * request aimed at OUR backend — the configured web base (`…/api/web`) and the
+ * shared common base (`…/api`), relative or absolute. Matching the configured
+ * bases (not a literal '/api') is what keeps the header attached when
+ * VITE_API_BASE points at a cross-origin host. Covers both the typed api.ts
+ * client and the raw fetch() calls in the ported avatar UI. External requests
+ * and calls that already carry an Authorization header are untouched.
  */
 let fetchPatched = false
 function installFetchInterceptor() {
   if (fetchPatched || typeof window === 'undefined') return
   fetchPatched = true
   const original = window.fetch.bind(window)
+  const bases = [httpBase(), commonBase()]
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     try {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input instanceof Request ? input.url : String(input)
-      const isApi = url.startsWith('/api') || url.startsWith(`${window.location.origin}/api`)
+      const isApi = bases.some((b) => url.startsWith(b) || url.startsWith(`${window.location.origin}${b}`))
       if (isApi && firebaseConfigured) {
         const token = await getIdTokenOrNull()
         if (token) {

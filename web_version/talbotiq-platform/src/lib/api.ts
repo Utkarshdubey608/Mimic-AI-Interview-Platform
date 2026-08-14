@@ -57,6 +57,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text()
   const data = text ? JSON.parse(text) : undefined
   if (!res.ok) {
+    if (res.status === 429) throw rateLimitError(res, data)
     const message = (data && (data.error as string)) || `Request failed (${res.status})`
     throw new ApiError(message, res.status, data)
   }
@@ -67,6 +68,12 @@ export class ApiError extends Error {
   constructor(message: string, public status: number, public payload?: unknown) {
     super(message)
   }
+}
+
+/** The backend rate-limits per user and answers 429 with Retry-After in seconds. */
+function rateLimitError(res: Response, data: unknown): ApiError {
+  const wait = Number(res.headers.get('Retry-After') ?? 5)
+  return new ApiError(`Too many requests — try again in ${wait}s.`, 429, data)
 }
 
 /* ─── Auth ──────────────────────────────────────────────────────────────────
@@ -104,6 +111,7 @@ export const questionSetsApi = {
     const res = await fetch(`${BASE}/question-sets/generate`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Generation failed (${res.status})`, res.status, data)
     return data as GenerateQuestionSetResult
   },
@@ -156,6 +164,7 @@ export const sessionsApi = {
     const res = await fetch(`${BASE}/sessions/${id}/resume`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Upload failed (${res.status})`, res.status, data)
     return data as CandidateSessionState
   },
@@ -237,6 +246,7 @@ export const invitesApi = {
     const res = await fetch(`${BASE}/invites/extract`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Extraction failed (${res.status})`, res.status, data)
     return data as ExtractCandidatesResult
   },
@@ -251,6 +261,7 @@ export const invitesApi = {
     const res = await fetch(`${BASE}/invites/logo`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Logo upload failed (${res.status})`, res.status, data)
     return data as { url: string }
   },
