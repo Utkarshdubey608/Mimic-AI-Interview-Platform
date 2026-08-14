@@ -96,6 +96,22 @@ class Settings(BaseSettings):
     # room-creation call itself.
     daily_domain: str = ""
 
+    # --- LiveKit — the ALTERNATIVE two-way engine (self-hosted, records the call) ---
+    # Selected by twoway_engine="livekit"; "daily" (default) leaves the Daily path
+    # in charge and nothing here matters. LiveKit egress records the call, which is
+    # what lets a two-way round get a transcript and an automatic scorecard.
+    twoway_engine: str = "daily"  # daily | livekit
+    livekit_url: str = ""  # ws(s):// URL the client connects to (same for both roles)
+    livekit_api_key: str = ""
+    livekit_api_secret: str = ""
+    # Recording storage — any S3-compatible endpoint (GCS / S3 / MinIO).
+    lk_s3_endpoint: str = ""  # endpoint the egress workers WRITE to (in-cluster)
+    lk_s3_public_endpoint: str = ""  # endpoint the backend FETCHES finished files from
+    lk_s3_bucket: str = ""
+    lk_s3_key: str = ""
+    lk_s3_secret: str = ""
+    lk_s3_region: str = "us-east-1"
+
     # Model used for scoring / question generation (REST generateContent).
     gemini_model: str = "gemini-2.5-flash"
     # Models a caller may request instead of the default. Comma-separated, and an

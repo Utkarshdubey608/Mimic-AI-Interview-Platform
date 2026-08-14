@@ -14,3 +14,7 @@ nh3==0.3.6
 pypdf==6.16.0
 python-docx==1.2.0
 openpyxl==3.1.5
+# LiveKit — the self-hosted two-way engine (rooms, tokens, egress, webhooks).
+# Only needed when TWOWAY_ENGINE=livekit. Verified against 1.2.0 (room/egress
+# request classes, AccessToken builder, WebhookReceiver(TokenVerifier(...))).
+livekit-api==1.2.0
