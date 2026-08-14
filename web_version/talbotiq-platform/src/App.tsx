@@ -7,11 +7,14 @@ import { Toaster } from 'react-hot-toast'
  * Every route is code-split.
  *
  * Before this, all page components were imported statically, so the whole
- * application shipped as one 3.6 MB chunk (1,030 KB gzipped) — and the *public*
- * marketing page at /mimic downloaded every byte of it: Firebase, TanStack
- * Query, Recharts, dnd-kit, jsPDF, tiptap and the video SDKs, none of which a
- * marketing page uses. Splitting per route means a visitor pays only for the
+ * application shipped as one 3.6 MB chunk (1,030 KB gzipped): Firebase,
+ * TanStack Query, Recharts, dnd-kit, jsPDF, tiptap and the video SDKs, on
+ * every first paint. Splitting per route means a visitor pays only for the
  * page they asked for.
+ *
+ * The MIMIC marketing site used to live here at /mimic* — it is now its own
+ * standalone app (web_version/mimic-site), so this router serves only the
+ * authenticated product.
  *
  * Guards, Nav and HomeRedirect stay static: they are small, and they decide
  * which chunk to fetch, so deferring them would just add a round-trip.
@@ -19,8 +22,6 @@ import { Toaster } from 'react-hot-toast'
 const LoginPage          = lazy(() => import('@/features/auth/LoginPage'))
 const AccessDenied       = lazy(() => import('@/features/auth/AccessDenied'))
 const CandidateHome      = lazy(() => import('@/features/candidate/CandidateHome'))
-const MimicSite          = lazy(() => import('@/features/marketing/MimicSite'))
-const MarketingPage      = lazy(() => import('@/features/marketing/MarketingPage'))
 const SetupPage          = lazy(() => import('@/pages/SetupPage'))
 const AvatarScreeningGate = lazy(() => import('@/features/avatar-screening/AvatarScreeningGate'))
 const ResultsPage        = lazy(() => import('@/pages/ResultsPage'))
@@ -65,11 +66,6 @@ export default function App() {
         <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
-            {/* Public marketing site — deliberately OUTSIDE AuthProvider so it
-                never loads the Firebase SDK. These pages use no auth. */}
-            <Route path="/mimic" element={<MimicSite />} />
-            <Route path="/mimic/*" element={<MarketingPage />} />
-
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>
             <Route path="/login" element={<LoginPage />} />

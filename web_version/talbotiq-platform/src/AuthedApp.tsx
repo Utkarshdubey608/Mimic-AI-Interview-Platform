@@ -7,13 +7,13 @@ import MimicGuide from '@/features/guide/MimicGuide'
  *
  * This lives in its own module so that importing it is what pulls Firebase in.
  * App.tsx loads it lazily, which keeps the Firebase SDK — 167 KB, the single
- * largest asset on the site — off the public marketing pages entirely. Nothing
- * under src/features/marketing uses auth, so those pages should never have been
- * paying for it.
+ * largest asset on the site — out of the initial chunk. (This boundary
+ * originally existed to keep Firebase off the public MIMIC marketing pages;
+ * the marketing site is a standalone app now, but the split still pays for
+ * itself on first paint.)
  *
  * AuthProvider's own implementation is untouched; only where it mounts changed.
- * The in-product assistant sits here too, so it is naturally absent from the
- * public site rather than needing a path check.
+ * The in-product assistant sits here too.
  */
 export default function AuthedApp() {
   return (

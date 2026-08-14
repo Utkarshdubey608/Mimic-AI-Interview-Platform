@@ -103,14 +103,8 @@ export default function MimicIntro(props: MimicIntroProps) {
     // NEVER compete with a live interview: /take/:id (candidate) and /interview
     // (recruiter room) run a real-time WebRTC call — a WebGL film playing over
     // the join steals exactly the GPU/CPU the video needs and reads as "lag".
-    //
-    // Also skipped on /mimic*: that is the PUBLIC marketing site, where a
-    // visitor usually arrives cold from a search result or an ad. A title card
-    // in front of the page delays their first look at the offer and spends
-    // their patience before we have earned any. The film stays for the
-    // signed-in app, where the viewer has already chosen to be here.
     const path = window.location.pathname
-    if (path.startsWith('/take/') || path.startsWith('/interview') || path.startsWith('/mimic')) {
+    if (path.startsWith('/take/') || path.startsWith('/interview')) {
       setDecision('off')
       return
     }
