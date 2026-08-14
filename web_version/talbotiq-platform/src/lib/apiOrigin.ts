@@ -19,10 +19,13 @@ function normalizeBase(apiBase: string | undefined): string {
   return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
 }
 
-/** Pure core of httpBase(). Exported for tests. */
+/** Pure core of httpBase(). Exported for tests.
+ *  `/api/web` because the common backend already uses `/api/templates` for
+ *  EMAIL templates (the Flutter app's contract); this app's INTERVIEW templates
+ *  live under the web prefix so neither has to rename. */
 export function resolveHttpBase(apiBase: string | undefined): string {
   const base = normalizeBase(apiBase)
-  return base ? `${base}/api` : '/api'
+  return base ? `${base}/api/web` : '/api/web'
 }
 
 /**
@@ -59,7 +62,13 @@ export function httpBase(): string {
   return resolveHttpBase(envApiBase())
 }
 
-/** Absolute WebSocket URL for an /api path, e.g. wsUrl('/api/voice/abc'). */
+/** The shared mobile/web API. Used for the Gemini Live token routes and the Tavus proxy. */
+export function commonBase(): string {
+  const base = normalizeBase(envApiBase())
+  return base ? `${base}/api` : '/api'
+}
+
+/** Absolute WebSocket URL for an /api path, e.g. wsUrl('/api/web/avatar/deepgram'). */
 export function wsUrl(path: string): string {
   return resolveWsUrl(envApiBase(), location.protocol, location.host, path)
 }

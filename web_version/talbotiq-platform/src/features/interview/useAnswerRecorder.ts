@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { RekognitionService, aggregateFacialData } from '@/services/rekognitionService'
 import type { FacialSessionSummary } from '@/types/rekognition.types'
 import { getIdTokenOrNull } from '@/lib/firebase'
-import { wsUrl } from '@/lib/apiOrigin'
+import { wsUrl, httpBase } from '@/lib/apiOrigin'
 
 /**
  * Owns ONE camera+mic stream for the whole Video Interview. Each answer is
@@ -50,7 +50,7 @@ export function useAnswerRecorder() {
     void (async () => {
       const token = await getIdTokenOrNull()
       if (gen !== transcribeGenRef.current) return                 // superseded during token fetch
-      const ws = new WebSocket(wsUrl(`/api/interview/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
+      const ws = new WebSocket(wsUrl(`/api/web/interview/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
       if (gen !== transcribeGenRef.current) { try { ws.close() } catch { /* noop */ } return }
       wsRef.current = ws
       ws.onopen = () => {
@@ -127,7 +127,7 @@ export function useAnswerRecorder() {
   const startFacial = useCallback((sessionId: string, questionCount: number) => {
     const stream = streamRef.current
     if (!stream || rekogRef.current) return
-    const svc = new RekognitionService(`/api/sessions/${sessionId}/facial-frame`)
+    const svc = new RekognitionService(`${httpBase()}/sessions/${sessionId}/facial-frame`)
     rekogRef.current = svc
     void svc.startCapture(stream)
     void questionCount

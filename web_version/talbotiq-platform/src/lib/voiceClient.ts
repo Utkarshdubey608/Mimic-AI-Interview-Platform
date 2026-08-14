@@ -1,21 +1,31 @@
-import type {
-  VoiceServerMessage, VoiceClientMessage, VoicePhase, TimeOfDay,
-} from '@shared/types'
-import { getIdTokenOrNull } from '@/lib/firebase'
-import { wsUrl } from './apiOrigin'
+import type { VoicePhase, TimeOfDay } from '@shared/types'
+import {
+  liveSocketUrl, parseLiveMessage, bytesToBase64,
+  type LiveServerMessage,
+} from './geminiLive'
+import { sessionsApi, type VoiceTokenGrant } from './api'
 
 /**
  * Low-latency browser transport for the Voice Track.
  *
- * Mic audio is downsampled to 16 kHz PCM16 and PCM-encoded INSIDE the audio
- * worklet (off the main thread), batched into ~20 ms chunks, and sent as raw
- * BINARY WebSocket frames — no base64, no JSON in the hot path. The agent's
- * 24 kHz PCM comes back as binary frames too and is played gaplessly. Control
- * messages (ready/mute/end ↔ state/caption/interrupted/ended/error) are JSON
- * text frames, so the two are trivially distinguished by frame type.
+ * The backend mints a short-lived Gemini Live token
+ * (POST /sessions/{id}/voice/token) whose setup — system instruction, question
+ * script, voice, model — was LOCKED at mint time, and the browser talks to
+ * Google directly. There is no server relay anymore. The LLM credential never
+ * touches the client; a tampered browser cannot rewrite the locked setup
+ * (Google discards the client's copy).
  *
- * The LLM credential never touches the client — audio is relayed by our backend,
- * which holds the key server-side.
+ * Mic audio is downsampled to 16 kHz PCM16 INSIDE the audio worklet (off the
+ * main thread), batched into ~20 ms chunks, and sent as realtimeInput JSON.
+ * The agent's 24 kHz PCM comes back base64-encoded inside serverContent
+ * messages and is played gaplessly.
+ *
+ * Because the audio no longer passes through the backend, every FINALISED
+ * utterance — both roles — is POSTed to /sessions/{id}/voice/transcript, in
+ * order. That POST is the only way the transcript reaches the record the
+ * interview is scored from; the server fuzzy-matches interviewer turns to the
+ * planned questions and returns the running coverage count, which also drives
+ * the end-of-interview decision here.
  */
 
 const AGENT_RATE = 24000
@@ -59,7 +69,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
 registerProcessor('capture-processor', CaptureProcessor)
 `
 
-/** base64 PCM16 → Float32 (used only by the one-shot voice preview). */
+/** base64 PCM16 → Float32. Google delivers audio as base64-in-JSON, decoded per part. */
 function base64ToFloat32(b64: string): Float32Array {
   const bin = atob(b64)
   const bytes = new Uint8Array(bin.length)
@@ -73,19 +83,11 @@ function int16BytesToFloat32(buf: ArrayBuffer): Float32Array {
   return out
 }
 
-export async function voiceWsUrl(sessionId: string): Promise<string> {
-  // The WS handshake can't carry an Authorization header, so the ID token rides
-  // in the query string; the server verifies it and checks session assignment.
-  const token = await getIdTokenOrNull()
-  const q = token ? `?token=${encodeURIComponent(token)}` : ''
-  return wsUrl(`/api/voice/${encodeURIComponent(sessionId)}${q}`)
-}
-
 export interface VoiceClientCallbacks {
   onPhase?: (phase: VoicePhase) => void
   onCaption?: (role: 'interviewer' | 'candidate', text: string, final: boolean) => void
-  /** Agent audio became audible / drained. Server phases lead local playback by
-   *  the buffered duration, so the UI should trust THIS for "speaking". */
+  /** Agent audio became audible / drained. Phases lead local playback by the
+   *  buffered duration, so the UI should trust THIS for "speaking". */
   onAudioPlaying?: (playing: boolean) => void
   /** The socket dropped and we're transparently reconnecting (mic stays open).
    *  active=false once reconnected or after we give up. */
@@ -96,9 +98,22 @@ export interface VoiceClientCallbacks {
 
 // Backoff between reconnect attempts (ms), capped at the last value and repeated.
 const RECONNECT_DELAYS = [500, 1000, 2000, 3000, 5000, 8000]
-// Keep retrying for roughly this long — must stay under the SERVER's reconnect
-// grace window (60s) so we don't give up while the interview is still being held.
-const RECONNECT_WINDOW_MS = 55_000
+// In the closing exchange, end after this much candidate silence.
+const CLOSING_SILENCE_MS = 15_000
+// At most two "keep asking" nudges, as the Express relay allowed.
+const MAX_NUDGES = 2
+
+// Question detection, ported from server/services/voiceFlow.ts: spoken questions
+// are often imperative ("Describe your deployment pipeline.") and carry no '?'.
+const QUESTION_LEAD = /^(tell me|walk me|describe|explain|how |what |why |where |when |which |who |can you|could you|would you|do you|did you|have you|are you|were you|give me|share|let'?s (talk|dive|start)|talk to me)/i
+function isQuestionShaped(text: string): boolean {
+  const t = (text ?? '').trim()
+  return t.includes('?') || QUESTION_LEAD.test(t)
+}
+/** Unambiguous, end-anchored closing phrases (used only to nudge early wrap-ups) —
+ *  the same guard the Express flow used, so an ordinary acknowledgment never
+ *  triggers a disruptive "keep asking" director note. */
+const HARD_CLOSING_RE = /\b(this concludes|the interview is (now )?(over|complete|done)|thank you (so much )?for your time|that concludes (the|our) interview|we'?ve reached the end|wrap(ping)? (this )?up|goodbye|take care)\b/i
 
 export class VoiceClient {
   private ws?: WebSocket
@@ -113,19 +128,34 @@ export class VoiceClient {
   private playing = false
   private muted = false
   private closed = false
-  private serverEnded = false                 // server sent 'ended' → do not reconnect
-  private timeOfDay?: TimeOfDay
+  private finished = false                    // interview over → do not reconnect
   private reconnectAttempts = 0
-  private reconnectStartedAt = 0
   private reconnectTimer?: ReturnType<typeof setTimeout>
+  private capTimer?: ReturnType<typeof setTimeout>
+
+  // The minted grant + Google's session-resumption handle (kept fresh from
+  // sessionResumptionUpdate messages; resuming does not consume the token).
+  private grant?: VoiceTokenGrant
+  private resumeHandle?: string
+
+  // Transcript state. Captions accumulate per role and flush on turnComplete.
+  private pendingInterviewer = ''
+  private pendingCandidate = ''
+  private postChain: Promise<void> = Promise.resolve()  // keeps POSTs in order
+  private asked = 0
+  private total = 0
+
+  // End-of-interview state (see "Deciding when the interview is over", §3.4).
+  private closing = false
+  private closingTimer?: ReturnType<typeof setTimeout>
+  private nudges = 0
 
   constructor(private sessionId: string, private cbs: VoiceClientCallbacks) {}
 
-  private sendControl(msg: VoiceClientMessage) {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg))
-  }
-
+  /** `timeOfDay` is accepted for interface stability but unused: the greeting
+   *  is part of the token's locked setup now. */
   async start(timeOfDay?: TimeOfDay): Promise<void> {
+    void timeOfDay
     this.cbs.onPhase?.('connecting')
     // 1) Mic capture at 16 kHz (the worklet resamples if the browser ignores the hint).
     this.stream = await navigator.mediaDevices.getUserMedia({
@@ -137,7 +167,10 @@ export class VoiceClient {
     this.worklet = new AudioWorkletNode(this.captureCtx, 'capture-processor')
     this.worklet.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
       if (this.muted || this.ws?.readyState !== WebSocket.OPEN) return
-      this.ws.send(e.data)               // raw PCM16 16 kHz — binary frame, no base64/JSON
+      // 16 kHz PCM16 mic chunk, base64 inside Google's realtimeInput envelope.
+      this.ws.send(JSON.stringify({
+        realtimeInput: { audio: { data: bytesToBase64(new Uint8Array(e.data)), mimeType: 'audio/pcm;rate=16000' } },
+      }))
     }
     this.source.connect(this.worklet)
     const sink = this.captureCtx.createGain()
@@ -147,52 +180,216 @@ export class VoiceClient {
     // 2) Playback context (agent audio is 24 kHz).
     this.playbackCtx = new AudioContext()
 
-    // 3) WebSocket to our backend relay. The mic + playback contexts above stay
-    //    alive across reconnects — only this socket is recreated on a drop.
-    this.timeOfDay = timeOfDay
-    await this.openWs()
+    // 3) Mint the locked grant, then connect straight to Google. The mint also
+    //    resolves the session and generates questions for adaptive templates.
+    //    A failed mint (no résumé yet, already finished, rate limit, offline)
+    //    must not leave the microphone we just opened recording behind the
+    //    error screen — release everything before surfacing the error.
+    try {
+      this.grant = await sessionsApi.voiceToken(this.sessionId)
+    } catch (e) {
+      this.dispose()
+      throw e
+    }
+    this.total = this.grant.totalQuestions ?? 0
+
+    // Hard cap: end at expiresAt regardless, graceful iff coverage completed.
+    const msLeft = Date.parse(this.grant.expiresAt) - Date.now()
+    if (Number.isFinite(msLeft) && msLeft > 0) {
+      this.capTimer = setTimeout(() => this.finishInterview(this.covered, 'expired'), msLeft)
+    }
+
+    this.openWs()
   }
 
-  /** Open (or re-open) the relay socket. Reused for the initial connect and every
-   *  transparent reconnect; the server resumes the same interview seamlessly. */
-  private async openWs(): Promise<void> {
-    if (this.closed || this.serverEnded) return
-    let url: string
-    try { url = await voiceWsUrl(this.sessionId) } catch { this.scheduleReconnect(); return }
-    if (this.closed || this.serverEnded) return
-    const ws = new WebSocket(url)
+  private get covered(): boolean {
+    return this.total > 0 && this.asked >= this.total
+  }
+
+  /** Open (or re-open) the Google Live socket. The mic + playback contexts stay
+   *  alive across reconnects — only this socket is recreated on a drop. */
+  private openWs(): void {
+    if (this.closed || this.finished || !this.grant) return
+    const ws = new WebSocket(liveSocketUrl(this.grant))
     this.ws = ws
     ws.binaryType = 'arraybuffer'
     ws.onopen = () => {
       this.reconnectAttempts = 0
-      this.reconnectStartedAt = 0
       this.cbs.onReconnecting?.(false)
-      this.sendControl({ type: 'ready', timeOfDay: this.timeOfDay })
-      if (this.muted) this.sendControl({ type: 'mute', muted: true }) // preserve mute across reconnect
+      // The token carries the real setup (locked at mint, no fieldMask); this
+      // message just opens the session. Reconnects add the resumption handle so
+      // Google restores the SAME conversation without consuming the token.
+      const resuming = !!this.resumeHandle
+      ws.send(JSON.stringify({
+        setup: {
+          model: this.grant!.model,
+          ...(resuming ? { sessionResumption: { handle: this.resumeHandle } } : {}),
+        },
+      }))
+      // Native-audio models generate nothing until a turn arrives — the locked
+      // instruction says WHAT to do, this turn starts it (the Express relay sent
+      // exactly this line). A resumed session is mid-conversation: no kickoff.
+      if (!resuming) {
+        ws.send(JSON.stringify({ clientContent: {
+          turns: [{ role: 'user', parts: [{ text: 'Begin the interview now: greet me and ask if I am ready to begin.' }] }],
+          turnComplete: true,
+        } }))
+      }
+      this.cbs.onPhase?.('greeting')
     }
-    ws.onmessage = (ev) => {
-      if (typeof ev.data === 'string') this.onControl(JSON.parse(ev.data) as VoiceServerMessage)
-      else this.enqueuePcm(ev.data as ArrayBuffer) // binary = agent audio (24 kHz PCM16)
-    }
+    ws.onmessage = (ev) => { void this.onLiveMessage(ev.data) }
     ws.onerror = () => { /* a 'close' event always follows; reconnect is handled there */ }
     ws.onclose = () => {
-      if (this.ws !== ws) return                 // superseded by a newer socket
-      if (this.closed || this.serverEnded) return // intentional teardown / real finish
+      if (this.ws !== ws) return                // superseded by a newer socket
+      if (this.closed || this.finished) return  // intentional teardown / real finish
       this.scheduleReconnect()
     }
   }
 
-  /** Retry the socket with backoff for up to RECONNECT_WINDOW_MS (matched to the
-   *  server's grace window); only surface "interrupted" once that window elapses. */
+  /** The adapter: Google's protocol → the same VoiceClientCallbacks the old
+   *  relay drove, so nothing above this file changes. */
+  private async onLiveMessage(data: unknown): Promise<void> {
+    const msg: LiveServerMessage | null = await parseLiveMessage(data)
+    if (!msg || this.closed || this.finished) return
+
+    const handle = msg.sessionResumptionUpdate?.newHandle
+    if (handle) this.resumeHandle = handle
+
+    const server = msg.serverContent
+    if (!server) return
+
+    // Barge-in: drop queued playback and the caption of the cut-off turn.
+    if (server.interrupted) {
+      this.flushPlayback()
+      this.pendingInterviewer = ''
+      return
+    }
+
+    // Agent audio: base64 PCM16 (24 kHz) per part — never concatenate the
+    // base64 strings (each part is independently padded).
+    let spoke = false
+    for (const part of server.modelTurn?.parts ?? []) {
+      const b64 = part.inlineData?.data
+      if (b64) { this.enqueuePcm(b64); spoke = true }
+    }
+    if (spoke) this.cbs.onPhase?.('speaking')
+
+    // Transcripts accumulate per role; emit the running buffer as non-final.
+    const out = server.outputTranscription?.text
+    if (out) {
+      this.pendingInterviewer += out
+      this.cbs.onCaption?.('interviewer', this.pendingInterviewer, false)
+    }
+    const inp = server.inputTranscription?.text
+    if (inp) {
+      this.pendingCandidate += inp
+      this.cbs.onCaption?.('candidate', this.pendingCandidate, false)
+      this.cbs.onPhase?.('listening')   // input transcription ⇒ the candidate is speaking
+    }
+
+    if (server.turnComplete) this.handleTurnComplete()
+  }
+
+  /** Flush both pending buffers as final captions, forward them to the
+   *  transcript record (in order), and run the end-of-interview decision. */
+  private handleTurnComplete(): void {
+    const cand = this.pendingCandidate.trim()
+    const intv = this.pendingInterviewer.trim()
+    this.pendingCandidate = ''
+    this.pendingInterviewer = ''
+    if (cand) this.cbs.onCaption?.('candidate', cand, true)
+    if (intv) this.cbs.onCaption?.('interviewer', intv, true)
+    if (!this.finished) this.cbs.onPhase?.('listening')
+
+    // The POSTs ride one promise chain so utterances reach the server in the
+    // order they finalised — the server matches them against the plan. The
+    // POSTs themselves run even after finish/teardown (they were legitimately
+    // finalised and the scoring record needs them); only the DECISIONS are
+    // gated. The trailing catch keeps one failed step from wedging the chain.
+    const wasClosing = this.closing
+    this.postChain = this.postChain.then(async () => {
+      if (cand) await this.postTranscript('candidate', cand)
+      if (intv) await this.postTranscript('interviewer', intv)
+
+      if (this.finished || this.closed) return
+      if (intv) {
+        if (this.covered && !this.closing && !isQuestionShaped(intv)) {
+          // Coverage complete and the first non-question turn arrived — that is
+          // the wrap-up. End after the candidate replies or after ~15 s of silence.
+          this.closing = true
+          this.closingTimer = setTimeout(() => this.finishInterview(true), CLOSING_SILENCE_MS)
+        } else if (!this.covered && HARD_CLOSING_RE.test(intv) && this.nudges < MAX_NUDGES) {
+          // Belt-and-braces: the locked instruction already carries the strict
+          // script, but nudge a model that UNAMBIGUOUSLY wraps up early (max 2×,
+          // hard-closing phrases only — the Express flow's exact guard).
+          this.nudges++
+          try {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({ clientContent: {
+                turns: [{ role: 'user', parts: [{ text: 'You still have more questions to cover. Do not wrap up yet — ask the next planned question now.' }] }],
+                turnComplete: true,
+              } }))
+            }
+          } catch { /* socket raced shut — the locked script recovers on its own */ }
+        }
+      }
+      // In the closing exchange, the candidate's reply (their farewell) ends the
+      // interview — AFTER both transcripts above have reached the record.
+      if (wasClosing && cand) this.finishInterview(true)
+    }).catch(() => { /* keep the chain alive — the next turn still posts */ })
+  }
+
+  /** POST one finalised utterance; the response carries the running coverage. */
+  private async postTranscript(role: 'interviewer' | 'candidate', text: string): Promise<void> {
+    try {
+      const r = await sessionsApi.voiceTranscript(this.sessionId, { role, text })
+      if (typeof r?.asked === 'number') this.asked = r.asked
+      if (typeof r?.total === 'number' && r.total > 0) this.total = r.total
+    } catch {
+      // Non-fatal: the next finalised turn refreshes the counts. The interview
+      // must not die because one transcript POST hiccuped.
+    }
+  }
+
+  /** The interview is over — by coverage, candidate end, or the hard cap. */
+  private finishInterview(graceful: boolean, reason = 'completed'): void {
+    if (this.finished || this.closed) return
+    this.finished = true
+    this.cbs.onEnded?.(reason, graceful)
+    this.dispose()
+    // The audio never touched the backend, so completion is the client's call —
+    // but only after the transcript chain drains, or the server would score a
+    // record that is still missing the final answer.
+    this.postChain = this.postChain
+      .catch(() => { /* a failed POST must not block completion */ })
+      .finally(() => { void sessionsApi.complete(this.sessionId).catch(() => { /* already completed / offline */ }) })
+  }
+
+  /** Give up WITHOUT finalizing: the session stays in progress server-side, so
+   *  the candidate can reopen their link and start a fresh Live session. */
+  private abandon(reason: string): void {
+    if (this.finished || this.closed) return
+    this.finished = true
+    this.cbs.onEnded?.(reason, false)
+    this.dispose()
+  }
+
+  /** Retry the socket with backoff using Google's resumption handle. The old
+   *  55 s window matched a relay grace period that no longer exists — the only
+   *  deadline now is the token's own expiresAt. */
   private scheduleReconnect(): void {
-    if (this.closed || this.serverEnded) return
+    if (this.closed || this.finished) return
     this.flushPlayback() // drop stale audio buffered from the turn that was cut off
-    const now = Date.now()
-    if (this.reconnectStartedAt === 0) this.reconnectStartedAt = now
-    if (now - this.reconnectStartedAt >= RECONNECT_WINDOW_MS) {
+    // Without a resumption handle a reconnect asks Google for a NEW session —
+    // the single-use token is already spent and connectBy has passed, so every
+    // attempt is guaranteed to fail. Don't show a doomed "Reconnecting…" loop:
+    // covered ⇒ finish for real; not covered ⇒ leave the session in progress
+    // so reopening the link mints a fresh token and starts over.
+    const expired = !this.grant || Date.parse(this.grant.expiresAt) <= Date.now()
+    if (expired || !this.resumeHandle) {
       this.cbs.onReconnecting?.(false)
-      this.cbs.onEnded?.('disconnected', false)
-      this.dispose() // release the mic + audio contexts; we've given up reconnecting
+      if (this.covered) this.finishInterview(true, 'disconnected')
+      else this.abandon('disconnected')
       return
     }
     const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempts, RECONNECT_DELAYS.length - 1)]
@@ -200,25 +397,15 @@ export class VoiceClient {
     this.cbs.onReconnecting?.(true)
     this.cbs.onPhase?.('connecting')
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
-    this.reconnectTimer = setTimeout(() => { void this.openWs() }, delay)
+    this.reconnectTimer = setTimeout(() => this.openWs(), delay)
   }
 
-  private onControl(msg: VoiceServerMessage) {
-    switch (msg.type) {
-      case 'state': this.cbs.onPhase?.(msg.phase); break
-      case 'caption': this.cbs.onCaption?.(msg.role, msg.text, msg.final); break
-      case 'interrupted': this.flushPlayback(); break
-      case 'ended': this.serverEnded = true; this.cbs.onEnded?.(msg.reason, msg.graceful !== false); this.dispose(); break
-      case 'error': this.cbs.onError?.(msg.message); break
-      // 'audio' as JSON is legacy; audio now arrives as binary frames.
-    }
-  }
-
-  private enqueuePcm(buf: ArrayBuffer) {
+  private enqueuePcm(b64: string) {
     const ctx = this.playbackCtx
-    if (!ctx || buf.byteLength < 2) return
+    if (!ctx) return
+    const samples = base64ToFloat32(b64)
+    if (samples.length === 0) return
     if (ctx.state === 'suspended') void ctx.resume()
-    const samples = int16BytesToFloat32(buf)
     const buffer = ctx.createBuffer(1, samples.length, AGENT_RATE)
     buffer.getChannelData(0).set(samples)
     const src = ctx.createBufferSource()
@@ -258,15 +445,16 @@ export class VoiceClient {
     this.setPlaying(false)
   }
 
+  /** Mute is local now: the worklet simply stops sending mic chunks. */
   setMuted(muted: boolean) {
     this.muted = muted
-    this.sendControl({ type: 'mute', muted })
   }
 
-  /** Candidate-initiated end: tell the server to finalize, then tear down. */
+  /** Candidate-initiated end: finalize the session, then tear down. Graceful
+   *  only if the plan was covered — quitting three questions in must show the
+   *  interrupted screen, not "All done, thank you!" (Express behaved the same). */
   end() {
-    this.sendControl({ type: 'end' })
-    this.dispose()
+    this.finishInterview(this.covered, 'ended')
   }
 
   /** Tear down mic + sockets WITHOUT finalizing (safe on unmount / remount). */
@@ -274,6 +462,8 @@ export class VoiceClient {
     if (this.closed) return
     this.closed = true
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = undefined }
+    if (this.closingTimer) { clearTimeout(this.closingTimer); this.closingTimer = undefined }
+    if (this.capTimer) { clearTimeout(this.capTimer); this.capTimer = undefined }
     this.flushPlayback()
     try { this.worklet?.disconnect() } catch { /* noop */ }
     try { this.source?.disconnect() } catch { /* noop */ }

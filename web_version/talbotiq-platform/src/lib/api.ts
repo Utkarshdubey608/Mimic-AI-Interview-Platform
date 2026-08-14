@@ -42,7 +42,8 @@ import type {
   AdvanceResult,
 } from '@shared/types'
 import type { AgentRequest, AgentDecision } from '@shared/autopilot'
-import { httpBase } from './apiOrigin'
+import { httpBase, commonBase } from './apiOrigin'
+import { speakViaGeminiLive, bytesToBase64, type LiveGrant } from './geminiLive'
 
 // Same-origin '/api' in dev (Vite proxy); the absolute Render URL in a
 // VITE_API_BASE build. See src/lib/apiOrigin.ts.
@@ -57,6 +58,7 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await res.text()
   const data = text ? JSON.parse(text) : undefined
   if (!res.ok) {
+    if (res.status === 429) throw rateLimitError(res, data)
     const message = (data && (data.error as string)) || `Request failed (${res.status})`
     throw new ApiError(message, res.status, data)
   }
@@ -67,6 +69,12 @@ export class ApiError extends Error {
   constructor(message: string, public status: number, public payload?: unknown) {
     super(message)
   }
+}
+
+/** The backend rate-limits per user and answers 429 with Retry-After in seconds. */
+function rateLimitError(res: Response, data: unknown): ApiError {
+  const wait = Number(res.headers.get('Retry-After') ?? 5)
+  return new ApiError(`Too many requests — try again in ${wait}s.`, 429, data)
 }
 
 /* ─── Auth ──────────────────────────────────────────────────────────────────
@@ -104,6 +112,7 @@ export const questionSetsApi = {
     const res = await fetch(`${BASE}/question-sets/generate`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Generation failed (${res.status})`, res.status, data)
     return data as GenerateQuestionSetResult
   },
@@ -156,6 +165,7 @@ export const sessionsApi = {
     const res = await fetch(`${BASE}/sessions/${id}/resume`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Upload failed (${res.status})`, res.status, data)
     return data as CandidateSessionState
   },
@@ -210,6 +220,26 @@ export const sessionsApi = {
     }),
   twowayReview: (id: string, body: { rating: number; notes: string }) =>
     http<{ ok: boolean }>(`/sessions/${id}/twoway/review`, { method: 'POST', body: JSON.stringify(body) }),
+  // Voice track: mint a locked Gemini Live grant. Resolves the session,
+  // generates questions if the template is adaptive, and locks the whole
+  // setup into the token — the browser connects straight to Google with it.
+  voiceToken: (id: string) =>
+    http<VoiceTokenGrant>(`/sessions/${id}/voice/token`, { method: 'POST' }),
+  // Voice track: forward one finalised utterance (BOTH roles, in order, no
+  // index). The audio never touches the backend, so this POST is the only way
+  // the transcript reaches the record the interview is scored from. The server
+  // fuzzy-matches interviewer turns to the planned questions and returns the
+  // running coverage count.
+  voiceTranscript: (id: string, body: { role: 'interviewer' | 'candidate'; text: string }) =>
+    http<{ ok: boolean; asked?: number; total?: number }>(`/sessions/${id}/voice/transcript`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+}
+
+/** The voice-interview grant: a LiveGrant plus the planned-question count. */
+export interface VoiceTokenGrant extends LiveGrant {
+  totalQuestions: number
 }
 
 /* ─── Chatbot (conversational) track ────────────────────────────────────── */
@@ -237,6 +267,7 @@ export const invitesApi = {
     const res = await fetch(`${BASE}/invites/extract`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Extraction failed (${res.status})`, res.status, data)
     return data as ExtractCandidatesResult
   },
@@ -251,6 +282,7 @@ export const invitesApi = {
     const res = await fetch(`${BASE}/invites/logo`, { method: 'POST', body: fd })
     const text = await res.text()
     const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
     if (!res.ok) throw new ApiError((data && data.error) || `Logo upload failed (${res.status})`, res.status, data)
     return data as { url: string }
   },
@@ -313,12 +345,24 @@ export const analyticsApi = {
 /* ─── Voice track (catalog + preview; the live call uses a WebSocket) ────── */
 export const voicesApi = {
   catalog: () => http<VoiceCatalog>('/voices'),
-  // Returns base64 PCM (24 kHz) for the preview player.
-  sample: (voiceId: string, text?: string) =>
-    http<{ voiceId: string; mimeType: string; audio: string }>(`/voices/${voiceId}/sample`, {
+  // Returns base64 PCM (24 kHz) for the preview player. The server no longer
+  // renders the audio: the browser mints a preview token and speaks to Google
+  // itself — the same path the Flutter app uses. The token route lives on the
+  // COMMON surface (shared with mobile), so its request fields are snake_case
+  // (the mobile contract) and errors come as FastAPI's default { detail }.
+  sample: async (voiceId: string, text?: string): Promise<{ voiceId: string; mimeType: string; audio: string }> => {
+    const res = await fetch(`${commonBase()}/rt/gemini-preview-token`, {
       method: 'POST',
-      body: JSON.stringify({ text }),
-    }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_name: voiceId, sample_text: text ?? '' }),
+    })
+    const body = await res.text()
+    const data = body ? JSON.parse(body) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
+    if (!res.ok) throw new ApiError((data && (data.detail || data.error)) || `Voice preview failed (${res.status})`, res.status, data)
+    const pcm = await speakViaGeminiLive(data as LiveGrant)
+    return { voiceId, mimeType: 'audio/pcm;rate=24000', audio: bytesToBase64(pcm) }
+  },
 }
 
 /* ─── Mimic Guide Autopilot ───────────────────────────────────────────────── */

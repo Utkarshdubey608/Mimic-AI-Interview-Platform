@@ -9,6 +9,7 @@ import type {
   BatchPrediction,
 } from '@/types/hume.types'
 import { categorizeEmotion } from '@/types/hume.types'
+import { httpBase } from '@/lib/apiOrigin'
 
 const BASE = 'https://api.hume.ai'
 
@@ -105,7 +106,7 @@ class HumeService {
     form.append('file', audioBlob, filename)
     form.append('json', JSON.stringify({ models: { prosody: {} } }))
     // Hybrid: audio is relayed through our server, which injects the Hume key.
-    const res = await fetch(`/api/avatar/hume/jobs`, {
+    const res = await fetch(`${httpBase()}/avatar/hume/jobs`, {
       method: 'POST',
       body: form,
     })
@@ -122,7 +123,7 @@ class HumeService {
   }
 
   async pollBatchJob(jobId: string): Promise<BatchJob> {
-    const res = await fetch(`/api/avatar/hume/jobs/${jobId}`)
+    const res = await fetch(`${httpBase()}/avatar/hume/jobs/${jobId}`)
     if (!res.ok) throw new Error(`Poll failed: HTTP ${res.status}`)
     const data = await res.json()
     // Hume API nests status under `state.status`; normalise to a flat shape
@@ -131,7 +132,7 @@ class HumeService {
   }
 
   async fetchBatchPredictions(jobId: string): Promise<BatchPrediction[]> {
-    const res = await fetch(`/api/avatar/hume/jobs/${jobId}/predictions`)
+    const res = await fetch(`${httpBase()}/avatar/hume/jobs/${jobId}/predictions`)
     if (!res.ok) throw new Error(`Predictions fetch failed: HTTP ${res.status}`)
     const data = await res.json()
     // Response can be a raw array or wrapped in { results: [...] }

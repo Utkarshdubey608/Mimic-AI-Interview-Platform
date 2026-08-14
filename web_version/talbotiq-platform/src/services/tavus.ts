@@ -5,102 +5,73 @@ import type {
   TavusVideo, GenerateVideoInput,
   TavusListResponse,
 } from '@/types/tavus.types'
+import { commonBase } from '@/lib/apiOrigin'
 
-const BASE = 'https://tavusapi.com/v2'
-
+/**
+ * Tavus access goes through the backend proxy at {commonBase()}/tavus — the
+ * COMMON surface shared with the mobile app. The Tavus credential never
+ * reaches the browser: the proxy attaches it server-side. (Previously this
+ * file held a recruiter-pasted key in memory and called tavusapi.com
+ * directly, which is exactly what the common-backend migration removes.)
+ *
+ * Only the routes the candidate flow uses are proxied: list replicas/personas,
+ * create/read/end conversations, and the verbose conversation view. Replica,
+ * persona and video MANAGEMENT (create/update/delete) is not proxied yet —
+ * those methods reject with a clear message so the vendor-console pages
+ * degrade visibly instead of firing keyless 401s at Tavus. The backend adds
+ * proxies for them on request (see WEB_FRONTEND_MIGRATION_TASKS.md §3.5).
+ */
 class TavusAPI {
-  private key = ''
-
-  setKey(k: string) { this.key = k }
-  getKey() { return this.key }
-
-  private headers(extra?: Record<string, string>) {
-    return {
-      'x-api-key': this.key,
-      'Content-Type': 'application/json',
-      ...extra,
-    }
-  }
-
-  private async req<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-    formData?: FormData,
-  ): Promise<T> {
-    const res = await fetch(`${BASE}${path}`, {
+  private async req<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const res = await fetch(`${commonBase()}/tavus${path}`, {
       method,
-      headers: formData ? { 'x-api-key': this.key } : this.headers(),
-      body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
+      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     })
     if (!res.ok) {
       const err = await res.json().catch(() => null)
-      // Surface the actual Tavus error — could be nested in different shapes
-      const msg = err?.message ?? err?.error ?? err?.detail ?? `HTTP ${res.status}`
+      // The FastAPI proxy emits { detail }; older shapes kept as fallbacks.
+      const msg = err?.detail ?? err?.message ?? err?.error ?? `HTTP ${res.status}`
       throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg))
     }
     if (res.status === 204) return undefined as T
     return res.json()
   }
 
-  // ── Replicas ──────────────────────────────────────────────────────────────
-  // Fetches custom replicas + stock replicas, merges and deduplicates by id
-  listReplicas = async (): Promise<TavusReplica[]> => {
-    const [custom, stock] = await Promise.allSettled([
-      this.req<TavusListResponse<TavusReplica>>('GET', '/replicas')
-        .then(r => (r.data ?? (r as unknown as TavusReplica[])).map(x => ({ ...x, replica_type: x.replica_type ?? 'personal' }))),
-      this.req<TavusListResponse<TavusReplica>>('GET', '/replicas?replica_type=stock')
-        .then(r => (r.data ?? (r as unknown as TavusReplica[])).map(x => ({ ...x, replica_type: 'stock' as const }))),
-    ])
-    const customList = custom.status === 'fulfilled' ? custom.value : []
-    const stockList  = stock.status  === 'fulfilled' ? stock.value  : []
-    // Merge: custom first, then stock — deduplicate by replica_id
-    const seen = new Set(customList.map(r => r.replica_id))
-    const merged = [...customList, ...stockList.filter(r => !seen.has(r.replica_id))]
-    return merged
+  private notProxied(what: string): Promise<never> {
+    return Promise.reject(new Error(
+      `${what} is not available from this app — the backend does not proxy this Tavus route yet. Manage it at platform.tavus.io.`,
+    ))
   }
 
-  getReplica = (id: string) =>
-    this.req<TavusReplica>('GET', `/replicas/${id}`)
+  // ── Replicas ──────────────────────────────────────────────────────────────
+  // One call now: the backend merges custom + stock replicas server-side.
+  listReplicas = (): Promise<TavusReplica[]> =>
+    this.req<TavusListResponse<TavusReplica>>('GET', '/replicas').then(r => r.data ?? [])
 
-  createReplica = (data: CreateReplicaInput) =>
-    this.req<TavusReplica>('POST', '/replicas', data)
+  getReplica = (_id: string): Promise<TavusReplica> => this.notProxied('Replica detail')
 
-  updateReplica = (id: string, data: Partial<TavusReplica>) =>
-    this.req<TavusReplica>('PATCH', `/replicas/${id}`, data)
+  createReplica = (_data: CreateReplicaInput): Promise<TavusReplica> => this.notProxied('Replica creation')
 
-  deleteReplica = (id: string) =>
-    this.req<void>('DELETE', `/replicas/${id}`)
+  updateReplica = (_id: string, _data: Partial<TavusReplica>): Promise<TavusReplica> => this.notProxied('Replica editing')
+
+  deleteReplica = (_id: string): Promise<void> => this.notProxied('Replica deletion')
 
   // ── Personas ──────────────────────────────────────────────────────────────
-  listPersonas = () =>
-    this.req<TavusListResponse<TavusPersona>>('GET', '/personas')
-      .then(r => r.data ?? (r as unknown as TavusPersona[]))
+  listPersonas = (): Promise<TavusPersona[]> =>
+    this.req<TavusListResponse<TavusPersona>>('GET', '/personas').then(r => r.data ?? [])
 
-  getPersona = (id: string) =>
-    this.req<TavusPersona>('GET', `/personas/${id}`)
+  getPersona = (_id: string): Promise<TavusPersona> => this.notProxied('Persona detail')
 
-  createPersona = (data: CreatePersonaInput) =>
-    this.req<TavusPersona>('POST', '/personas', data)
+  createPersona = (_data: CreatePersonaInput): Promise<TavusPersona> => this.notProxied('Persona creation')
 
-  updatePersona = (id: string, data: Partial<CreatePersonaInput>) =>
-    this.req<TavusPersona>('PATCH', `/personas/${id}`, data)
+  updatePersona = (_id: string, _data: Partial<CreatePersonaInput>): Promise<TavusPersona> => this.notProxied('Persona editing')
 
-  deletePersona = (id: string) =>
-    this.req<void>('DELETE', `/personas/${id}`)
+  deletePersona = (_id: string): Promise<void> => this.notProxied('Persona deletion')
 
   // ── Conversations ─────────────────────────────────────────────────────────
-  listConversations = (filters?: ConversationFilters) => {
-    const params = new URLSearchParams()
-    if (filters?.status) params.set('status', filters.status)
-    if (filters?.replica_id) params.set('replica_id', filters.replica_id)
-    if (filters?.persona_id) params.set('persona_id', filters.persona_id)
-    if (filters?.page) params.set('page', String(filters.page))
-    if (filters?.limit) params.set('limit', String(filters.limit))
-    const qs = params.toString()
-    return this.req<TavusListResponse<TavusConversation>>('GET', `/conversations${qs ? `?${qs}` : ''}`)
-      .then(r => r.data ?? (r as unknown as TavusConversation[]))
-  }
+  listConversations = (_filters?: ConversationFilters): Promise<TavusConversation[]> =>
+    this.notProxied('Conversation history')
 
   getConversation = (id: string) =>
     this.req<TavusConversation>('GET', `/conversations/${id}`)
@@ -108,27 +79,25 @@ class TavusAPI {
   createConversation = (data: CreateConversationInput) =>
     this.req<TavusConversation>('POST', '/conversations', data)
 
-  updateConversation = (id: string, data: Partial<CreateConversationInput>) =>
-    this.req<TavusConversation>('PATCH', `/conversations/${id}`, data)
+  updateConversation = (_id: string, _data: Partial<CreateConversationInput>): Promise<TavusConversation> =>
+    this.notProxied('Conversation editing')
 
   endConversation = (id: string) =>
-    this.req<void>('DELETE', `/conversations/${id}`)
+    this.req<void>('POST', `/conversations/${id}/end`)
 
+  // Best-effort: the proxy's verbose view carries whatever transcript Tavus
+  // includes; callers already tolerate an absent transcript (retry: false).
   getConversationTranscript = (id: string) =>
     this.req<{ transcript?: Array<{ role: string; content: string; timestamp?: string }> }>(
-      'GET', `/conversations/${id}/transcript`
+      'GET', `/conversations/${id}/verbose`,
     )
 
   // ── Videos ────────────────────────────────────────────────────────────────
-  listVideos = () =>
-    this.req<TavusListResponse<TavusVideo>>('GET', '/videos')
-      .then(r => r.data ?? (r as unknown as TavusVideo[]))
+  listVideos = (): Promise<TavusVideo[]> => this.notProxied('Video listing')
 
-  getVideo = (id: string) =>
-    this.req<TavusVideo>('GET', `/videos/${id}`)
+  getVideo = (_id: string): Promise<TavusVideo> => this.notProxied('Video detail')
 
-  generateVideo = (data: GenerateVideoInput) =>
-    this.req<TavusVideo>('POST', '/videos', data)
+  generateVideo = (_data: GenerateVideoInput): Promise<TavusVideo> => this.notProxied('Video generation')
 }
 
 export const tavus = new TavusAPI()

@@ -33,48 +33,11 @@ export function calcWpm(entries: TranscriptEntry[]): number {
   return Math.min(350, Math.round((words / durationMs) * 60_000))
 }
 
-class DeepgramService {
-  private key = ''
-
-  setKey(k: string) { this.key = k }
-  getKey() { return this.key }
-
-  buildWsUrl(): string {
-    // Audio is streamed as WebM/Opus from a MediaRecorder (NOT raw PCM), so we do NOT
-    // declare encoding/sample_rate — Deepgram auto-detects the Opus container. This path
-    // is independent of the Web Audio AudioContext (which can start suspended after a
-    // route change), so it streams reliably regardless of worklet state.
-    const params = new URLSearchParams({
-      model: 'nova-3',
-      language: 'en-US',
-      punctuate: 'true',
-      smart_format: 'true',
-      interim_results: 'true',  // emit words before the silence — maximum capture
-      utterance_end_ms: '1000', // flush after 1s of silence
-      vad_events: 'true',       // voice-activity events (breath / non-speech detection)
-      filler_words: 'true',     // um, uh, like, you know — critical for an ATS
-    })
-    return `wss://api.deepgram.com/v1/listen?${params.toString()}`
-  }
-
-  // Returns the key trimmed — used by the WebSocket subprotocol auth
-  getTrimmedKey(): string { return this.key.trim() }
-
-  async testConnection(): Promise<{ ok: boolean; message: string }> {
-    if (!this.key) return { ok: false, message: 'No API key set' }
-    try {
-      const res = await fetch('https://api.deepgram.com/v1/projects', {
-        headers: { Authorization: `Token ${this.key.trim()}` },
-      })
-      if (res.ok) return { ok: true, message: 'Deepgram Nova-3 connected' }
-      if (res.status === 401) return { ok: false, message: 'Invalid API key (401)' }
-      if (res.status === 403) return { ok: false, message: 'Key lacks streaming permission (403)' }
-      const err = await res.json().catch(() => null)
-      return { ok: false, message: err?.err_msg ?? `HTTP ${res.status}` }
-    } catch (e: any) {
-      return { ok: false, message: e.message ?? 'Connection failed' }
-    }
-  }
-}
-
-export const deepgramService = new DeepgramService()
+// The DeepgramService class (client-held key, direct wss://api.deepgram.com
+// URLs, a browser-side key test against /v1/projects) is gone: the client
+// holds no vendor keys. Live transcription runs through the backend's
+// authenticated relays at /api/web/{avatar,interview}/deepgram, and "is
+// Deepgram configured?" comes from GET {httpBase()}/avatar/status, which
+// reports { deepgram, hume, gemini, rekognition } as booleans (see
+// refreshServiceStatus in src/store/useAppStore.ts). Only the pure transcript
+// helpers above remain.

@@ -16,6 +16,7 @@ import { cn } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { GuideMarkdown } from '@/features/guide/guide-markdown'
 import { LANGUAGES, findLanguage, type Language } from '@/lib/languages'
+import { httpBase } from '@/lib/apiOrigin'
 import {
   isSpeechRecognitionSupported,
   startSpeechRecognition,
@@ -510,7 +511,7 @@ export default function MimicGuide() {
       .slice(-MAX_HISTORY)
       .map(({ role, content: text }) => ({ role, content: text.slice(0, 8000) }))
 
-    fetch('/api/help/chat', {
+    fetch(`${httpBase()}/help/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: payload }),
