@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { tavus } from '@/services/tavus'
+import { httpBase } from '@/lib/apiOrigin'
 import type { TavusConversation, SupportedLanguage, PipelineMode } from '@/types/tavus.types'
 import type { HumeEmotion, BatchJobStatus, HumeSessionResult } from '@/types/hume.types'
 import type { TranscriptEntry } from '@/services/deepgram'
@@ -108,7 +109,7 @@ export const useAppStore = create<AppState>()(
       deepgramKey: '',
       humeKey: '',
       geminiKey: '',
-      awsProxyUrl: '/api/avatar/analyze-face',
+      awsProxyUrl: `${httpBase()}/avatar/analyze-face`,
       webhookUrl: '',
       defaultReplicaId: '',
       defaultPersonaId: '',
@@ -219,7 +220,7 @@ export const useAppStore = create<AppState>()(
  * the global fetch interceptor in AuthProvider).
  */
 export function refreshServiceStatus() {
-  fetch('/api/avatar/status')
+  fetch(`${httpBase()}/avatar/status`)
     .then((r) => (r.ok ? r.json() : null))
     .then((s: { deepgram?: boolean; hume?: boolean; gemini?: boolean; rekognition?: boolean } | null) => {
       if (!s) return
@@ -227,7 +228,7 @@ export function refreshServiceStatus() {
         deepgramKey: s.deepgram ? 'server' : '',
         humeKey: s.hume ? 'server' : '',
         geminiKey: s.gemini ? 'server' : '',
-        awsProxyUrl: s.rekognition ? '/api/avatar/analyze-face' : '',
+        awsProxyUrl: s.rekognition ? `${httpBase()}/avatar/analyze-face` : '',
       })
     })
     .catch(() => { /* offline / server down — panels show their own "not configured" states */ })

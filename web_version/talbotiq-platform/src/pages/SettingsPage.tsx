@@ -5,6 +5,7 @@ import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { tavus } from '@/services/tavus'
 import { settingsApi } from '@/lib/api'
+import { httpBase } from '@/lib/apiOrigin'
 import { GeminiKeyCard } from '@/features/recruiter/GeminiKeyCard'
 
 /**
@@ -65,7 +66,7 @@ export default function SettingsPage() {
   useEffect(() => {
     setTavusKeyLocal(store.tavusKey)
     setWebhook(store.webhookUrl)
-    fetch('/api/avatar/status').then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
+    fetch(`${httpBase()}/avatar/status`).then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function testConnection() {

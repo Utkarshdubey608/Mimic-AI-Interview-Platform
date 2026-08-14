@@ -23,6 +23,7 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { httpBase } from '@/lib/apiOrigin'
 import './mimicSite.css'
 import { MarketingLayout } from './MarketingLayout'
 import { Magnetic, Parallax, Reveal } from './motion'
@@ -189,7 +190,7 @@ export default function MimicSite() {
     if (Object.keys(next).length) return
     setSubmitting(true); setFormError('')
     try {
-      const res = await fetch('/api/leads', {
+      const res = await fetch(`${httpBase()}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, source: 'mimic-site' }),

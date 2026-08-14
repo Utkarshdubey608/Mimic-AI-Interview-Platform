@@ -7,6 +7,7 @@
 // Nova-3 and Hume prosody) and returns a structured assessment.
 
 import type { FacialSessionSummary } from '@/types/rekognition.types'
+import { httpBase } from '@/lib/apiOrigin'
 
 // ─── Input Types (built from this app's real store data) ─────────────────────
 
@@ -322,7 +323,7 @@ export class GeminiAnalysisService {
       ],
     }
 
-    const url = '/api/avatar/gemini-generate'
+    const url = `${httpBase()}/avatar/gemini-generate`
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
     // Retry transient failures: 503 (model overloaded) and 429 rate-limit. A 429 that is
