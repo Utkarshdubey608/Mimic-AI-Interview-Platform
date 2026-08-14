@@ -103,6 +103,18 @@ const CLOSING_SILENCE_MS = 15_000
 // At most two "keep asking" nudges, as the Express relay allowed.
 const MAX_NUDGES = 2
 
+// Question detection, ported from server/services/voiceFlow.ts: spoken questions
+// are often imperative ("Describe your deployment pipeline.") and carry no '?'.
+const QUESTION_LEAD = /^(tell me|walk me|describe|explain|how |what |why |where |when |which |who |can you|could you|would you|do you|did you|have you|are you|were you|give me|share|let'?s (talk|dive|start)|talk to me)/i
+function isQuestionShaped(text: string): boolean {
+  const t = (text ?? '').trim()
+  return t.includes('?') || QUESTION_LEAD.test(t)
+}
+/** Unambiguous, end-anchored closing phrases (used only to nudge early wrap-ups) —
+ *  the same guard the Express flow used, so an ordinary acknowledgment never
+ *  triggers a disruptive "keep asking" director note. */
+const HARD_CLOSING_RE = /\b(this concludes|the interview is (now )?(over|complete|done)|thank you (so much )?for your time|that concludes (the|our) interview|we'?ve reached the end|wrap(ping)? (this )?up|goodbye|take care)\b/i
+
 export class VoiceClient {
   private ws?: WebSocket
   private stream?: MediaStream
@@ -170,7 +182,15 @@ export class VoiceClient {
 
     // 3) Mint the locked grant, then connect straight to Google. The mint also
     //    resolves the session and generates questions for adaptive templates.
-    this.grant = await sessionsApi.voiceToken(this.sessionId)
+    //    A failed mint (no résumé yet, already finished, rate limit, offline)
+    //    must not leave the microphone we just opened recording behind the
+    //    error screen — release everything before surfacing the error.
+    try {
+      this.grant = await sessionsApi.voiceToken(this.sessionId)
+    } catch (e) {
+      this.dispose()
+      throw e
+    }
     this.total = this.grant.totalQuestions ?? 0
 
     // Hard cap: end at expiresAt regardless, graceful iff coverage completed.
@@ -199,12 +219,22 @@ export class VoiceClient {
       // The token carries the real setup (locked at mint, no fieldMask); this
       // message just opens the session. Reconnects add the resumption handle so
       // Google restores the SAME conversation without consuming the token.
+      const resuming = !!this.resumeHandle
       ws.send(JSON.stringify({
         setup: {
           model: this.grant!.model,
-          ...(this.resumeHandle ? { sessionResumption: { handle: this.resumeHandle } } : {}),
+          ...(resuming ? { sessionResumption: { handle: this.resumeHandle } } : {}),
         },
       }))
+      // Native-audio models generate nothing until a turn arrives — the locked
+      // instruction says WHAT to do, this turn starts it (the Express relay sent
+      // exactly this line). A resumed session is mid-conversation: no kickoff.
+      if (!resuming) {
+        ws.send(JSON.stringify({ clientContent: {
+          turns: [{ role: 'user', parts: [{ text: 'Begin the interview now: greet me and ask if I am ready to begin.' }] }],
+          turnComplete: true,
+        } }))
+      }
       this.cbs.onPhase?.('greeting')
     }
     ws.onmessage = (ev) => { void this.onLiveMessage(ev.data) }
@@ -272,34 +302,41 @@ export class VoiceClient {
     if (!this.finished) this.cbs.onPhase?.('listening')
 
     // The POSTs ride one promise chain so utterances reach the server in the
-    // order they finalised — the server matches them against the plan.
+    // order they finalised — the server matches them against the plan. The
+    // POSTs themselves run even after finish/teardown (they were legitimately
+    // finalised and the scoring record needs them); only the DECISIONS are
+    // gated. The trailing catch keeps one failed step from wedging the chain.
+    const wasClosing = this.closing
     this.postChain = this.postChain.then(async () => {
-      if (this.closed || this.finished) return
-      if (cand) {
-        await this.postTranscript('candidate', cand)
-        // In the closing exchange, the candidate's next turn ends the interview.
-        if (this.closing && !this.finished) { this.finishInterview(true); return }
-      }
+      if (cand) await this.postTranscript('candidate', cand)
+      if (intv) await this.postTranscript('interviewer', intv)
+
+      if (this.finished || this.closed) return
       if (intv) {
-        await this.postTranscript('interviewer', intv)
-        if (this.finished) return
-        const isQuestion = intv.includes('?')
-        if (this.covered && !isQuestion && !this.closing) {
+        if (this.covered && !this.closing && !isQuestionShaped(intv)) {
           // Coverage complete and the first non-question turn arrived — that is
           // the wrap-up. End after the candidate replies or after ~15 s of silence.
           this.closing = true
           this.closingTimer = setTimeout(() => this.finishInterview(true), CLOSING_SILENCE_MS)
-        } else if (!this.covered && !isQuestion && this.asked >= 1 && this.nudges < MAX_NUDGES) {
+        } else if (!this.covered && HARD_CLOSING_RE.test(intv) && this.nudges < MAX_NUDGES) {
           // Belt-and-braces: the locked instruction already carries the strict
-          // script, but nudge a model that tries to wrap up early (max 2×).
+          // script, but nudge a model that UNAMBIGUOUSLY wraps up early (max 2×,
+          // hard-closing phrases only — the Express flow's exact guard).
           this.nudges++
-          this.ws?.send(JSON.stringify({ clientContent: {
-            turns: [{ role: 'user', parts: [{ text: 'You still have more questions to cover. Do not wrap up yet — ask the next planned question now.' }] }],
-            turnComplete: true,
-          } }))
+          try {
+            if (this.ws?.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({ clientContent: {
+                turns: [{ role: 'user', parts: [{ text: 'You still have more questions to cover. Do not wrap up yet — ask the next planned question now.' }] }],
+                turnComplete: true,
+              } }))
+            }
+          } catch { /* socket raced shut — the locked script recovers on its own */ }
         }
       }
-    })
+      // In the closing exchange, the candidate's reply (their farewell) ends the
+      // interview — AFTER both transcripts above have reached the record.
+      if (wasClosing && cand) this.finishInterview(true)
+    }).catch(() => { /* keep the chain alive — the next turn still posts */ })
   }
 
   /** POST one finalised utterance; the response carries the running coverage. */
@@ -319,8 +356,21 @@ export class VoiceClient {
     if (this.finished || this.closed) return
     this.finished = true
     this.cbs.onEnded?.(reason, graceful)
-    // The audio never touched the backend, so completion is the client's call.
-    void sessionsApi.complete(this.sessionId).catch(() => { /* already completed / offline */ })
+    this.dispose()
+    // The audio never touched the backend, so completion is the client's call —
+    // but only after the transcript chain drains, or the server would score a
+    // record that is still missing the final answer.
+    this.postChain = this.postChain
+      .catch(() => { /* a failed POST must not block completion */ })
+      .finally(() => { void sessionsApi.complete(this.sessionId).catch(() => { /* already completed / offline */ }) })
+  }
+
+  /** Give up WITHOUT finalizing: the session stays in progress server-side, so
+   *  the candidate can reopen their link and start a fresh Live session. */
+  private abandon(reason: string): void {
+    if (this.finished || this.closed) return
+    this.finished = true
+    this.cbs.onEnded?.(reason, false)
     this.dispose()
   }
 
@@ -330,10 +380,16 @@ export class VoiceClient {
   private scheduleReconnect(): void {
     if (this.closed || this.finished) return
     this.flushPlayback() // drop stale audio buffered from the turn that was cut off
+    // Without a resumption handle a reconnect asks Google for a NEW session —
+    // the single-use token is already spent and connectBy has passed, so every
+    // attempt is guaranteed to fail. Don't show a doomed "Reconnecting…" loop:
+    // covered ⇒ finish for real; not covered ⇒ leave the session in progress
+    // so reopening the link mints a fresh token and starts over.
     const expired = !this.grant || Date.parse(this.grant.expiresAt) <= Date.now()
-    if (expired) {
+    if (expired || !this.resumeHandle) {
       this.cbs.onReconnecting?.(false)
-      this.finishInterview(this.covered, 'disconnected')
+      if (this.covered) this.finishInterview(true, 'disconnected')
+      else this.abandon('disconnected')
       return
     }
     const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempts, RECONNECT_DELAYS.length - 1)]
@@ -394,9 +450,11 @@ export class VoiceClient {
     this.muted = muted
   }
 
-  /** Candidate-initiated end: finalize the session, then tear down. */
+  /** Candidate-initiated end: finalize the session, then tear down. Graceful
+   *  only if the plan was covered — quitting three questions in must show the
+   *  interrupted screen, not "All done, thank you!" (Express behaved the same). */
   end() {
-    this.finishInterview(true, 'ended')
+    this.finishInterview(this.covered, 'ended')
   }
 
   /** Tear down mic + sockets WITHOUT finalizing (safe on unmount / remount). */

@@ -256,11 +256,16 @@ async function streamAndCache(
   const pcm = await speakViaGeminiLive(grant, { onChunk, signal })
   if (pcm.byteLength === 0) return false
 
-  audioCache.set(cacheKey(locale, text), bytesToBase64(pcm))
-  while (audioCache.size > MAX_AUDIO_CACHE) {
-    const oldest = audioCache.keys().next().value
-    if (oldest === undefined) break
-    audioCache.delete(oldest)
+  // A clip salvaged from a dropped socket played fine just now, but caching it
+  // would replay the truncation on every future Listen press — cache only what
+  // Google actually finished.
+  if (pcm.turnComplete) {
+    audioCache.set(cacheKey(locale, text), bytesToBase64(pcm))
+    while (audioCache.size > MAX_AUDIO_CACHE) {
+      const oldest = audioCache.keys().next().value
+      if (oldest === undefined) break
+      audioCache.delete(oldest)
+    }
   }
   return true
 }

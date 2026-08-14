@@ -98,6 +98,9 @@ export function bytesToBase64(bytes: Uint8Array): string {
 /* ─── One-shot synthesis (voice preview, guide TTS) ──────────────────────── */
 
 export interface SpeakOptions {
+  /** INACTIVITY window: rejects only after this long with no message from
+   *  Google. Long clips stream parts continuously, so a multi-minute synthesis
+   *  survives while a dead connection still fails fast. */
   timeoutMs?: number
   /** Fires per decoded audio part as it arrives, so playback can start before
    *  the turn completes (the guide streams these into its gapless player). */
@@ -106,12 +109,18 @@ export interface SpeakOptions {
   signal?: AbortSignal
 }
 
+/** The collected clip. `turnComplete` is false when the socket closed before
+ *  Google finished the turn — still playable, but not cacheable as complete. */
+export interface SpokenClip extends Uint8Array {
+  turnComplete: boolean
+}
+
 /**
  * Connect with the grant, collect the model's audio until the turn completes,
  * and return the whole clip as 24 kHz PCM16 bytes. The token's locked system
  * instruction decides WHAT is spoken — the 'go' turn only starts it.
  */
-export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): Promise<Uint8Array> {
+export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): Promise<SpokenClip> {
   const { timeoutMs = 30_000, onChunk, signal } = opts
   const socket = new WebSocket(liveSocketUrl(grant))
   socket.binaryType = 'arraybuffer'
@@ -119,21 +128,30 @@ export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): P
 
   return new Promise((resolve, reject) => {
     let settled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
     const finish = (fn: () => void) => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      if (timer) clearTimeout(timer)
       signal?.removeEventListener('abort', onAbort)
       try { socket.close() } catch { /* already closed */ }
       fn()
     }
     const fail = (m: string) => finish(() => reject(new Error(m)))
-    const timer = setTimeout(() => fail('Voice timed out'), timeoutMs)
+    const done = (turnComplete: boolean) =>
+      finish(() => resolve(Object.assign(concatBytes(chunks), { turnComplete }) as SpokenClip))
+    // Re-armed on every message — an idle deadline, not a whole-turn cap.
+    const arm = () => {
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => fail('Voice timed out'), timeoutMs)
+    }
+    arm()
     const onAbort = () => finish(() => reject(new DOMException('Aborted', 'AbortError')))
     if (signal?.aborted) { onAbort(); return }
     signal?.addEventListener('abort', onAbort, { once: true })
 
     socket.onopen = () => {
+      arm()
       socket.send(JSON.stringify({ setup: { model: grant.model } }))
       // The locked instruction says what to speak; this just starts the turn.
       socket.send(JSON.stringify({
@@ -142,6 +160,7 @@ export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): P
     }
 
     socket.onmessage = async (ev) => {
+      arm()
       const msg = await parseLiveMessage(ev.data)
       if (!msg || settled) return
       const server = msg.serverContent ?? {}
@@ -152,13 +171,14 @@ export function speakViaGeminiLive(grant: LiveGrant, opts: SpeakOptions = {}): P
         chunks.push(bytes)
         onChunk?.(bytes)
       }
-      if (server.turnComplete) finish(() => resolve(concatBytes(chunks)))
+      if (server.turnComplete) done(true)
     }
 
     socket.onerror = () => fail('Could not reach the voice service')
     socket.onclose = () => {
-      // Closed without a turnComplete: salvage what arrived, else report.
-      if (chunks.length) finish(() => resolve(concatBytes(chunks)))
+      // Closed without a turnComplete: salvage what arrived (marked partial),
+      // else report.
+      if (chunks.length) done(false)
       else fail('Voice ended with no audio')
     }
   })
