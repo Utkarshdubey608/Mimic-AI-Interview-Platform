@@ -286,6 +286,13 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
     ids = [s["id"] for s in sessions if s.get("id")]
     reports = await asyncio.gather(*(store.reports.get(i) for i in ids))
     scores = {i: (r or {}).get("overallScore") for i, r in zip(ids, reports)}
+    # How many scored answers stand behind each score. DERIVED, never authored:
+    # the length of the report's perQuestion. The sessions list shows a score
+    # with the weight of evidence behind it rather than a bare number. None
+    # until a report exists, so the column stays empty instead of reading "0".
+    cited = {
+        i: (len((r or {}).get("perQuestion") or []) or None) for i, r in zip(ids, reports)
+    }
 
     items = [
         {
@@ -300,6 +307,7 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
             "startedAt": session.get("startedAt"),
             "completedAt": session.get("completedAt"),
             "overallScore": scores.get(session.get("id")),
+            "citedAnswers": cited.get(session.get("id")),
         }
         for session in sessions
     ]

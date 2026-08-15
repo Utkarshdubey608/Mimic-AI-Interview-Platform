@@ -1,29 +1,94 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut, Menu, X } from 'lucide-react'
+import {
+  LogOut, Menu, X, Files, GitBranch, FileText, ListChecks,
+  BarChart3, UserSquare2, Settings as SettingsIcon, KeyRound,
+} from 'lucide-react'
 import { cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuth } from '@/features/auth/AuthProvider'
+
+/**
+ * THE SPINE — the bundle's cover, carrying its sections.
+ *
+ * Replaces the seven flat top tabs. That row had no hierarchy: Sessions, which
+ * a recruiter opens every day, sat beside Settings, which they touch once a
+ * quarter. The spine groups the same seven destinations by how often they are
+ * needed, so the daily work is at the top of the eye's travel and configuration
+ * is at the bottom where it belongs.
+ *
+ * Ink ground, because a bundle has a cover and the pages do not. The active
+ * section is marked the way a tab is seated: a registrar-ink edge and a lifted
+ * ground, never a filled pill.
+ *
+ * Below `md` a spine cannot show, so it collapses into a disclosure holding
+ * every destination plus identity, sign-out and the API-key prompt — the same
+ * completeness rule the previous nav established, kept.
+ */
 
 function initialsOf(label: string): string {
   const parts = label.split(/[\s@._-]+/).filter(Boolean).slice(0, 2)
   return parts.map((p) => p[0]?.toUpperCase() ?? '').join('') || 'U'
 }
 
-// Menu bar = the Mimic design's 7-tab standard (Sessions · Templates · Question
-// sets · Pipelines · Analytics · Avatar studio · Settings). In Mimic's IA,
-// candidate results live inside Sessions → View report, and the avatar interview
-// room launches from Avatar studio (/setup) — so /interview and /results stay
-// as working routes but are intentionally not top-level tabs.
-const LINKS = [
-  { to: '/sessions',      label: 'Sessions' },
-  { to: '/templates',     label: 'Templates' },
-  { to: '/question-sets', label: 'Question sets' },
-  { to: '/pipelines',     label: 'Pipelines' },
-  { to: '/analytics',     label: 'Analytics' },
-  { to: '/setup',         label: 'Avatar studio' },
-  { to: '/settings',      label: 'Settings' },
+interface Dest { to: string; label: string; icon: typeof Files }
+interface Group { label: string; items: Dest[] }
+
+// Ordered by frequency of use, not by feature parity. In Mimic's IA candidate
+// results live inside Sessions → View report, and the avatar interview room
+// launches from Avatar studio, so /interview and /results stay routable without
+// being sections of the bundle.
+const GROUPS: Group[] = [
+  {
+    label: 'The record',
+    items: [
+      { to: '/sessions',  label: 'Sessions',  icon: Files },
+      { to: '/pipelines', label: 'Pipelines', icon: GitBranch },
+    ],
+  },
+  {
+    label: 'The standard',
+    items: [
+      { to: '/templates',     label: 'Templates',     icon: FileText },
+      { to: '/question-sets', label: 'Question sets', icon: ListChecks },
+    ],
+  },
+  {
+    label: 'Findings',
+    items: [
+      { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'Configuration',
+    items: [
+      { to: '/setup',    label: 'Avatar studio', icon: UserSquare2 },
+      { to: '/settings', label: 'Settings',      icon: SettingsIcon },
+    ],
+  },
 ]
+const ALL: Dest[] = GROUPS.flatMap((g) => g.items)
+
+/** The chevron mark, on ink. A confirmed brand asset — kept, re-grounded. */
+function Mark() {
+  return (
+    <span className="grid place-items-center h-8 w-8 rounded-md border border-brand-border bg-brand-card">
+      <svg viewBox="0 0 32 32" className="h-[17px] w-[17px]" aria-hidden="true">
+        <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#D7E0F5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  )
+}
+
+function itemClass(isActive: boolean) {
+  return cn(
+    'group relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 text-sm transition-colors duration-150',
+    // The seated-tab mark: an ink-blue edge and a lifted ground.
+    isActive
+      ? 'bg-brand-card text-brand-gold-light font-semibold before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-full before:bg-brand-gold'
+      : 'text-brand-gray hover:text-brand-gold-light hover:bg-brand-card/60 font-medium',
+  )
+}
 
 export function Nav() {
   const { interviewActive, tavusKey } = useAppStore()
@@ -32,9 +97,6 @@ export function Nav() {
   const location = useLocation()
   const label = user?.displayName || user?.email || ''
 
-  // Below md the seven tabs cannot fit, and an overflowing row put Pipelines,
-  // Analytics, Avatar studio, Settings and Sign out off-screen with no way to
-  // reach them. Collapse them into a disclosure menu instead.
   const [menuOpen, setMenuOpen] = useState(false)
   useEffect(() => { setMenuOpen(false) }, [location.pathname])
   useEffect(() => {
@@ -44,139 +106,172 @@ export function Nav() {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
+  const liveMark = interviewActive && (
+    <span className="inline-flex items-center gap-1.5 rounded-sm border border-success/40 bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-green-light">
+      <span className="live-dot" aria-hidden="true" /> Live
+    </span>
+  )
+
   return (
-    <header className="sticky top-0 z-40 bg-white/92 backdrop-blur-md border-b border-border" style={{ boxShadow: '0 1px 3px rgba(27,11,59,0.05)' }}>
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 h-[64px] flex items-center justify-between gap-3 md:gap-6">
-
-        {/* Brand — Mimic wordmark (product) */}
-        <button
-          onClick={() => navigate('/sessions')}
-          className="flex items-center gap-2.5 focus:outline-none flex-shrink-0"
-          aria-label="Mimic home"
-        >
-          <span className="grid place-items-center h-8 w-8 rounded-lg bg-brand-field shadow-primary-sm">
-            <svg viewBox="0 0 32 32" className="h-[18px] w-[18px]" aria-hidden="true">
-              <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="font-display text-[20px] font-extrabold tracking-[-0.035em] text-neutral-900">Mimic</span>
-        </button>
-
-        {/* Nav tabs — pill style exactly matching screenshot */}
-        <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {LINKS.map(l => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              className={({ isActive }) =>
-                cn(
-                  'px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 whitespace-nowrap',
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100',
-                )
-              }
-            >
-              {l.label}
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Right */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {interviewActive && (
-            <span className="flex items-center gap-1.5 text-xs font-bold text-mint-ink uppercase tracking-wider bg-mint-bg border border-mint-border px-3 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-              Live
-            </span>
-          )}
-
-          {!tavusKey && (
-            <button
-              onClick={() => navigate('/settings')}
-              className="hidden md:inline-flex text-xs font-medium text-warning bg-warning-bg border border-warning-border px-3 py-1.5 rounded-full hover:brightness-95 transition-[filter]"
-            >
-              Add API Key →
-            </button>
-          )}
-
-          {/* Signed-in user + sign out */}
-          <div
-            className="hidden md:flex w-9 h-9 rounded-full bg-brand-field items-center justify-center text-white text-xs font-bold shadow-primary-sm"
-            title={label}
+    <>
+      {/* ── Desktop: the spine ──────────────────────────────────────────── */}
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[15rem] flex-col bg-brand-black border-r border-brand-border">
+        <div className="flex items-center gap-2.5 px-4 h-[60px] flex-shrink-0">
+          <button
+            onClick={() => navigate('/sessions')}
+            className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-md"
+            aria-label="Mimic home"
           >
-            {initialsOf(label)}
+            <Mark />
+            <span className="font-display text-[19px] font-bold tracking-[-0.03em] text-white">Mimic</span>
+          </button>
+        </div>
+
+        {/* ACCOUNT — at the TOP, deliberately.
+            This lived in the spine's footer, pinned to the bottom edge of the
+            viewport. That is too fragile for the only way out of the app: any
+            condition that clips the bottom edge — a window taller than the
+            screen, browser zoom, mobile chrome — hid it completely, and it was
+            reported missing twice for exactly that reason. At the top it cannot
+            be clipped, and it is where sidebar products put account anyway. */}
+        <div className="flex-shrink-0 border-y border-brand-border px-2.5 py-2.5">
+          <div className="flex items-center gap-2.5 px-1 pb-2">
+            <span
+              aria-hidden="true"
+              className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md border border-brand-border bg-brand-card text-[10px] font-bold text-brand-gold-light"
+            >
+              {initialsOf(label)}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs text-brand-gold-light">{label}</span>
+              {user?.admin && <span className="block text-[10px] text-brand-gray">Administrator</span>}
+            </span>
           </div>
           <button
             onClick={() => void signOutUser()}
-            title="Sign out"
             aria-label="Sign out"
-            className="hidden md:flex items-center justify-center w-9 h-9 rounded-full text-neutral-500 hover:text-neutral-800 hover:bg-neutral-100 transition-colors"
+            className="flex w-full min-h-[38px] items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 text-sm font-medium text-brand-gray transition-colors duration-150 hover:bg-brand-card hover:text-brand-gold-light"
           >
-            <LogOut size={17} />
-          </button>
-
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            aria-controls="mimic-mobile-menu"
-            className="md:hidden flex items-center justify-center w-10 h-10 rounded-full text-neutral-700 hover:bg-neutral-100 transition-colors"
-          >
-            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            <LogOut size={15} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
+            Sign out
           </button>
         </div>
-      </div>
 
-      {/* Mobile disclosure — every destination the tab row holds on desktop */}
-      {menuOpen && (
-        <div id="mimic-mobile-menu" className="md:hidden border-t border-border bg-white px-4 py-3">
-          <nav className="flex flex-col gap-1">
-            {LINKS.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                className={({ isActive }) =>
-                  cn(
-                    'rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors duration-150',
-                    isActive ? 'bg-primary text-white' : 'text-neutral-700 hover:bg-neutral-100',
-                  )
-                }
-              >
-                {l.label}
-              </NavLink>
-            ))}
-          </nav>
+        <nav aria-label="Sections" className="flex-1 overflow-y-auto px-2.5 pb-3">
+          {GROUPS.map((g) => (
+            <div key={g.label} className="mb-5 last:mb-0">
+              <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-brand-gray/70">
+                {g.label}
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {g.items.map((d) => (
+                  <NavLink key={d.to} to={d.to} className={({ isActive }) => itemClass(isActive)}>
+                    <d.icon size={15} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
+                    {d.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
 
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border pt-3">
-            <span className="flex min-w-0 items-center gap-2.5">
-              <span
-                aria-hidden="true"
-                className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-brand-field text-[11px] font-bold text-white"
-              >
-                {initialsOf(label)}
-              </span>
-              <span className="truncate text-xs text-neutral-500">{label}</span>
-            </span>
-            <button
-              onClick={() => void signOutUser()}
-              className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition-colors"
-            >
-              <LogOut size={14} />
-              Sign out
-            </button>
-          </div>
+        {/* Footer now holds only secondary signals. Nothing essential lives at
+            the bottom edge, because the bottom edge is the first thing a short
+            viewport loses. */}
+        <div className="flex-shrink-0 border-t border-brand-border p-2.5 space-y-2 empty:hidden">
+          {liveMark && <div className="px-1">{liveMark}</div>}
 
           {!tavusKey && (
             <button
               onClick={() => navigate('/settings')}
-              className="mt-3 w-full rounded-full border border-warning-border bg-warning-bg px-3 py-2 text-xs font-medium text-warning"
+              className="flex w-full items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-left text-xs font-medium text-warning transition-colors hover:bg-warning/15"
             >
-              Add API Key →
+              <KeyRound size={13} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
+              Add an API key
             </button>
           )}
+
+
         </div>
-      )}
-    </header>
+      </aside>
+
+      {/* ── Mobile: cover bar + disclosure ──────────────────────────────── */}
+      <header className="md:hidden sticky top-0 z-40 bg-brand-black border-b border-brand-border">
+        <div className="flex h-14 items-center justify-between gap-3 px-4">
+          <button
+            onClick={() => navigate('/sessions')}
+            className="flex items-center gap-2.5 focus:outline-none"
+            aria-label="Mimic home"
+          >
+            <Mark />
+            <span className="font-display text-[18px] font-bold tracking-[-0.03em] text-white">Mimic</span>
+          </button>
+          <div className="flex items-center gap-2">
+            {liveMark}
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              aria-controls="mimic-mobile-menu"
+              className="flex h-10 w-10 items-center justify-center rounded-md text-brand-gold-light transition-colors hover:bg-brand-card"
+            >
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+
+        {menuOpen && (
+          <div id="mimic-mobile-menu" className="border-t border-brand-border px-3 py-3 animate-slide-up">
+            <nav aria-label="Sections">
+              {GROUPS.map((g) => (
+                <div key={g.label} className="mb-4 last:mb-0">
+                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.13em] text-brand-gray/70">
+                    {g.label}
+                  </p>
+                  <div className="flex flex-col gap-0.5">
+                    {g.items.map((d) => (
+                      <NavLink key={d.to} to={d.to} className={({ isActive }) => cn(itemClass(isActive), 'min-h-[44px]')}>
+                        <d.icon size={16} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
+                        {d.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-brand-border pt-3">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span
+                  aria-hidden="true"
+                  className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-md border border-brand-border bg-brand-card text-[11px] font-bold text-brand-gold-light"
+                >
+                  {initialsOf(label)}
+                </span>
+                <span className="truncate text-xs text-brand-gray">{label}</span>
+              </span>
+              <button
+                onClick={() => void signOutUser()}
+                className="inline-flex min-h-[44px] flex-shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-semibold text-brand-gold-light transition-colors hover:bg-brand-card"
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </div>
+
+            {!tavusKey && (
+              <button
+                onClick={() => navigate('/settings')}
+                className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-3 text-xs font-medium text-warning"
+              >
+                <KeyRound size={14} strokeWidth={2} aria-hidden="true" /> Add an API key
+              </button>
+            )}
+          </div>
+        )}
+      </header>
+    </>
   )
 }
+
+/** The seven destinations, for any surface that needs to enumerate them. */
+export const NAV_DESTINATIONS = ALL

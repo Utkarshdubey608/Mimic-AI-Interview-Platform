@@ -3,77 +3,101 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   BASE — Mimic violet system (inherited from the parent brand, Eightfold AI).
-   One family (Figtree), lavender-toned neutrals, violet primary, mint accents.
+   THE RECORD — base layer.
+
+   The world is the legal evidence bundle. Archivo carries the interface, and
+   its real width axis (wdth 62–125) does the work a second face would
+   otherwise do: display text sets EXPANDED, for the widened character of a
+   registrar's cover sheet, while body text sets normal. One family, two voices.
+
+   Chivo Mono appears only on machine values — line numbers, citations,
+   scores, IDs, timers. Measurement, never a costume for "technical".
 ───────────────────────────────────────────────────────────────────────────── */
 @layer base {
+  :root {
+    /* Exhibit-tab coding, exposed as vars so a track colour can be resolved
+       from data without a Tailwind class map. */
+    --ex-chat:    #B45309;
+    --ex-chatbot: #0F766E;
+    --ex-voice:   #4338CA;
+    --ex-avatar:  #BE185D;
+    --ex-video:   #15803D;
+    --ex-twoway:  #0369A1;
+
+    --ink:        #0E1420;
+    --ink-body:   #3A4454;
+    --ink-muted:  #5C6879;
+    --rule:       #E3E6ED;
+    --record:     #FFFFFF;
+    --desk:       #EEF0F4;
+    --registrar:  #1D3FA0;
+  }
+
   *, *::before, *::after { box-sizing: border-box; }
 
   html { font-size: 16px; scroll-behavior: smooth; }
 
   body {
-    font-family: 'Figtree', 'Roboto', system-ui, -apple-system, sans-serif;
-    background-color: #F7F5FB;   /* lavender-neutral app ground */
-    color: #1B0B3B;
+    font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+    /* font-stretch, NOT font-variation-settings. Google Fonts declares the
+       Archivo variable face as `font-stretch: 62% 125%`, so the high-level
+       property is the one that drives the width axis. font-variation-settings
+       would take precedence over the axes it names and does not compose
+       reliably with Tailwind's font-weight utilities, which risks headings
+       silently losing their weight. */
+    font-stretch: 100%;
+    background-color: var(--desk);
+    color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     line-height: 1.6;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.006em;
   }
 
-  /* Typography */
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Figtree', system-ui, sans-serif;
-    color: #1B0B3B;
-    letter-spacing: -0.028em;
-    line-height: 1.2;
+  /* Display voice: the width axis widened to 118%. This is why the face was
+     chosen — the same family carries both voices, so no second font loads. */
+  h1, h2, h3, h4, h5, h6, .font-display, .font-head {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-stretch: 118%;
+    color: var(--ink);
+    letter-spacing: -0.024em;
+    line-height: 1.16;
+    text-wrap: balance;
   }
 
-  /* Selection */
-  ::selection { background: #E0D4FB; color: #4A1BA8; }
+  /* Machine values sit on the mono, always tabular so columns align. */
+  .font-mono, code, kbd, samp, pre { font-variant-numeric: tabular-nums; }
 
-  /* Focus */
-  :focus-visible {
-    outline: 2px solid #6B2BE0;
-    outline-offset: 2px;
-  }
+  ::selection { background: #C6D2ED; color: #152E76; }
 
-  /* Range slider */
+  :focus-visible { outline: 2px solid var(--registrar); outline-offset: 2px; }
+
+  /* Range slider — squared track, squared thumb. No pills anywhere. */
   input[type='range'] { -webkit-appearance: none; cursor: pointer; background: transparent; }
-  input[type='range']::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 2px;
-    background: #E7E2F2;
-  }
+  input[type='range']::-webkit-slider-runnable-track { height: 3px; border-radius: 1px; background: var(--rule); }
   input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: #6B2BE0;
-    margin-top: -6px;
-    box-shadow: 0 1px 3px rgba(107,43,224,0.3);
-    transition: box-shadow 0.15s;
+    width: 14px; height: 14px; border-radius: 2px;
+    background: var(--registrar); margin-top: -6px;
+    box-shadow: 0 1px 3px rgb(14 20 32 / 0.24);
+    transition: box-shadow 0.15s ease;
   }
-  input[type='range']::-webkit-slider-thumb:hover { box-shadow: 0 0 0 6px rgba(107,43,224,0.12); }
+  input[type='range']::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgb(29 63 160 / 0.14); }
   input[type='range']::-moz-range-thumb {
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: #6B2BE0;
-    border: none;
-    box-shadow: 0 1px 3px rgba(107,43,224,0.3);
+    width: 14px; height: 14px; border-radius: 2px;
+    background: var(--registrar); border: none;
+    box-shadow: 0 1px 3px rgb(14 20 32 / 0.24);
   }
 
-  /* Checkbox / radio */
-  input[type='checkbox'], input[type='radio'] { accent-color: #6B2BE0; }
+  input[type='checkbox'], input[type='radio'] { accent-color: var(--registrar); }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #D2CBE4; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #9D93B8; }
+  ::-webkit-scrollbar-thumb { background: #CBD1DC; border-radius: 0; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #6E7889; background-clip: content-box; }
 
-  /* Reduced motion — collapse every animation and transition */
   @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
@@ -86,114 +110,161 @@
    COMPONENTS
 ───────────────────────────────────────────────────────────────────────────── */
 @layer components {
-  /* ── Form input ─────────────────────────────────────────────────────────── */
+
+  /* ── The record surface ─────────────────────────────────────────────────
+     A page in the bundle. Squared, hairline-ruled, with a real offset lift.
+     `.card` keeps its legacy name so every existing consumer inherits this. */
+  .record, .card {
+    background: var(--record);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    box-shadow: 0 1px 1px 0 rgb(14 20 32 / 0.04);
+  }
+  .card-hover, .record-hover {
+    transition: box-shadow 0.18s cubic-bezier(0.16,1,0.3,1),
+                border-color 0.18s cubic-bezier(0.16,1,0.3,1);
+  }
+  .card-hover:hover, .record-hover:hover {
+    border-color: #CBD1DC;
+    box-shadow: 0 4px 10px -2px rgb(14 20 32 / 0.09), 0 2px 4px -2px rgb(14 20 32 / 0.05);
+  }
+
+  /* ── Filed header strip ─────────────────────────────────────────────────
+     The ruled band at the top of a record. Replaces the gradient hairline. */
+  .record-head {
+    border-bottom: 1px solid var(--rule);
+    box-shadow: inset 0 2px 0 0 var(--ink);
+  }
+
+  /* ── Exhibit tab ────────────────────────────────────────────────────────
+     The index tab on a bundle section. The colour IS the interview format.
+     Fully squared: the 3px seated edge is the tab's whole point, and a radius
+     would leave that colour band dying into a curve at both ends. */
+  /* The seated edge is drawn as an inset shadow rather than a bottom border:
+     identical pixels, but it stays outside the border box, so the tab's height
+     and text baseline do not shift with the colour band, and the band can never
+     interact with a corner radius. `--seat` is the format's exhibit colour. */
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 9px 4px 8px;
+    font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.01em;
+    color: var(--ink); background: #F8F9FB;
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    box-shadow: inset 0 -3px 0 0 var(--seat, var(--ink-muted));
+  }
+  .tab-chat    { --seat: var(--ex-chat); }
+  .tab-chatbot { --seat: var(--ex-chatbot); }
+  .tab-voice   { --seat: var(--ex-voice); }
+  .tab-avatar  { --seat: var(--ex-avatar); }
+  .tab-video   { --seat: var(--ex-video); }
+  .tab-twoway  { --seat: var(--ex-twoway); }
+
+  /* ── Citation ───────────────────────────────────────────────────────────
+     The product's signature affordance: a score that names its evidence.
+     Mono because it is a reference, underlined because it is a link. */
+  .cite {
+    font-family: 'Chivo Mono', ui-monospace, monospace;
+    font-size: 0.75rem; font-variant-numeric: tabular-nums;
+    color: var(--registrar);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: #9AAEDF;
+    transition: text-decoration-color 0.15s ease, color 0.15s ease;
+  }
+  .cite:hover { text-decoration-color: var(--registrar); color: #152E76; }
+
+  /* Line number in a transcript gutter. Right-aligned, recessive, tabular. */
+  .gutter-num {
+    font-family: 'Chivo Mono', ui-monospace, monospace;
+    font-size: 0.6875rem; font-variant-numeric: tabular-nums;
+    color: #6E7889; text-align: right; user-select: none;
+  }
+
+  /* ── Form field ─────────────────────────────────────────────────────────
+     Squared, because a pill text field reads as a search box and because the
+     pill grammar left with the inherited brand. */
   .input-base {
-    width: 100%;
-    height: 44px;
-    padding: 0 14px;
-    font-size: 0.9rem;
-    font-family: 'Figtree', 'Roboto', sans-serif;
-    color: #1B0B3B;
-    background: #ffffff;
-    border: 1.5px solid #948BAB;
-    border-radius: 12px;
+    width: 100%; height: 40px; padding: 0 11px;
+    font-size: 0.9375rem;
+    font-family: 'Archivo', system-ui, sans-serif;
+    color: var(--ink); background: var(--record);
+    border: 1px solid #848FA1; border-radius: 4px;
     outline: none;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .input-base::placeholder { color: #645C7B; }
-  .input-base:hover  { border-color: #C9B3F7; }
-  .input-base:focus  { border-color: #6B2BE0; box-shadow: 0 0 0 3px rgba(107,43,224,0.12); }
+  .input-base::placeholder { color: var(--ink-muted); }
+  .input-base:hover  { border-color: #6E7889; }
+  .input-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(29 63 160 / 0.13); }
 
   .textarea-base {
-    width: 100%;
-    padding: 10px 13px;
-    font-size: 0.875rem;
-    font-family: 'Figtree', 'Roboto', sans-serif;
-    color: #1B0B3B;
-    background: #ffffff;
-    border: 1.5px solid #948BAB;
-    border-radius: 12px;
-    outline: none;
-    resize: vertical;
-    min-height: 96px;
-    line-height: 1.6;
+    width: 100%; padding: 9px 11px;
+    font-size: 0.9375rem;
+    font-family: 'Archivo', system-ui, sans-serif;
+    color: var(--ink); background: var(--record);
+    border: 1px solid #848FA1; border-radius: 4px;
+    outline: none; resize: vertical; min-height: 96px; line-height: 1.6;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .textarea-base::placeholder { color: #645C7B; }
-  .textarea-base:hover  { border-color: #C9B3F7; }
-  .textarea-base:focus  { border-color: #6B2BE0; box-shadow: 0 0 0 3px rgba(107,43,224,0.12); }
+  .textarea-base::placeholder { color: var(--ink-muted); }
+  .textarea-base:hover  { border-color: #6E7889; }
+  .textarea-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(29 63 160 / 0.13); }
 
-  /* ── Label ──────────────────────────────────────────────────────────────── */
   .field-label {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #5D5578;
-    letter-spacing: 0.025em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
+    font-size: 0.75rem; font-weight: 600;
+    color: var(--ink-body);
+    letter-spacing: 0.01em;
+    margin-bottom: 5px;
   }
 
-  /* ── Card ───────────────────────────────────────────────────────────────── */
-  .card {
-    background: #ffffff;
-    border: 1px solid #E7E2F2;
-    border-radius: 16px;
-    box-shadow: 0 1px 3px rgba(27,11,59,0.05), 0 1px 2px rgba(27,11,59,0.03);
-  }
-  .card-hover {
-    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-  }
-  .card-hover:hover {
-    border-color: #CDB8F5;
-    box-shadow: 0 4px 12px -2px rgb(27 11 59 / 0.08), 0 2px 6px -2px rgb(27 11 59 / 0.05);
-    transform: translateY(-1px);
-  }
-
-  /* ── Section header ─────────────────────────────────────────────────────── */
+  /* ── Ruled section label ────────────────────────────────────────────────
+     A label that rules off a region. It never sits above a heading as an
+     eyebrow; it labels a column, a field group, or a table region. */
   .section-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #6B2BE0;
+    font-size: 0.6875rem; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-muted);
   }
 
-  /* ── Pill / kicker ──────────────────────────────────────────────────────── */
+  /* Legacy `.pill` name, redefined as a squared meta label. Nothing in this
+     world is pill-shaped. */
   .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    background: #F0E9FD;
-    color: #4A1BA8;
-    border: 1px solid #E0D4FB;
-    padding: 4px 11px;
-    border-radius: 9999px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.6875rem; font-weight: 650;
+    letter-spacing: 0.01em;
+    background: #F1F3F7; color: var(--ink-body);
+    border: 1px solid var(--rule);
+    padding: 2px 8px; border-radius: 3px;
   }
 
-  /* ── Live dot ───────────────────────────────────────────────────────────── */
+  /* ── The stamp ──────────────────────────────────────────────────────────
+     The filed/sealed mark. Ruled box, tracked caps, seal ink. Used for a
+     terminal state — never as decoration. */
+  .stamp {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 0.625rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: #B3261E; border: 1.5px solid #B3261E;
+    padding: 2px 7px; border-radius: 2px;
+  }
+  .stamp-filed { color: #15803D; border-color: #15803D; }
+
   .live-dot {
-    display: inline-block;
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #0F7A5F;
-    animation: pulse 2.5s ease-in-out infinite;
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #15803D; animation: pulseLive 1.6s ease-in-out infinite;
   }
 
-  /* ── Status badge ───────────────────────────────────────────────────────── */
-  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 600; letter-spacing: -0.005em; }
-  .badge-success { background: #E4F6F0; color: #0F7A5F; border: 1px solid #B8E8D8; }
-  .badge-warning { background: #FDF3E2; color: #8F5A00; border: 1px solid #F5D9A8; }
-  .badge-danger  { background: #fef2f2; color: #C1332B; border: 1px solid #fecaca; }
-  .badge-neutral { background: #F3F1F9; color: #5D5578; border: 1px solid #E7E2F2; }
-  .badge-info    { background: #F0E9FD; color: #6B2BE0; border: 1px solid #E0D4FB; }
+  /* ── Status badge — squared, ruled, ink-toned ───────────────────────── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 3px; font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.005em; }
+  .badge-success { background: #EFF7F1; color: #15803D; border: 1px solid #C9E5D2; }
+  .badge-warning { background: #FDF5EA; color: #8A4308; border: 1px solid #F0DBBC; }
+  .badge-danger  { background: #FCF0EF; color: #B3261E; border: 1px solid #F0CFCC; }
+  .badge-neutral { background: #F1F3F7; color: var(--ink-body); border: 1px solid var(--rule); }
+  .badge-info    { background: #E2E8F6; color: #152E76; border: 1px solid #C6D2ED; }
 
-  /* ── Divider ────────────────────────────────────────────────────────────── */
-  .divider { width: 100%; height: 1px; background: #E7E2F2; }
+  .divider { width: 100%; height: 1px; background: var(--rule); }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -206,13 +277,28 @@
 
   .text-balance { text-wrap: balance; }
 
-  /* Atmosphere for the full-screen auth surfaces. Two large, soft violet
-     washes — not a tiled hairline grid, which reads as graph paper and is a
-     generic "generated UI" tell. Fixed size so it never repeats. */
+  /* Body measure. 65–75ch keeps a transcript readable. */
+  .measure { max-width: 68ch; }
+
+  /* Tabular numerics for every score, count and duration in a column. */
+  .nums { font-variant-numeric: tabular-nums; }
+
+  /* Atmosphere for the full-screen auth surfaces: the slipcase, lit from one
+     side. Two soft cool washes, fixed size so nothing tiles. */
   .bg-brand-wash {
     background-image:
-      radial-gradient(60rem 40rem at 12% -10%, rgba(107, 43, 224, 0.10), transparent 60%),
-      radial-gradient(50rem 34rem at 92% 108%, rgba(196, 44, 147, 0.08), transparent 62%);
+      radial-gradient(58rem 38rem at 8% -12%, rgba(29, 63, 160, 0.13), transparent 62%),
+      radial-gradient(46rem 32rem at 96% 110%, rgba(14, 20, 32, 0.10), transparent 64%);
     background-repeat: no-repeat;
+  }
+
+  /* The ruled gutter of a transcript page. 28px rhythm matches the line box.
+     This previously resolved to `none` — a dead no-op — so the ruling a bundle
+     page is actually made of never rendered anywhere. */
+  .ruled {
+    background-image: repeating-linear-gradient(
+      to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px
+    );
+    background-position: 0 0;
   }
 }

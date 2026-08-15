@@ -37,7 +37,7 @@ type Stage = 'connecting' | 'live' | 'ending' | 'ended' | 'error'
  */
 export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
   const reduce = useReducedMotion()
-  const accent = branding.accentColor || '#6B2BE0'
+  const accent = branding.accentColor || '#8AA6F0'
 
   const [stage, setStage] = useState<Stage>('connecting')
   // Face-fit gate (first entry only — mount-time value; later prop changes are
@@ -195,7 +195,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">{error}</p>
           <button
             onClick={() => { setError(null); setAttempt((a) => a + 1) }}
-            className="mt-6 inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
             style={{ background: accent }}
           >
             <RefreshCw size={15} /> Try again
@@ -224,7 +224,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
         <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
           <span className="truncate">{branding.companyName}</span>
           {stage === 'live' && (
-            <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
+            <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
             </span>
           )}
@@ -233,7 +233,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
         <div className="flex flex-shrink-0 items-center gap-3">
           {progress.total > 0 && progress.asked > 0 && (
             <span
-              className="hidden items-center gap-2.5 rounded-full border border-brand-border bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-brand-gold-light sm:inline-flex"
+              className="hidden items-center gap-2.5 rounded-md border border-brand-border bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-brand-gold-light sm:inline-flex"
               aria-live="polite"
             >
               <span className="h-1 w-12 overflow-hidden rounded-full bg-white/10">
@@ -248,7 +248,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           <button
             onClick={() => { if (window.confirm('End the interview now? You can’t rejoin afterwards.')) void finish() }}
             disabled={stage === 'ending'}
-            className="inline-flex items-center gap-1.5 rounded-full border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
+            className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
           >
             {stage === 'ending' ? <Loader2 size={15} className="animate-spin" /> : <PhoneOff size={15} />}
             End interview
@@ -288,7 +288,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
               </div>
 
               <div className="flex flex-col items-center gap-2">
-                <span className="flex items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-gold-light">
+                <span className="flex items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-gold-light">
                   <Loader2 size={11} className="animate-spin" />
                   {stage === 'ending' ? 'Finishing' : 'Preparing'}
                 </span>

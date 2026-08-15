@@ -16,10 +16,17 @@ import { IntroFaceSync } from '@/features/intro/IntroFaceSync'
  */
 export default function RecruiterShell() {
   useEffect(() => { refreshServiceStatus() }, [])
+  // The spine is fixed at 15rem on md+, so the record surface is inset by that
+  // width rather than sitting under it. Below md the spine becomes a sticky
+  // cover bar and the inset drops to zero.
   return (
     <div className="min-h-screen bg-background font-sans">
       <Nav />
-      <main>
+      {/* pr-20 on md+ reserves the column the floating guide launcher occupies.
+          A `fixed` overlay over a long scroll always covers whatever row is at
+          the bottom of the viewport, so the only real fix is to keep content out
+          of its lane rather than to pad the end of the document. */}
+      <main className="md:pl-[15rem] md:pr-20">
         <Outlet />
       </main>
       {/* Background, one-time sync of real replica thumbnails into the intro's

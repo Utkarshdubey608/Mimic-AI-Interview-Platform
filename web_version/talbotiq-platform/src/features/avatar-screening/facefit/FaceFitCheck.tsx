@@ -43,8 +43,8 @@ type CameraState = 'requesting' | 'ready' | 'denied' | 'error'
    The stage is brand-black, so the accent used for INK is the light violet
    (brand-gold token) rather than the deep primary, which would disappear. Mint
    marks the positive/locked state; the caller's accent fills solid controls. */
-const INK_ACCENT = '#B98CFF'   // brand-gold — violet that reads on near-black
-const LOCK = '#8FE3D0'         // mint — framed, held, locked in (always dark ink on top)
+const INK_ACCENT = '#8AA6F0'   // brand-gold — violet that reads on near-black
+const LOCK = '#7FD4AE'         // mint — framed, held, locked in (always dark ink on top)
 
 const HINT_ICON: Record<HintId, LucideIcon> = {
   no_face: ScanFace,
@@ -68,7 +68,7 @@ const EMPTY_CHECKS: FramingChecks = {
   present: false, single: false, centered: false, distanceOk: false, frontal: false, lightingOk: false,
 }
 
-export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, autoStart = AUTO_START }: Props) {
+export function FaceFitCheck({ onReady, accentColor = '#8AA6F0', candidateName, autoStart = AUTO_START }: Props) {
   const reduce = useReducedMotion() ?? false
   const accent = accentColor
 
@@ -264,7 +264,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
         {/* Eyebrow + heading */}
         <div className="mb-6 text-center">
           <span
-            className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
             style={{ borderColor: `${INK_ACCENT}59`, color: INK_ACCENT, background: `${INK_ACCENT}1f` }}
           >
             <ScanFace size={13} strokeWidth={2} aria-hidden="true" /> Pre-flight framing check
@@ -284,7 +284,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
         {/* ── Camera stage ── */}
         <div
           className="relative mx-auto aspect-[4/5] w-full overflow-hidden rounded-3xl border-2 bg-brand-card shadow-xl"
-          style={{ borderColor: good ? `${LOCK}b3` : '#332154', transition: 'border-color .4s ease' }}
+          style={{ borderColor: good ? `${LOCK}b3` : '#2A3446', transition: 'border-color .4s ease' }}
         >
           <video
             ref={videoRef}
@@ -312,7 +312,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
           {/* Loading model */}
           {camera === 'ready' && modelStatus === 'loading' && (
             <div className="absolute inset-x-0 top-3 flex justify-center">
-              <span className="flex items-center gap-2 rounded-full border border-brand-border bg-brand-black/80 px-3 py-1.5 text-xs font-medium text-brand-gold-light backdrop-blur">
+              <span className="flex items-center gap-2 rounded-md border border-brand-border bg-brand-black/80 px-3 py-1.5 text-xs font-medium text-brand-gold-light backdrop-blur">
                 <Loader2 size={13} className="animate-spin" aria-hidden="true" /> Starting face tracking…
               </span>
             </div>
@@ -346,7 +346,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
                   </div>
                   <button
                     onClick={requestCamera}
-                    className="mt-1 inline-flex h-10 items-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white transition-transform duration-150 hover:-translate-y-px"
+                    className="mt-1 inline-flex h-10 items-center gap-1.5 rounded-md px-5 text-sm font-semibold text-white transition-transform duration-150 hover:-translate-y-px"
                     style={{ background: accent }}
                   >
                     <RefreshCw size={14} aria-hidden="true" /> Try camera again
@@ -365,8 +365,8 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
                 className="absolute inset-x-0 bottom-3 flex justify-center"
               >
                 <span
-                  className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-bold shadow-lg"
-                  style={{ background: LOCK, color: '#1B0B3B' }}
+                  className="flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-bold shadow-lg"
+                  style={{ background: LOCK, color: '#0E1420' }}
                 >
                   <Check size={15} strokeWidth={3} aria-hidden="true" /> Locked in
                 </span>
@@ -387,7 +387,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
                 transition={{ duration: 0.2 }}
-                className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold"
+                className="flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-semibold"
                 style={{
                   borderColor: good ? `${LOCK}66` : `${INK_ACCENT}4d`,
                   background: good ? `${LOCK}1f` : `${INK_ACCENT}1a`,
@@ -406,11 +406,11 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
             {checklist.map(({ ok, label, Icon }) => (
               <span
                 key={label}
-                className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors duration-150"
+                className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors duration-150"
                 style={{
-                  borderColor: ok ? `${LOCK}59` : '#332154',
+                  borderColor: ok ? `${LOCK}59` : '#2A3446',
                   background: ok ? `${LOCK}1a` : 'rgba(255,255,255,0.03)',
-                  color: ok ? LOCK : '#9D93B8',
+                  color: ok ? LOCK : '#93A0B4',
                 }}
               >
                 {ok
@@ -435,7 +435,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
           {locked && !autoStart && !starting && (
             <button
               onClick={proceed}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-neutral-900 shadow-mint-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-neutral-900 shadow-mint-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
               style={{ background: LOCK }}
             >
               Start interview <ArrowRight size={18} strokeWidth={2.25} aria-hidden="true" />
@@ -450,7 +450,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
               </p>
               <button
                 onClick={proceed}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white shadow-primary-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-primary-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
                 style={{ background: accent }}
               >
                 <CheckCircle2 size={18} strokeWidth={2} aria-hidden="true" /> I’m ready, start
@@ -463,7 +463,7 @@ export function FaceFitCheck({ onReady, accentColor = '#6B2BE0', candidateName, 
             <div className="text-center">
               <button
                 onClick={proceed}
-                className="rounded-full px-3 py-1.5 text-xs font-semibold text-brand-gray underline decoration-brand-border underline-offset-4 transition-colors duration-150 hover:text-white hover:decoration-brand-gold"
+                className="rounded-md px-3 py-1.5 text-xs font-semibold text-brand-gray underline decoration-brand-border underline-offset-4 transition-colors duration-150 hover:text-white hover:decoration-brand-gold"
               >
                 Having trouble? Start the interview anyway
               </button>

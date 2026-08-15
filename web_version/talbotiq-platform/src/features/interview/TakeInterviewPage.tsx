@@ -20,7 +20,7 @@ import { VideoInterview } from './screens/VideoStage'
 import { Completion } from './screens/Completion'
 import type { BrandingConfig } from '@shared/types'
 
-const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#6B2BE0' }
+const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#1D3FA0' }
 
 type PreStep = 'track' | 'welcome' | 'resume' | 'systemcheck'
 
@@ -57,7 +57,7 @@ export default function TakeInterviewPage() {
               <Skeleton className="h-20 w-full rounded-2xl" />
               <Skeleton className="h-20 w-full rounded-2xl" />
             </div>
-            <Skeleton className="mt-8 h-12 w-full rounded-full" />
+            <Skeleton className="mt-8 h-12 w-full rounded-md" />
           </div>
         </main>
       </div>

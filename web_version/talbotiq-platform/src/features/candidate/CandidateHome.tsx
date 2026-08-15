@@ -1,14 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { CalendarClock, CheckCircle2, LogOut, Inbox, AlertTriangle, RotateCw } from 'lucide-react'
-import { Button, Skeleton } from '@/components/ui'
+import { Button, Skeleton, ExhibitTab } from '@/components/ui'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { CandidateAssignedSession } from '@shared/types'
-
-const TRACK_LABEL: Record<string, string> = {
-  chat: 'Timed Q&A', chatbot: 'Conversational', video_avatar: 'Video Avatar', voice: 'Voice',
-}
 
 export default function CandidateHome() {
   const { user, signOutUser } = useAuth()
@@ -26,7 +22,7 @@ export default function CandidateHome() {
             <span className="hidden text-sm text-neutral-500 sm:inline">{user?.email}</span>
             <button
               onClick={() => void signOutUser()}
-              className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50/60"
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50/60"
             >
               <LogOut size={15} /> Sign out
             </button>
@@ -54,7 +50,7 @@ export default function CandidateHome() {
           ) : isError ? (
             <Card>
               <div className="flex flex-col items-center py-6 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full border border-danger-border bg-danger-bg text-danger">
+                <span className="flex h-12 w-12 items-center justify-center rounded-md border border-danger-border bg-danger-bg text-danger">
                   <AlertTriangle size={20} strokeWidth={1.75} />
                 </span>
                 <h2 className="mt-4 font-display text-base font-bold tracking-[-0.02em] text-neutral-900">
@@ -100,19 +96,17 @@ function SessionRow({ s }: { s: CandidateAssignedSession }) {
         <p className="truncate font-semibold text-neutral-900">{s.templateName}</p>
         <div className="mt-1 flex min-w-0 items-center gap-2">
           {s.role ? <span className="truncate text-xs text-neutral-500">{s.role}</span> : null}
-          <span className="flex-shrink-0 rounded-full border border-border bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-600">
-            {TRACK_LABEL[s.track] ?? s.track}
-          </span>
+          <ExhibitTab track={s.track} />
         </div>
       </div>
       {done ? (
-        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-3 py-1.5 text-sm font-semibold text-success">
+        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-sm font-semibold text-success">
           <CheckCircle2 size={15} /> Completed
         </span>
       ) : (
         <Link
           to={`/take/${s.id}`}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-primary-700 px-4 py-2 text-sm font-semibold text-white shadow-primary-sm transition-all duration-150 hover:bg-primary-800 hover:shadow-primary-md"
+          className="flex flex-shrink-0 items-center gap-1.5 rounded-md bg-primary-700 px-4 py-2 text-sm font-semibold text-white shadow-primary-sm transition-all duration-150 hover:bg-primary-800 hover:shadow-primary-md"
         >
           <CalendarClock size={15} /> {s.status === 'in_progress' ? 'Continue' : 'Start interview'}
         </Link>

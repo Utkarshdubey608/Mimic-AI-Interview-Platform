@@ -33,7 +33,7 @@ const TRACK_LABEL: Record<string, string> = {
   two_way: 'Two-way Interview',
 }
 
-const scoreColor = (s: number) => (s >= 75 ? '#0F7A5F' : s >= 55 ? '#B45309' : '#dc2626')
+const scoreColor = (s: number) => (s >= 75 ? '#15803D' : s >= 55 ? '#B45309' : '#dc2626')
 
 /** Locale-aware timestamp — readable in the UI and in the exported PDF. */
 const stamp = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -141,15 +141,15 @@ function MastheadSkeleton() {
       <div className="h-1 w-full bg-brand-field" />
       <div className="grid gap-7 p-6 md:grid-cols-[1fr_auto] md:items-center md:gap-8 md:p-7">
         <div className="min-w-0">
-          <Skeleton className="h-6 w-36 rounded-full" />
+          <Skeleton className="h-6 w-36" />
           <Skeleton className="mt-4 h-8 w-64 max-w-full" />
           <Skeleton className="mt-3 h-4 w-80 max-w-full" />
           <Skeleton className="mt-2 h-3 w-44 max-w-full" />
-          <Skeleton className="mt-5 h-10 w-36 rounded-full" />
+          <Skeleton className="mt-5 h-10 w-36" />
         </div>
         <div className="flex flex-col items-center gap-4 border-t border-border pt-6 md:border-l md:border-t-0 md:pl-8 md:pt-0">
           <Skeleton className="h-[160px] w-[160px] rounded-full" />
-          <Skeleton className="h-7 w-28 rounded-full" />
+          <Skeleton className="h-7 w-28" />
         </div>
       </div>
     </Card>
@@ -185,7 +185,7 @@ function ReportSkeleton() {
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="flex items-center gap-3">
                 <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-2 flex-1 rounded-full" />
+                <Skeleton className="h-2 flex-1" />
                 <Skeleton className="h-3 w-8" />
               </div>
             ))}
@@ -201,7 +201,7 @@ function ReportSkeleton() {
           <div key={i} className="flex items-center gap-3 border-b border-border px-5 py-4 last:border-0">
             <Skeleton className="h-7 w-7 rounded-lg" />
             <Skeleton className="h-3.5 flex-1" />
-            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-16" />
           </div>
         ))}
       </Card>
@@ -296,7 +296,7 @@ function Gauge({ score }: { score: number }) {
   return (
     <div className="relative flex items-center justify-center" style={{ width: 160, height: 160 }}>
       <svg width="160" height="160" viewBox="0 0 160 160" className="-rotate-90" aria-hidden="true">
-        <circle cx="80" cy="80" r={R} fill="none" stroke="#E7E2F2" strokeWidth="12" />
+        <circle cx="80" cy="80" r={R} fill="none" stroke="#E3E6ED" strokeWidth="12" />
         <circle cx="80" cy="80" r={R} fill="none" stroke={color} strokeWidth="12" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -312,7 +312,7 @@ function GaugePlaceholder() {
   return (
     <div className="relative flex items-center justify-center" style={{ width: 160, height: 160 }}>
       <svg width="160" height="160" viewBox="0 0 160 160" aria-hidden="true">
-        <circle cx="80" cy="80" r="64" fill="none" stroke="#E7E2F2" strokeWidth="12" strokeLinecap="round" strokeDasharray="4 14" />
+        <circle cx="80" cy="80" r="64" fill="none" stroke="#E3E6ED" strokeWidth="12" strokeLinecap="round" strokeDasharray="4 14" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-display text-4xl font-extrabold text-neutral-300">—</span>
@@ -343,8 +343,16 @@ export default function ReportPage() {
     // Transient blips (token refresh, network) must not kill the page —
     // especially while polling. Retry before surfacing an error.
     retry: 2,
-    // Poll while scoring is still in flight.
-    refetchInterval: (query) => ((query.state.data as SessionReportView | undefined)?.report ? false : 2500),
+    // Poll while scoring is still in flight — but STOP once the query has
+    // failed. The condition used to be "no report yet → keep polling", which on
+    // a permanent failure (a 404 on an unowned session, say) polled every 2.5s
+    // forever: the recruiter sat on skeletons indefinitely instead of reaching
+    // the error branch below, and the API took a request every 2.5s for as long
+    // as the tab stayed open.
+    refetchInterval: (query) =>
+      query.state.status === 'error'
+        ? false
+        : ((query.state.data as SessionReportView | undefined)?.report ? false : 2500),
   })
 
   if (q.isLoading) {
@@ -426,7 +434,7 @@ export default function ReportPage() {
               <ScoreColumn>
                 <div aria-hidden="true" className="flex flex-col items-center gap-4">
                   <Skeleton className="h-[160px] w-[160px] rounded-full" />
-                  <Skeleton className="h-7 w-28 rounded-full" />
+                  <Skeleton className="h-7 w-28" />
                 </div>
               </ScoreColumn>
             </div>
@@ -524,10 +532,10 @@ export default function ReportPage() {
               <PanelHead icon={<Target size={14} strokeWidth={2} />} title="KPI profile" className="mb-1" />
               <ResponsiveContainer width="100%" height={260}>
                 <RadarChart data={rubric.kpis.filter((k) => k.enabled).map((k) => ({ kpi: k.label, score: report.kpiAverages[k.id] ?? 0 }))}>
-                  <PolarGrid stroke="#E7E2F2" />
-                  <PolarAngleAxis dataKey="kpi" tick={{ fontSize: 11, fill: '#7C7595' }} />
+                  <PolarGrid stroke="#E3E6ED" />
+                  <PolarAngleAxis dataKey="kpi" tick={{ fontSize: 11, fill: '#5C6879' }} />
                   <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar dataKey="score" stroke="#6B2BE0" strokeWidth={2} fill="#6B2BE0" fillOpacity={0.22} />
+                  <Radar dataKey="score" stroke="#1D3FA0" strokeWidth={2} fill="#1D3FA0" fillOpacity={0.22} />
                 </RadarChart>
               </ResponsiveContainer>
             </Card>

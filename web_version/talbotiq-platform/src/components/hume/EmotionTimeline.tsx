@@ -7,13 +7,13 @@ import type { EmotionSnapshot, EmotionCategory } from '@/types/hume.types'
 // Brand series palette — violet leads, then indigo / magenta / amber. Distinct
 // at a glance without leaving the Mimic spectrum.
 const SERIES: { key: EmotionCategory; color: string; label: string }[] = [
-  { key: 'positive_high', color: '#6B2BE0', label: 'Energy' },
-  { key: 'positive_calm', color: '#5B6FE8', label: 'Calm' },
-  { key: 'cognitive',     color: '#C42C93', label: 'Focus' },
+  { key: 'positive_high', color: '#1D3FA0', label: 'Energy' },
+  { key: 'positive_calm', color: '#3D5CB4', label: 'Calm' },
+  { key: 'cognitive',     color: '#BE185D', label: 'Focus' },
   { key: 'negative',      color: '#B45309', label: 'Stress' },
 ]
 
-const GRID = '#E7E2F2'
+const GRID = '#E3E6ED'
 
 interface Props {
   timeline: EmotionSnapshot[]
@@ -57,13 +57,13 @@ export function EmotionTimeline({ timeline }: Props) {
           <CartesianGrid stroke={GRID} strokeDasharray="4 4" vertical={false} />
           <XAxis
             dataKey="t"
-            tick={{ fill: '#7C7595', fontSize: 11 }}
+            tick={{ fill: '#5C6879', fontSize: 11 }}
             tickFormatter={v => `${v}s`}
             axisLine={{ stroke: GRID }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: '#7C7595', fontSize: 11 }}
+            tick={{ fill: '#5C6879', fontSize: 11 }}
             domain={[0, yMax]}
             tickFormatter={v => `${v}%`}
             axisLine={false}
@@ -74,14 +74,14 @@ export function EmotionTimeline({ timeline }: Props) {
             cursor={{ stroke: GRID }}
             contentStyle={{
               background: '#ffffff',
-              border: '1px solid #E7E2F2',
+              border: '1px solid #E3E6ED',
               borderRadius: 10,
-              color: '#1B0B3B',
+              color: '#0E1420',
               fontSize: 12,
               fontFamily: 'Figtree, system-ui, sans-serif',
               boxShadow: '0 8px 24px -4px rgb(27 11 59 / 0.10), 0 4px 10px -4px rgb(27 11 59 / 0.06)',
             }}
-            labelStyle={{ color: '#1B0B3B', fontWeight: 600 }}
+            labelStyle={{ color: '#0E1420', fontWeight: 600 }}
             formatter={(v: number, name: string) => {
               const s = SERIES.find(s => s.key === name)
               return [`${v}%`, s?.label ?? name]
@@ -94,7 +94,7 @@ export function EmotionTimeline({ timeline }: Props) {
             wrapperStyle={{ paddingTop: 10, fontSize: 12 }}
             formatter={(value) => {
               const s = SERIES.find(s => s.key === value)
-              return <span style={{ color: '#5D5578', fontWeight: 500 }}>{s?.label ?? value}</span>
+              return <span style={{ color: '#4A5566', fontWeight: 500 }}>{s?.label ?? value}</span>
             }}
           />
           {SERIES.map(sr => (
