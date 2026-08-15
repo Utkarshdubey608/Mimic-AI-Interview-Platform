@@ -139,6 +139,68 @@ async def _pending_invites(settings, email: str, already_listed: set[str]) -> li
     return await asyncio.to_thread(_fetch)
 
 
+async def _recruiter_pending_invites(
+    settings, uid: str, already_listed: set[str]
+) -> list[dict]:
+    """Invites this recruiter has sent that no candidate has opened yet.
+
+    The recruiter-side mirror of `_pending_invites`, for the same reason: a bulk
+    invite writes an `interviews` document and nothing else, so until the candidate
+    opens their link there is no session row — and a recruiter who just sent ten
+    invites sees none of them on the sessions list, which reads as the send having
+    silently failed. Same shape as a session row; same best-effort rule.
+
+    Names follow the invite bridge (`{role} — invite`) so a row keeps its name when
+    the candidate opens the link and the real session replaces it.
+    """
+    import asyncio
+
+    def _fetch() -> list[dict]:
+        try:
+            documents = (
+                interview_invite.interviews(settings)
+                .where("recruiterId", "==", uid)
+                .get()
+            )
+        except Exception as exc:  # noqa: BLE001 - convenience list, never fatal
+            logger.warning(
+                "could not read sent invites for %s: %s", uid, type(exc).__name__
+            )
+            return []
+
+        rows: list[dict] = []
+        for document in documents:
+            if document.id in already_listed:
+                continue
+            data = document.to_dict() or {}
+            email = data.get("candidateEmail") or data.get("candidateEmailLower") or ""
+            role = str(data.get("role") or "").strip()
+            rows.append(
+                {
+                    "id": document.id,
+                    "candidate": {
+                        "name": data.get("candidateName") or "",
+                        "email": email,
+                    },
+                    "templateId": None,
+                    "templateName": (f"{role} — invite" if role else None)
+                    or data.get("title")
+                    or DELETED_TEMPLATE,
+                    "track": invite_bridge.track_for(data),
+                    "status": (
+                        "completed" if data.get("status") == "completed" else "created"
+                    ),
+                    "createdAt": _iso(data.get("createdAt")),
+                    "startedAt": _iso(data.get("startedAt")),
+                    "completedAt": _iso(data.get("completedAt")),
+                    "overallScore": None,
+                }
+            )
+        return rows
+
+    return await asyncio.to_thread(_fetch)
+
+
 def _state(session: dict, template: dict) -> dict:
     return timing.compute_public_state(session, template)
 
@@ -311,6 +373,13 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
         }
         for session in sessions
     ]
+
+    # Plus every invite whose candidate has not opened their link yet — those have no
+    # session row, and without them a freshly-sent batch looks like it went nowhere.
+    items.extend(
+        await _recruiter_pending_invites(settings, user.uid, {i["id"] for i in items})
+    )
+
     return sorted(items, key=lambda item: str(item.get("createdAt") or ""), reverse=True)
 
 
