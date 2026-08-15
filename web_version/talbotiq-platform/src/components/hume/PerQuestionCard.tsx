@@ -4,8 +4,8 @@ import { EmotionRadar } from './EmotionRadar'
 // Dominant-emotion accent, kept inside the brand spectrum: violet for energised,
 // indigo for calm, amber for stress. Anything unmapped falls back to violet.
 const DOMINANT_COLOR: Record<string, string> = {
-  Energy: '#6B2BE0', Excitement: '#6B2BE0', Enthusiasm: '#6B2BE0',
-  Calm: '#5B6FE8', Serenity: '#5B6FE8', Contentment: '#5B6FE8',
+  Energy: '#1D3FA0', Excitement: '#1D3FA0', Enthusiasm: '#1D3FA0',
+  Calm: '#3D5CB4', Serenity: '#3D5CB4', Contentment: '#3D5CB4',
   Anxiety: '#B45309', Stress: '#B45309', Confusion: '#B45309',
 }
 
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function PerQuestionCard({ summary, index }: Props) {
-  const dominantColor = DOMINANT_COLOR[summary.dominant] ?? '#6B2BE0'
+  const dominantColor = DOMINANT_COLOR[summary.dominant] ?? '#1D3FA0'
 
   return (
     <div className="rounded-2xl bg-hume-card border border-hume-border p-5 space-y-4">

@@ -140,8 +140,10 @@ function SelectCard({ selected, onClick, icon, title, blurb, children }: {
       )}
     >
       <span className={cn(
-        'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors duration-150',
-        selected ? 'bg-brand-field text-white' : 'bg-primary-50 text-primary-700',
+        'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
+        selected
+          ? 'border-neutral-900 bg-neutral-900 text-white'
+          : 'border-border bg-neutral-50 text-neutral-500',
       )}>
         {icon}
       </span>

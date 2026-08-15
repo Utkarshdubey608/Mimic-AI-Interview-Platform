@@ -42,13 +42,10 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-3xl border border-border bg-white p-8 shadow-lg sm:p-10"
     >
-      <span
-        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
-        style={{ color: accent, borderColor: accent + '33', background: accent + '11' }}
-      >
-        Device check
-      </span>
-      <h1 className="mt-5 font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
+      {/* Eyebrow deleted. An uppercase label above a heading is the one
+          pattern no brief earns back, and on a candidate surface it was pure
+          overhead: the heading below already carries the step. */}
+      <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
         Camera &amp; microphone
       </h1>
       <p className="mt-2.5 text-sm leading-relaxed text-neutral-500">
@@ -77,7 +74,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
           </div>
         )}
         {status === 'granted' && (
-          <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full border border-mint-border bg-mint-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mint-ink">
+          <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-md border border-mint-border bg-mint-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mint-ink">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint-ink" />
             Preview
           </span>
@@ -88,7 +85,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
         <>
           <button
             onClick={request}
-            className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border-[1.5px] bg-white text-base font-semibold transition-all duration-150 hover:-translate-y-px hover:shadow-sm active:translate-y-0"
+            className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border-[1.5px] bg-white text-base font-semibold transition-all duration-150 hover:-translate-y-px hover:shadow-sm active:translate-y-0"
             style={{ borderColor: accent, color: accent }}
           >
             <Camera size={18} strokeWidth={1.75} /> Enable camera &amp; microphone
@@ -113,7 +110,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
           </div>
           <button
             onClick={request}
-            className="mt-3.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-white px-4 text-xs font-semibold text-danger ring-1 ring-inset ring-danger-border transition-colors duration-150 hover:bg-danger-bg"
+            className="mt-3.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-white px-4 text-xs font-semibold text-danger ring-1 ring-inset ring-danger-border transition-colors duration-150 hover:bg-danger-bg"
           >
             <RefreshCw size={13} strokeWidth={2} /> Try again
           </button>
@@ -122,10 +119,10 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
 
       {status === 'granted' && (
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
             <Check size={13} strokeWidth={3} /> Camera ready
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
             <Check size={13} strokeWidth={3} /> Mic ready
           </span>
         </div>
@@ -134,7 +131,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
       <button
         onClick={onBegin}
         disabled={status !== 'granted' || busy}
-        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
         style={{ background: accent }}
       >
         {busy

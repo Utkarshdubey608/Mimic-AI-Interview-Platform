@@ -25,10 +25,10 @@ const PHASE_LABEL: Record<VoicePhase, string> = {
 /** 56px circular control — the call-room control shape used across every stage. */
 const CONTROL =
   'flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-150 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 ' +
-  'focus-visible:ring-offset-brand-black disabled:opacity-40 disabled:cursor-not-allowed'
-const CONTROL_IDLE = 'border-brand-border bg-white/5 text-white hover:bg-white/10'
-const CONTROL_OFF = 'border-danger/50 bg-danger/20 text-red-300 hover:bg-danger/30'
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ' +
+  'focus-visible:ring-offset-white disabled:opacity-40 disabled:cursor-not-allowed'
+const CONTROL_IDLE = 'border-border bg-white text-neutral-700 hover:bg-neutral-50'
+const CONTROL_OFF = 'border-danger-border bg-danger-bg text-danger hover:bg-danger-bg/70'
 
 /** Candidate-facing full-page card — one shape for the gate, the sign-off and errors. */
 function StageCard({ children, reduce }: { children: ReactNode; reduce: boolean | null }) {
@@ -50,7 +50,9 @@ function StageCard({ children, reduce }: { children: ReactNode; reduce: boolean 
 function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; reduce: boolean | null }) {
   const speaking = phase === 'speaking' || phase === 'greeting'
   const listening = phase === 'listening'
-  const color = listening ? '#8FE3D0' : accent
+  // Mint INK, not the pale mint that used to sit here: this stage is light now,
+  // and #7FD4AE on white is barely a shape.
+  const color = listening ? '#0F766E' : accent
   return (
     <div className="relative flex h-56 w-56 items-center justify-center">
       {!reduce && (speaking || listening) && [0, 1, 2].map((i) => (
@@ -63,12 +65,12 @@ function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; red
         />
       ))}
       <motion.div
-        className="relative flex h-32 w-32 items-center justify-center rounded-full shadow-xl ring-1 ring-inset ring-white/20"
+        className="relative flex h-32 w-32 items-center justify-center rounded-full shadow-xl ring-1 ring-inset ring-black/5"
         style={{ background: `linear-gradient(135deg, ${color}, ${color}cc)` }}
         animate={reduce ? undefined : speaking ? { scale: [1, 1.06, 1] } : listening ? { scale: [1, 1.03, 1] } : { scale: 1 }}
         transition={{ duration: speaking ? 0.9 : 1.6, repeat: Infinity }}
       >
-        <Radio size={38} className={listening ? 'text-mint-ink' : 'text-white/90'} />
+        <Radio size={38} className="text-white/90" />
       </motion.div>
     </div>
   )
@@ -77,7 +79,14 @@ function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; red
 export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer' }: Props) {
   const reduce = useReducedMotion()
   const v = useVoiceSession(sessionId)
-  const accent = branding.accentColor || '#6B2BE0'
+  /* Registrar ink, not the lifted blue.
+   *
+   * This used to fall back to #8AA6F0 with the note "dark stage: 7.72:1, not
+   * registrar ink at 1.99:1" — correct while the call ran on a black stage. The
+   * stage is white now, which inverts that arithmetic exactly: #8AA6F0 drops to
+   * about 2:1 on white, and #1D3FA0 rises to about 9.5:1. Same reasoning, other
+   * background. */
+  const accent = branding.accentColor || '#1D3FA0'
   const [showCaptions, setShowCaptions] = useState(false)
   const [gestured, setGestured] = useState(false)
 
@@ -98,7 +107,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
         </p>
         <button
           onClick={() => { setGestured(true); void v.start() }}
-          className="mt-7 inline-flex h-12 items-center gap-2 rounded-full px-8 text-base font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+          className="mt-7 inline-flex h-12 items-center gap-2 rounded-md px-8 text-base font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
           style={{ background: accent }}
         >
           <Mic size={18} /> Start voice interview
@@ -168,16 +177,21 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
   const statusLabel = v.reconnecting ? 'Reconnecting…' : PHASE_LABEL[v.phase]
 
   return (
-    <div className="flex min-h-screen flex-col bg-brand-black">
+    /* A LIGHT call stage.
+       This screen was the one dark surface in the candidate's whole journey —
+       the gate before it, the sign-off after it and every other track are all
+       on paper. It now uses the same tokens they do, so a candidate does not
+       drop into a black room for one round and back out again. */
+    <div className="flex min-h-screen flex-col bg-background">
       {/* header */}
-      <header className="flex h-14 flex-shrink-0 items-center border-b border-brand-border bg-brand-card">
+      <header className="flex h-14 flex-shrink-0 items-center border-b border-border bg-white">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4">
-          <span className="truncate font-display font-bold tracking-[-0.02em] text-white">{branding.companyName}</span>
+          <span className="truncate font-display font-bold tracking-[-0.02em] text-neutral-900">{branding.companyName}</span>
           <span
-            className={`flex items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${pending ? 'text-brand-gold-light' : 'text-brand-green-light'}`}
+            className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${pending ? 'border-warning-border bg-warning-bg text-warning' : 'border-success-border bg-success-bg text-success'}`}
             aria-live="polite"
           >
-            <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${pending ? 'bg-brand-gold' : 'bg-brand-green-light'}`} />
+            <span className={`h-1.5 w-1.5 animate-pulse rounded-full ${pending ? 'bg-warning' : 'bg-success'}`} />
             {v.reconnecting ? 'Reconnecting' : connecting ? 'Connecting' : 'Live'}
           </span>
         </div>
@@ -186,30 +200,30 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
       {/* stage */}
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
         <Orb phase={v.phase} accent={accent} reduce={reduce} />
-        <p className="mt-3 font-display text-lg font-bold tracking-[-0.02em] text-white">{personaName}</p>
+        <p className="mt-3 font-display text-lg font-bold tracking-[-0.02em] text-neutral-900">{personaName}</p>
         <p
-          className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-border bg-brand-card px-4 py-1.5 text-xs font-semibold text-brand-gold-light"
+          className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-white px-4 py-1.5 text-xs font-semibold text-neutral-700"
           aria-live="polite"
         >
           {connecting && <Loader2 size={13} className="animate-spin" />}
           {statusLabel}
         </p>
         {v.reconnecting && (
-          <p className="mt-3 max-w-sm text-center text-xs leading-relaxed text-brand-gray">
+          <p className="mt-3 max-w-sm text-center text-xs leading-relaxed text-neutral-500">
             Connection hiccup — your interview is saved and will resume in a moment.
           </p>
         )}
 
         {/* captions */}
         {showCaptions && (
-          <div className="mt-8 w-full max-w-xl rounded-2xl border border-brand-border bg-brand-card/90 shadow-xl backdrop-blur">
-            <div className="flex items-center gap-2 border-b border-brand-border px-4 py-2.5">
-              <Captions size={13} className="text-brand-gray" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-brand-gray">Live captions</span>
+          <div className="mt-8 w-full max-w-xl rounded-2xl border border-border bg-white shadow-lg">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+              <Captions size={13} className="text-neutral-500" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Live captions</span>
             </div>
             <div className="max-h-48 overflow-y-auto p-4 text-sm">
               {v.captions.length === 0 ? (
-                <p className="py-3 text-center text-brand-gray">Captions will appear here as the conversation goes on.</p>
+                <p className="py-3 text-center text-neutral-500">Captions will appear here as the conversation goes on.</p>
               ) : (
                 <div className="space-y-3">
                   <AnimatePresence initial={false}>
@@ -218,9 +232,9 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
                         key={i}
                         initial={reduce ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className={c.role === 'candidate' ? 'text-right leading-relaxed text-white/90' : 'text-left leading-relaxed text-white/70'}
+                        className={c.role === 'candidate' ? 'text-right leading-relaxed text-neutral-900' : 'text-left leading-relaxed text-neutral-600'}
                       >
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${c.role === 'candidate' ? 'text-white' : 'text-brand-gold'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${c.role === 'candidate' ? 'text-neutral-900' : 'text-primary'}`}>
                           {c.role === 'candidate' ? 'You' : personaName}
                         </span>
                         <br />
@@ -236,7 +250,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
       </div>
 
       {/* controls */}
-      <div className="flex-shrink-0 border-t border-brand-border bg-brand-black">
+      <div className="flex-shrink-0 border-t border-border bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-center gap-5 px-4 py-6">
           <button
             onClick={v.toggleMute}
@@ -249,7 +263,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
           </button>
           <button
             onClick={v.end}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-black"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             aria-label="End interview"
           >
             <PhoneOff size={24} />

@@ -9,23 +9,23 @@ import type { FacialSessionSummary, RekognitionEmotionType, FacialFrame } from '
 // Emotion accents, all drawn from the Mimic spectrum so eight distinct signals
 // still read as one system on a white surface.
 const EMOTION_COLOR: Record<RekognitionEmotionType, string> = {
-  CALM:      '#5B6FE8',
-  HAPPY:     '#0F7A5F',
+  CALM:      '#3D5CB4',
+  HAPPY:     '#15803D',
   CONFUSED:  '#B45309',
-  SURPRISED: '#6B2BE0',
-  FEAR:      '#C42C93',
-  SAD:       '#5D5578',
+  SURPRISED: '#1D3FA0',
+  FEAR:      '#BE185D',
+  SAD:       '#4A5566',
   ANGRY:     '#dc2626',
-  DISGUSTED: '#4A1BA8',
+  DISGUSTED: '#152E76',
 }
 
 function emotionChipStyle(type: RekognitionEmotionType) {
-  const c = EMOTION_COLOR[type] ?? '#7C7595'
+  const c = EMOTION_COLOR[type] ?? '#5C6879'
   return { color: c, background: `${c}14`, borderColor: `${c}33` } // 14/33 = ~8%/20% alpha hex
 }
 
 function barColor(pct: number) {
-  return pct >= 80 ? '#6B2BE0' : pct >= 60 ? '#B45309' : '#dc2626'
+  return pct >= 80 ? '#1D3FA0' : pct >= 60 ? '#B45309' : '#dc2626'
 }
 
 function AttentionBar({ score, label }: { score: number; label: string }) {

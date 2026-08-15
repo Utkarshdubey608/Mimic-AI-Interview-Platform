@@ -120,11 +120,11 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             {isAnswer ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-success-border bg-success-bg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-success">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-success">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> Recording answer
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-full border border-border bg-neutral-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+              <span className="inline-flex items-center rounded-md border border-border bg-neutral-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
                 Preparation
               </span>
             )}
@@ -165,11 +165,11 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
         {/* status chip */}
         {rec.ready && (
           rec.recording ? (
-            <span className="absolute left-3 top-3 z-5 flex items-center gap-1.5 rounded-full border border-white/10 bg-brand-black/70 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur">
+            <span className="absolute left-3 top-3 z-5 flex items-center gap-1.5 rounded-md border border-white/10 bg-brand-black/70 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" /> Rec
             </span>
           ) : (
-            <span className="absolute left-3 top-3 z-5 flex items-center gap-1.5 rounded-full border border-white/10 bg-brand-black/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">
+            <span className="absolute left-3 top-3 z-5 flex items-center gap-1.5 rounded-md border border-white/10 bg-brand-black/60 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">
               <Camera size={12} /> Preview
             </span>
           )
@@ -215,7 +215,7 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
             <button
               onClick={onSkipPrep}
               disabled={busy || !rec.ready}
-              className="inline-flex h-10 items-center gap-2 rounded-full border-[1.5px] px-5 text-sm font-semibold transition-all duration-150 hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center gap-2 rounded-md border-[1.5px] px-5 text-sm font-semibold transition-all duration-150 hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
               style={{ borderColor: accent, color: accent }}
             >
               <FastForward size={16} /> Start recording now
@@ -225,7 +225,7 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
             <button
               onClick={() => void doSubmit()}
               disabled={busy || uploading}
-              className="inline-flex h-10 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
               style={{ background: accent }}
             >
               <Send size={16} /> Submit &amp; continue

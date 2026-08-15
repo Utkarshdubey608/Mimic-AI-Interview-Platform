@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { KeyRound } from 'lucide-react'
+import {  } from 'lucide-react'
 import { Card, Button, cn } from '@/components/ui'
 import { settingsApi } from '@/lib/api'
 import type { AppSettingsStatus, GeminiModel } from '@shared/types'
@@ -49,18 +49,15 @@ export function GeminiKeyCard() {
 
   return (
     <Card className="divide-y divide-border">
-      {/* Panel head — mirrors the rhythm of the other Settings panels. */}
-      <div className="flex items-start gap-3.5 px-6 py-5">
-        <span className="mt-px flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary-700" aria-hidden>
-          <KeyRound size={17} />
-        </span>
-        <div className="min-w-0">
-          <h2 className="font-display text-[15px] font-bold leading-tight tracking-[-0.02em] text-neutral-900">Gemini — AI interview</h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
-            Used server-side for résumé question generation &amp; scoring. Stored on the server, never sent back to the browser.
-          </p>
-        </div>
+      {/* The ruled cover head — the same device as the sibling Settings panels.
+          This panel kept its icon plate when the others lost theirs, which read
+          as one section arbitrarily outranking its neighbours. */}
+      <div className="record-head px-5 py-2.5">
+        <h2 className="font-display text-[14px] font-bold text-neutral-900">Gemini — AI interview</h2>
       </div>
+      <p className="px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+        Used server-side for résumé question generation &amp; scoring. Stored on the server, never sent back to the browser.
+      </p>
 
       <div className="space-y-5 px-6 py-5">
         {/* Status line — masked key stays monospaced so it can be compared at a glance. */}
@@ -93,7 +90,7 @@ export function GeminiKeyCard() {
               type="button"
               onClick={() => setShow((s) => !s)}
               aria-label={show ? 'Hide the Gemini API key' : 'Show the Gemini API key'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
             >
               {show ? 'Hide' : 'Show'}
             </button>
@@ -102,7 +99,7 @@ export function GeminiKeyCard() {
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-1 rounded-full border border-border bg-neutral-100 p-1" role="group" aria-label="Gemini model">
+          <div className="inline-flex items-center gap-1 rounded-md border border-border bg-neutral-100 p-1" role="group" aria-label="Gemini model">
             {(['gemini-2.5-flash', 'gemini-2.5-pro'] as GeminiModel[]).map((m) => (
               <button
                 key={m}
@@ -110,7 +107,7 @@ export function GeminiKeyCard() {
                 onClick={() => setModel(m)}
                 aria-pressed={model === m}
                 className={cn(
-                  'rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors duration-150',
+                  'rounded-md px-3 py-1 text-xs font-semibold capitalize transition-colors duration-150',
                   model === m ? 'bg-white text-primary-700 shadow-xs' : 'text-neutral-500 hover:text-neutral-800',
                 )}
               >

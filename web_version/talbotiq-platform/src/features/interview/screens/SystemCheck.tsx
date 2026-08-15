@@ -38,13 +38,10 @@ export function SystemCheck({ branding, track, onBegin, busy }: Props) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-3xl border border-border bg-white p-8 shadow-lg sm:p-10"
     >
-      <span
-        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
-        style={{ color: accent, borderColor: accent + '33', background: accent + '11' }}
-      >
-        Last step
-      </span>
-      <h1 className="mt-5 font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
+      {/* Eyebrow deleted. An uppercase label above a heading is the one
+          pattern no brief earns back, and on a candidate surface it was pure
+          overhead: the heading below already carries the step. */}
+      <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
         Quick system check
       </h1>
       <p className="mt-2.5 text-sm leading-relaxed text-neutral-500">
@@ -93,7 +90,7 @@ export function SystemCheck({ branding, track, onBegin, busy }: Props) {
       <button
         onClick={onBegin}
         disabled={!ready || busy}
-        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
         style={{ background: accent }}
       >
         {busy ? 'Starting…' : <>Start the interview <ArrowRight size={18} /></>}

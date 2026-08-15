@@ -5,7 +5,6 @@ import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { tavus } from '@/services/tavus'
 import { settingsApi } from '@/lib/api'
-import { httpBase } from '@/lib/apiOrigin'
 import { GeminiKeyCard } from '@/features/recruiter/GeminiKeyCard'
 
 /**
@@ -29,18 +28,29 @@ type StatusMap = { deepgram: boolean; hume: boolean; gemini: boolean; rekognitio
 
 /* ─── local presentational pieces ────────────────────────────────────────── */
 
-/** One panel head: icon plate, title, a single calm line of context. */
-function PanelHead({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+/**
+ * One section of the bundle, introduced by its ruled cover head.
+ *
+ * This used to be a 9x9 tinted icon plate beside the title, repeated down the
+ * page. The plate carried no information — the icon was decorative and the title
+ * already said the thing — and a page of identical icon+heading+text blocks has
+ * no scannable structure: every section looked exactly as important as every
+ * other. The ruled head is the world's own device and does the job the plate was
+ * pretending to do.
+ *
+ * `icon` is retained and deliberately NOT rendered, so the four call sites keep
+ * typechecking; drop it as they are touched. Do not reinstate the plate.
+ */
+function PanelHead({ title, children }: { icon?: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-3.5 px-6 py-5">
-      <span className="mt-px flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-primary-700" aria-hidden>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <h2 className="font-display text-[15px] font-bold leading-tight tracking-[-0.02em] text-neutral-900">{title}</h2>
-        <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{children}</p>
+    <>
+      <div className="record-head px-5 py-2.5">
+        <h2 className="font-display text-[14px] font-bold text-neutral-900">{title}</h2>
       </div>
-    </div>
+      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+        {children}
+      </p>
+    </>
   )
 }
 
@@ -66,7 +76,7 @@ export default function SettingsPage() {
   useEffect(() => {
     setTavusKeyLocal(store.tavusKey)
     setWebhook(store.webhookUrl)
-    fetch(`${httpBase()}/avatar/status`).then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
+    fetch('/api/avatar/status').then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The browser holds no Tavus key anymore — every call goes through the
@@ -138,7 +148,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setShowTavus(s => !s)}
                   aria-label={showTavus ? 'Hide the Tavus API key' : 'Show the Tavus API key'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
                 >
                   {showTavus ? 'Hide' : 'Show'}
                 </button>
@@ -151,10 +161,10 @@ export default function SettingsPage() {
                 Test connection
               </Button>
               {connState === 'fail' && (
-                <p className="text-xs text-danger">Tavus rejected the saved key or was unreachable — save a valid key, then test again.</p>
+                <p className="text-xs text-danger">Tavus rejected the key or was unreachable — check the key, then test again.</p>
               )}
               {connState === 'ok' && (
-                <p className="text-xs text-neutral-500">Server key verified — avatar calls are ready.</p>
+                <p className="text-xs text-neutral-500">Key verified. Save settings to apply it everywhere.</p>
               )}
             </div>
           </div>
