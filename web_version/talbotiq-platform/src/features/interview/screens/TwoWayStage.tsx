@@ -3,9 +3,9 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import type { BrandingConfig } from '@shared/types'
 import { sessionsApi, ApiError } from '@/lib/api'
-import { useDailyCall } from '../useDailyCall'
+import { useLiveKitCall } from '../useLiveKitCall'
 import { classifyJoinFailure } from '../twowayJoinError'
-import { DailyVideoTile } from '@/components/interview/DailyVideoTile'
+import { LiveKitVideoTile } from '@/components/interview/LiveKitVideoTile'
 import { Completion } from './Completion'
 
 interface Props {
@@ -81,7 +81,7 @@ function StageCard({ children }: { children: ReactNode }) {
 export function TwoWayStage({ sessionId, branding }: Props) {
   const reduce = useReducedMotion()
   const accent = branding.accentColor || '#6B2BE0'
-  const dc = useDailyCall()
+  const dc = useLiveKitCall()
 
   const [joinError, setJoinError] = useState<string | null>(null) // hard (non-retryable) join failure
   const [waitingForHost, setWaitingForHost] = useState(true) // recruiter hasn't opened the room yet
@@ -339,11 +339,11 @@ export function TwoWayStage({ sessionId, branding }: Props) {
 
       <div className="relative flex-1 p-4">
         <div className="mx-auto h-full max-w-4xl">
-          <DailyVideoTile participant={remote} label="Interviewer" />
+          <LiveKitVideoTile participant={remote} label="Interviewer" />
         </div>
         {dc.localParticipant && (
           <div className="absolute bottom-4 right-6 w-40 overflow-hidden rounded-2xl shadow-xl sm:w-52">
-            <DailyVideoTile participant={dc.localParticipant} label="You" />
+            <LiveKitVideoTile participant={dc.localParticipant} label="You" />
           </div>
         )}
       </div>
