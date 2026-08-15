@@ -73,13 +73,18 @@ def fixtures() -> dict:
             ],
             "cases": rendered,
         }
-        FIXTURES.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        # encoding pinned: the payload is deliberately non-ASCII (ensure_ascii=False),
+        # and write_text/read_text otherwise use the platform's preferred encoding —
+        # cp1252 on Windows, which mangles every em dash and fails the contract.
+        FIXTURES.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     assert FIXTURES.exists(), (
         f"{FIXTURES} is missing. Generate it with "
         "REGENERATE_INVITE_FIXTURES=1 python -m pytest tests/web/test_web_invite_email.py"
     )
-    return json.loads(FIXTURES.read_text())["cases"]
+    return json.loads(FIXTURES.read_text(encoding="utf-8"))["cases"]
 
 
 # ── the contract ──────────────────────────────────────────────────────────────
