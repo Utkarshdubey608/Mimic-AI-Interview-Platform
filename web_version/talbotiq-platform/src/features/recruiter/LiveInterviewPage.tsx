@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, AlertTriangle, Disc, Square, UserPlus, Users, RefreshCw } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, AlertTriangle, UserPlus, Users, RefreshCw } from 'lucide-react'
 import { sessionsApi } from '@/lib/api'
-import { uploadAnswerVideo } from '@/lib/storage'
-import { useDailyCall } from '@/features/interview/useDailyCall'
-import { DailyVideoTile } from '@/components/interview/DailyVideoTile'
+import { useLiveKitCall } from '@/features/interview/useLiveKitCall'
+import { LiveKitVideoTile } from '@/components/interview/LiveKitVideoTile'
 
 /* ── Shared call-room atoms (one language across every live stage) ────────── */
 
@@ -59,15 +58,13 @@ function PulseRing({ children }: { children: ReactNode }) {
 export default function LiveInterviewPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const dc = useDailyCall()
+  const dc = useLiveKitCall()
 
   const [hostError, setHostError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0) // bump to retry after a hard error
-  const [recording, setRecording] = useState(false)
-  const [ending, setEnding] = useState(false) // "uploading…/finalizing…" overlay
+  const [ending, setEnding] = useState(false) // "finalizing…" overlay
 
   const endingRef = useRef(false) // single-fire guard — don't double-complete
-  const hasRecordedRef = useRef(false) // recording started at least once — for the "Uploading…" vs "Finalizing…" label below
 
   // Acquire the room as OWNER, then hand off to Daily. `cancelled` is a
   // per-invocation local (captured in this effect's closure), NOT a shared
@@ -95,47 +92,18 @@ export default function LiveInterviewPage() {
     // dc.join has a stable identity for the lifetime of this hook instance.
   }, [id, attempt, dc.join])
 
-  // Toggling Record pauses/resumes the ONE continuous recorder (see
-  // useDailyCall's docstring) — it's finalized exactly once, in finalize()
-  // below, so no segment is ever dropped across a pause/resume cycle.
-  const handleToggleRecord = useCallback(() => {
-    if (recording) {
-      dc.pauseRecording()
-      setRecording(false)
-    } else {
-      dc.startRecording()
-      hasRecordedRef.current = true
-      setRecording(true)
-    }
-  }, [recording, dc])
-
-  // Uploads the recording (if any), marks the session complete, and navigates
-  // to the report. Shared by the recruiter's own End (handleEnd) and the
-  // "call ended externally" recovery effect below — both must finalize the
-  // same way; only the confirm dialog differs.
+  // Marks the session complete and navigates to the report. Recording is
+  // SERVER-SIDE (LiveKit egress) — twowayComplete stops the egress and its
+  // webhook transcribes + scores — so there's nothing to stop or upload from the
+  // browser. Shared by the recruiter's own End (handleEnd) and the "call ended
+  // externally" recovery effect below; only the confirm dialog differs.
   const finalize = useCallback(async () => {
     if (!id || endingRef.current) return
     endingRef.current = true
     setEnding(true)
-    setRecording(false)
-
-    let blob: Blob | null = null
-    try {
-      blob = await dc.stopRecording() // finalizes the single continuous recorder, if any
-    } catch { /* best-effort */ }
-
-    let recordingUrl: string | undefined
-    if (blob) {
-      try {
-        recordingUrl = await uploadAnswerVideo(id, 'two-way', blob)
-      } catch (e) {
-        console.error('[twoway] recording upload failed', e)
-        toast.error('Could not upload the recording — finishing without it')
-      }
-    }
 
     try {
-      await sessionsApi.twowayComplete(id, recordingUrl)
+      await sessionsApi.twowayComplete(id)
     } catch (e) {
       console.error('[twoway] complete failed', e)
       toast.error('Could not finalize the session — check Sessions and try again')
@@ -147,7 +115,7 @@ export default function LiveInterviewPage() {
 
   const handleEnd = useCallback(() => {
     if (!id || endingRef.current) return
-    if (!window.confirm('End the interview now? The recording will be uploaded and the session will be marked complete.')) return
+    if (!window.confirm('End the interview now? The recording will be processed and the session will be marked complete.')) return
     void finalize()
   }, [id, finalize])
 
@@ -206,7 +174,7 @@ export default function LiveInterviewPage() {
         <div>
           <p className="font-display text-lg font-bold tracking-[-0.02em] text-white">The interview has ended</p>
           <p className="mt-1.5 text-sm text-brand-gray">
-            {hasRecordedRef.current ? 'Uploading the recording and finalizing the session…' : 'Finalizing the session…'}
+            Finalizing the session…
           </p>
         </div>
         <button
@@ -270,11 +238,9 @@ export default function LiveInterviewPage() {
           <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
           </span>
-          {recording && (
-            <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-danger/40 bg-danger/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-red-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" /> Rec
-            </span>
-          )}
+          <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-danger/40 bg-danger/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-red-300">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-400" /> Rec
+          </span>
         </span>
 
         <div className="flex flex-shrink-0 items-center gap-2">
@@ -301,7 +267,7 @@ export default function LiveInterviewPage() {
       <div className="relative flex-1 p-4">
         <div className="mx-auto h-full max-w-4xl">
           {candidate ? (
-            <DailyVideoTile participant={candidate} label="Candidate" />
+            <LiveKitVideoTile participant={candidate} label="Candidate" />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-4 rounded-3xl border border-dashed border-brand-border bg-brand-card/50 px-6 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full border border-brand-border bg-white/5 text-brand-gold">
@@ -322,7 +288,7 @@ export default function LiveInterviewPage() {
         </div>
         {dc.localParticipant && (
           <div className="absolute bottom-4 right-6 w-40 overflow-hidden rounded-2xl shadow-xl sm:w-52">
-            <DailyVideoTile participant={dc.localParticipant} label="You" />
+            <LiveKitVideoTile participant={dc.localParticipant} label="You" />
           </div>
         )}
       </div>
@@ -336,14 +302,6 @@ export default function LiveInterviewPage() {
             aria-label={dc.muted ? 'Unmute microphone' : 'Mute microphone'}
           >
             {dc.muted ? <MicOff size={22} /> : <Mic size={22} />}
-          </button>
-          <button
-            onClick={() => void handleToggleRecord()}
-            aria-pressed={recording}
-            className={`${CONTROL} ${recording ? CONTROL_OFF : CONTROL_IDLE}`}
-            aria-label={recording ? 'Pause recording' : 'Start recording'}
-          >
-            {recording ? <Square size={20} /> : <Disc size={22} />}
           </button>
           <button
             onClick={handleEnd}
@@ -371,7 +329,7 @@ export default function LiveInterviewPage() {
           </PulseRing>
           <div>
             <p className="font-display text-lg font-bold tracking-[-0.02em] text-white" aria-live="polite">
-              {hasRecordedRef.current ? 'Uploading the recording…' : 'Finalizing the session…'}
+              Finalizing the session…
             </p>
             <p className="mt-1.5 text-sm text-brand-gray">
               Don’t close this tab — we’ll open the report as soon as it’s saved.
