@@ -45,6 +45,31 @@ MAX_UTTERANCE_CHARS = 4000
 # become a stuck interview.
 ORPHAN_TEARDOWN_SECONDS = 2.5
 
+# One start at a time per session. Two starts race in the wild — React 18 StrictMode
+# double-fires the client's start effect in dev (observed 56ms apart), and a user
+# retry does the same in production — and each loser of the race created a SECOND
+# paid Tavus conversation that nothing ever joined or ended; it burned until the
+# absent-participant timeout. In-process, like app/ratelimit.py: with N workers the
+# lock is per-worker and best-effort, but the reuse window below still catches any
+# duplicate that arrives after the winner's save lands.
+_START_LOCKS: dict[str, asyncio.Lock] = {}
+
+# A duplicate start arrives within moments of the first; a page refresh that
+# genuinely needs a fresh conversation comes later than this. Inside the window the
+# existing conversation is returned; outside it the refresh path (end the orphan,
+# create a replacement) applies as before.
+START_REUSE_SECONDS = 20
+
+
+def _started_recently(started_at: str | None) -> bool:
+    if not started_at:
+        return False
+    try:
+        started = datetime.fromisoformat(started_at)
+    except ValueError:
+        return False
+    return (datetime.now(timezone.utc) - started).total_seconds() < START_REUSE_SECONDS
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -70,51 +95,81 @@ async def start(
     body: dict = Body(default={}),
     user: AuthedUser = WebUser,
 ) -> dict:
-    """Create the Tavus conversation and return only its join URL."""
+    """Create the Tavus conversation and return only its join URL.
+
+    Serialised per session, and idempotent inside a short window: the duplicate
+    call that StrictMode or a client retry fires gets the conversation the first
+    call created, not a second paid one.
+    """
     settings = settings_of(request)
-    session, template = await _load_avatar(settings, session_id, user)
 
-    if session.get("status") in ("completed", "expired"):
-        raise HTTPException(status.HTTP_409_CONFLICT, "The interview has already finished")
+    lock = _START_LOCKS.setdefault(session_id, asyncio.Lock())
+    async with lock:
+        # Loaded INSIDE the lock so the duplicate that lost the race sees the
+        # winner's save, not the pre-race session.
+        session, template = await _load_avatar(settings, session_id, user)
 
-    config = await app_settings.avatar_config(settings)
-    if not config or not config.get("replicaId"):
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "No avatar is configured — apply one on the Setup page first.",
+        if session.get("status") in ("completed", "expired"):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "The interview has already finished"
+            )
+
+        # The duplicate of a start that just succeeded. Hand back the same
+        # conversation — creating another would leave this one running, paid and
+        # empty, until the absent-participant timeout.
+        if (
+            session.get("tavusConversationId")
+            and session.get("tavusConversationUrl")
+            and _started_recently(session.get("tavusConversationStartedAt"))
+        ):
+            return {
+                "conversationUrl": session["tavusConversationUrl"],
+                "totalQuestions": len(session.get("questions") or []),
+            }
+
+        config = await app_settings.avatar_config(settings)
+        if not config or not config.get("replicaId"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "No avatar is configured — apply one on the Setup page first.",
+            )
+
+        await _ensure_questions(settings, session, template, config)
+
+        # A page refresh mid-call leaves an orphaned conversation. End it BEFORE
+        # creating the replacement, or Tavus may reject the new one while the old
+        # is still counted live.
+        if session.get("tavusConversationId"):
+            await _end_orphan(settings, session["tavusConversationId"])
+            session["tavusConversationId"] = None
+
+        raw_time = body.get("timeOfDay")
+        conversation_data = await tavus_candidate.create_conversation(
+            settings,
+            config,
+            candidate_name=_real_name(session),
+            questions=[q.get("text") or "" for q in session.get("questions") or []],
+            time_of_day=raw_time if raw_time in TIMES_OF_DAY else None,
+            # The résumé rides in as background so the avatar sounds informed —
+            # never as a source of extra questions.
+            resume_text=session.get("resumeText"),
         )
 
-    await _ensure_questions(settings, session, template, config)
+        session["tavusConversationId"] = conversation_data["conversation_id"]
+        # The URL and mint time are what let a duplicate start reuse this
+        # conversation instead of paying for a second one.
+        session["tavusConversationUrl"] = conversation_data["conversation_url"]
+        session["tavusConversationStartedAt"] = _now()
+        session["status"] = "in_progress"
+        session.setdefault("startedAt", _now())
+        session.setdefault("mode", "conversational")
+        session.setdefault("transcript", [])
+        await session_store.save(settings, session)
 
-    # A page refresh mid-call leaves an orphaned conversation. End it BEFORE creating the
-    # replacement, or Tavus may reject the new one while the old is still counted live.
-    if session.get("tavusConversationId"):
-        await _end_orphan(settings, session["tavusConversationId"])
-        session["tavusConversationId"] = None
-
-    raw_time = body.get("timeOfDay")
-    conversation_data = await tavus_candidate.create_conversation(
-        settings,
-        config,
-        candidate_name=_real_name(session),
-        questions=[q.get("text") or "" for q in session.get("questions") or []],
-        time_of_day=raw_time if raw_time in TIMES_OF_DAY else None,
-        # The résumé rides in as background so the avatar sounds informed — never as a
-        # source of extra questions.
-        resume_text=session.get("resumeText"),
-    )
-
-    session["tavusConversationId"] = conversation_data["conversation_id"]
-    session["status"] = "in_progress"
-    session.setdefault("startedAt", _now())
-    session.setdefault("mode", "conversational")
-    session.setdefault("transcript", [])
-    await session_store.save(settings, session)
-
-    return {
-        "conversationUrl": conversation_data["conversation_url"],
-        "totalQuestions": len(session.get("questions") or []),
-    }
+        return {
+            "conversationUrl": conversation_data["conversation_url"],
+            "totalQuestions": len(session.get("questions") or []),
+        }
 
 
 def _real_name(session: dict) -> str:
