@@ -13,12 +13,12 @@ import { matchOption, normalizeTrack } from '@/features/guide/autopilot/filterMa
 import type { AnalyticsFilters, AnalyticsSummary, InterviewTemplate, TrackType } from '@shared/types'
 
 /* ── Chart chrome — one visual contract for every series on this page ─────── */
-const TOOLTIP = { background: '#fff', border: '1px solid #E7E2F2', borderRadius: 10, color: '#1B0B3B', fontSize: 12, padding: '8px 10px', boxShadow: '0 4px 12px -2px rgba(27,11,59,0.10)' }
-const TOOLTIP_LABEL = { color: '#1B0B3B', fontWeight: 600, marginBottom: 2 }
-const TOOLTIP_ITEM = { color: '#4A4460' }
-const ACCENT = '#6B2BE0'
-const GRID = '#E7E2F2'
-const AXIS_TICK = { fill: '#7C7595', fontSize: 11 }
+const TOOLTIP = { background: '#fff', border: '1px solid #E3E6ED', borderRadius: 10, color: '#0E1420', fontSize: 12, padding: '8px 10px', boxShadow: '0 4px 12px -2px rgba(27,11,59,0.10)' }
+const TOOLTIP_LABEL = { color: '#0E1420', fontWeight: 600, marginBottom: 2 }
+const TOOLTIP_ITEM = { color: '#3A4454' }
+const ACCENT = '#1D3FA0'
+const GRID = '#E3E6ED'
+const AXIS_TICK = { fill: '#5C6879', fontSize: 11 }
 
 const TRACK_LABEL: Record<TrackType, string> = {
   chat: 'Timed Q&A', chatbot: 'Chatbot', voice: 'Voice', video_avatar: 'Video Avatar', video: 'Video Interview', two_way: 'Two-way Interview',
@@ -27,19 +27,19 @@ const REC_LABEL: Record<string, string> = {
   strong_yes: 'Strong Yes', yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unscored',
 }
 const REC_COLOR: Record<string, string> = {
-  strong_yes: '#6B2BE0', yes: '#0F7A5F', maybe: '#B45309', no: '#dc2626', unknown: '#9D93B8',
+  strong_yes: '#1D3FA0', yes: '#15803D', maybe: '#B45309', no: '#dc2626', unknown: '#626B79',
 }
 
 /* ── Score bands — the single colour language for every score on the page,
       aligned to the five distribution buckets the API returns. ───────────── */
-const bucketColor = (b: string) => (b === '81-100' ? '#6B2BE0' : b === '61-80' ? '#0F7A5F' : b === '41-60' ? '#B45309' : '#dc2626')
-const scoreColor = (n: number) => (n >= 81 ? '#6B2BE0' : n >= 61 ? '#0F7A5F' : n >= 41 ? '#B45309' : '#dc2626')
+const bucketColor = (b: string) => (b === '81-100' ? '#1D3FA0' : b === '61-80' ? '#15803D' : b === '41-60' ? '#B45309' : '#dc2626')
+const scoreColor = (n: number) => (n >= 81 ? '#1D3FA0' : n >= 61 ? '#15803D' : n >= 41 ? '#B45309' : '#dc2626')
 const scoreInk = (n: number) => (n >= 81 ? 'text-primary-700' : n >= 61 ? 'text-success' : n >= 41 ? 'text-warning' : 'text-danger')
 const BAND_LEGEND = [
   { label: '0–40', hex: '#dc2626' },
   { label: '41–60', hex: '#B45309' },
-  { label: '61–80', hex: '#0F7A5F' },
-  { label: '81–100', hex: '#6B2BE0' },
+  { label: '61–80', hex: '#15803D' },
+  { label: '81–100', hex: '#1D3FA0' },
 ]
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -409,7 +409,7 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
                   <XAxis dataKey="bucket" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ fill: '#F3F1F9' }} />
+                  <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ fill: '#F1F3F7' }} />
                   <Bar dataKey="count" name="Interviews" radius={[6, 6, 0, 0]} maxBarSize={54}>
                     {a.scoreDistribution.map((d) => <Cell key={d.bucket} fill={bucketColor(d.bucket)} />)}
                   </Bar>
@@ -440,7 +440,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
                     <XAxis dataKey="date" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(d: string) => d.slice(5)} />
                     <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ stroke: '#D2CBE4' }} />
+                    <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ stroke: '#CBD1DC' }} />
                     <Area type="monotone" dataKey="averageOverall" name="Avg score" stroke={ACCENT} strokeWidth={2} fill="url(#scoreGrad)" dot={{ fill: ACCENT, r: 3, strokeWidth: 0 }} activeDot={{ fill: ACCENT, r: 4, strokeWidth: 0 }} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -507,7 +507,7 @@ export default function AnalyticsPage() {
                   a.recommendationDistribution.map((r) => {
                     const total = a.recommendationDistribution.reduce((s, x) => s + x.count, 0)
                     const share = total ? r.count / total : 0
-                    const color = REC_COLOR[r.recommendation] ?? '#9D93B8'
+                    const color = REC_COLOR[r.recommendation] ?? '#626B79'
                     return (
                       <div key={r.recommendation} className="flex items-center gap-3">
                         <span className="flex w-24 flex-shrink-0 items-center gap-2 text-sm text-neutral-700">
@@ -596,7 +596,10 @@ export default function AnalyticsPage() {
                   <Link key={c.sessionId} to={`/sessions/${c.sessionId}/report`}
                     title={`Open ${c.name}'s full candidate report`}
                     className="group flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors duration-150 hover:border-primary-100 hover:bg-primary-50/60">
-                    <span className={cn('flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold tabular-nums', i === 0 ? 'bg-brand-field text-white shadow-primary-sm' : 'bg-neutral-100 text-neutral-500')}>{i + 1}</span>
+                    {/* A rank is a numeral, so it is set in the mono and squared. It was a
+                        gradient-filled circle, which made position 1 read as a
+                        decorated badge rather than as the top of an ordered list. */}
+                    <span className={cn('flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm border font-mono text-[11px] nums', i === 0 ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-border bg-neutral-50 text-neutral-500')}>{i + 1}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold text-neutral-900">{c.name}</span>
                       {c.role && <span className="block truncate text-xs text-neutral-500">{c.role}</span>}

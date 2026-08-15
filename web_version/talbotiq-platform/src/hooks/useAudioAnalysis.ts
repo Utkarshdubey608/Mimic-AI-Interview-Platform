@@ -73,7 +73,7 @@ export function useAudioAnalysis(enabled: boolean, opts?: { trackInterim?: boole
       // ── Deepgram via server relay — real-time transcription (optional) ───
       if (deepgramConfigured) try {
         const dgToken = await getIdTokenOrNull()
-        const dgWs = new WebSocket(wsUrl(`/api/web/avatar/deepgram${dgToken ? `?token=${encodeURIComponent(dgToken)}` : ''}`))
+        const dgWs = new WebSocket(wsUrl(`/api/avatar/deepgram${dgToken ? `?token=${encodeURIComponent(dgToken)}` : ''}`))
         dgWs.binaryType = 'arraybuffer'
         dgWsRef.current = dgWs
 

@@ -22,13 +22,12 @@ export function Welcome({ branding, timing, onContinue }: Props) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-3xl border border-border bg-white p-8 shadow-lg sm:p-10"
     >
-      <span
-        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
-        style={{ color: branding.accentColor, borderColor: branding.accentColor + '33', background: branding.accentColor + '11' }}
-      >
-        Welcome
-      </span>
-      <h1 className="mt-5 font-display text-3xl font-extrabold tracking-[-0.03em] text-balance text-neutral-900">
+      {/* The "Welcome" eyebrow above the heading is deleted, not restyled. An
+          uppercase label above a heading is the one pattern no brief earns back,
+          and this one was the worst case of it: the heading immediately below
+          already says "Welcome to your … interview", so the label was repeating
+          the next line back to a candidate who is about to be assessed. */}
+      <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] text-balance text-neutral-900">
         {branding.welcomeMessage || `Welcome to your ${branding.companyName} interview.`}
       </h1>
       <p className="mt-3 leading-relaxed text-neutral-500">Here’s how it works before you begin:</p>
@@ -53,7 +52,7 @@ export function Welcome({ branding, timing, onContinue }: Props) {
       <div className="mt-9 border-t border-border pt-7">
         <button
           onClick={onContinue}
-          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-8 text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 sm:w-auto"
+          className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md px-8 text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 sm:w-auto"
           style={{ background: branding.accentColor }}
         >
           Continue <ArrowRight size={18} />

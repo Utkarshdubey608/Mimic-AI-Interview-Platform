@@ -38,9 +38,9 @@ interface Props {
 }
 
 /** Searching — lavender-neutral, calm and unalarming. */
-const SEARCHING = '#9D93B8'
+const SEARCHING = '#93A0B4'
 /** Locking in — soft violet (brand-gold token value), clearly "something's happening". */
-const LOCKING = '#B98CFF'
+const LOCKING = '#8AA6F0'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')

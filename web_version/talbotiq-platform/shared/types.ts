@@ -612,6 +612,14 @@ export interface SessionListItem {
   startedAt?: string
   completedAt?: string
   overallScore?: number
+  /** How many scored answers stand behind `overallScore`.
+   *
+   *  DERIVED, never authored: it is the length of the report's `perQuestion`,
+   *  i.e. the number of answers that actually produced the score. It exists so
+   *  the sessions list can show a score WITH the weight of evidence behind it
+   *  instead of a bare number — "a score is a recommendation with its evidence
+   *  attached" (PRODUCT.md). Undefined until a report exists. */
+  citedAnswers?: number
 }
 
 /** Candidate-safe view of a session assigned to the signed-in candidate. Never

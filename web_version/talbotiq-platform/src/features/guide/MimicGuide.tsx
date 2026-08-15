@@ -16,7 +16,6 @@ import { cn } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { GuideMarkdown } from '@/features/guide/guide-markdown'
 import { LANGUAGES, findLanguage, type Language } from '@/lib/languages'
-import { httpBase } from '@/lib/apiOrigin'
 import {
   isSpeechRecognitionSupported,
   startSpeechRecognition,
@@ -193,7 +192,7 @@ function VoiceLangSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-[200px] items-center gap-1.5 rounded-full border border-brand-border bg-brand-card px-2.5 py-1.5 text-xs text-neutral-100 transition-colors duration-150 hover:border-brand-gold/50"
+        className="flex w-[200px] items-center gap-1.5 rounded-md border border-brand-border bg-brand-card px-2.5 py-1.5 text-xs text-neutral-100 transition-colors duration-150 hover:border-brand-gold/50"
       >
         <span className="leading-none">{current?.flag}</span>
         <span className="truncate">{current?.name}</span>
@@ -511,7 +510,7 @@ export default function MimicGuide() {
       .slice(-MAX_HISTORY)
       .map(({ role, content: text }) => ({ role, content: text.slice(0, 8000) }))
 
-    fetch(`${httpBase()}/help/chat`, {
+    fetch('/api/help/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: payload }),
@@ -897,20 +896,25 @@ export default function MimicGuide() {
         title="Mimic Guide — your TalbotIQ assistant"
         aria-label="Open Mimic Guide"
         className={cn(
-          'fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full bg-brand-field px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-150 hover:-translate-y-px hover:shadow-xl',
+          // Squared and ink-grounded. It was a violet-gradient pill, which is the
+          // one control shape this world does not have — and as the only element
+          // floating over every screen, it was the loudest survivor of the old
+          // brand. The notification dot stays round, because a dot is a dot.
+          'fixed bottom-5 right-4 z-40 flex items-center justify-center gap-2 rounded-md border border-brand-border bg-brand-black text-sm font-semibold text-brand-gold-light shadow-lg transition-[background-color,box-shadow,color] duration-150 hover:bg-brand-card hover:text-white hover:shadow-xl',
+          'size-12 md:size-auto md:bottom-6 md:right-6 md:px-4 md:py-2.5',
           open && 'pointer-events-none opacity-0',
         )}
       >
-        <Sparkles className="size-4" aria-hidden />
-        Mimic Guide
-        <span className="absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-brand-green-light ring-2 ring-white" aria-hidden />
+        <Sparkles className="size-5 md:size-4" aria-hidden />
+        <span className="hidden md:inline">Mimic Guide</span>
+        <span className="absolute -top-0.5 -right-0.5 size-2.5 animate-pulse rounded-full bg-brand-green-light ring-2 ring-brand-black" aria-hidden />
       </button>
 
       {/* Hands-free voice pill — visible while Voice mode is on and the panel is
           CLOSED. Shows listening state + what was heard; speech auto-submits, so
           the recruiter can drive Autopilot without ever opening the panel. */}
       {voiceMode && !open ? (
-        <div className="fixed bottom-6 left-6 z-[70] flex w-[min(360px,calc(100vw-3rem))] items-center gap-2.5 rounded-2xl border border-brand-gold/40 bg-brand-card/95 px-3 py-2.5 text-neutral-100 shadow-xl backdrop-blur">
+        <div className="fixed bottom-6 left-6 z-[70] flex w-[min(360px,calc(100vw-3rem))] items-center gap-2.5 rounded-lg border border-brand-gold/40 bg-brand-card/95 px-3 py-2.5 text-neutral-100 shadow-xl backdrop-blur">
           <button
             type="button"
             onClick={() => { if (!listening) { setVoiceError(null); startMic() } }}
@@ -963,7 +967,7 @@ export default function MimicGuide() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 rounded-full border border-brand-border px-2.5 py-1 text-[11px] font-semibold text-neutral-200 transition-colors duration-150 hover:border-brand-gold/50 hover:text-white"
+            className="shrink-0 rounded-md border border-brand-border px-2.5 py-1 text-[11px] font-semibold text-neutral-200 transition-colors duration-150 hover:border-brand-gold/50 hover:text-white"
           >
             Open
           </button>
@@ -1019,7 +1023,7 @@ export default function MimicGuide() {
                   aria-label="Toggle Autopilot"
                   aria-pressed={autopilot}
                   className={cn(
-                    'rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150',
+                    'rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150',
                     autopilot
                       ? 'border-brand-gold/50 bg-brand-gold/15 text-brand-gold-light'
                       : 'border-brand-border text-brand-gray hover:border-brand-gold/40 hover:text-white',
@@ -1034,7 +1038,7 @@ export default function MimicGuide() {
                   aria-label="Toggle hands-free voice mode"
                   aria-pressed={voiceMode}
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150',
+                    'inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150',
                     voiceMode
                       ? 'border-red-400/50 bg-red-500/15 text-red-300'
                       : 'border-brand-border text-brand-gray hover:border-brand-gold/40 hover:text-white',
@@ -1114,14 +1118,14 @@ export default function MimicGuide() {
                     <button
                       type="button"
                       onClick={() => void runner.confirm()}
-                      className="rounded-full bg-brand-gold px-3.5 py-1 text-[11px] font-semibold text-brand-black transition-colors duration-150 hover:bg-brand-gold-light"
+                      className="rounded-md bg-brand-gold px-3.5 py-1 text-[11px] font-semibold text-brand-black transition-colors duration-150 hover:bg-brand-gold-light"
                     >
                       Confirm
                     </button>
                     <button
                       type="button"
                       onClick={runner.cancelConfirm}
-                      className="rounded-full border border-brand-border px-3.5 py-1 text-[11px] font-semibold text-neutral-200 transition-colors duration-150 hover:bg-white/5 hover:text-white"
+                      className="rounded-md border border-brand-border px-3.5 py-1 text-[11px] font-semibold text-neutral-200 transition-colors duration-150 hover:bg-white/5 hover:text-white"
                     >
                       Cancel
                     </button>
@@ -1147,7 +1151,7 @@ export default function MimicGuide() {
                       key={prompt}
                       type="button"
                       onClick={() => setDraft(prompt)}
-                      className="rounded-full border border-brand-border bg-brand-card/60 px-3.5 py-2 text-left text-xs text-neutral-100 transition-colors duration-150 hover:border-brand-gold/50 hover:bg-brand-gold/10 hover:text-white"
+                      className="rounded-md border border-brand-border bg-brand-card/60 px-3.5 py-2 text-left text-xs text-neutral-100 transition-colors duration-150 hover:border-brand-gold/50 hover:bg-brand-gold/10 hover:text-white"
                     >
                       {prompt}
                     </button>
@@ -1196,7 +1200,7 @@ export default function MimicGuide() {
                   type="button"
                   onClick={restartMic}
                   title="Restart listening (use if it stops taking your voice)"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full border border-brand-border px-2 py-0.5 text-[10px] font-semibold text-neutral-200 transition-colors duration-150 hover:bg-white/5 hover:text-white"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-brand-border px-2 py-0.5 text-[10px] font-semibold text-neutral-200 transition-colors duration-150 hover:bg-white/5 hover:text-white"
                 >
                   <RotateCw className="size-3" aria-hidden /> Restart
                 </button>
@@ -1266,7 +1270,7 @@ function MessageBubble({
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-tr-md border border-brand-gold/30 bg-brand-gold/15 px-3.5 py-2 text-sm leading-relaxed text-neutral-100">
+        <div className="max-w-[80%] whitespace-pre-wrap rounded-lg rounded-tr-md border border-brand-gold/30 bg-brand-gold/15 px-3.5 py-2 text-sm leading-relaxed text-neutral-100">
           {message.content}
         </div>
       </div>
@@ -1276,7 +1280,7 @@ function MessageBubble({
     <div className="flex flex-col items-start gap-1">
       <div
         className={cn(
-          'max-w-[90%] rounded-2xl rounded-tl-md border px-3.5 py-2.5',
+          'max-w-[90%] rounded-lg rounded-tl-md border px-3.5 py-2.5',
           message.error
             ? 'border-red-400/30 bg-red-500/10 text-red-300'
             : 'border-brand-border bg-brand-card text-neutral-100',
@@ -1294,7 +1298,7 @@ function MessageBubble({
           onClick={onToggleSpeak}
           title={speaking ? 'Stop' : 'Listen'}
           className={cn(
-            'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors duration-150',
+            'flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors duration-150',
             speaking ? 'text-brand-gold' : 'text-brand-gray hover:bg-white/5 hover:text-white',
           )}
         >
@@ -1309,7 +1313,7 @@ function MessageBubble({
 function ThinkingDots() {
   return (
     <div className="flex justify-start">
-      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-brand-border bg-brand-card px-3.5 py-3">
+      <div className="flex items-center gap-1.5 rounded-lg rounded-tl-md border border-brand-border bg-brand-card px-3.5 py-3">
         <span className="sr-only">Thinking…</span>
         {[0, 1, 2].map((i) => (
           <span

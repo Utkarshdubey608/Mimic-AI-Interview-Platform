@@ -29,15 +29,15 @@ import { PerQuestionCard } from '@/components/hume/PerQuestionCard'
 // below 75 as amber. Used by every score surface on the page so one number
 // always carries the same colour.
 const BAND = {
-  strong:   '#6B2BE0',
-  moderate: '#9D93B8',
+  strong:   '#1D3FA0',
+  moderate: '#626B79',
   low:      '#B45309',
 } as const
 
 function scoreColor(s: number) {
-  if (s >= 85) return { text: '#6B2BE0', bg: '#F0E9FD', bar: 'linear-gradient(90deg,#6B2BE0 0%,#C42C93 100%)' }
-  if (s >= 75) return { text: '#5D5578', bg: '#F3F1F9', bar: '#9D93B8' }
-  return { text: '#B45309', bg: '#FDF3E2', bar: '#B45309' }
+  if (s >= 85) return { text: '#1D3FA0', bg: '#E2E8F6', bar: 'linear-gradient(90deg,#1D3FA0 0%,#BE185D 100%)' }
+  if (s >= 75) return { text: '#4A5566', bg: '#F1F3F7', bar: '#626B79' }
+  return { text: '#B45309', bg: '#FDF5EA', bar: '#B45309' }
 }
 
 /** Badge token for the headline verdict — never a flat "success" for a weak report. */
@@ -249,7 +249,7 @@ export default function ResultsPage() {
 
   function downloadReport() {
     const rows = dims.map(d => `<tr><td>${d.name}</td><td style="font-weight:600">${d.score}/100</td><td>${d.score >= 85 ? 'Excellent' : d.score >= 75 ? 'Good' : 'Moderate'}</td></tr>`).join('')
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TalbotIQ Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Figtree,system-ui,sans-serif;color:#1B0B3B;background:#F7F5FB;padding:48px}h1{font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#6B2BE0;margin-bottom:4px}.meta{font-size:13px;color:#7C7595;margin-bottom:32px}table{width:100%;border-collapse:collapse;font-size:13px;background:#ffffff}td,th{padding:10px 14px;border:1px solid #E7E2F2;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#7C7595;background:#FAF9FD}.score{font-size:48px;font-weight:800;letter-spacing:-0.03em;color:#6B2BE0;font-variant-numeric:tabular-nums}</style></head><body><h1>TalbotIQ AI Interview Report</h1><p class="meta">Session: ${conv?.conversation_id ?? 'demo'} · Generated: ${new Date().toLocaleString()}</p><p class="score">${overall}<span style="font-size:20px;color:#7C7595">/100</span></p><p style="margin:12px 0 32px;display:inline-block;background:#F0E9FD;color:#4A1BA8;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;border:1px solid #E0D4FB">${verdict}</p><table><tr><th>Dimension</th><th>Score</th><th>Grade</th></tr>${rows}</table></body></html>`
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TalbotIQ Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Figtree,system-ui,sans-serif;color:#0E1420;background:#EEF0F4;padding:48px}h1{font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#1D3FA0;margin-bottom:4px}.meta{font-size:13px;color:#5C6879;margin-bottom:32px}table{width:100%;border-collapse:collapse;font-size:13px;background:#ffffff}td,th{padding:10px 14px;border:1px solid #E3E6ED;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#5C6879;background:#F8F9FB}.score{font-size:48px;font-weight:800;letter-spacing:-0.03em;color:#1D3FA0;font-variant-numeric:tabular-nums}</style></head><body><h1>TalbotIQ AI Interview Report</h1><p class="meta">Session: ${conv?.conversation_id ?? 'demo'} · Generated: ${new Date().toLocaleString()}</p><p class="score">${overall}<span style="font-size:20px;color:#5C6879">/100</span></p><p style="margin:12px 0 32px;display:inline-block;background:#E2E8F6;color:#152E76;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;border:1px solid #C6D2ED">${verdict}</p><table><tr><th>Dimension</th><th>Score</th><th>Grade</th></tr>${rows}</table></body></html>`
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
     a.download = `TalbotIQ-Report-${conv?.conversation_id ?? 'demo'}.html`
@@ -292,8 +292,8 @@ export default function ResultsPage() {
         <Card className="p-6 flex flex-col items-center">
           <div className="relative w-32 h-32 mb-5">
             <svg width="128" height="128" viewBox="0 0 110 110" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
-              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#E7E2F2" fill="none" />
-              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#6B2BE0" fill="none" strokeLinecap="round"
+              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#E3E6ED" fill="none" />
+              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#1D3FA0" fill="none" strokeLinecap="round"
                 strokeDasharray="301.6" strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1.5s ease' }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -81,11 +81,11 @@ export function CameraRecorder({ active, accentColor }: Props) {
       <video ref={videoRef} autoPlay muted playsInline className="relative h-full w-full object-cover" />
 
       {recording ? (
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-danger px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-sm">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-sm">
           <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse-live" aria-hidden="true" /> Recording
         </span>
       ) : (
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full border border-brand-border bg-brand-card/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-gold-light backdrop-blur-sm">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-brand-border bg-brand-card/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-gold-light backdrop-blur-sm">
           <Video size={12} strokeWidth={2} aria-hidden="true" /> Preview
         </span>
       )}
@@ -94,7 +94,7 @@ export function CameraRecorder({ active, accentColor }: Props) {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5 bg-brand-black/70 px-6 text-center backdrop-blur-[2px]">
           <span
             className="flex h-12 w-12 items-center justify-center rounded-full border"
-            style={{ borderColor: `${accentColor}66`, background: `${accentColor}24`, color: '#E4D8FB' }}
+            style={{ borderColor: `${accentColor}66`, background: `${accentColor}24`, color: '#D7E0F5' }}
           >
             <Video size={20} strokeWidth={1.75} aria-hidden="true" />
           </span>

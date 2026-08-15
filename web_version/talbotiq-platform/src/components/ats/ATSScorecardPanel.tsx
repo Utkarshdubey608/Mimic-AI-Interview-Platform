@@ -1,6 +1,6 @@
 // src/components/ats/ATSScorecardPanel.tsx
 // Displays the Gemini ATS scorecard on the Mimic light surface — white cards,
-// violet primary (#6B2BE0), amber warning (#B45309), red danger (#dc2626).
+// violet primary (#1D3FA0), amber warning (#B45309), red danger (#dc2626).
 
 import { AlertTriangle, Check, Flag, RotateCcw, Sparkles } from 'lucide-react'
 import { Card, SectionTitle, Skeleton, Button, cn } from '@/components/ui'
@@ -38,7 +38,7 @@ function EvidenceBadge({ level, children }: { level: EvidenceLevel; children: Re
 }
 
 function barColor(score: number) {
-  return score >= 7 ? '#6B2BE0' : score >= 4 ? '#B45309' : '#dc2626'
+  return score >= 7 ? '#1D3FA0' : score >= 4 ? '#B45309' : '#dc2626'
 }
 
 function DimensionRow({ label, dim }: { label: string; dim: ScoredDimension }) {
@@ -223,7 +223,7 @@ export function ATSScorecardPanel({ scorecard, status, error, onRetry }: Props) 
                       { label: 'Depth', dim: qa.depthScore },
                     ].map(({ label, dim }) => (
                       <div key={label} className="text-center p-2.5 rounded-lg bg-white border border-border">
-                        <div className="text-lg font-bold tabular-nums" style={{ color: dim?.cannotAssess ? '#9D93B8' : barColor(dim?.score ?? 0) }}>
+                        <div className="text-lg font-bold tabular-nums" style={{ color: dim?.cannotAssess ? '#626B79' : barColor(dim?.score ?? 0) }}>
                           {dim?.cannotAssess ? '—' : dim?.score}
                         </div>
                         <div className="text-[11px] font-medium text-neutral-500 mt-0.5">{label}</div>

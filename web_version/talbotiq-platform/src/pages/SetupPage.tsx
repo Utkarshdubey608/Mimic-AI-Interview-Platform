@@ -37,22 +37,23 @@ function CardHead({ icon, title, description, aside, accent }: {
   icon: ReactNode; title: string; description?: string; aside?: ReactNode; accent?: boolean
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 px-6 py-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <span className={
-          accent
-            ? 'mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-brand-field text-white shadow-primary-sm'
-            : 'mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-primary-100 bg-primary-50 text-primary-700'
-        }>
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold leading-tight text-neutral-800">{title}</h3>
-          {description && <p className="mt-1 text-xs leading-relaxed text-neutral-400">{description}</p>}
-        </div>
+    // The ruled cover head, not an icon plate. `icon` and `accent` are retained
+    // for the call sites and deliberately not rendered: the plate carried no
+    // information the title did not already carry, and a page of identical
+    // icon+heading+text blocks gives the eye no structure to scan. `aside` moves
+    // INTO the head, where status belongs — right of the label, where the eye
+    // lands after reading it.
+    <>
+      <div className="record-head flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-5 py-2.5">
+        <h3 className="font-display text-[14px] font-bold text-neutral-900">{title}</h3>
+        {aside && <span className="flex flex-shrink-0 items-center gap-2">{aside}</span>}
       </div>
-      {aside && <div className="flex-shrink-0 pt-0.5">{aside}</div>}
-    </div>
+      {description && (
+        <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+          {description}
+        </p>
+      )}
+    </>
   )
 }
 
@@ -260,7 +261,7 @@ export default function SetupPage() {
         <span className="pill inline-flex">AI Avatar Screening</span>
 
         <h1 className="mt-4 font-display font-extrabold tracking-[-0.03em] leading-[0.95]">
-          <span className="block text-[26px] text-neutral-400 sm:text-4xl">Configure your</span>
+          <span className="block text-[26px] text-neutral-400 sm:text-4xl">Configure your{' '}</span>
           <span className="mt-1 block text-[38px] text-neutral-900 sm:text-5xl">Interview Session</span>
         </h1>
 
@@ -439,8 +440,8 @@ export default function SetupPage() {
               The server injects them into each candidate's Tavus conversation. */}
           <Card className="px-6 py-5">
             <div className="flex items-start gap-3 text-sm text-neutral-500">
-              <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-primary-100 bg-primary-50 text-primary-700">
-                <Info size={15} strokeWidth={2} aria-hidden="true" />
+              <span className="mt-0.5 flex-shrink-0 text-neutral-500">
+                <Info size={15} strokeWidth={1.75} aria-hidden="true" />
               </span>
               <p className="leading-relaxed">
                 <span className="font-semibold text-neutral-700">Interview questions are set when you invite candidates</span> — tailored to each

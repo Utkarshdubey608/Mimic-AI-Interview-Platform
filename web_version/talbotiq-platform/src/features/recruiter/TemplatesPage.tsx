@@ -5,7 +5,7 @@ import {
   Copy, Pencil, Trash2, FileText, MessageSquare, Mic, Video, Plus, LayoutTemplate,
   AlertTriangle, RefreshCw, Timer, Clock, ListChecks, type LucideIcon,
 } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, EmptyState, Skeleton, cn } from '@/components/ui'
+import { PageHeader, Card, Button, Badge, EmptyState, ExhibitTab, Skeleton, cn } from '@/components/ui'
 import { templatesApi } from '@/lib/api'
 import type { InterviewTemplate } from '@shared/types'
 
@@ -115,15 +115,17 @@ export default function TemplatesPage() {
             const adaptive = t.questionSource === 'adaptive'
             return (
               <Card key={t.id} hover className="flex flex-col p-5">
+                {/* The tinted plate, its glyph and the uppercase label below were
+                    three ways of saying the same thing — all three derive from
+                    the track. The exhibit tab says it once, in the colour the
+                    whole product uses to encode interview format, so a grid of
+                    templates is scannable by format the way the bundle index is. */}
                 <div className="flex items-start justify-between gap-2">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
-                    <Icon size={18} strokeWidth={1.75} />
-                  </span>
+                  <ExhibitTab track={t.track} />
                   <Badge variant={adaptive ? 'info' : 'neutral'}>{adaptive ? 'Adaptive' : 'Fixed'}</Badge>
                 </div>
 
-                <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
-                <h3 className="mt-1 line-clamp-2 text-base font-bold leading-snug tracking-[-0.01em] text-neutral-900">{t.name}</h3>
+                <h3 className="mt-3.5 line-clamp-2 text-base font-bold leading-snug tracking-[-0.01em] text-neutral-900">{t.name}</h3>
                 <p className="mt-0.5 line-clamp-1 text-sm text-neutral-500">{t.role}{t.seniority ? ` · ${t.seniority}` : ''}</p>
 
                 <div className="mt-4 mb-5 flex flex-wrap gap-1.5">

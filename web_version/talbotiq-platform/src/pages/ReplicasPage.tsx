@@ -84,8 +84,8 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
               <span className="font-medium text-neutral-500">Training</span>
               <span className="font-bold tabular-nums text-neutral-700">{progress}%</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
-              <div className="h-full rounded-full bg-brand-field transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-[5px] overflow-hidden rounded-sm bg-neutral-200">
+              <div className="h-full rounded-sm bg-primary-700 transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}

@@ -61,7 +61,7 @@ export function QuestionStage({
         <div className="min-w-0 pt-1">
           <span
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]',
+              'inline-flex items-center gap-1.5 rounded-md border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]',
               isAnswer
                 ? 'border-success-border bg-success-bg text-success'
                 : 'border-neutral-200 bg-neutral-100 text-neutral-500',
@@ -173,7 +173,7 @@ export function QuestionStage({
               type="button"
               onClick={onSkipPrep}
               disabled={busy}
-              className="inline-flex h-10 items-center gap-2 rounded-full border-[1.5px] bg-white px-5 text-sm font-semibold transition-all duration-150 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-md border-[1.5px] bg-white px-5 text-sm font-semibold transition-all duration-150 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
               style={{ borderColor: accent, color: accent }}
             >
               {busy
@@ -187,7 +187,7 @@ export function QuestionStage({
               type="button"
               onClick={() => onSubmit(text)}
               disabled={busy}
-              className="inline-flex h-10 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+              className="inline-flex h-10 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               style={{ background: accent }}
             >
               {busy

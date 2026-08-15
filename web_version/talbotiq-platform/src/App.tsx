@@ -124,8 +124,8 @@ export default function App() {
             duration: 4000,
             style: {
               background: '#fff',
-              color: '#1B0B3B',
-              border: '1px solid #E7E2F2',
+              color: '#0E1420',
+              border: '1px solid #E3E6ED',
               borderRadius: '14px',
               padding: '12px 16px',
               fontSize: '13px',
@@ -134,9 +134,9 @@ export default function App() {
               boxShadow: '0 6px 18px -4px rgba(27,11,59,0.14)',
               maxWidth: '380px',
             },
-            success: { iconTheme: { primary: '#0F7A5F', secondary: '#fff' } },
+            success: { iconTheme: { primary: '#15803D', secondary: '#fff' } },
             error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-            loading: { iconTheme: { primary: '#6B2BE0', secondary: '#fff' } },
+            loading: { iconTheme: { primary: '#1D3FA0', secondary: '#fff' } },
           }}
         />
     </QueryClientProvider>

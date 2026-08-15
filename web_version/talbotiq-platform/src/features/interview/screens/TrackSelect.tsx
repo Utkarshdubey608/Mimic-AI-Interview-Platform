@@ -28,13 +28,10 @@ export function TrackSelect({ branding, defaultTrack, onChoose, busy }: Props) {
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="text-center">
-        <span
-          className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.08em]"
-          style={{ color: accent, borderColor: accent + '55', background: accent + '11' }}
-        >
-          {branding.companyName} Interview
-        </span>
-        <h1 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.03em] text-neutral-900">
+      {/* Eyebrow deleted. An uppercase label above a heading is the one
+          pattern no brief earns back, and on a candidate surface it was pure
+          overhead: the heading below already carries the step. */}
+        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] text-neutral-900">
           Choose your format
         </h1>
         <p className="mx-auto mt-3 max-w-md text-balance leading-relaxed text-neutral-500">
@@ -72,7 +69,7 @@ export function TrackSelect({ branding, defaultTrack, onChoose, busy }: Props) {
                   <span className="font-display text-base font-bold tracking-[-0.02em] text-neutral-900">{t.title}</span>
                   {t.tag && (
                     <span
-                      className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                      className="rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                       style={{ color: accent, borderColor: accent + '33', background: accent + '0D' }}
                     >
                       {t.tag}
@@ -101,7 +98,7 @@ export function TrackSelect({ branding, defaultTrack, onChoose, busy }: Props) {
         <button
           onClick={() => onChoose(selected)}
           disabled={busy}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full px-8 text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-md px-8 text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
           style={{ background: accent }}
         >
           {busy

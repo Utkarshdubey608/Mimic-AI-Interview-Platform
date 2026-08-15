@@ -36,13 +36,13 @@ export function InterviewShell({ branding, progress, live, children }: Props) {
           </div>
           <div className="flex flex-shrink-0 items-center gap-2.5">
             {progress && progress.total > 0 && (
-              <span className="rounded-full border border-border bg-neutral-50 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-neutral-600">
+              <span className="rounded-md border border-border bg-neutral-50 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-neutral-600">
                 Question <span className="text-neutral-900">{progress.current}</span>{' '}
                 <span className="text-neutral-400">of {progress.total}</span>
               </span>
             )}
             {live && (
-              <span className="flex items-center gap-1.5 rounded-full border border-mint-border bg-mint-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mint-ink">
+              <span className="flex items-center gap-1.5 rounded-md border border-mint-border bg-mint-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mint-ink">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint-ink" />
                 Live
               </span>

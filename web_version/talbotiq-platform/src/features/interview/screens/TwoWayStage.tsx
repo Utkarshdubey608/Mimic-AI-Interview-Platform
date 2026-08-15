@@ -80,8 +80,8 @@ function StageCard({ children }: { children: ReactNode }) {
  */
 export function TwoWayStage({ sessionId, branding }: Props) {
   const reduce = useReducedMotion()
-  const accent = branding.accentColor || '#6B2BE0'
-  const dc = useLiveKitCall()
+  const accent = branding.accentColor || '#8AA6F0'
+  const dc = useDailyCall()
 
   const [joinError, setJoinError] = useState<string | null>(null) // hard (non-retryable) join failure
   const [waitingForHost, setWaitingForHost] = useState(true) // recruiter hasn't opened the room yet
@@ -210,7 +210,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">{joinError}</p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
           style={{ background: accent }}
         >
           <RefreshCw size={15} /> Try joining again
@@ -235,7 +235,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         </p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-full px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
           style={{ background: accent }}
         >
           <RefreshCw size={15} /> Reconnect
@@ -301,7 +301,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
 
           <div className="flex flex-col items-center gap-3">
             <span
-              className="flex items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-gold-light"
+              className="flex items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-gold-light"
               aria-live="polite"
             >
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-gold" />
@@ -325,13 +325,13 @@ export function TwoWayStage({ sessionId, branding }: Props) {
       <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-card px-4">
         <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
           <span className="truncate">{branding.companyName}</span>
-          <span className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
+          <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
           </span>
         </span>
         <button
           onClick={handleEnd}
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
         >
           <PhoneOff size={15} /> End interview
         </button>

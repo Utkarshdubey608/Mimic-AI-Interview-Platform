@@ -7,10 +7,10 @@ interface Props {
 // Brand score bands — violet for strong, lavender-neutral for mid, amber for low.
 // Mirrors the dimension bands used on the Results page so one score reads the
 // same wherever it appears.
-const TRACK = '#E7E2F2'
+const TRACK = '#E3E6ED'
 function bandColor(score: number) {
-  if (score >= 70) return '#6B2BE0'
-  if (score >= 45) return '#7C7595'
+  if (score >= 70) return '#1D3FA0'
+  if (score >= 45) return '#5C6879'
   return '#B45309'
 }
 
@@ -67,7 +67,7 @@ export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: P
           x={size / 2}
           y={size / 2 + 14}
           textAnchor="middle"
-          fill="#9D93B8"
+          fill="#626B79"
           fontSize={11}
           fontWeight="600"
           fontFamily="Figtree, system-ui, sans-serif"

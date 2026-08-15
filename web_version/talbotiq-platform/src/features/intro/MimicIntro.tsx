@@ -5,6 +5,7 @@ import { DEFAULT_CONFIG, SESSION_KEY, type IntroConfig, type IntroTier } from '.
 import type { IntroBridge } from './contract'
 import { StaticHero } from './StaticHero'
 import { detectTier, supportsWebgl } from './tier'
+import { introSuppressedForPath } from './introRoutes'
 import { getCachedFaces } from './lib/replicaFaceCache'
 import type { FaceAtlas } from './lib/faceAtlas'
 
@@ -100,11 +101,11 @@ export default function MimicIntro(props: MimicIntroProps) {
       setDecision('off')
       return
     }
-    // NEVER compete with a live interview: /take/:id (candidate) and /interview
-    // (recruiter room) run a real-time WebRTC call — a WebGL film playing over
-    // the join steals exactly the GPU/CPU the video needs and reads as "lag".
-    const path = window.location.pathname
-    if (path.startsWith('/take/') || path.startsWith('/interview')) {
+    // The route rules, and the reasoning behind them, live in ./introRoutes so
+    // main.tsx can apply them before importing this module at all — a check
+    // here cannot stop this chunk from being fetched. Kept as a guard too, for
+    // any caller that mounts the component directly.
+    if (introSuppressedForPath(window.location.pathname)) {
       setDecision('off')
       return
     }

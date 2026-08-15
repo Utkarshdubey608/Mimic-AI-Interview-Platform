@@ -17,7 +17,7 @@ function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accen
   return (
     <span
       aria-hidden="true"
-      className="flex h-8 w-8 flex-shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-white text-[11px] font-bold leading-none shadow-xs"
+      className="flex h-8 w-8 flex-shrink-0 select-none items-center justify-center overflow-hidden rounded-md border border-border bg-white text-[11px] font-bold leading-none shadow-xs"
       style={{ color: accent }}
     >
       {branding.logoUrl
@@ -67,7 +67,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   const [breakStage, setBreakStage] = useState<'none' | 'choosing' | 'counting'>('none')
   const [breakRemaining, setBreakRemaining] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const accent = branding.accentColor || '#6B2BE0'
+  const accent = branding.accentColor || '#1D3FA0'
   const accentVar = { '--accent': accent } as CSSProperties
   const s = chat.state
   const visibleTranscript = chat.visibleTranscript
@@ -152,8 +152,8 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
 
   /* Shared control shapes — the accent is candidate-branded, so these carry it
      through inline style rather than a static token class. */
-  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-sm'
-  const outlinePill = 'inline-flex items-center justify-center rounded-full border-[1.5px] bg-white font-semibold transition-colors duration-150 hover:bg-neutral-50'
+  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-md px-5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-sm'
+  const outlinePill = 'inline-flex items-center justify-center rounded-md border-[1.5px] bg-white font-semibold transition-colors duration-150 hover:bg-neutral-50'
 
   if (s?.finished) {
     return (
