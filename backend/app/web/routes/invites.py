@@ -50,6 +50,69 @@ MAX_LOGO_BYTES = 2 * 1024 * 1024
 MAX_CANDIDATES = 500
 
 
+def clean_candidates(raw: object, fallback_role: str) -> list[dict]:
+    """Valid, de-duplicated recipients, in the order the recruiter listed them.
+
+    Ports the filter in `server/routes/invites.ts`: trim the address, fall back to
+    the batch role when a row leaves it blank, drop anything that is not a valid
+    address, and treat one mailbox listed twice in different cases as one
+    candidate.
+
+    Reuses `invite_extract.deduplicate` rather than repeating the rule, so the
+    wizard's review step and the send agree on what counts as a duplicate — two
+    answers there would show the recruiter one list and invite a different one.
+    That helper keeps invalid rows (the review screen has to display them); the
+    send drops them.
+    """
+    entries = [e for e in (raw if isinstance(raw, list) else []) if isinstance(e, dict)]
+    rows, _duplicates = invite_extract.deduplicate(entries, fallback_role)
+    return [
+        {"email": row["email"], "role": row["role"] or fallback_role}
+        for row in rows
+        if row["valid"]
+    ]
+
+
+def resolve_template(body: dict, recruiter_uid: str, stored: dict | None) -> dict:
+    """The invite email to send: inline config, else a saved template, else the default.
+
+    Ports `resolveInviteEmail` in `server/routes/invites.ts`, with one deliberate
+    difference. There it could return null and the caller fell back to a legacy
+    built-in email; here every caller uses the result unconditionally (and the
+    locked-token check runs on it), so this always returns a template and the
+    default stands in for the null case.
+
+    `emailConfig` wins over `emailTemplateId`: the wizard sends the recruiter's
+    unsaved edits inline, and those are what they just previewed. Each section is
+    merged over the default rather than replacing it, so a partial config cannot
+    drop the sender or branding the renderer needs.
+
+    `stored` is already owner-checked by the caller — a template id belonging to
+    another recruiter never reaches here, which is what stops one recruiter
+    sending under another's verified sender address.
+    """
+    kind = str(body.get("kind") or invite_email.INVITE)
+    default = invite_email.default_template_for(kind)
+
+    config = body.get("emailConfig")
+    if isinstance(config, dict):
+        return {
+            **default,
+            "id": "inline",
+            "recruiterId": recruiter_uid,
+            "isDefault": False,
+            "name": config.get("name") or default.get("name"),
+            "subject": config.get("subject") or default.get("subject"),
+            "bodyHtml": config.get("bodyHtml") or default.get("bodyHtml"),
+            "sender": {**(default.get("sender") or {}), **(config.get("sender") or {})},
+            "cta": {**(default.get("cta") or {}), **(config.get("cta") or {})},
+            "branding": {**(default.get("branding") or {}), **(config.get("branding") or {})},
+            "deadlineText": config.get("deadlineText") or default.get("deadlineText") or "",
+        }
+
+    return stored or default
+
+
 @router.post("/extract", summary="Parse candidates from an uploaded file")
 async def extract(
     request: Request,

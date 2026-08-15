@@ -276,6 +276,20 @@ def _send_smtp(settings: Settings, message: EmailMessage) -> None:
                     "https://myaccount.google.com/apppasswords (2-Step Verification "
                     "required), not your normal account password."
                 ) from exc
+            # 525 is not a credential problem, and saying "check SMTP_USER and
+            # SMTP_PASS" for it sends the operator to the one place that is fine.
+            # Brevo answers 5.7.1 "Unauthorized IP address" when the sending host
+            # is not on the account's authorised-IP list, which is a dashboard
+            # setting no amount of key-checking will fix.
+            detail = (exc.smtp_error or b"").decode("utf-8", "replace").strip()
+            if exc.smtp_code == 525 or "unauthorized ip" in detail.lower():
+                raise MailerNotConfigured(
+                    f"{settings.smtp_host} accepted the credentials but refused this "
+                    f"server's IP address ({exc.smtp_code} {detail}). The login is "
+                    "fine — allow this machine's public IP in the provider's "
+                    "authorised-IP list (Brevo: Senders, Domains & IPs -> Authorised "
+                    "IPs), or turn the IP restriction off."
+                ) from exc
             raise MailerNotConfigured(
                 f"{settings.smtp_host} rejected the login for {login} "
                 f"({exc.smtp_code}). Check SMTP_USER and SMTP_PASS."

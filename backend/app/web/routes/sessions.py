@@ -50,6 +50,7 @@ from app.web.deps import (
 )
 from app.web.services import (
     conversation,
+    interview_invite,
     invite_bridge,
     question_gen,
     resume_text,
@@ -74,6 +75,68 @@ DELETED_TEMPLATE = "(deleted template)"
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _iso(value: object) -> str | None:
+    """Firestore hands back a datetime; the rest of this surface speaks ISO strings."""
+    if value is None:
+        return None
+    as_iso = getattr(value, "isoformat", None)
+    return as_iso() if callable(as_iso) else str(value)
+
+
+async def _pending_invites(settings, email: str, already_listed: set[str]) -> list[dict]:
+    """Interviews this candidate has been invited to but has never opened.
+
+    A bulk invite writes an `interviews` document and nothing else: the web session is
+    only materialised when the candidate first opens their take link. Listing web
+    sessions alone therefore hides exactly the interviews a candidate signs in to look
+    for — the link in the email works, but the portal says they have none.
+
+    Read-only and best-effort. This list is a convenience on top of the email; a
+    Firestore hiccup here must not blank out the sessions the candidate really does
+    have, so a failure logs and yields nothing rather than raising.
+    """
+    import asyncio
+
+    def _fetch() -> list[dict]:
+        try:
+            documents = (
+                interview_invite.interviews(settings)
+                .where("candidateEmailLower", "==", email)
+                .get()
+            )
+        except Exception as exc:  # noqa: BLE001 - convenience list, never fatal
+            logger.warning(
+                "could not read invites for %s: %s", email, type(exc).__name__
+            )
+            return []
+
+        rows: list[dict] = []
+        for document in documents:
+            # Already materialised — the session row is the better record of the two.
+            if document.id in already_listed:
+                continue
+            data = document.to_dict() or {}
+            rows.append(
+                {
+                    "id": document.id,
+                    "templateName": data.get("title") or DELETED_TEMPLATE,
+                    "role": data.get("role"),
+                    "track": invite_bridge.track_for(data),
+                    # The invite's own vocabulary ("assigned") is not the session
+                    # lifecycle's. Anything not finished reads as not started, which is
+                    # what the candidate needs the button to say.
+                    "status": (
+                        "completed" if data.get("status") == "completed" else "created"
+                    ),
+                    "createdAt": _iso(data.get("createdAt")),
+                    "completedAt": _iso(data.get("completedAt")),
+                }
+            )
+        return rows
+
+    return await asyncio.to_thread(_fetch)
 
 
 def _state(session: dict, template: dict) -> dict:
@@ -197,6 +260,11 @@ async def mine(request: Request, user: AuthedUser = WebUser) -> list[dict]:
         }
         for session in sessions
     ]
+
+    # Plus anything they have been invited to and not yet opened, which has no session
+    # row to find. Without this the portal is empty for a freshly-invited candidate.
+    items.extend(await _pending_invites(settings, email, {i["id"] for i in items}))
+
     return sorted(items, key=lambda item: str(item.get("createdAt") or ""), reverse=True)
 
 
