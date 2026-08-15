@@ -134,29 +134,46 @@ test that needs one says so.
 
 ---
 
-## 5. Decision you need to make: which SMTP
+## 5. Mail: resolved — Office 365
 
-The two projects are configured differently and the common backend has one setting:
+**Update 2026-08-16.** Both surfaces now send through the shared TalbotIQ mailbox,
+replacing the old split (Gmail for mobile, a Brevo relay for web):
 
-| | host | from |
-|---|---|---|
-| `backend/.env` (mobile) | `smtp.gmail.com` | `TalbotIQ <aksush2708@gmail.com>` |
-| web `.env` | `smtp-relay.brevo.com` | `AgroScope <athoshith1@gmail.com>` |
+```
+SMTP_HOST=smtp.office365.com
+SMTP_PORT=587                      # STARTTLS
+SMTP_USER=team@talbotiq.com
+MAIL_FROM=TalbotIQ <team@talbotiq.com>
+```
 
-You asked earlier for the common backend to use the web service to send mail — that means
-Brevo. Two things before switching:
+`mailer.provider()` reports `smtp` — neither the Gmail App-Password rule nor the Brevo
+branch applies to this host, so no code changed. **Authentication verified live against
+Office 365**, and the mailbox accepts relay to a talbotiq.com recipient.
 
-1. **The web `MAIL_FROM` is `AgroScope`**, which is another project entirely. Do not carry
-   it over as-is.
-2. Brevo only sends from **verified senders**, so the from-address cannot simply be
-   changed to a TalbotIQ one without verifying it in Brevo first.
+**One thing still unproven, and it matters for invites.** Office 365 enforces *Send As*
+at `DATA` time against the `From:` header, not at `MAIL FROM` — the envelope stage
+accepts any sender, including `someone@gmail.com`, so a connection-level check cannot
+tell you whether it will work. The invite flow sets a per-recruiter `from_override` from
+the invite-email template's "verified sender"
+(`web/services/interview_invite.py:169`). Under Brevo that meant a Brevo-verified
+sender; under Office 365 it means the mailbox must hold **Send As** rights for that
+address, or the send fails with `550 5.7.60 Client does not have permissions to send as
+this user`.
 
-Right now the backend is on **Gmail** for both surfaces, which authenticates and works.
-Tell me which you want and I will switch it. Gmail app passwords rate-limit hard, so Brevo
-is the better long-term answer once a TalbotIQ sender is verified.
+Two options, whichever suits:
 
-**No mail was sent during testing** — the check authenticates only.
-`live_smoke.py --send-email you@example.com` sends one deliberately.
+- Grant `team@talbotiq.com` Send As rights for any address recruiters may pick, or
+- Ignore the per-recruiter sender and always send as `team@talbotiq.com`, putting the
+  recruiter's address in `Reply-To` instead — the mailer already supports `reply_to`.
+
+Confirm with one real send before relying on invites:
+
+```bash
+.venv/bin/python scripts/live_smoke.py smtp --send-email you@talbotiq.com
+```
+
+**Note:** the Office 365 password was shared in plain text and lives in `backend/.env`
+(gitignored). Worth rotating once deployment is settled.
 
 ---
 

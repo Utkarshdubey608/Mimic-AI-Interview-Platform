@@ -50,7 +50,7 @@ app/
 ├── config.py          every setting, from .env
 ├── security.py        Firebase ID-token verification → AuthedUser
 ├── firebase.py        Firestore client
-├── mailer.py          SMTP (generic — Gmail or Brevo)
+├── mailer.py          SMTP (generic — Office 365 in deployment)
 ├── ratelimit.py
 ├── providers/         one module per vendor: gemini, tavus, daily, deepgram,
 │                      hume, rekognition, brevo
@@ -173,10 +173,12 @@ TypeScript invite-email renderers assert against, so the two cannot drift.
 | Live vendor test results + open issues | [Documents/LIVE_TEST_RESULTS.md](Documents/LIVE_TEST_RESULTS.md) |
 | Per-project detail | each subproject's own `README.md` |
 
-Two open items at the time of writing, both in the live-test report: **Firebase Storage
-has never been enabled** on the project (blocks logo upload and the face cache), and
-**which SMTP the common backend should use** — mobile is on Gmail, the web version used a
-Brevo relay — is undecided.
+One open item at the time of writing, in the live-test report: **Firebase Storage has
+never been enabled** on the project, which blocks logo upload and the face cache.
+
+Mail for both surfaces goes through the shared TalbotIQ Office 365 mailbox
+(`team@talbotiq.com`), replacing the old split of Gmail for mobile and a Brevo relay for
+web.
 
 `Documents/COMMON_BACKEND_MIGRATION_REPORT.md` is stale and contradicts the frozen mobile
 contract. Don't act on it.

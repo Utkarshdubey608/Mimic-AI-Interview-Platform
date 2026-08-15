@@ -17,10 +17,17 @@ APP_PASSWORD = "abcd" * 4  # 16 characters, as Google issues them
 
 
 def gmail(**overrides) -> Settings:
-    """A deployment configured the old way, before SMTP_USER/PASS/MAIL_FROM existed."""
-    return Settings(
+    """A deployment configured the old way, before SMTP_USER/PASS/MAIL_FROM existed.
+
+    Built on `blank()` so the *absence* of SMTP_USER/PASS/MAIL_FROM is part of the
+    fixture rather than an accident of the developer's `.env`. That absence is the
+    whole point — these tests assert the fallback to EMAIL_USER — and when the
+    deployment moved to Office 365 the ambient SMTP_USER silently took precedence
+    and four of them failed.
+    """
+    return blank(
         **{
-            "dry_run": False,
+            "smtp_host": "smtp.gmail.com",
             "email_user": "talent@acme.test",
             "email_app_password": APP_PASSWORD,
             "from_name": "Acme Talent",
@@ -30,9 +37,8 @@ def gmail(**overrides) -> Settings:
 
 
 def brevo(**overrides) -> Settings:
-    return Settings(
+    return blank(
         **{
-            "dry_run": False,
             "smtp_host": "smtp-relay.brevo.com",
             "smtp_user": "9a1b2c@smtp-brevo.com",
             "smtp_pass": "xsmtpsib-0123456789abcdef",
@@ -169,6 +175,9 @@ def blank(**overrides) -> Settings:
     return Settings(
         **{
             "dry_run": False,
+            # Pinned to a host with no special-casing, so neither the Gmail
+            # App-Password rule nor the Brevo branch can fire by inheritance.
+            "smtp_host": "mail.example.test",
             "email_user": "",
             "email_app_password": "",
             "smtp_user": "",
