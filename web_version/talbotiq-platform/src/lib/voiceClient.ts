@@ -4,6 +4,7 @@ import {
   type LiveServerMessage,
 } from './geminiLive'
 import { sessionsApi, type VoiceTokenGrant } from './api'
+import { isSpeechRecognitionSupported, startSpeechRecognition } from './speechRecognition'
 
 /**
  * Low-latency browser transport for the Voice Track.
@@ -170,6 +171,16 @@ export class VoiceClient {
    *  MAX_REMINTS — each one is a billable credential. */
   private remints = 0
 
+  // Local display-only captioner (Web Speech API). Google's authoritative transcription
+  // arrives only around the END of a turn — measured ~2.7s after the candidate stops,
+  // and under the old setup 10s+ — so with nothing else on screen a candidate cannot
+  // tell they are being heard WHILE speaking. This shows their words as they say them.
+  // Display only: nothing from it is POSTed, scored, or sent to Google.
+  private localWanted = false
+  private localStop?: () => void
+  private localLine = ''
+  private localRestartTimer?: ReturnType<typeof setTimeout>
+
   // Transcript state. Captions accumulate per role and flush on turnComplete.
   private pendingInterviewer = ''
   private pendingCandidate = ''
@@ -237,6 +248,9 @@ export class VoiceClient {
     if (Number.isFinite(msLeft) && msLeft > 0) {
       this.capTimer = setTimeout(() => this.finishInterview(this.covered, 'expired'), msLeft)
     }
+
+    // Instant "you are being heard" feedback, in the locale the grant names.
+    this.startLocalCaptions()
 
     this.openWs()
   }
@@ -360,9 +374,15 @@ export class VoiceClient {
   private handleTurnComplete(): void {
     const cand = this.pendingCandidate.trim()
     const intv = this.pendingInterviewer.trim()
+    const local = this.localLine.trim()
     this.pendingCandidate = ''
     this.pendingInterviewer = ''
+    this.localLine = ''  // the local captioner's running line belongs to the closed turn
+    // Google's transcription is authoritative for the record; the local line only
+    // finalises the DISPLAY when Google produced nothing, so a captioned answer never
+    // dangles as a half-open line. It is still never POSTed.
     if (cand) this.cbs.onCaption?.('candidate', cand, true)
+    else if (local) this.cbs.onCaption?.('candidate', local, true)
     if (intv) this.cbs.onCaption?.('interviewer', intv, true)
     if (!this.finished) this.cbs.onPhase?.('listening')
 
@@ -564,6 +584,58 @@ export class VoiceClient {
     if (this.playing === p) return
     this.playing = p
     this.cbs.onAudioPlaying?.(p)
+    // The local captioner hears the speakers as well as the microphone, so while the
+    // interviewer talks it would caption the interviewer's words as "YOU". Suspend it
+    // for the duration and resume the moment the audio drains.
+    if (p) this.pauseLocalCaptions()
+    else this.resumeLocalCaptions()
+  }
+
+  /* ── Local display-only captions ─────────────────────────────────────────── */
+
+  private startLocalCaptions(): void {
+    if (this.localWanted || !isSpeechRecognitionSupported()) return
+    this.localWanted = true
+    this.resumeLocalCaptions()
+  }
+
+  private resumeLocalCaptions(): void {
+    if (!this.localWanted || this.localStop || this.playing || this.muted) return
+    if (this.closed || this.finished) return
+    const lang = this.grant?.language || 'en-US'
+    this.localStop = startSpeechRecognition(
+      lang,
+      (result) => {
+        if (this.playing || this.muted || this.closed || this.finished) return
+        const text = result.transcript.trim()
+        if (!text) return
+        if (result.isFinal) this.localLine = `${this.localLine} ${text}`.trim()
+        // Interim: show the running line plus what is still forming. Google's own
+        // transcription writes the same non-final caption slot when it arrives, so the
+        // authoritative text simply replaces this — and the final flush closes the line.
+        const shown = result.isFinal ? this.localLine : `${this.localLine} ${text}`.trim()
+        this.cbs.onCaption?.('candidate', shown, false)
+      },
+      () => { /* soft failure (no-speech, network): onEnd below restarts if still wanted */ },
+      () => {
+        // Chrome ends continuous recognition on its own after silence or a hiccup.
+        this.localStop = undefined
+        if (this.localRestartTimer) clearTimeout(this.localRestartTimer)
+        this.localRestartTimer = setTimeout(() => this.resumeLocalCaptions(), 250)
+      },
+    )
+  }
+
+  private pauseLocalCaptions(): void {
+    if (this.localRestartTimer) { clearTimeout(this.localRestartTimer); this.localRestartTimer = undefined }
+    this.localStop?.()
+    this.localStop = undefined
+  }
+
+  private stopLocalCaptions(): void {
+    this.localWanted = false
+    this.pauseLocalCaptions()
+    this.localLine = ''
   }
 
   /** Fire onAudioPlaying(false) the moment the scheduled queue actually drains. */
@@ -588,6 +660,10 @@ export class VoiceClient {
   /** Mute is local now: the worklet simply stops sending mic chunks. */
   setMuted(muted: boolean) {
     this.muted = muted
+    // The local captioner listens through its own capture path, not the worklet, so it
+    // must be gated separately or a muted candidate would still see themselves captioned.
+    if (muted) this.pauseLocalCaptions()
+    else this.resumeLocalCaptions()
   }
 
   /** Candidate-initiated end: finalize the session, then tear down. Graceful
@@ -611,6 +687,7 @@ export class VoiceClient {
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = undefined }
     if (this.closingTimer) { clearTimeout(this.closingTimer); this.closingTimer = undefined }
     this.clearFinalAnswerGrace()
+    this.stopLocalCaptions()
     if (this.capTimer) { clearTimeout(this.capTimer); this.capTimer = undefined }
     this.flushPlayback()
     try { this.worklet?.disconnect() } catch { /* noop */ }

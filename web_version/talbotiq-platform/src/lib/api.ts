@@ -255,6 +255,10 @@ export const sessionsApi = {
 /** The voice-interview grant: a LiveGrant plus the planned-question count. */
 export interface VoiceTokenGrant extends LiveGrant {
   totalQuestions: number
+  /** BCP-47 locale for the browser's local display-only captioner (e.g. "en-IN") —
+   *  the first of the language hints the server gave the recogniser itself.
+   *  Optional: older backends do not send it. */
+  language?: string
 }
 
 /* ─── Chatbot (conversational) track ────────────────────────────────────── */

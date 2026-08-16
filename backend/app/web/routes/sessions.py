@@ -59,6 +59,7 @@ from app.web.services import (
     video_transcript,
     voice_setup,
 )
+from app.web.shared import speech
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions")
@@ -1052,6 +1053,14 @@ async def voice_token(
         "expiresAt": rfc3339(token.expires_at),
         "connectBy": rfc3339(token.connect_by),
         "totalQuestions": len(session.get("questions") or []),
+        # ADDITIVE. The browser runs a local, display-only live captioner (Web Speech
+        # API) so the candidate sees their words the moment they say them — Google's
+        # authoritative transcription arrives only at the end of the turn. This is the
+        # locale that captioner should listen in: the first (most specific) of the same
+        # language hints the recogniser itself was given.
+        "language": speech.transcription_languages(
+            (template.get("voice") or {}).get("language")
+        )[0],
     }
 
 
