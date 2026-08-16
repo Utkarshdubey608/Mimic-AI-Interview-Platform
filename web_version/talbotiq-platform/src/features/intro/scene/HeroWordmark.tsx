@@ -1,6 +1,6 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Center, MeshTransmissionMaterial, Text3D } from '@react-three/drei'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
 import type { HeroMaterialPreset, IntroTier } from '../constants'
@@ -9,6 +9,13 @@ import type { IntroState } from '../state'
 const FONT_URL = '/fonts/helvetiker_bold.typeface.json'
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+/** How much of the visible width the wordmark may occupy. The rest is the
+ *  breathing room a title card needs to read as composed rather than crammed. */
+const WIDTH_BUDGET = 0.86
+
+const tmpBox = new THREE.Box3()
+const tmpVec = new THREE.Vector3()
 
 type HeroWordmarkProps = {
   state: IntroState
@@ -31,13 +38,50 @@ export function HeroWordmark({ state, text, material, accentColor, tier }: HeroW
   const matRef = useRef<THREE.MeshPhysicalMaterial | THREE.MeshStandardMaterial | null>(null)
   const { heroReveal, heroGlow } = state.refs
 
+  /* Unit width of the extruded text, measured once from the real geometry.
+     Measured rather than assumed: the string is a prop, the font loads async,
+     and letterSpacing and bevel all feed the final width — any hard-coded
+     number would be wrong for a different word, and silently. */
+  const baseWidth = useRef(0)
+  const camera = useThree((s) => s.camera)
+  const viewport = useThree((s) => s.size)
+
+  // A new string is new geometry, so the cached width has to go with it.
+  useEffect(() => { baseWidth.current = 0 }, [text])
+
   useFrame(() => {
     const g = group.current
     if (!g) return
     const reveal = heroReveal.value
     g.visible = reveal > 0.001
 
-    const s = lerp(0.86, 1, reveal)
+    if (baseWidth.current === 0 && g.children.length > 0) {
+      tmpBox.setFromObject(g)
+      const w = tmpBox.max.x - tmpBox.min.x
+      // Divide out the scale in force when measured, to get width at scale 1.
+      if (w > 0 && isFinite(w) && g.scale.x > 0) baseWidth.current = w / g.scale.x
+    }
+
+    /* Fit to the viewport, not to a breakpoint.
+       The camera framing was authored in landscape, where the horizontal field
+       of view is generous. `fov` in three.js is VERTICAL, so a portrait phone
+       keeps the full height and loses width — and a wordmark wide enough to be
+       the centrepiece ran off both edges of the screen.
+       Widening the fov to compensate would need ~99 degrees vertical on a
+       phone, which fisheyes the whole scene. Scaling the wordmark to the width
+       actually available leaves the camera move, the floor and the montage
+       exactly as authored, and costs only the size of the letters. */
+    let fit = 1
+    if (baseWidth.current > 0) {
+      const persp = camera as THREE.PerspectiveCamera
+      const dist = camera.position.distanceTo(g.getWorldPosition(tmpVec))
+      const visibleH = 2 * dist * Math.tan((THREE.MathUtils.degToRad(persp.fov) || 0) / 2)
+      const visibleW = visibleH * (viewport.width / Math.max(1, viewport.height))
+      // Only ever shrinks: a wide screen keeps the authored composition.
+      fit = Math.min(1, (visibleW * WIDTH_BUDGET) / baseWidth.current)
+    }
+
+    const s = lerp(0.86, 1, reveal) * fit
     g.scale.set(s, s, s)
 
     const mat = matRef.current

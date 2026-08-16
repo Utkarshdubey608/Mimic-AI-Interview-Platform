@@ -243,7 +243,13 @@ export default function MimicIntro(props: MimicIntroProps) {
                 fontFamily: 'DM Sans, Inter, system-ui, sans-serif',
                 color: '#d7dbe2',
                 fontSize: 'clamp(0.8rem, 2.4vw, 1.25rem)',
-                letterSpacing: '0.32em',
+                /* Tracking has to shrink with the screen, not just the type
+                   size. At a flat 0.32em an uppercase tagline of this length
+                   is wider than a phone even at the clamp's minimum font
+                   size, because the spacing is added per character. */
+                letterSpacing: 'clamp(0.12em, 1.1vw, 0.32em)',
+                maxWidth: '92vw',
+                paddingInline: '4vw',
                 textTransform: 'uppercase',
                 textShadow: '0 2px 24px rgba(0,0,0,0.6)',
               }}
