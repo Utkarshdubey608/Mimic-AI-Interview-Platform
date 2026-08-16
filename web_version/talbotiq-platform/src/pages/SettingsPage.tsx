@@ -5,6 +5,7 @@ import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { tavus } from '@/services/tavus'
 import { settingsApi } from '@/lib/api'
+import { httpBase } from '@/lib/apiOrigin'
 import { GeminiKeyCard } from '@/features/recruiter/GeminiKeyCard'
 
 /**
@@ -76,7 +77,10 @@ export default function SettingsPage() {
   useEffect(() => {
     setTavusKeyLocal(store.tavusKey)
     setWebhook(store.webhookUrl)
-    fetch('/api/avatar/status').then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
+    // Through httpBase(): a bare '/api/…' path misses the auth interceptor and
+    // resolves against the frontend's own origin on a deployed build. Failure
+    // still degrades to a null status panel, exactly as before.
+    fetch(`${httpBase()}/avatar/status`).then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // The browser holds no Tavus key anymore — every call goes through the

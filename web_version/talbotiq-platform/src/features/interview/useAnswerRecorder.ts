@@ -50,7 +50,8 @@ export function useAnswerRecorder() {
     void (async () => {
       const token = await getIdTokenOrNull()
       if (gen !== transcribeGenRef.current) return                 // superseded during token fetch
-      const ws = new WebSocket(wsUrl(`/api/interview/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
+      // /api/web/… — the deployed backend's web surface; see useDeepgramTranscript.
+      const ws = new WebSocket(wsUrl(`/api/web/interview/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
       if (gen !== transcribeGenRef.current) { try { ws.close() } catch { /* noop */ } return }
       wsRef.current = ws
       ws.onopen = () => {

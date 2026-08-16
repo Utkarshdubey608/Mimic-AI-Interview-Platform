@@ -36,7 +36,10 @@ export function useDeepgramTranscript(enabled: boolean) {
         // the server (injected into the upstream Deepgram WS); we just stream the
         // MediaRecorder WebM/Opus chunks and the relay passes results straight back.
         const token = await getIdTokenOrNull()
-        const ws = new WebSocket(wsUrl(`/api/avatar/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
+        // /api/web/…, not /api/…: the Python backend mounts this relay under the
+        // web surface (ws_deepgram.py under PREFIX in backend/app/web/__init__.py).
+        // The bare path was the retired Express server's and 404s on the deployed API.
+        const ws = new WebSocket(wsUrl(`/api/web/avatar/deepgram${token ? `?token=${encodeURIComponent(token)}` : ''}`))
         wsRef.current = ws
 
         ws.onopen = () => {
