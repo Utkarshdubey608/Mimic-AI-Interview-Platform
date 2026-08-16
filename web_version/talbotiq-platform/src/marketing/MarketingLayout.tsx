@@ -165,8 +165,12 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
                 )}
               </div>
             ))}
-            <Link to={crossing.to} style={{ display: 'block', padding: '16px 2px', fontWeight: 600, color: 'var(--mm-ink)' }}>{crossing.label}</Link>
-            <Link className="btn btn-primary" to="/#demo" style={{ width: '100%' }}>Book a demo</Link>
+            {/* Styled in mimicSite.css (`.mmenu > a`), not inline: the inline
+                padding here was 2px horizontal, which left "Sign in" hard
+                against the screen edge while every group label above it sat at
+                19px. */}
+            <Link to={crossing.to}>{crossing.label}</Link>
+            <Link className="btn btn-primary" to="/#demo">Book a demo</Link>
           </div>
         )}
       </header>

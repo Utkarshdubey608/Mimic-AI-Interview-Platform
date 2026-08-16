@@ -388,6 +388,28 @@
   border-bottom:1px solid var(--mm-line);font-family:inherit;cursor:pointer;min-height:48px
 }
 
+/* ── Drawer footer: the two actions sitting under the group cards ──────────
+   The generic rule above is (0,2,1) — one element and two classes — which is
+   specific enough to beat both `.btn` and `.btn-primary` (0,2,0). So it was
+   winning on display, background, border, colour and padding, and the drawer's
+   "Book a demo" rendered as plain left-aligned text with a divider beneath it,
+   visually identical to a nav link rather than the primary action.
+
+   The child combinator is deliberate: these must not reach the links inside
+   `.macc-body`, which are group contents and keep the generic treatment.
+
+   19px rather than 18px is not a rounding choice. A group label sits at
+   0 (drawer has no horizontal padding) + 1 (card border) + 18 (button padding),
+   so 19 is what actually lines "Sign in" up with "Platform" instead of landing
+   a pixel short of it. */
+.mimic-site .mmenu > a:not(.btn){padding:14px 19px}
+.mimic-site .mmenu > a.btn{
+  display:flex;justify-content:center;text-align:center;width:100%;
+  margin-top:14px;min-height:2.75rem;padding:0 1.15rem;
+  border:1px solid transparent;border-radius:var(--mm-r-ctl)
+}
+.mimic-site .mmenu > a.btn-primary{background:var(--mm-ink);color:#fff}
+
 /* Reading rail. scaleX, never width — width forces layout every frame. */
 .mimic-site .mm-progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:110;pointer-events:none}
 .mimic-site .mm-progress-bar{height:100%;background:var(--mm-reg);transform-origin:0 50%;will-change:transform}
