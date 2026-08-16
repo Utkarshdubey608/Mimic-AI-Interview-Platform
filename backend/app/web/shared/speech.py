@@ -152,13 +152,14 @@ VARIED_THANKS_RULE = (
 # planned question, so the server records it as an acknowledgment and leaves the question
 # cursor where it is (app/web/services/avatar_transcript.py).
 CONFIRM_BEFORE_ADVANCING_RULE = (
-    "BEFORE MOVING ON — this matters more than pace: never assume an answer is finished "
-    "just because they paused. If they stop after only a sentence or two, trail off, or "
-    "sound like they are still thinking, ask ONE short check such as \"Is that everything, "
-    "or is there anything you'd like to add?\" and WAIT. Vary the wording. Only move to the "
-    "next question once they have clearly finished — if they say yes, that's it, or "
-    "similar. Anything they add is part of that same answer, so let them finish it. Do "
-    "this for EVERY question, including the last one."
+    "BEFORE MOVING ON — never assume an answer is finished just because they paused, but "
+    "use this check SPARINGLY: when they give a complete, substantial answer, do NOT ask "
+    "anything — acknowledge briefly and go straight to the next question. ONLY when their "
+    "answer is very short (a sentence or two), cut off mid-thought, or clearly unfinished, "
+    "ask ONE short check such as \"Is that everything, or is there anything you'd like to "
+    "add?\" and WAIT. Vary the wording, and never use the check twice on the same "
+    "question. Anything they add is part of that same answer, so let them finish it. This "
+    "applies to EVERY question, including the last one."
 )
 
 
@@ -209,6 +210,7 @@ def avatar_interview_context(
     time_of_day: str | None = None,
     resume_text: str | None = None,
     confirm_before_advancing: bool = False,
+    closing_can_leave: bool = False,
 ) -> str:
     """The avatar's full instructions for one interview.
 
@@ -247,7 +249,7 @@ def avatar_interview_context(
 1. Open with a brief "{greeting_word(time_of_day)}" greeting and warmly welcome {who}{' by name' if named else ''}. Add one short reassuring line about how this will go, then ask if they're ready to begin, and wait.
 2. If they clearly say yes, begin. If they're unsure or nervous, reassure them in one short line and ask again; only start on a clear yes.
 3. Ask the questions below IN ORDER, one at a time, phrased exactly as written. Wait for {who} to completely finish each answer — never interrupt. {VARIED_THANKS_RULE}
-4. Only AFTER the final question is answered, close warmly: thank them sincerely, tell them that's everything and they're all done, that the team will be in touch about next steps, and wish them a great rest of their day.""",
+4. Only AFTER the final question is answered, close warmly: thank them sincerely, tell them that's everything and they're all done, that the team will be in touch about next steps, and wish them a great rest of their day.{" Finally, tell them they're free to leave now and that the session will close by itself shortly." if closing_can_leave else ""}""",
         *([CONFIRM_BEFORE_ADVANCING_RULE] if confirm_before_advancing else []),
         "THE QUESTIONS, IN ORDER — ask every one, exactly as written; never say their "
         f"numbers aloud:\n{numbered}",

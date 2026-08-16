@@ -219,3 +219,31 @@ class TestResumeAfterADroppedConnection:
 
         params = inspect.signature(voice_setup.build_live_setup).parameters
         assert set(params) == {"session", "template", "model"}
+
+
+class TestClosingAnnouncement:
+    """The voice session closes itself after the goodbye, so the goodbye must say so."""
+
+    def test_the_voice_interviewer_says_they_can_leave(self):
+        setup = voice_setup.build_live_setup(
+            _session(["Tell me about caching."]), {"voice": {}}, model="models/x"
+        )
+        assert "free to leave" in setup["systemInstruction"]["parts"][0]["text"]
+
+    def test_the_avatar_track_does_not(self):
+        assert "free to leave" not in speech.avatar_interview_context(
+            questions=["Tell me about caching."]
+        )
+
+
+class TestConfirmSparingly:
+    """The 'anything to add?' check is for short answers, not a reflex after every one."""
+
+    def test_a_complete_answer_is_not_followed_by_the_check(self):
+        rule = speech.CONFIRM_BEFORE_ADVANCING_RULE
+        assert "SPARINGLY" in rule
+        assert "complete, substantial answer" in rule
+        assert "do NOT ask" in rule
+
+    def test_it_is_never_used_twice_on_one_question(self):
+        assert "never use the check twice" in speech.CONFIRM_BEFORE_ADVANCING_RULE

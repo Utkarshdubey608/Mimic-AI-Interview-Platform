@@ -116,7 +116,9 @@ export interface VoiceClientCallbacks {
 
 // Backoff between reconnect attempts (ms), capped at the last value and repeated.
 const RECONNECT_DELAYS = [500, 1000, 2000, 3000, 5000, 8000]
-// In the closing exchange, end after this much candidate silence.
+// In the closing exchange, end after this much candidate silence. The interviewer's
+// goodbye tells the candidate they are free to leave, so this only decides how long an
+// unattended session lingers before closing itself.
 const CLOSING_SILENCE_MS = 15_000
 // Every question is asked but nothing has come back yet. Long enough for a real final
 // answer including a thinking pause, short enough that a dead microphone does not leave

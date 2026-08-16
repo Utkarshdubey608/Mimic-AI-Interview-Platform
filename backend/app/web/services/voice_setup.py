@@ -76,6 +76,10 @@ def build_system_instruction(session: dict, template: dict) -> str:
         # indicator — so it must ask rather than assume. Opt-in so the avatar track,
         # which shares this builder, keeps the behaviour it was verified with.
         confirm_before_advancing=True,
+        # The voice client auto-closes shortly after the goodbye finishes playing, so the
+        # interviewer must SAY that — a session that vanishes unannounced reads as a
+        # crash to the candidate. Also voice-only: the avatar track closes differently.
+        closing_can_leave=True,
     )
 
     # A token minted for a session that is already under way is a RECONNECT: the previous
