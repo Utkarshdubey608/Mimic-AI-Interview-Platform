@@ -7,7 +7,7 @@ import {
   PageHeader, Card, Button, Input, Select, Badge, EmptyState, ErrorState, RecordRows,
   ExhibitTab, Citation, Modal, Toggle, cn,
 } from '@/components/ui'
-import { templatesApi, sessionsApi, settingsApi } from '@/lib/api'
+import { templatesApi, sessionsApi, settingsApi, describeFetchError } from '@/lib/api'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import type { SessionListItem, TrackType } from '@shared/types'
 
@@ -131,8 +131,11 @@ export default function SessionsPage() {
            unreachable. Name the failure, and say the data is safe. */
         <Card className="p-0">
           <ErrorState
-            title="Couldn't reach the record"
-            detail="Nothing has been lost — this view just couldn't reach the server. Check your connection and try again."
+            title="Couldn't load the record"
+            detail={describeFetchError(
+              sessions.error,
+              "Nothing has been lost — this view just couldn't reach the server. Check your connection and try again.",
+            )}
             onRetry={() => void sessions.refetch()}
           />
         </Card>

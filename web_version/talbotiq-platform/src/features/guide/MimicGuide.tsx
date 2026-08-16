@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { httpBase } from '@/lib/apiOrigin'
 import { GuideMarkdown } from '@/features/guide/guide-markdown'
 import { LANGUAGES, findLanguage, type Language } from '@/lib/languages'
 import {
@@ -510,7 +511,10 @@ export default function MimicGuide() {
       .slice(-MAX_HISTORY)
       .map(({ role, content: text }) => ({ role, content: text.slice(0, 8000) }))
 
-    fetch('/api/help/chat', {
+    // Through httpBase(), never a bare '/api/…': a relative path bypasses the
+    // auth interceptor's base matching AND resolves against the frontend's own
+    // origin, so on a deployed frontend it 404s instead of reaching the API.
+    fetch(`${httpBase()}/help/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: payload }),

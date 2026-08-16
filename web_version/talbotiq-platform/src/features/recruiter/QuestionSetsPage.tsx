@@ -13,7 +13,7 @@ import {
   AlertTriangle, RefreshCw, Tag, Target,
 } from 'lucide-react'
 import { PageHeader, Card, Button, EmptyState, Skeleton, Badge, cn } from '@/components/ui'
-import { questionSetsApi } from '@/lib/api'
+import { questionSetsApi, describeFetchError } from '@/lib/api'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import type { QuestionSet, FixedQuestion } from '@shared/types'
 
@@ -185,7 +185,7 @@ export default function QuestionSetsPage() {
           <EmptyState
             icon={<AlertTriangle strokeWidth={1.75} />}
             title="Couldn't load question sets"
-            description="The request for your question sets didn't come back. Check your connection, then try again — nothing you've saved is lost."
+            description={describeFetchError(sets.error, "The request for your question sets didn't come back. Check your connection, then try again — nothing you've saved is lost.")}
             action={<Button size="sm" icon={<RefreshCw size={14} />} onClick={() => sets.refetch()}>Try again</Button>}
           />
         </Card>
