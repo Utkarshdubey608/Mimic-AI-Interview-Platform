@@ -143,3 +143,28 @@ class TestConfirmBeforeAdvancing:
         instruction = self._voice_instruction()
         assert "Do NOT invent, add, skip, reorder, or rephrase" in instruction
         assert "never add questions of your own" in instruction
+
+
+class TestSessionMinutes:
+    """The credential must outlast the interview, not the other way round."""
+
+    TIMING = {"timing": {"numberOfQuestions": 5, "prepSeconds": 30, "answerSeconds": 120}}
+
+    def test_the_actual_question_count_wins_over_the_template_intent(self):
+        # 8 real questions against a template that still says 5: sizing from 5 expires the
+        # token three questions early, and the browser's capTimer ends the interview there.
+        five = voice_setup.session_minutes(self.TIMING, 0, question_count=5)
+        eight = voice_setup.session_minutes(self.TIMING, 0, question_count=8)
+        assert eight > five
+
+    def test_it_falls_back_to_the_template_when_the_count_is_unknown(self):
+        assert voice_setup.session_minutes(self.TIMING, 0, question_count=0) == (
+            voice_setup.session_minutes(self.TIMING, 0, question_count=5)
+        )
+
+    def test_the_grace_period_is_added(self):
+        base = voice_setup.session_minutes(self.TIMING, 0, question_count=5)
+        assert voice_setup.session_minutes(self.TIMING, 10, question_count=5) == base + 10
+
+    def test_a_template_with_no_per_question_timing_still_gets_a_workable_window(self):
+        assert voice_setup.session_minutes({}, 0, question_count=5) >= 15

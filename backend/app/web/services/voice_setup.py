@@ -173,15 +173,22 @@ def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
     }
 
 
-def session_minutes(template: dict, buffer_minutes: int) -> int:
+def session_minutes(template: dict, buffer_minutes: int, question_count: int = 0) -> int:
     """How long the session may run: the interview's own length plus a grace period.
 
     The grace matters — a token that expired exactly at the interview's nominal duration
     would cut a candidate off mid-answer, and the interview's own cap is what should end
     it, not the credential.
+
+    `question_count` is the session's ACTUAL number of questions and wins when given.
+    `timing.numberOfQuestions` is only a template-level intent: the recruiter's editor
+    exposes that field on one branch and not others, and generated or résumé-derived sets
+    routinely differ from it. Sizing the credential from the smaller of the two is how a
+    long interview gets cut off by its own token — the expiry arms `capTimer` in the
+    browser, which ends the interview wherever the candidate happens to be.
     """
     timing = template.get("timing") or {}
-    questions = timing.get("numberOfQuestions") or 5
+    questions = question_count or timing.get("numberOfQuestions") or 5
     per_question = (timing.get("prepSeconds") or 0) + (timing.get("answerSeconds") or 0)
 
     # Ceiling-divide to whole minutes, with a floor so a short interview still gets a

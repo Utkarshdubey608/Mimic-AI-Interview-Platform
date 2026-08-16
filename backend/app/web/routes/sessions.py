@@ -1039,7 +1039,9 @@ async def voice_token(
     token = await GeminiClient(settings).mint_live_token(
         setup,
         session_minutes=voice_setup.session_minutes(
-            template, settings.gemini_token_expiry_buffer_minutes
+            template,
+            settings.gemini_token_expiry_buffer_minutes,
+            question_count=len(session.get("questions") or []),
         ),
     )
 
