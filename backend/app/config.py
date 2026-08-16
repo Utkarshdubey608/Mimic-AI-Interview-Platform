@@ -121,6 +121,19 @@ class Settings(BaseSettings):
     gemini_allowed_models: str = "gemini-2.5-flash,gemini-2.5-pro"
     # Native-audio model used for the live voice interview.
     gemini_live_model: str = "models/gemini-2.5-flash-native-audio-preview-09-2025"
+    # The WEB voice track's model, which may run ahead of the mobile one.
+    #
+    # Kept separate deliberately. The mobile app is released on its own cycle and is
+    # verified against the model above; changing that value would change the Flutter
+    # track's behaviour without a mobile release to verify it. Blank falls back to
+    # `gemini_live_model`, so this is additive — unset, nothing changes anywhere.
+    #
+    # The default here is the newer model because the one above is measurably slower to
+    # first audio (2.56s vs 0.86s on the real interview setup, measured against
+    # generativelanguage.googleapis.com), and dead air is what a candidate experiences.
+    # The Express relay this track was ported from explicitly refused the older model
+    # for the same reason (server/services/voice.ts:97, LEGACY_LIVE_MODELS).
+    gemini_live_model_web: str = "models/gemini-3.1-flash-live-preview"
 
     # --- Gemini Live ephemeral tokens ---
     # Minted per interview launch; the client connects straight to Google with one.
@@ -241,6 +254,14 @@ class Settings(BaseSettings):
     def live_model_name(self) -> str:
         """The Live model, always in Google's `models/…` resource form."""
         m = self.gemini_live_model.strip()
+        return m if m.startswith("models/") else f"models/{m}"
+
+    @property
+    def web_live_model_name(self) -> str:
+        """The Live model for the WEB voice track, falling back to the shared one."""
+        m = self.gemini_live_model_web.strip()
+        if not m:
+            return self.live_model_name
         return m if m.startswith("models/") else f"models/{m}"
 
 

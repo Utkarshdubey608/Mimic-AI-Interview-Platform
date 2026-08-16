@@ -87,7 +87,13 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
    * about 2:1 on white, and #1D3FA0 rises to about 9.5:1. Same reasoning, other
    * background. */
   const accent = branding.accentColor || '#1D3FA0'
-  const [showCaptions, setShowCaptions] = useState(false)
+  /* Captions default ON. The live transcript is the only signal a candidate has that
+   * they are being heard at all — the orb animates identically whether the microphone
+   * is working or not. Candidates reported not knowing whether their answer had
+   * registered, and the panel that answers exactly that was behind a control most of
+   * them never pressed. The CC button still turns it off for anyone who finds it
+   * distracting. */
+  const [showCaptions, setShowCaptions] = useState(true)
   const [gestured, setGestured] = useState(false)
 
   // Start gate — getUserMedia needs a user gesture, and it sets a calm tone.

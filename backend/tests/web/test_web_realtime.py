@@ -217,11 +217,16 @@ def _session(**overrides) -> dict:
 
 def test_the_setup_is_audio_out_with_transcription_on() -> None:
     """Input transcription IS the record the interview is scored from — without it there
-    is nothing to evaluate."""
+    is nothing to evaluate.
+
+    It is no longer a bare `{}`: an unconstrained recogniser picked its own language and
+    returned Devanagari for English-only interviews, so the language hints are part of
+    "transcription on" now.
+    """
     setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
 
     assert setup["generationConfig"]["responseModalities"] == ["AUDIO"]
-    assert setup["inputAudioTranscription"] == {}
+    assert setup["inputAudioTranscription"]["languageHints"]["languageCodes"]
     assert setup["outputAudioTranscription"] == {}
 
 
@@ -252,7 +257,26 @@ def test_barge_in_is_enabled_with_the_tuned_padding() -> None:
     detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
 
     assert detection["prefixPaddingMs"] == 150
-    assert detection["silenceDurationMs"] == 500
+
+
+def test_a_thinking_pause_does_not_end_the_answer() -> None:
+    """The candidate must be able to go quiet mid-answer without losing their turn.
+
+    At 500ms an ordinary pause — drawing breath, recalling a specific — committed
+    end-of-turn and the interview moved on, which candidates reported as the system
+    skipping their question.
+    """
+    setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
+    detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
+
+    assert detection["silenceDurationMs"] == voice_setup.THINKING_PAUSE_MS
+    assert detection["silenceDurationMs"] >= 1200
+
+
+def test_the_interviewer_does_not_deliberate_before_speaking() -> None:
+    """Thinking time is dead air to a candidate, and there is nothing here to think about."""
+    setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
+    assert setup["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
 
 
 def test_session_resumption_is_enabled() -> None:

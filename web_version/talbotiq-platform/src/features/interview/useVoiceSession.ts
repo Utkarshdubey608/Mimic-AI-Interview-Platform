@@ -46,6 +46,30 @@ export function useVoiceSession(sessionId: string) {
               return next
             }
           }
+          // No open line. The candidate's line may already have been FINALISED by the
+          // local captioner when Google's authoritative transcription arrives late (it
+          // can land after the next question). If the arriving text is the same words —
+          // one containing the other — replace that line instead of appending the same
+          // answer twice. Guarded to substantial text so two genuinely repeated short
+          // answers ("yes", "correct") in a row stay separate lines.
+          if (role === 'candidate') {
+            const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim()
+            const incoming = norm(text)
+            for (let i = prev.length - 1; i >= 0; i--) {
+              if (prev[i].role !== 'candidate') continue
+              const existing = norm(prev[i].text)
+              if (
+                incoming.length >= 12 && existing.length >= 12 &&
+                (existing.includes(incoming) || incoming.includes(existing))
+              ) {
+                const next = [...prev]
+                // Keep the longer wording; the authoritative final wins the flag.
+                next[i] = { role, text: text.length >= prev[i].text.length ? text : prev[i].text, final: prev[i].final || final }
+                return next
+              }
+              break // only the candidate's MOST RECENT line is a dedup candidate
+            }
+          }
           return [...prev, { role, text, final }]
         }),
       onReconnecting: (active) => setReconnecting(active),
