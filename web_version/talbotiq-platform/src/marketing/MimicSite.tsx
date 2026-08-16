@@ -23,7 +23,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiBase } from '../lib/urls'
+// The application's own API-origin helper. It resolves to exactly the same
+// `/api/web` prefix the standalone site's apiBase() produced, so the lead POST
+// is unchanged on the wire — one helper now rather than two identical ones.
+import { httpBase } from '@/lib/apiOrigin'
 import './mimicSite.css'
 import { MarketingLayout } from './MarketingLayout'
 import { Magnetic, Parallax, Reveal, useInView } from './motion'
@@ -314,7 +317,7 @@ export default function MimicSite() {
     if (Object.keys(next).length) return
     setSubmitting(true); setFormError('')
     try {
-      const res = await fetch(`${apiBase()}/leads`, {
+      const res = await fetch(`${httpBase()}/leads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, source: 'mimic-site' }),

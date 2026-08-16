@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { NAV, type NavGroup } from './content'
-import { appLoginUrl } from '../lib/urls'
+import { useAuth } from '@/features/auth/AuthProvider'
 import { Ico } from './icons'
 import { ScrollProgress, useSmoothScroll } from './motion'
 import './mimicSite.css'
@@ -25,6 +25,22 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
   const hideTimer = useRef<number | null>(null)
   const navRef = useRef<HTMLElement | null>(null)
   const loc = useLocation()
+
+  /**
+   * The crossing between the public site and the application.
+   *
+   * Signed out it reads "Sign in" and goes to /login, exactly as before. Signed
+   * in it offers the workspace instead, because showing "Sign in" to someone
+   * who already is undoes the illusion that this is one site. The destination
+   * is the same one HomeRedirect picks, so both doors lead to the same place.
+   *
+   * Auth is only READ here. The provider, the guards and the sign-in flow are
+   * untouched; marketing renders inside the existing AuthedApp.
+   */
+  const { isAuthenticated, role } = useAuth()
+  const crossing = isAuthenticated
+    ? { to: role === 'recruiter' ? '/sessions' : '/candidate', label: 'Go to workspace' }
+    : { to: '/login', label: 'Sign in' }
 
   // Per-route SEO head (SPA shares one <head>): set on mount/route, restore after.
   useEffect(() => {
@@ -101,7 +117,7 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
           </nav>
 
           <div className="nav-right">
-            <a className="signin" href={appLoginUrl()}>Sign in</a>
+            <Link className="signin" to={crossing.to}>{crossing.label}</Link>
             <Link className="btn btn-primary" to="/#demo">Book a demo</Link>
             <button className="navtoggle" type="button" aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileOpen} onClick={() => setMobileOpen((o) => !o)}>
@@ -149,7 +165,7 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
                 )}
               </div>
             ))}
-            <a href={appLoginUrl()} style={{ display: 'block', padding: '16px 2px', fontWeight: 600, color: 'var(--mm-ink)' }}>Sign in</a>
+            <Link to={crossing.to} style={{ display: 'block', padding: '16px 2px', fontWeight: 600, color: 'var(--mm-ink)' }}>{crossing.label}</Link>
             <Link className="btn btn-primary" to="/#demo" style={{ width: '100%' }}>Book a demo</Link>
           </div>
         )}
