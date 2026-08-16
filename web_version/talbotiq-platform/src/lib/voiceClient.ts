@@ -3,7 +3,7 @@ import {
   liveSocketUrl, parseLiveMessage, bytesToBase64,
   type LiveServerMessage,
 } from './geminiLive'
-import { sessionsApi, type VoiceTokenGrant } from './api'
+import { ApiError, sessionsApi, type VoiceTokenGrant } from './api'
 import { isSpeechRecognitionSupported, startSpeechRecognition } from './speechRecognition'
 
 /**
@@ -128,6 +128,13 @@ const MAX_NUDGES = 2
 // a billable credential and POST /voice/token is rate-limited, so this is deliberately
 // small: enough to ride out a tunnel or a wifi handover, not enough to loop.
 const MAX_REMINTS = 3
+// Waits between mint attempts WITHIN one rescue (~30s of outage tolerance). The first
+// attempt fires while the network is usually still down; without these, the rescue only
+// ever worked for outages shorter than the reconnect backoff.
+const REMINT_RETRY_DELAYS = [1_000, 2_000, 4_000, 8_000, 15_000]
+// Quick recognition deaths (started-to-ended under 3s) before the local captioner gives
+// up for the session. Natural silence timeouts do not count.
+const MAX_LOCAL_FAILURES = 5
 // Shortest cut-off interviewer fragment still worth recording. Above the server's own
 // MIN_MATCHABLE_CHARS (8), because a fragment that short could sit inside more than one
 // planned question and filing an answer under the wrong one is worse than not counting it.
@@ -180,6 +187,15 @@ export class VoiceClient {
   private localStop?: () => void
   private localLine = ''
   private localRestartTimer?: ReturnType<typeof setTimeout>
+  /** Identity of the CURRENT recognition instance. recognition.stop() resolves
+   *  asynchronously, so a stopped instance's onend can fire after its replacement is
+   *  already running — every callback checks this before touching shared state, or a
+   *  stale onend clobbers the live instance's stop handle and two recognizers end up
+   *  captioning concurrently (every answer displayed twice). */
+  private localGen = 0
+  /** Ends with no result since the last successful one. Recognition that keeps dying is
+   *  not coming back — stop burning a 4 Hz restart loop for the rest of the interview. */
+  private localFailures = 0
 
   // Transcript state. Captions accumulate per role and flush on turnComplete.
   private pendingInterviewer = ''
@@ -287,15 +303,21 @@ export class VoiceClient {
       // a kickoff, but not a new interview, so it must not be told to greet. Its locked
       // instruction already carries the RESUME clause and the list of questions on
       // record, so the kickoff only has to hand it the floor.
+      // "Continue" only makes sense when there is something on record to continue FROM.
+      // The server gates its RESUME clause on the same fact (question turns in the
+      // transcript), so the two must agree: a drop during the greeting re-mints a setup
+      // with no RESUME clause, and telling that session "do not greet" would contradict
+      // its own locked FLOW. Nothing was lost — greet again.
+      const continuing = this.remints > 0 && this.asked > 0
       if (!resuming) {
         ws.send(JSON.stringify({ clientContent: {
-          turns: [{ role: 'user', parts: [{ text: this.remints > 0
+          turns: [{ role: 'user', parts: [{ text: continuing
             ? 'We are reconnected. Continue the interview from where it left off — do not greet me again and do not repeat a question you have already asked.'
             : 'Begin the interview now: greet me and ask if I am ready to begin.' }] }],
           turnComplete: true,
         } }))
       }
-      this.cbs.onPhase?.(this.remints > 0 ? 'listening' : 'greeting')
+      this.cbs.onPhase?.(continuing ? 'listening' : 'greeting')
     }
     ws.onmessage = (ev) => { void this.onLiveMessage(ev.data) }
     ws.onerror = () => { /* a 'close' event always follows; reconnect is handled there */ }
@@ -502,8 +524,11 @@ export class VoiceClient {
     // session does not greet again or re-ask what is already on record.
     const expired = !this.grant || Date.parse(this.grant.expiresAt) <= Date.now()
     if (expired || !this.resumeHandle) {
-      if (this.covered) {
-        // Everything was asked and answered; there is nothing left worth re-minting for.
+      if (this.covered && this.answeredSinceCovered) {
+        // Everything was asked AND answered; there is nothing left worth re-minting for.
+        // Coverage alone is not enough — `asked` counts questions put, so a drop right
+        // after the final question was spoken must still re-mint, or the candidate
+        // loses their last answer to the disconnect.
         this.cbs.onReconnecting?.(false)
         this.finishInterview(true, 'disconnected')
         return
@@ -513,12 +538,16 @@ export class VoiceClient {
         // Past this the connection is not coming back, and a doomed retry loop is worse
         // than a clear ending.
         this.cbs.onReconnecting?.(false)
-        this.abandon('disconnected')
+        if (this.covered) this.finishInterview(true, 'disconnected')
+        else this.abandon('disconnected')
         return
       }
       this.remints++
       this.cbs.onReconnecting?.(true)
       this.cbs.onPhase?.('connecting')
+      // The old grant is dead, so its cap must not fire mid-rescue: a stale 'expired'
+      // during the mint would complete the session server-side and orphan the new grant.
+      if (this.capTimer) { clearTimeout(this.capTimer); this.capTimer = undefined }
       const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempts, RECONNECT_DELAYS.length - 1)]
       this.reconnectAttempts++
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
@@ -536,21 +565,65 @@ export class VoiceClient {
   /** Mint a replacement grant and reopen. Used when the old one cannot be resumed. */
   private async remintAndReopen(): Promise<void> {
     if (this.closed || this.finished) return
-    try {
-      this.grant = await sessionsApi.voiceToken(this.sessionId)
-    } catch {
-      // The session may have been completed or expired server-side (409), or the mint
-      // is rate-limited. Either way there is no session to return to.
+    if (this.covered && this.answeredSinceCovered) {
+      // Coverage completed during the backoff — nothing left to mint a credential for.
       this.cbs.onReconnecting?.(false)
-      this.abandon('disconnected')
+      this.finishInterview(true, 'disconnected')
       return
     }
-    if (this.closed || this.finished) return
 
-    // The new grant carries its own lifetime; the old cap would cut the interview short.
-    if (this.capTimer) clearTimeout(this.capTimer)
+    // The drop cut a turn off mid-stream. Whatever transcript text had already arrived
+    // is real speech Google transcribed — salvage it to the record BEFORE minting, so
+    // the fresh setup's RESUME clause can count a mostly-delivered question as asked and
+    // the replacement session does not re-ask it. Then clear all three buffers: the new
+    // session is a new stream, and appending across it would merge the cut-off text into
+    // the reconnect apology ("…describe your deploySorry about that—").
+    const cutIntv = this.pendingInterviewer.trim()
+    const cutCand = this.pendingCandidate.trim()
+    this.pendingInterviewer = ''
+    this.pendingCandidate = ''
+    this.localLine = ''
+    if (cutCand) this.cbs.onCaption?.('candidate', cutCand, true)
+    if (cutIntv) this.cbs.onCaption?.('interviewer', cutIntv, true)
+    this.postChain = this.postChain.then(async () => {
+      if (cutCand) await this.postTranscript('candidate', cutCand)
+      if (cutIntv && cutIntv.length >= MIN_SALVAGEABLE_CHARS) {
+        await this.postTranscript('interviewer', cutIntv)
+      }
+    }).catch(() => { /* keep the chain alive */ })
+    await this.postChain
+
+    // Mint with retries. The first attempt fires ~500ms after the drop — almost always
+    // while the network is still down — and a single try would abandon the interview in
+    // exactly the outage this rescue exists for. Retry on network errors, 429 and 5xx;
+    // give up immediately on any other 4xx (the session is finished or gone server-side,
+    // and no amount of waiting changes that).
+    let grant: VoiceTokenGrant | undefined
+    for (let attempt = 0; attempt <= REMINT_RETRY_DELAYS.length; attempt++) {
+      if (this.closed || this.finished) return
+      try {
+        grant = await sessionsApi.voiceToken(this.sessionId)
+        break
+      } catch (e) {
+        const status = e instanceof ApiError ? e.status : undefined
+        const fatal = typeof status === 'number' && status >= 400 && status < 500 && status !== 429
+        if (fatal || attempt === REMINT_RETRY_DELAYS.length) break
+        await new Promise((r) => setTimeout(r, REMINT_RETRY_DELAYS[attempt]))
+      }
+    }
+    if (this.closed || this.finished) return
+    if (!grant) {
+      this.cbs.onReconnecting?.(false)
+      if (this.covered) this.finishInterview(true, 'disconnected')
+      else this.abandon('disconnected')
+      return
+    }
+    this.grant = grant
+
+    // The new grant carries its own lifetime; the old cap was already cleared.
     const msLeft = Date.parse(this.grant.expiresAt) - Date.now()
     if (Number.isFinite(msLeft) && msLeft > 0) {
+      if (this.capTimer) clearTimeout(this.capTimer)
       this.capTimer = setTimeout(() => this.finishInterview(this.covered, 'expired'), msLeft)
     }
 
@@ -602,13 +675,18 @@ export class VoiceClient {
   private resumeLocalCaptions(): void {
     if (!this.localWanted || this.localStop || this.playing || this.muted) return
     if (this.closed || this.finished) return
+    if (this.localFailures >= MAX_LOCAL_FAILURES) return
     const lang = this.grant?.language || 'en-US'
+    const gen = ++this.localGen
+    const startedAt = Date.now()
     this.localStop = startSpeechRecognition(
       lang,
       (result) => {
+        if (gen !== this.localGen) return  // a stale instance still winding down
         if (this.playing || this.muted || this.closed || this.finished) return
         const text = result.transcript.trim()
         if (!text) return
+        this.localFailures = 0
         if (result.isFinal) this.localLine = `${this.localLine} ${text}`.trim()
         // Interim: show the running line plus what is still forming. Google's own
         // transcription writes the same non-final caption slot when it arrives, so the
@@ -618,8 +696,14 @@ export class VoiceClient {
       },
       () => { /* soft failure (no-speech, network): onEnd below restarts if still wanted */ },
       () => {
-        // Chrome ends continuous recognition on its own after silence or a hiccup.
+        // Chrome ends continuous recognition on its own after silence or a hiccup —
+        // but ONLY the current instance's end may release the handle and restart.
+        if (gen !== this.localGen) return
         this.localStop = undefined
+        // A natural silence timeout takes many seconds and is fine to restart forever;
+        // an instance that dies within moments of starting is an error loop. Only the
+        // quick deaths count toward giving up.
+        if (Date.now() - startedAt < 3_000) this.localFailures++
         if (this.localRestartTimer) clearTimeout(this.localRestartTimer)
         this.localRestartTimer = setTimeout(() => this.resumeLocalCaptions(), 250)
       },
@@ -628,6 +712,9 @@ export class VoiceClient {
 
   private pauseLocalCaptions(): void {
     if (this.localRestartTimer) { clearTimeout(this.localRestartTimer); this.localRestartTimer = undefined }
+    // Bump the generation FIRST: the instance being stopped will still fire its onend
+    // asynchronously, and that stale event must find itself outdated.
+    this.localGen++
     this.localStop?.()
     this.localStop = undefined
   }
