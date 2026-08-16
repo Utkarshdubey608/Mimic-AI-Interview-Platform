@@ -3,14 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AlertTriangle, ArrowRight, CalendarDays, ChevronRight, ListFilter, Plus, Workflow, X } from 'lucide-react'
-import { pipelinesApi } from '@/lib/api'
+import { pipelinesApi, describeFetchError } from '@/lib/api'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { matchOption } from '@/features/guide/autopilot/filterMatch'
 import { Badge, Button, Card, Select, PageHeader, EmptyState, Skeleton } from '@/components/ui'
 import type { Pipeline } from '@shared/types'
 
 export default function PipelinesPage() {
-  const { data: pipelines, isLoading, isError, refetch } = useQuery({ queryKey: ['pipelines'], queryFn: () => pipelinesApi.list() })
+  const { data: pipelines, isLoading, isError, error, refetch } = useQuery({ queryKey: ['pipelines'], queryFn: () => pipelinesApi.list() })
   const [role, setRole] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -171,7 +171,7 @@ export default function PipelinesPage() {
           <EmptyState
             icon={<AlertTriangle />}
             title="Couldn’t load pipelines"
-            description="The pipelines list didn’t come back from the server. Check your connection, then try again."
+            description={describeFetchError(error, 'The pipelines list didn’t come back from the server. Check your connection, then try again.')}
             action={<Button variant="outline" size="sm" onClick={() => void refetch()}>Try again</Button>}
           />
         </Card>

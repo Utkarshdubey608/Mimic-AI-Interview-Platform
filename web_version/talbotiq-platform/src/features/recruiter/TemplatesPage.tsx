@@ -6,7 +6,7 @@ import {
   AlertTriangle, RefreshCw, Timer, Clock, ListChecks, type LucideIcon,
 } from 'lucide-react'
 import { PageHeader, Card, Button, Badge, EmptyState, ExhibitTab, Skeleton, cn } from '@/components/ui'
-import { templatesApi } from '@/lib/api'
+import { templatesApi, describeFetchError } from '@/lib/api'
 import type { InterviewTemplate } from '@shared/types'
 
 /** Format per interview track — one plate style, one glyph and label each. */
@@ -95,7 +95,7 @@ export default function TemplatesPage() {
           <EmptyState
             icon={<AlertTriangle strokeWidth={1.75} />}
             title="Couldn't load your templates"
-            description="Something went wrong while fetching templates. Check your connection and try again."
+            description={describeFetchError(templates.error, 'Something went wrong while fetching templates. Check your connection and try again.')}
             action={<Button size="sm" icon={<RefreshCw size={14} />} onClick={() => templates.refetch()}>Retry</Button>}
           />
         </Card>

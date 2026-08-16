@@ -71,6 +71,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * What to tell a person when a query failed.
+ *
+ * An ApiError means the server ANSWERED — its message is the truest thing we
+ * have, so show it. The connection story is reserved for errors where no
+ * response ever arrived. Before this, every list page rendered "check your
+ * connection" over a 503 that said precisely what was wrong ("Authentication
+ * is unavailable: Firebase is not configured…"), which sent people debugging
+ * their network while the real fault sat in the deployment.
+ */
+export function describeFetchError(error: unknown, fallback: string): string {
+  if (error instanceof ApiError && error.message) return error.message
+  return fallback
+}
+
 /** The backend rate-limits per user and answers 429 with Retry-After in seconds. */
 function rateLimitError(res: Response, data: unknown): ApiError {
   const wait = Number(res.headers.get('Retry-After') ?? 5)
