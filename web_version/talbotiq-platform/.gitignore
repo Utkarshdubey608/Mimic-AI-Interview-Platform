@@ -10,6 +10,12 @@ dist/
 # Local persisted store
 server/data/
 
+# Firebase CLI deploy cache. Rebuilt on every `firebase deploy`, machine-local,
+# and large. `firebase.json`, `.firebaserc` and `.env.production` ARE committed:
+# they are the shared deploy config, and every value in .env.production is
+# public by design (it ships inside the browser bundle either way).
+.firebase/
+
 # Face-Fit: optional self-hosted MediaPipe WASM runtime (~22MB). Vendor it for
 # offline/Capacitor builds — see public/mediapipe/README.md. Model .task IS committed.
 public/mediapipe/wasm/

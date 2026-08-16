@@ -36,8 +36,20 @@ assert('slugs are unique', new Set(PAGES.map((p) => p.slug)).size === PAGES.leng
 /* ── Every internal link lands on a page that exists ───────────────────────── */
 const known = new Set(PAGES.map((p) => p.slug))
 
-/** '/trust/how-mimic-scores#faq' -> 'trust/how-mimic-scores' */
-const toSlug = (to: string) => to.replace(/^\/mimic\/?/, '').split('#')[0].replace(/\/$/, '')
+/**
+ * '/trust/how-mimic-scores#faq' -> 'trust/how-mimic-scores'
+ *
+ * The optional `mimic` segment is legacy. The marketing site used to be served
+ * under /mimic and now sits at the root, so this accepts either shape: without
+ * it, every root-level link kept its leading slash, matched nothing in `known`,
+ * and all 376 links were reported broken at once — a failure loud enough to
+ * look like a catastrophe and vague enough to be ignored.
+ *
+ * `mimic` must be followed by a slash or end of string, or a future page like
+ * /mimicry would silently lose its first five characters.
+ */
+const toSlug = (to: string) =>
+  to.replace(/^\/(?:mimic(?:\/|$))?/, '').split('#')[0].replace(/\/$/, '')
 
 const links: { where: string; to: string }[] = []
 for (const g of NAV) {
