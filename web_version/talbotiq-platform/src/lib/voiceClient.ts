@@ -100,6 +100,10 @@ export interface VoiceClientCallbacks {
 const RECONNECT_DELAYS = [500, 1000, 2000, 3000, 5000, 8000]
 // In the closing exchange, end after this much candidate silence.
 const CLOSING_SILENCE_MS = 15_000
+// Every question is asked but nothing has come back yet. Long enough for a real final
+// answer including a thinking pause, short enough that a dead microphone does not leave
+// the candidate on a frozen screen with the session still in progress.
+const FINAL_ANSWER_GRACE_MS = 120_000
 // At most two "keep asking" nudges, as the Express relay allowed.
 const MAX_NUDGES = 2
 // Shortest cut-off interviewer fragment still worth recording. Above the server's own
@@ -157,6 +161,9 @@ export class VoiceClient {
    *  actually got an answer. Guards the wrap-up so the interview cannot close on the
    *  question it just finished asking. */
   private answeredSinceCovered = false
+  /** Backstop for the case above: covered, but no answer heard. Bounds the wait so a
+   *  dead microphone cannot leave the session open indefinitely. */
+  private finalAnswerTimer?: ReturnType<typeof setTimeout>
 
   constructor(private sessionId: string, private cbs: VoiceClientCallbacks) {}
 
@@ -343,14 +350,33 @@ export class VoiceClient {
       // The last question is not "covered" until it has been ANSWERED. `asked` counts
       // questions the interviewer has PUT, so coverage flips the moment the final
       // question leaves its mouth — before the candidate has said a word.
-      if (cand && this.covered) this.answeredSinceCovered = true
+      if (cand && this.covered) {
+        this.answeredSinceCovered = true
+        this.clearFinalAnswerGrace()   // they are answering; the safety valve is not needed
+      }
 
       if (intv) {
-        if (this.covered && this.answeredSinceCovered && !this.closing && !isQuestionShaped(intv)) {
-          // Coverage complete, the final answer is in, and a non-question turn arrived —
-          // that is the wrap-up. End after the candidate replies or ~15 s of silence.
-          this.closing = true
-          this.closingTimer = setTimeout(() => this.finishInterview(true), CLOSING_SILENCE_MS)
+        if (this.covered && !this.closing && !isQuestionShaped(intv)) {
+          if (this.answeredSinceCovered || HARD_CLOSING_RE.test(intv)) {
+            // Either the final answer is in, or the interviewer has said goodbye in so
+            // many words. Both are unambiguous. End after the candidate replies or
+            // ~15 s of silence.
+            this.closing = true
+            this.clearFinalAnswerGrace()
+            this.closingTimer = setTimeout(() => this.finishInterview(true), CLOSING_SILENCE_MS)
+          } else if (!this.finalAnswerTimer) {
+            // Covered, but nothing has been heard back yet. Do NOT close: this is most
+            // often the candidate gathering their thoughts on the last question, and
+            // closing here is the bug this guard exists for.
+            //
+            // It must not hang either. A candidate whose microphone died, or who simply
+            // walked away, would otherwise sit on a dead screen with the session left
+            // in_progress until the credential expired — which can be twenty minutes.
+            // So: a generous window for a real final answer, then end cleanly.
+            this.finalAnswerTimer = setTimeout(
+              () => this.finishInterview(true), FINAL_ANSWER_GRACE_MS,
+            )
+          }
         } else if (!this.covered && HARD_CLOSING_RE.test(intv) && this.nudges < MAX_NUDGES) {
           // Belt-and-braces: the locked instruction already carries the strict
           // script, but nudge a model that UNAMBIGUOUSLY wraps up early (max 2×,
@@ -490,12 +516,20 @@ export class VoiceClient {
     this.finishInterview(this.covered, 'ended')
   }
 
+  private clearFinalAnswerGrace(): void {
+    if (this.finalAnswerTimer) {
+      clearTimeout(this.finalAnswerTimer)
+      this.finalAnswerTimer = undefined
+    }
+  }
+
   /** Tear down mic + sockets WITHOUT finalizing (safe on unmount / remount). */
   dispose() {
     if (this.closed) return
     this.closed = true
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = undefined }
     if (this.closingTimer) { clearTimeout(this.closingTimer); this.closingTimer = undefined }
+    this.clearFinalAnswerGrace()
     if (this.capTimer) { clearTimeout(this.capTimer); this.capTimer = undefined }
     this.flushPlayback()
     try { this.worklet?.disconnect() } catch { /* noop */ }
