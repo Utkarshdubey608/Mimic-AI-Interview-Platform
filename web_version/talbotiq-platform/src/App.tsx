@@ -52,6 +52,12 @@ const RequireRecruiter = lazy(() => import('@/features/auth/guards').then((m) =>
 const RequireCandidate = lazy(() => import('@/features/auth/guards').then((m) => ({ default: m.RequireCandidate })))
 const HomeRedirect     = lazy(() => import('@/features/auth/guards').then((m) => ({ default: m.HomeRedirect })))
 
+/* The marketing site. Lazy like everything else, so a recruiter going straight
+   to /sessions never downloads the public site, and a visitor reading /pricing
+   never downloads the recruiter application. */
+const MimicSite        = lazy(() => import('@/marketing/MimicSite'))
+const MarketingPage    = lazy(() => import('@/marketing/MarketingPage'))
+
 /** Route-transition fallback. Deliberately quiet — a spinner that appears for
  *  120ms reads as jank, so this is just the page ground. */
 function RouteFallback() {
@@ -109,9 +115,23 @@ export default function App() {
               </Route>
             </Route>
 
-            {/* Root + unknown → route to the signed-in user's home (or login) */}
-            <Route path="/" element={<HomeRedirect />} />
-            <Route path="*" element={<HomeRedirect />} />
+            {/* ── PUBLIC: the marketing site ───────────────────────────────
+                The front door. `/` is the marketing home for everyone, signed
+                in or not, which is what makes this read as one site rather
+                than two that happen to link to each other.
+
+                These sit inside AuthedApp but outside RequireCandidate and
+                RequireRecruiter: no identity is needed to read them, and the
+                provider is what lets the nav offer a signed-in visitor their
+                workspace instead of a sign-in link.
+
+                Ordering matters. Every product path above is matched first, so
+                this catch-all only ever sees paths the application does not
+                claim. `/workspace` is the one redirect left doing what `/`
+                used to do, for anyone who wants to skip straight there. */}
+            <Route path="/" element={<MimicSite />} />
+            <Route path="/workspace" element={<HomeRedirect />} />
+            <Route path="*" element={<MarketingPage />} />
             </Route>
           </Routes>
           </Suspense>

@@ -81,7 +81,7 @@ function StageCard({ children }: { children: ReactNode }) {
 export function TwoWayStage({ sessionId, branding }: Props) {
   const reduce = useReducedMotion()
   const accent = branding.accentColor || '#8AA6F0'
-  const dc = useDailyCall()
+  const dc = useLiveKitCall()
 
   const [joinError, setJoinError] = useState<string | null>(null) // hard (non-retryable) join failure
   const [waitingForHost, setWaitingForHost] = useState(true) // recruiter hasn't opened the room yet
