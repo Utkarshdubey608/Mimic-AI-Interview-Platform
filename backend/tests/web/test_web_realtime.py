@@ -257,7 +257,26 @@ def test_barge_in_is_enabled_with_the_tuned_padding() -> None:
     detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
 
     assert detection["prefixPaddingMs"] == 150
-    assert detection["silenceDurationMs"] == 500
+
+
+def test_a_thinking_pause_does_not_end_the_answer() -> None:
+    """The candidate must be able to go quiet mid-answer without losing their turn.
+
+    At 500ms an ordinary pause — drawing breath, recalling a specific — committed
+    end-of-turn and the interview moved on, which candidates reported as the system
+    skipping their question.
+    """
+    setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
+    detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
+
+    assert detection["silenceDurationMs"] == voice_setup.THINKING_PAUSE_MS
+    assert detection["silenceDurationMs"] >= 1200
+
+
+def test_the_interviewer_does_not_deliberate_before_speaking() -> None:
+    """Thinking time is dead air to a candidate, and there is nothing here to think about."""
+    setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
+    assert setup["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
 
 
 def test_session_resumption_is_enabled() -> None:

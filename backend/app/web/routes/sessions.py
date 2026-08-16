@@ -1034,7 +1034,7 @@ async def voice_token(
     await session_store.save(settings, session)
 
     setup = voice_setup.build_live_setup(
-        session, template, model=settings.live_model_name
+        session, template, model=settings.web_live_model_name
     )
     token = await GeminiClient(settings).mint_live_token(
         setup,

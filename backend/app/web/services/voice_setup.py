@@ -26,6 +26,14 @@ from app.web.shared import speech
 
 DEFAULT_VOICE = "Aoede"
 
+# How long a candidate may go quiet mid-answer before Google commits end-of-turn.
+#
+# Chosen against the two failures it sits between: at 500ms a normal thinking pause
+# ended the answer; much beyond this and the gap before the next question starts to read
+# as the system having missed the answer. 1.5s clears a breath and a "let me think"
+# without being perceptible at the true end of a turn.
+THINKING_PAUSE_MS = 1500
+
 # Enough résumé for the interviewer to sound informed. It rides in every session's
 # instruction, so it is bounded.
 MAX_RESUME_CHARS = 6000
@@ -104,6 +112,13 @@ def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
                     "prebuiltVoiceConfig": {"voiceName": resolve_voice(template)}
                 }
             },
+            # No thinking budget. An interviewer reads the next scripted question and
+            # gives a one-line acknowledgment — there is nothing here worth deliberating
+            # over, and every millisecond spent doing so is silence the candidate hears
+            # as the system having missed their answer. Measured against the real
+            # interview setup: 2.56s to first audio with thinking on, 1.20s with it off.
+            # The Express relay set the same budget (server/services/voice.ts:441).
+            "thinkingConfig": {"thinkingBudget": 0},
         },
         "systemInstruction": {
             "parts": [{"text": build_system_instruction(session, template)}]
@@ -120,14 +135,31 @@ def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
         "inputAudioTranscription": _input_transcription(session, template),
         "outputAudioTranscription": {},
         # Server-side voice activity detection, so the candidate can interrupt naturally.
-        # The values mirror the Dart service exactly: 20ms of padding was found to clip
-        # word onsets and cost recognition accuracy.
+        # 20ms of padding was found to clip word onsets and cost recognition accuracy,
+        # hence 150.
+        #
+        # The sensitivities are Gemini Live's own documented defaults (the SDK states
+        # both in @google/genai StartSensitivity / EndSensitivity) and are spelled out
+        # only so the intent is legible.
+        #
+        # silenceDurationMs is the one value that is a real choice, and it is the whole
+        # of the "it skipped my question" complaint: it is how long the candidate may go
+        # quiet before Google commits end-of-turn. At 500ms an ordinary mid-answer pause
+        # — drawing breath, thinking of the next example — ended the answer and moved the
+        # interview on. An interview is not a chat: candidates are recalling specifics
+        # under pressure and pause far longer than a conversational user would.
+        #
+        # Google's own note on this field: "The larger this value, the longer speech gaps
+        # can be without interrupting the user's activity but this will increase the
+        # model's latency." That cost is bounded and one-sided — it delays the next
+        # question by the extra silence, and only at the true end of an answer — whereas
+        # cutting a candidate off loses the answer entirely.
         "realtimeInputConfig": {
             "automaticActivityDetection": {
                 "startOfSpeechSensitivity": "START_SENSITIVITY_HIGH",
                 "endOfSpeechSensitivity": "END_SENSITIVITY_HIGH",
                 "prefixPaddingMs": 150,
-                "silenceDurationMs": 500,
+                "silenceDurationMs": THINKING_PAUSE_MS,
             }
         },
         # A dropped connection can resume without burning another `uses` — Google
