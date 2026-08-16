@@ -110,3 +110,36 @@ class TestBuildLiveSetup:
             _session(["tell me more"]), {"voice": {}}, model="models/x"
         )
         assert "adaptationPhrases" not in setup["inputAudioTranscription"]
+
+
+class TestConfirmBeforeAdvancing:
+    """A pause is not the end of an answer, and voice has nothing but silence to go on."""
+
+    def _voice_instruction(self) -> str:
+        setup = voice_setup.build_live_setup(
+            _session(["Tell me about caching."]), {"voice": {}}, model="models/x"
+        )
+        return setup["systemInstruction"]["parts"][0]["text"]
+
+    def test_the_voice_interviewer_checks_before_moving_on(self):
+        assert speech.CONFIRM_BEFORE_ADVANCING_RULE in self._voice_instruction()
+
+    def test_the_check_is_exempted_from_the_no_follow_ups_rule(self):
+        # Without the carve-out the two instructions contradict each other and the model
+        # is free to resolve it either way.
+        assert "one exception" in self._voice_instruction()
+
+    def test_it_applies_to_the_final_question_too(self):
+        assert "including the last one" in self._voice_instruction()
+
+    def test_the_avatar_track_is_unchanged(self):
+        # Same builder, different track: the avatar was verified without this and opts out.
+        instruction = speech.avatar_interview_context(questions=["Tell me about caching."])
+        assert speech.CONFIRM_BEFORE_ADVANCING_RULE not in instruction
+        assert "one exception" not in instruction
+
+    def test_the_strict_script_survives_the_carve_out(self):
+        # The carve-out must not weaken the rule it is carved out of.
+        instruction = self._voice_instruction()
+        assert "Do NOT invent, add, skip, reorder, or rephrase" in instruction
+        assert "never add questions of your own" in instruction

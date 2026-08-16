@@ -142,6 +142,25 @@ VARIED_THANKS_RULE = (
     "question — never the same phrase twice, and never a critical one."
 )
 
+# Turn-taking is guessed from silence, and silence is ambiguous: a candidate gathering
+# their next point looks exactly like a candidate who has finished. Guessing wrong in the
+# "finished" direction silently costs them the rest of their answer, and they cannot get
+# it back — the interview has already moved on. Asking costs one short line.
+#
+# The check is phrased as a question so it is never mistaken for a wrap-up, and the added
+# detail lands under the same question for scoring: a confirmation does not match any
+# planned question, so the server records it as an acknowledgment and leaves the question
+# cursor where it is (app/web/services/avatar_transcript.py).
+CONFIRM_BEFORE_ADVANCING_RULE = (
+    "BEFORE MOVING ON — this matters more than pace: never assume an answer is finished "
+    "just because they paused. If they stop after only a sentence or two, trail off, or "
+    "sound like they are still thinking, ask ONE short check such as \"Is that everything, "
+    "or is there anything you'd like to add?\" and WAIT. Vary the wording. Only move to the "
+    "next question once they have clearly finished — if they say yes, that's it, or "
+    "similar. Anything they add is part of that same answer, so let them finish it. Do "
+    "this for EVERY question, including the last one."
+)
+
 
 def default_interviewer_persona(
     candidate_name: str | None = None, ai_name: str | None = None
@@ -163,6 +182,7 @@ def avatar_interview_context(
     questions: list[str],
     time_of_day: str | None = None,
     resume_text: str | None = None,
+    confirm_before_advancing: bool = False,
 ) -> str:
     """The avatar's full instructions for one interview.
 
@@ -202,14 +222,22 @@ def avatar_interview_context(
 2. If they clearly say yes, begin. If they're unsure or nervous, reassure them in one short line and ask again; only start on a clear yes.
 3. Ask the questions below IN ORDER, one at a time, phrased exactly as written. Wait for {who} to completely finish each answer — never interrupt. {VARIED_THANKS_RULE}
 4. Only AFTER the final question is answered, close warmly: thank them sincerely, tell them that's everything and they're all done, that the team will be in touch about next steps, and wish them a great rest of their day.""",
+        *([CONFIRM_BEFORE_ADVANCING_RULE] if confirm_before_advancing else []),
         "THE QUESTIONS, IN ORDER — ask every one, exactly as written; never say their "
         f"numbers aloud:\n{numbered}",
         f"STRICT RULES: Ask ONLY these questions. Do NOT invent, add, skip, reorder, or "
-        f"rephrase any question, and never ask follow-ups that are not in the list. No "
-        f"small talk beyond the opening. If {who} goes off-topic or asks you questions, "
-        "politely acknowledge in one short line and steer straight back to the next "
-        "planned question. Cover ALL the questions, then close — never finish early and "
-        "never add questions of your own.",
+        f"rephrase any question, and never ask follow-ups that are not in the list"
+        + (
+            " — the one exception is the short \"anything to add?\" check above, which is "
+            "not a new question and does not replace or count as one of the planned "
+            "questions"
+            if confirm_before_advancing
+            else ""
+        )
+        + f". No small talk beyond the opening. If {who} goes off-topic or asks you "
+        "questions, politely acknowledge in one short line and steer straight back to the "
+        "next planned question. Cover ALL the questions, then close — never finish early "
+        "and never add questions of your own.",
     ]
 
     return "\n\n".join(sections)

@@ -72,6 +72,10 @@ def build_system_instruction(session: dict, template: dict) -> str:
         questions=questions,
         time_of_day=session.get("greetingTimeOfDay"),
         resume_text=(session.get("resumeText") or "")[:MAX_RESUME_CHARS] or None,
+        # Voice has nothing but silence to judge turn-taking by — no camera, no typing
+        # indicator — so it must ask rather than assume. Opt-in so the avatar track,
+        # which shares this builder, keeps the behaviour it was verified with.
+        confirm_before_advancing=True,
     )
 
 

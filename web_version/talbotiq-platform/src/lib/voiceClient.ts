@@ -102,6 +102,10 @@ const RECONNECT_DELAYS = [500, 1000, 2000, 3000, 5000, 8000]
 const CLOSING_SILENCE_MS = 15_000
 // At most two "keep asking" nudges, as the Express relay allowed.
 const MAX_NUDGES = 2
+// Shortest cut-off interviewer fragment still worth recording. Above the server's own
+// MIN_MATCHABLE_CHARS (8), because a fragment that short could sit inside more than one
+// planned question and filing an answer under the wrong one is worse than not counting it.
+const MIN_SALVAGEABLE_CHARS = 12
 
 // Question detection, ported from server/services/voiceFlow.ts: spoken questions
 // are often imperative ("Describe your deployment pipeline.") and carry no '?'.
@@ -149,6 +153,10 @@ export class VoiceClient {
   private closing = false
   private closingTimer?: ReturnType<typeof setTimeout>
   private nudges = 0
+  /** The candidate has spoken since the plan was fully asked — i.e. the final question
+   *  actually got an answer. Guards the wrap-up so the interview cannot close on the
+   *  question it just finished asking. */
+  private answeredSinceCovered = false
 
   constructor(private sessionId: string, private cbs: VoiceClientCallbacks) {}
 
@@ -258,10 +266,29 @@ export class VoiceClient {
     const server = msg.serverContent
     if (!server) return
 
-    // Barge-in: drop queued playback and the caption of the cut-off turn.
+    // Barge-in: drop queued playback, but KEEP what the interviewer already said.
+    //
+    // Discarding it lost the question from the record entirely: a candidate who so much
+    // as coughed over the start of a question meant that question was never captioned,
+    // never POSTed and so never counted as asked. Coverage then stalled below the plan,
+    // and the nudge below fired to make the model "ask the next planned question",
+    // which it satisfied by asking one again — the reported "asks 8 and repeats the
+    // last question".
+    //
+    // A partial question still matches: the server scores containment either way
+    // (avatar_transcript.match_question_index), so a prefix of a planned question
+    // resolves to that question. Very short fragments are dropped rather than risk
+    // matching the wrong one.
     if (server.interrupted) {
       this.flushPlayback()
+      const cut = this.pendingInterviewer.trim()
       this.pendingInterviewer = ''
+      if (cut.length >= MIN_SALVAGEABLE_CHARS) {
+        this.cbs.onCaption?.('interviewer', cut, true)
+        this.postChain = this.postChain
+          .then(() => this.postTranscript('interviewer', cut))
+          .catch(() => { /* keep the chain alive */ })
+      }
       return
     }
 
@@ -312,10 +339,16 @@ export class VoiceClient {
       if (intv) await this.postTranscript('interviewer', intv)
 
       if (this.finished || this.closed) return
+
+      // The last question is not "covered" until it has been ANSWERED. `asked` counts
+      // questions the interviewer has PUT, so coverage flips the moment the final
+      // question leaves its mouth — before the candidate has said a word.
+      if (cand && this.covered) this.answeredSinceCovered = true
+
       if (intv) {
-        if (this.covered && !this.closing && !isQuestionShaped(intv)) {
-          // Coverage complete and the first non-question turn arrived — that is
-          // the wrap-up. End after the candidate replies or after ~15 s of silence.
+        if (this.covered && this.answeredSinceCovered && !this.closing && !isQuestionShaped(intv)) {
+          // Coverage complete, the final answer is in, and a non-question turn arrived —
+          // that is the wrap-up. End after the candidate replies or ~15 s of silence.
           this.closing = true
           this.closingTimer = setTimeout(() => this.finishInterview(true), CLOSING_SILENCE_MS)
         } else if (!this.covered && HARD_CLOSING_RE.test(intv) && this.nudges < MAX_NUDGES) {
