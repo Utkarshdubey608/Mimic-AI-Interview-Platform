@@ -168,3 +168,54 @@ class TestSessionMinutes:
 
     def test_a_template_with_no_per_question_timing_still_gets_a_workable_window(self):
         assert voice_setup.session_minutes({}, 0, question_count=5) >= 15
+
+
+class TestResumeAfterADroppedConnection:
+    """A replacement Live session has no memory of the call it replaces."""
+
+    QUESTIONS = ["Tell me about caching.", "Describe a hard bug.", "How do you monitor?"]
+
+    def _session_with_progress(self, asked: list[int]) -> dict:
+        s = _session(self.QUESTIONS)
+        s["transcript"] = [
+            {"role": "interviewer", "turnType": "question", "questionIndex": i}
+            for i in asked
+        ]
+        return s
+
+    def _instruction(self, session: dict) -> str:
+        setup = voice_setup.build_live_setup(session, {"voice": {}}, model="models/x")
+        return setup["systemInstruction"]["parts"][0]["text"]
+
+    def test_a_fresh_session_is_not_told_it_is_resuming(self):
+        assert "RESUMING" not in self._instruction(_session(self.QUESTIONS))
+
+    def test_a_session_with_progress_is_told_not_to_greet_again(self):
+        instruction = self._instruction(self._session_with_progress([0, 1]))
+        assert "RESUMING" in instruction
+        assert "do NOT greet the candidate again" in instruction.replace("Do NOT", "do NOT")
+
+    def test_the_questions_already_answered_are_named(self):
+        instruction = self._instruction(self._session_with_progress([0, 1]))
+        assert "Tell me about caching." in instruction
+        assert "Describe a hard bug." in instruction
+
+    def test_only_asked_questions_count_as_covered(self):
+        # An acknowledgment is not a question turn and must not mark anything covered.
+        s = _session(self.QUESTIONS)
+        s["transcript"] = [{"role": "interviewer", "turnType": "acknowledgment"}]
+        assert voice_setup.questions_already_asked(s) == []
+        assert "RESUMING" not in self._instruction(s)
+
+    def test_progress_is_read_in_plan_order(self):
+        assert voice_setup.questions_already_asked(
+            self._session_with_progress([2, 0])
+        ) == ["Tell me about caching.", "How do you monitor?"]
+
+    def test_resume_state_comes_from_the_record_not_the_client(self):
+        # build_live_setup takes no resume flag: a tampered client cannot declare an
+        # interview already covered and skip straight to the close.
+        import inspect
+
+        params = inspect.signature(voice_setup.build_live_setup).parameters
+        assert set(params) == {"session", "template", "model"}

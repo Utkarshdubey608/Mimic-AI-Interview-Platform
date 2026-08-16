@@ -123,6 +123,10 @@ const CLOSING_SILENCE_MS = 15_000
 const FINAL_ANSWER_GRACE_MS = 120_000
 // At most two "keep asking" nudges, as the Express relay allowed.
 const MAX_NUDGES = 2
+// How many times a dropped call may be rescued with a freshly minted grant. Each mint is
+// a billable credential and POST /voice/token is rate-limited, so this is deliberately
+// small: enough to ride out a tunnel or a wifi handover, not enough to loop.
+const MAX_REMINTS = 3
 // Shortest cut-off interviewer fragment still worth recording. Above the server's own
 // MIN_MATCHABLE_CHARS (8), because a fragment that short could sit inside more than one
 // planned question and filing an answer under the wrong one is worse than not counting it.
@@ -162,6 +166,9 @@ export class VoiceClient {
   // sessionResumptionUpdate messages; resuming does not consume the token).
   private grant?: VoiceTokenGrant
   private resumeHandle?: string
+  /** Replacement grants minted after a drop that could not be resumed. Bounded by
+   *  MAX_REMINTS — each one is a billable credential. */
+  private remints = 0
 
   // Transcript state. Captions accumulate per role and flush on turnComplete.
   private pendingInterviewer = ''
@@ -261,13 +268,20 @@ export class VoiceClient {
       // Native-audio models generate nothing until a turn arrives — the locked
       // instruction says WHAT to do, this turn starts it (the Express relay sent
       // exactly this line). A resumed session is mid-conversation: no kickoff.
+      //
+      // A RE-MINTED session is the awkward middle case: brand new to Google, so it needs
+      // a kickoff, but not a new interview, so it must not be told to greet. Its locked
+      // instruction already carries the RESUME clause and the list of questions on
+      // record, so the kickoff only has to hand it the floor.
       if (!resuming) {
         ws.send(JSON.stringify({ clientContent: {
-          turns: [{ role: 'user', parts: [{ text: 'Begin the interview now: greet me and ask if I am ready to begin.' }] }],
+          turns: [{ role: 'user', parts: [{ text: this.remints > 0
+            ? 'We are reconnected. Continue the interview from where it left off — do not greet me again and do not repeat a question you have already asked.'
+            : 'Begin the interview now: greet me and ask if I am ready to begin.' }] }],
           turnComplete: true,
         } }))
       }
-      this.cbs.onPhase?.('greeting')
+      this.cbs.onPhase?.(this.remints > 0 ? 'listening' : 'greeting')
     }
     ws.onmessage = (ev) => { void this.onLiveMessage(ev.data) }
     ws.onerror = () => { /* a 'close' event always follows; reconnect is handled there */ }
@@ -456,16 +470,39 @@ export class VoiceClient {
   private scheduleReconnect(): void {
     if (this.closed || this.finished) return
     this.flushPlayback() // drop stale audio buffered from the turn that was cut off
-    // Without a resumption handle a reconnect asks Google for a NEW session —
-    // the single-use token is already spent and connectBy has passed, so every
-    // attempt is guaranteed to fail. Don't show a doomed "Reconnecting…" loop:
-    // covered ⇒ finish for real; not covered ⇒ leave the session in progress
-    // so reopening the link mints a fresh token and starts over.
+    // The token is single-use and connectBy has passed, so without a resumption handle
+    // the existing grant cannot open another session. That used to end the interview:
+    // covered ⇒ finish, otherwise abandon and make the candidate reopen the link and
+    // start over. Losing a part-finished interview to a few seconds of bad wifi is not
+    // an acceptable outcome for someone who has already answered four questions.
+    //
+    // A fresh grant fixes it. POST /voice/token is idempotent for a session already in
+    // progress — it only generates questions when there are none — and the setup it
+    // mints now carries a RESUME clause built from the transcript, so the replacement
+    // session does not greet again or re-ask what is already on record.
     const expired = !this.grant || Date.parse(this.grant.expiresAt) <= Date.now()
     if (expired || !this.resumeHandle) {
-      this.cbs.onReconnecting?.(false)
-      if (this.covered) this.finishInterview(true, 'disconnected')
-      else this.abandon('disconnected')
+      if (this.covered) {
+        // Everything was asked and answered; there is nothing left worth re-minting for.
+        this.cbs.onReconnecting?.(false)
+        this.finishInterview(true, 'disconnected')
+        return
+      }
+      if (this.remints >= MAX_REMINTS) {
+        // Bounded: each mint is a billable credential and the route is rate-limited.
+        // Past this the connection is not coming back, and a doomed retry loop is worse
+        // than a clear ending.
+        this.cbs.onReconnecting?.(false)
+        this.abandon('disconnected')
+        return
+      }
+      this.remints++
+      this.cbs.onReconnecting?.(true)
+      this.cbs.onPhase?.('connecting')
+      const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempts, RECONNECT_DELAYS.length - 1)]
+      this.reconnectAttempts++
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = setTimeout(() => void this.remintAndReopen(), delay)
       return
     }
     const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempts, RECONNECT_DELAYS.length - 1)]
@@ -474,6 +511,33 @@ export class VoiceClient {
     this.cbs.onPhase?.('connecting')
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
     this.reconnectTimer = setTimeout(() => this.openWs(), delay)
+  }
+
+  /** Mint a replacement grant and reopen. Used when the old one cannot be resumed. */
+  private async remintAndReopen(): Promise<void> {
+    if (this.closed || this.finished) return
+    try {
+      this.grant = await sessionsApi.voiceToken(this.sessionId)
+    } catch {
+      // The session may have been completed or expired server-side (409), or the mint
+      // is rate-limited. Either way there is no session to return to.
+      this.cbs.onReconnecting?.(false)
+      this.abandon('disconnected')
+      return
+    }
+    if (this.closed || this.finished) return
+
+    // The new grant carries its own lifetime; the old cap would cut the interview short.
+    if (this.capTimer) clearTimeout(this.capTimer)
+    const msLeft = Date.parse(this.grant.expiresAt) - Date.now()
+    if (Number.isFinite(msLeft) && msLeft > 0) {
+      this.capTimer = setTimeout(() => this.finishInterview(this.covered, 'expired'), msLeft)
+    }
+
+    // A new session has no resumption handle — the RESUME clause in the freshly minted
+    // setup is what carries continuity instead.
+    this.resumeHandle = undefined
+    this.openWs()
   }
 
   private enqueuePcm(b64: string) {

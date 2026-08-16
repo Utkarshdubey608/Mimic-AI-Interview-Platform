@@ -65,7 +65,7 @@ def build_system_instruction(session: dict, template: dict) -> str:
 
     persona = (template.get("voice") or {}).get("stylePrompt") or None
 
-    return speech.avatar_interview_context(
+    instruction = speech.avatar_interview_context(
         persona_text=persona,
         candidate_name=name,
         ai_name=None,
@@ -77,6 +77,29 @@ def build_system_instruction(session: dict, template: dict) -> str:
         # which shares this builder, keeps the behaviour it was verified with.
         confirm_before_advancing=True,
     )
+
+    # A token minted for a session that is already under way is a RECONNECT: the previous
+    # Live session is gone and the replacement has no memory of it. Detected from the
+    # record rather than trusted from the client, which cannot be allowed to decide that
+    # an interview has already covered its questions.
+    already_asked = questions_already_asked(session)
+    if already_asked:
+        instruction = f"{instruction}\n\n{speech.resume_addendum(already_asked)}"
+    return instruction
+
+
+def questions_already_asked(session: dict) -> list[str]:
+    """The planned questions this session has on record as asked, in plan order."""
+    indices = {
+        turn.get("questionIndex")
+        for turn in session.get("transcript") or []
+        if turn.get("turnType") == "question"
+    }
+    return [
+        question.get("text") or ""
+        for index, question in enumerate(session.get("questions") or [])
+        if index in indices
+    ]
 
 
 def _input_transcription(session: dict, template: dict) -> dict:

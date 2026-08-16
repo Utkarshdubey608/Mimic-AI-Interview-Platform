@@ -162,6 +162,32 @@ CONFIRM_BEFORE_ADVANCING_RULE = (
 )
 
 
+def resume_addendum(asked: list[str]) -> str:
+    """Instructions for a session that is picking up after a dropped connection.
+
+    A fresh Live session has no memory of the call it is replacing, so without this the
+    interviewer greets the candidate a second time and works through the script from the
+    top — asking questions they have already answered. Naming what was covered is what
+    makes the continuation seamless; the Express relay carried the same clause
+    (server/services/voice.ts:424-426) and the port dropped it.
+    """
+    covered = "\n".join(f"- {strip_for_speech(question)}" for question in asked)
+    already = (
+        f"\n\nYou have ALREADY asked and received answers to these, so do NOT ask them "
+        f"again:\n{covered}"
+        if asked
+        else ""
+    )
+    return (
+        "RESUMING: the connection dropped briefly and has just been restored. This is the "
+        "SAME interview continuing, not a new one. Do NOT greet the candidate again, do "
+        "NOT introduce yourself again, and do NOT start over. Say one short line to the "
+        "effect that you are back and briefly apologise for the interruption, then "
+        "continue with the next planned question you had not yet covered."
+        f"{already}"
+    )
+
+
 def default_interviewer_persona(
     candidate_name: str | None = None, ai_name: str | None = None
 ) -> str:
