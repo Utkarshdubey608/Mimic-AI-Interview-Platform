@@ -58,6 +58,12 @@ const HomeRedirect     = lazy(() => import('@/features/auth/guards').then((m) =>
 const MimicSite        = lazy(() => import('@/marketing/MimicSite'))
 const MarketingPage    = lazy(() => import('@/marketing/MarketingPage'))
 
+/* The cinematic splash, scoped to the sign-in route. Lazy so a visitor who only
+   reads the public pages never fetches the WebGL scene or framer-motion, and
+   mounted on /login rather than at the root so it plays when someone chooses to
+   enter the product instead of in front of everyone who opens the site. */
+const MimicIntro       = lazy(() => import('@/features/intro/MimicIntro'))
+
 /** Route-transition fallback. Deliberately quiet — a spinner that appears for
  *  120ms reads as jank, so this is just the page ground. */
 function RouteFallback() {
@@ -74,7 +80,19 @@ export default function App() {
           <Routes>
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>
-            <Route path="/login" element={<LoginPage />} />
+            {/* Its own Suspense with a null fallback: the intro must not hold
+                up the login form behind it. The form paints immediately and the
+                splash covers it (position:fixed, top of the stack) as soon as
+                its chunk lands, then fades out. */}
+            <Route
+              path="/login"
+              element={
+                <>
+                  <Suspense fallback={null}><MimicIntro /></Suspense>
+                  <LoginPage />
+                </>
+              }
+            />
             <Route path="/access-denied" element={<AccessDenied />} />
 
             {/* Candidate-only — assigned-session list + the interview itself */}
