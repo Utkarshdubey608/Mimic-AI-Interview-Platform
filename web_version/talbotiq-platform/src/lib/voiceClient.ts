@@ -59,10 +59,27 @@ class CaptureProcessor extends AudioWorkletProcessor {
     if (!ch) return true
     if (this.ratio === 1) {
       for (let i = 0; i < ch.length; i++) this.push(ch[i])
-    } else {
-      for (; this.readPos < ch.length; this.readPos += this.ratio) this.push(ch[Math.floor(this.readPos)])
-      this.readPos -= ch.length
+      return true
     }
+    // Downsampling. Taking the nearest sample and discarding the rest folds everything
+    // above the new Nyquist limit back into the speech band as aliasing noise — audible
+    // as a metallic edge, and worse for a recogniser being asked to tell "Redis" from
+    // "reduce" through it.
+    //
+    // Chrome honours the 16 kHz AudioContext, so ratio is 1 and this never runs there.
+    // Safari and Firefox commonly hand back 44.1/48 kHz, so for those candidates this
+    // WAS the path, decimating 3:1 with no filter. Averaging the samples each output
+    // sample spans is a cheap box filter: not a windowed-sinc, but it attenuates the
+    // folded band instead of passing it through, for a few adds on the audio thread.
+    for (; this.readPos < ch.length; this.readPos += this.ratio) {
+      const start = Math.floor(this.readPos)
+      const end = Math.min(ch.length, Math.floor(this.readPos + this.ratio))
+      let sum = 0
+      let n = 0
+      for (let i = start; i < end; i++) { sum += ch[i]; n++ }
+      this.push(n ? sum / n : ch[start])
+    }
+    this.readPos -= ch.length
     return true
   }
 }
