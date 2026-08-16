@@ -30,9 +30,92 @@ _LIST_PREFIX = re.compile(r"^\s*(?:\d+[.)]|[-–—•])\s+", re.MULTILINE)
 _DASHES = re.compile(r"\s*[—–]\s*")
 _WHITESPACE = re.compile(r"\s+")
 
+# Every English variant the recogniser may settle on. Naming them all — rather than a
+# single "en-US" — is what stops an Indian-accented answer being scored as a different
+# language entirely: with no hint at all the recogniser is free to decide the audio is
+# Hindi and transcribe Devanagari into an English-only interview.
+ENGLISH_VARIANTS = ("en-IN", "en-US", "en-GB", "en-AU")
+
+# Ported from the Express implementation (server/services/voice.ts:108-121), which these
+# were dropped from in the FastAPI port.
+_ADAPTATION_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9+#.]*[A-Za-z0-9+#]")
+_ADAPTATION_ACRONYM = re.compile(r"^[A-Z]{2,}[0-9+#]*$")
+_ADAPTATION_CAMEL = re.compile(r"[a-z][A-Z]")
+_ADAPTATION_DIGIT = re.compile(r"[0-9+#]")
+_ADAPTATION_DOTTED = re.compile(r"\w\.\w")
+_ADAPTATION_PROPER = re.compile(r"[A-Z][a-z0-9]+(?:[ -][A-Z][a-z0-9]+)+")
+# A single capitalised word MID-SENTENCE: "Redis", "Grafana", "Kafka". The Express
+# heuristic missed exactly these — they are neither acronyms nor multi-word — which is
+# why candidates heard "Redis" come back as "reduce". Sentence-initial words are skipped
+# so ordinary openers ("How", "Describe") never become hints.
+_ADAPTATION_SENTENCE = re.compile(r"(?<=[.!?\n])\s*|^\s*")
+_ADAPTATION_PROPER_WORD = re.compile(r"^[A-Z][a-z0-9]{2,}$")
+
+# Google caps the hint list; 32 is what the Express relay sent.
+MAX_ADAPTATION_PHRASES = 32
+
 
 def greeting_word(time_of_day: str | None) -> str:
     return TIME_GREETINGS.get(time_of_day or "", "Hello")
+
+
+def transcription_languages(language: str | None) -> list[str]:
+    """The language hints for the recogniser.
+
+    An English interview is hinted with every English variant, because a candidate's
+    accent is not a different language. Anything else is passed through untouched.
+    """
+    value = (language or "").strip().lower()
+    if not value or value.startswith("en") or value.startswith("english"):
+        return list(ENGLISH_VARIANTS)
+    return [language.strip()]
+
+
+def adaptation_phrases(role: str | None, questions: list[str]) -> list[str]:
+    """Domain terms to bias the recogniser towards.
+
+    Without these, "Redis" comes back as "reduce" and "Grafana" as "nature" — the
+    recogniser has no reason to prefer a technical term over a common English word that
+    sounds like it. The question script is the best available source of the vocabulary a
+    given interview will actually contain.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(phrase: str) -> None:
+        if phrase and phrase not in seen:
+            seen.add(phrase)
+            out.append(phrase)
+
+    if (role or "").strip():
+        add(role.strip()[:60])
+
+    text = "\n".join(questions)
+    for match in _ADAPTATION_TOKEN.finditer(text):
+        word = match.group(0)
+        if not 2 <= len(word) <= 40:
+            continue
+        if (
+            _ADAPTATION_ACRONYM.match(word)
+            or _ADAPTATION_CAMEL.search(word)
+            or _ADAPTATION_DIGIT.search(word)
+            or _ADAPTATION_DOTTED.search(word)
+        ):
+            add(word)
+
+    for match in _ADAPTATION_PROPER.finditer(text):
+        add(match.group(0)[:60])
+
+    for sentence in _ADAPTATION_SENTENCE.split(text):
+        if not sentence:
+            continue
+        # Skip the first word: it is capitalised by grammar, not because it is a name.
+        for word in sentence.split()[1:]:
+            stripped = word.strip(".,;:!?()[]\"'")
+            if _ADAPTATION_PROPER_WORD.match(stripped):
+                add(stripped)
+
+    return out[:MAX_ADAPTATION_PHRASES]
 
 
 def strip_for_speech(text: str) -> str:

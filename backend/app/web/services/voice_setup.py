@@ -67,6 +67,28 @@ def build_system_instruction(session: dict, template: dict) -> str:
     )
 
 
+def _input_transcription(session: dict, template: dict) -> dict:
+    """Transcription config for the candidate's microphone.
+
+    `language` is already stored on the template by the recruiter's editor
+    (`store/defaults.py:179`) and until now was read by nothing.
+    """
+    voice = template.get("voice") or {}
+    config: dict = {
+        "languageHints": {
+            "languageCodes": speech.transcription_languages(voice.get("language"))
+        }
+    }
+
+    phrases = speech.adaptation_phrases(
+        template.get("role"),
+        [question.get("text") or "" for question in session.get("questions") or []],
+    )
+    if phrases:
+        config["adaptationPhrases"] = phrases
+    return config
+
+
 def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
     """The full `BidiGenerateContentSetup` the token will carry.
 
@@ -86,11 +108,16 @@ def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
         "systemInstruction": {
             "parts": [{"text": build_system_instruction(session, template)}]
         },
-        # An empty object turns transcription ON — in the raw protocol
-        # AudioTranscriptionConfig is an empty message. Input is what becomes the
-        # transcript the interview is scored from, so without it there is nothing to
-        # evaluate; output is the interviewer's own speech, for the transcript panel.
-        "inputAudioTranscription": {},
+        # Input is what becomes the transcript the interview is scored from, so without
+        # it there is nothing to evaluate; output is the interviewer's own speech, for
+        # the transcript panel.
+        #
+        # The hints are not optional decoration. Left bare (`{}`), the recogniser picks
+        # the language itself and has been returning Devanagari for English interviews,
+        # and hearing "Redis" as "reduce". Both protections existed in the Express relay
+        # this was ported from (server/services/voice.ts:434-439) and were lost in the
+        # port; this restores them.
+        "inputAudioTranscription": _input_transcription(session, template),
         "outputAudioTranscription": {},
         # Server-side voice activity detection, so the candidate can interrupt naturally.
         # The values mirror the Dart service exactly: 20ms of padding was found to clip

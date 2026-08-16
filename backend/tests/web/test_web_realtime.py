@@ -217,11 +217,16 @@ def _session(**overrides) -> dict:
 
 def test_the_setup_is_audio_out_with_transcription_on() -> None:
     """Input transcription IS the record the interview is scored from — without it there
-    is nothing to evaluate."""
+    is nothing to evaluate.
+
+    It is no longer a bare `{}`: an unconstrained recogniser picked its own language and
+    returned Devanagari for English-only interviews, so the language hints are part of
+    "transcription on" now.
+    """
     setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
 
     assert setup["generationConfig"]["responseModalities"] == ["AUDIO"]
-    assert setup["inputAudioTranscription"] == {}
+    assert setup["inputAudioTranscription"]["languageHints"]["languageCodes"]
     assert setup["outputAudioTranscription"] == {}
 
 
