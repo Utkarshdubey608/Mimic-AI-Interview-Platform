@@ -21,12 +21,14 @@ pinned SDK version — they mirror the proven TS ``WebhookReceiver`` payload.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import uuid
 from datetime import datetime, timezone
 
-import httpx
+import boto3
+from botocore.config import Config
 from fastapi import APIRouter, Request, Response
 
 from app.providers.deepgram import DeepgramClient
@@ -98,13 +100,14 @@ async def _on_egress_ended(settings, event) -> None:
     if not session:
         return
 
-    filename = getattr(files[0], "filename", "") or ""
-    url = _recording_url(settings, filename)
+    filename = getattr(files[0], "filename", "") or ""  # the S3 object key
     role_match = _SPK_RE.search("/" + filename)
 
     if not role_match:
-        # Composite MP4 → the recruiter-review recording shown on the report.
-        session["recordingUrl"] = url
+        # Composite MP4 → the recruiter-review recording. A time-limited PRESIGNED
+        # URL so the report can play it from a PRIVATE bucket (candidate video is
+        # PII — the bucket must not be public).
+        session["recordingUrl"] = _presigned_url(settings, filename)
         await session_store.save(settings, session)
         return
 
@@ -113,7 +116,7 @@ async def _on_egress_ended(settings, event) -> None:
     if not template:
         return
     try:
-        turns = await _transcribe_speaker(settings, url)
+        turns = await _transcribe_speaker(settings, filename)
         if not turns:
             return
         _append_turns(session, role, turns)
@@ -130,13 +133,46 @@ async def _on_egress_ended(settings, event) -> None:
         logger.warning("two-way scoring failed for %s: %s", sid, exc)
 
 
-async def _transcribe_speaker(settings, url: str) -> list[dict]:
-    """Fetch one participant's audio and transcribe it → [{text, start}]."""
-    async with httpx.AsyncClient(timeout=180.0) as http:
-        media = await http.get(url)
-        media.raise_for_status()
-        audio = media.content
-        content_type = media.headers.get("content-type", "audio/ogg")
+def _s3_client(settings):
+    """Authenticated S3 client for the recordings bucket.
+
+    Works with a PRIVATE bucket (candidate recordings are PII — no public access).
+    ``endpoint_url`` is the backend-reachable one (MinIO/S3/GCS); blank → real AWS
+    S3. Path-style + s3v4 so the same code works for MinIO and cloud buckets.
+    """
+    endpoint = (settings.lk_s3_public_endpoint or settings.lk_s3_endpoint or "").strip() or None
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint,
+        aws_access_key_id=settings.lk_s3_key or None,
+        aws_secret_access_key=settings.lk_s3_secret or None,
+        region_name=settings.lk_s3_region or "us-east-1",
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+
+
+def _presigned_url(settings, key: str, expires: int = 7 * 24 * 3600) -> str:
+    """Time-limited signed URL so the report can play a recording from a PRIVATE
+    bucket. (For indefinite access, presign on report view instead of storing it.)"""
+    try:
+        return _s3_client(settings).generate_presigned_url(
+            "get_object",
+            Params={"Bucket": settings.lk_s3_bucket, "Key": key.lstrip("/")},
+            ExpiresIn=expires,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("presign failed for %s: %s", key, exc)
+        return ""
+
+
+async def _transcribe_speaker(settings, key: str) -> list[dict]:
+    """Fetch one participant's audio from the (private) bucket via AUTHENTICATED S3,
+    then transcribe it → [{text, start}]. boto3 is sync, so run it off the loop."""
+    def _fetch() -> tuple[bytes, str]:
+        obj = _s3_client(settings).get_object(Bucket=settings.lk_s3_bucket, Key=key.lstrip("/"))
+        return obj["Body"].read(), (obj.get("ContentType") or "audio/ogg")
+
+    audio, content_type = await asyncio.to_thread(_fetch)
 
     raw = await DeepgramClient(settings).request(
         "POST",
@@ -184,11 +220,6 @@ def _session_id_from_room(room_name: str | None) -> str | None:
     if not room_name or not room_name.startswith("room-"):
         return None
     return room_name[len("room-"):]
-
-
-def _recording_url(settings, filename: str) -> str:
-    endpoint = (settings.lk_s3_public_endpoint or settings.lk_s3_endpoint or "").rstrip("/")
-    return f"{endpoint}/{settings.lk_s3_bucket}/{filename.lstrip('/')}"
 
 
 def _base_epoch_ms(session: dict) -> int:
