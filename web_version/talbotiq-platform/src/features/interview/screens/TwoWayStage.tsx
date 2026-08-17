@@ -80,7 +80,7 @@ function StageCard({ children }: { children: ReactNode }) {
  */
 export function TwoWayStage({ sessionId, branding }: Props) {
   const reduce = useReducedMotion()
-  const accent = branding.accentColor || '#7FDCA8'
+  const accent = branding.accentColor || '#F2F3F5'
   const dc = useLiveKitCall()
 
   const [joinError, setJoinError] = useState<string | null>(null) // hard (non-retryable) join failure

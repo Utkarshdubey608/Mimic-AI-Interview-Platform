@@ -43,8 +43,8 @@ type CameraState = 'requesting' | 'ready' | 'denied' | 'error'
    The stage is brand-black, so the accent used for INK is the light mint
    (brand-gold token) rather than the deep primary, which would disappear. Mint
    marks the positive/locked state; the caller's accent fills solid controls. */
-const INK_ACCENT = '#7FDCA8'   // brand-gold — mint that reads on near-black
-const LOCK = '#7FDCA8'         // mint — framed, held, locked in (always dark ink on top)
+const INK_ACCENT = '#F2F3F5'   // brand-gold — mint that reads on near-black
+const LOCK = '#F2F3F5'         // mint — framed, held, locked in (always dark ink on top)
 
 const HINT_ICON: Record<HintId, LucideIcon> = {
   no_face: ScanFace,
@@ -68,7 +68,7 @@ const EMPTY_CHECKS: FramingChecks = {
   present: false, single: false, centered: false, distanceOk: false, frontal: false, lightingOk: false,
 }
 
-export function FaceFitCheck({ onReady, accentColor = '#7FDCA8', candidateName, autoStart = AUTO_START }: Props) {
+export function FaceFitCheck({ onReady, accentColor = '#F2F3F5', candidateName, autoStart = AUTO_START }: Props) {
   const reduce = useReducedMotion() ?? false
   const accent = accentColor
 

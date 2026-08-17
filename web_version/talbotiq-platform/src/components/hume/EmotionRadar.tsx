@@ -31,7 +31,7 @@ interface Props {
   color?: string
 }
 
-export function EmotionRadar({ categoryScores, color = '#0B7A45' }: Props) {
+export function EmotionRadar({ categoryScores, color = '#0E1420' }: Props) {
   const data = (Object.keys(LABELS) as EmotionCategory[]).map(k => ({
     subject: LABELS[k],
     score: Math.round(categoryScores[k] * 100),

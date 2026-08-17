@@ -30,7 +30,7 @@
     --rule:       #E7E7EA;
     --record:     #FFFFFF;
     --desk:       #F5F5F7;
-    --registrar:  #0B7A45;
+    --registrar:  #0E1420;   /* the action ink — marketing's .btn-primary */
   }
 
   *, *::before, *::after { box-sizing: border-box; }
@@ -68,7 +68,7 @@
   /* Machine values sit on the mono, always tabular so columns align. */
   .font-mono, code, kbd, samp, pre { font-variant-numeric: tabular-nums; }
 
-  ::selection { background: #C2E5D1; color: #064428; }
+  ::selection { background: #DFDFE3; color: #0E1420; }
 
   :focus-visible { outline: 2px solid var(--registrar); outline-offset: 2px; }
 
@@ -82,7 +82,7 @@
     box-shadow: 0 1px 3px rgb(14 20 32 / 0.24);
     transition: box-shadow 0.15s ease;
   }
-  input[type='range']::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgb(11 122 69 / 0.14); }
+  input[type='range']::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgb(14 20 32 / 0.12); }
   input[type='range']::-moz-range-thumb {
     width: 16px; height: 16px; border-radius: 50%;
     background: var(--registrar); border: none;
@@ -170,10 +170,10 @@
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
-    text-decoration-color: #8CCBA8;
+    text-decoration-color: #C7C8CD;
     transition: text-decoration-color 0.15s ease, color 0.15s ease;
   }
-  .cite:hover { text-decoration-color: var(--registrar); color: #064428; }
+  .cite:hover { text-decoration-color: var(--registrar); color: #0E1420; }
 
   /* Line number in a transcript gutter. Right-aligned, recessive, tabular. */
   .gutter-num {
@@ -196,7 +196,7 @@
   }
   .input-base::placeholder { color: var(--ink-muted); }
   .input-base:hover  { border-color: #9BA0A6; }
-  .input-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(11 122 69 / 0.13); }
+  .input-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(14 20 32 / 0.11); }
 
   .textarea-base {
     width: 100%; padding: 9px 11px;
@@ -209,7 +209,7 @@
   }
   .textarea-base::placeholder { color: var(--ink-muted); }
   .textarea-base:hover  { border-color: #9BA0A6; }
-  .textarea-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(11 122 69 / 0.13); }
+  .textarea-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(14 20 32 / 0.11); }
 
   .field-label {
     display: block;
@@ -262,7 +262,7 @@
   .badge-warning { background: #FDF5EA; color: #8A4308; border: 1px solid #F0DBBC; }
   .badge-danger  { background: #FCF0EF; color: #B3261E; border: 1px solid #F0CFCC; }
   .badge-neutral { background: #F1F3F7; color: var(--ink-body); border: 1px solid var(--rule); }
-  .badge-info    { background: #E8F1F8; color: #075985; border: 1px solid #C6DFEF; }
+  .badge-info    { background: #F1F1F3; color: #3B4046; border: 1px solid #DFDFE3; }
 
   .divider { width: 100%; height: 1px; background: var(--rule); }
 }
@@ -287,7 +287,7 @@
      side. Two soft cool washes, fixed size so nothing tiles. */
   .bg-brand-wash {
     background-image:
-      radial-gradient(58rem 38rem at 8% -12%, rgba(11, 122, 69, 0.10), transparent 62%),
+      radial-gradient(58rem 38rem at 8% -12%, rgba(14, 20, 32, 0.07), transparent 62%),
       radial-gradient(46rem 32rem at 96% 110%, rgba(14, 20, 32, 0.10), transparent 64%);
     background-repeat: no-repeat;
   }

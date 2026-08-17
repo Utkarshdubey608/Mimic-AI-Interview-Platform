@@ -347,7 +347,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
       <div className="flex items-center gap-2">
         <input
           type="color" aria-label={`${label} swatch`}
-          value={valid ? value : '#0B7A45'} onChange={(e) => onChange(e.target.value)}
+          value={valid ? value : '#0E1420'} onChange={(e) => onChange(e.target.value)}
           className="h-10 w-11 flex-shrink-0 cursor-pointer rounded-xl border border-border bg-white p-1 transition-colors duration-150 hover:border-primary-300"
         />
         <input

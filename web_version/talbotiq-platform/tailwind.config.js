@@ -24,7 +24,7 @@ export default {
       colors: {
         // Registrar ink — the authority colour. Primary actions, active spine
         // item, focus ring, citation links.
-        primary: { DEFAULT: '#0B7A45', 50: '#F2FAF5', 100: '#E1F3E9', 200: '#C2E5D1', 300: '#8CCBA8', 400: '#4FAE7C', 500: '#1F9059', 600: '#128A4E', 700: '#0B7A45', 800: '#085F36', 900: '#064428' },
+        primary: { DEFAULT: '#0E1420', 50: '#F5F5F7', 100: '#ECECEF', 200: '#DFDFE3', 300: '#C7C8CD', 400: '#8A8F98', 500: '#61666E', 600: '#3B4046', 700: '#0E1420', 800: '#23272E', 900: '#0E1420' },
 
         // ── Exhibit tabs — the six interview formats ────────────────────
         // Index-tab colour coding. Each is AA as ink on white and legible as a
@@ -51,7 +51,7 @@ export default {
         // 4.72:1 on the ground — so it clears AA as text on BOTH surfaces, which
         // is the binding constraint since secondary text sits on each.
         // 300 and below stay decorative (hairlines, tracks, skeletons) only.
-        neutral: { 50: '#F7F7F8', 100: '#F1F1F3', 200: '#E6E6E9', 300: '#D2D3D7', 400: '#61666E', 500: '#5B6067', 600: '#4A4F57', 700: '#3B4046', 800: '#24272C', 900: '#0E1420' },
+        neutral: { 50: '#F7F7F8', 100: '#F1F1F3', 200: '#E7E7EA', 300: '#D6D6DB', 400: '#63686F', 500: '#5B6067', 600: '#4A4F57', 700: '#3B4046', 800: '#24272C', 900: '#0E1420' },
 
         surface:    '#FFFFFF',   // the record page
         background: '#F5F5F7',   // the desk the bundle sits on
@@ -72,7 +72,7 @@ export default {
           black:         '#0E1420', // spine ground
           card:          '#1A1E24', // raised spine surface
           border:        '#2C3036', // spine hairline
-          gold:          '#7FDCA8', // accent ON dark (brand green, lifted for contrast)
+          gold:          '#F2F3F5', // accent ON dark (near-white — ink cannot carry on ink)
           'gold-light':  '#E8E8ED', // primary text on dark
           gray:          '#9BA0A6', // secondary text on dark — ≥4.6:1 on #0E1420
           green:         '#34A574',
@@ -142,19 +142,19 @@ export default {
         inner:'inset 0 1px 2px 0 rgb(14 20 32 / 0.06)',
         // The lift under a raised record while it is being read.
         'record':    '0 1px 0 0 #E7E7EA, 0 6px 16px -6px rgb(14 20 32 / 0.08)',
-        'primary-sm':'0 2px 6px -2px rgb(11 122 69 / 0.28)',
-        'primary-md':'0 4px 12px -4px rgb(11 122 69 / 0.32)',
-        'mint-sm':   '0 2px 8px -2px rgb(15 118 110 / 0.30)',
+        'primary-sm':'0 2px 6px -2px rgb(14 20 32 / 0.22)',
+        'primary-md':'0 4px 12px -4px rgb(14 20 32 / 0.28)',
+        'mint-sm':   '0 2px 8px -2px rgb(14 20 32 / 0.22)',
       },
 
       backgroundImage: {
         // Fields, never text. The spine's slipcase and the ruled gutter.
         'brand-field': 'linear-gradient(168deg,#0E1420 0%,#171B20 58%,#1E2328 100%)',
-        'brand-band':  'linear-gradient(90deg,#085F36 0%,#0B7A45 50%,#1F9059 100%)',
+        'brand-band':  'linear-gradient(90deg,#0E1420 0%,#23272E 50%,#3B4046 100%)',
         'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,#E7E7EA 27px,#E7E7EA 28px)',
       },
 
-      ringColor: { primary: '#0B7A45' },
+      ringColor: { primary: '#0E1420' },
       zIndex: { '5': '5' },
 
       // Motion: one authored moment — the record turning to a cited line.

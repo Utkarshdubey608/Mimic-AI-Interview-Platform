@@ -169,7 +169,7 @@ export function Slider({ value, onChange, min = 0, max = 1, step = 0.01, label, 
       {label && (
         <div className="flex items-center justify-between">
           <span className="field-label">{label}</span>
-          <span className="text-xs font-semibold font-mono text-primary-700 tabular-nums">
+          <span className="text-xs font-semibold font-mono text-neutral-900 tabular-nums">
             {formatValue ? formatValue(value) : value.toFixed(2)}
           </span>
         </div>
@@ -178,7 +178,7 @@ export function Slider({ value, onChange, min = 0, max = 1, step = 0.01, label, 
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="w-full h-[3px] rounded-sm appearance-none cursor-pointer"
-        style={{ background: `linear-gradient(to right, #0B7A45 0%, #0B7A45 ${pct}%, #E7E7EA ${pct}%, #E7E7EA 100%)` }}
+        style={{ background: `linear-gradient(to right, #0E1420 0%, #0E1420 ${pct}%, #E7E7EA ${pct}%, #E7E7EA 100%)` }}
       />
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
     </div>

@@ -174,7 +174,7 @@ export default function App() {
             },
             success: { iconTheme: { primary: '#15803D', secondary: '#fff' } },
             error: { iconTheme: { primary: '#B3261E', secondary: '#fff' } },
-            loading: { iconTheme: { primary: '#0B7A45', secondary: '#fff' } },
+            loading: { iconTheme: { primary: '#0E1420', secondary: '#fff' } },
           }}
         />
     </QueryClientProvider>

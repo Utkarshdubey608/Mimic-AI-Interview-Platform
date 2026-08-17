@@ -1,6 +1,6 @@
 // src/components/ats/ATSScorecardPanel.tsx
 // Displays the Gemini ATS scorecard on the Mimic light surface — white cards,
-// green primary (#0B7A45), amber warning (#B45309), red danger (#B3261E).
+// success green (#15803D), amber warning (#B45309), red danger (#B3261E).
 
 import { AlertTriangle, Check, Flag, RotateCcw, Sparkles } from 'lucide-react'
 import { Card, SectionTitle, Skeleton, Button, cn } from '@/components/ui'
@@ -38,7 +38,7 @@ function EvidenceBadge({ level, children }: { level: EvidenceLevel; children: Re
 }
 
 function barColor(score: number) {
-  return score >= 7 ? '#0B7A45' : score >= 4 ? '#B45309' : '#B3261E'
+  return score >= 7 ? '#15803D' : score >= 4 ? '#B45309' : '#B3261E'
 }
 
 function DimensionRow({ label, dim }: { label: string; dim: ScoredDimension }) {

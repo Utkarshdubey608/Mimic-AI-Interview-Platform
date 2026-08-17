@@ -9,7 +9,7 @@ interface Props {
 // same wherever it appears.
 const TRACK = '#E7E7EA'
 function bandColor(score: number) {
-  if (score >= 70) return '#0B7A45'
+  if (score >= 70) return '#15803D'
   if (score >= 45) return '#B45309'
   return '#B3261E'
 }

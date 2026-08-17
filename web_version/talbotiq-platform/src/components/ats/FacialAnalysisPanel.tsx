@@ -25,7 +25,7 @@ function emotionChipStyle(type: RekognitionEmotionType) {
 }
 
 function barColor(pct: number) {
-  return pct >= 80 ? '#0B7A45' : pct >= 60 ? '#B45309' : '#B3261E'
+  return pct >= 80 ? '#15803D' : pct >= 60 ? '#B45309' : '#B3261E'
 }
 
 function AttentionBar({ score, label }: { score: number; label: string }) {

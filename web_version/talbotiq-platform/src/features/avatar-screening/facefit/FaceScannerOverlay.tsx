@@ -40,7 +40,7 @@ interface Props {
 /** Searching — cool-neutral, calm and unalarming. */
 const SEARCHING = '#9BA0A6'
 /** Locking in — soft mint (brand-gold token value), clearly "something's happening". */
-const LOCKING = '#7FDCA8'
+const LOCKING = '#F2F3F5'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
