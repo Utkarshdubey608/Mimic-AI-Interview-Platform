@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
-import { Mic, MicOff, PhoneOff, Loader2, AlertTriangle, CheckCircle2, Captions, Radio, ShieldCheck } from 'lucide-react'
+import { Mic, MicOff, PhoneOff, Loader2, AlertTriangle, Captions, Radio, ShieldCheck } from 'lucide-react'
 import type { BrandingConfig, VoicePhase } from '@shared/types'
 import { useVoiceSession } from '../useVoiceSession'
+import { CandidateSignOff } from './CandidateSurface'
 
 interface Props {
   sessionId: string
@@ -127,31 +128,15 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
   }
 
   if (v.phase === 'ended') {
+    // The shared sign-off — same ending a chat or video candidate sees. The
+    // graceful/interrupted branch is preserved exactly; only the drawing moved.
     return (
       <StageCard reduce={reduce}>
-        {v.endedGraceful ? (
-          <>
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: `${accent}14`, color: accent }}>
-              <CheckCircle2 size={30} />
-            </div>
-            <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">All done, thank you!</h1>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
-              Your voice interview with {branding.companyName} is complete. You can close this window; the hiring team will
-              be in touch about next steps.
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-warning-border bg-warning-bg text-warning">
-              <AlertTriangle size={28} />
-            </div>
-            <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">Interview interrupted</h1>
-            <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
-              The connection dropped before the interview finished, so it ended early. Please reach out to the{' '}
-              {branding.companyName} hiring team and we’ll help you complete it.
-            </p>
-          </>
-        )}
+        <CandidateSignOff
+          companyName={branding.companyName}
+          interrupted={!v.endedGraceful}
+          note={`Your voice interview with ${branding.companyName} is complete. You can close this window; the hiring team will be in touch about next steps.`}
+        />
       </StageCard>
     )
   }
