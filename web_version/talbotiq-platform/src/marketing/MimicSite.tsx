@@ -732,7 +732,7 @@ export default function MimicSite() {
                 <h2>Understand the scoring</h2>
                 <ul>
                   <li><Link to="/trust/how-mimic-scores">How Mimic scores<Ico n="arrow" /></Link></li>
-                  <li><Link to="/trust/human in the loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
+                  <li><Link to="/trust/human-in-the-loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
                   <li><Link to="/platform/rubrics-scoring">Rubrics &amp; scoring<Ico n="arrow" /></Link></li>
                 </ul>
               </div>

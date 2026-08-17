@@ -1852,7 +1852,7 @@ const COMPANY_PAGES: MktPage[] = [
 const ALL_TRACK_DEMOS: Record<string, PageDemo> = {
   'conversational-chat': { track: 'chatbot',      ...DEMO_COPY.chatbot },
   'voice-screening':     { track: 'voice',        ...DEMO_COPY.voice },
-  'ai-video avatar':     { track: 'video_avatar', ...DEMO_COPY.video_avatar },
+  'ai-video-avatar':     { track: 'video_avatar', ...DEMO_COPY.video_avatar },
   'live-two-way':        { track: 'two_way',      ...DEMO_COPY.two_way },
   'timed-qa':            { track: 'chat',         ...DEMO_COPY.chat },
 }
