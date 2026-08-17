@@ -176,7 +176,7 @@ export function Slider({ value, onChange, min = 0, max = 1, step = 0.01, label, 
         type="range" min={min} max={max} step={step} value={value}
         onChange={e => onChange(Number(e.target.value))}
         className="w-full h-[3px] rounded-sm appearance-none cursor-pointer"
-        style={{ background: `linear-gradient(to right, #1D3FA0 0%, #1D3FA0 ${pct}%, #E3E6ED ${pct}%, #E3E6ED 100%)` }}
+        style={{ background: `linear-gradient(to right, #0B7A45 0%, #0B7A45 ${pct}%, #E7E7EA ${pct}%, #E7E7EA 100%)` }}
       />
       {hint && <p className="text-xs text-neutral-400">{hint}</p>}
     </div>
