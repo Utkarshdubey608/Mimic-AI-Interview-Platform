@@ -1,11 +1,11 @@
 import type { QuestionEmotionSummary } from '@/types/hume.types'
 import { EmotionRadar } from './EmotionRadar'
 
-// Dominant-emotion accent, kept inside the brand spectrum: violet for energised,
-// indigo for calm, amber for stress. Anything unmapped falls back to violet.
+// Dominant-emotion accent, kept inside the brand spectrum: teal for energised,
+// indigo for calm, amber for stress. Anything unmapped falls back to teal.
 const DOMINANT_COLOR: Record<string, string> = {
-  Energy: '#1D3FA0', Excitement: '#1D3FA0', Enthusiasm: '#1D3FA0',
-  Calm: '#3D5CB4', Serenity: '#3D5CB4', Contentment: '#3D5CB4',
+  Energy: '#0F766E', Excitement: '#0F766E', Enthusiasm: '#0F766E',
+  Calm: '#4338CA', Serenity: '#4338CA', Contentment: '#4338CA',
   Anxiety: '#B45309', Stress: '#B45309', Confusion: '#B45309',
 }
 
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function PerQuestionCard({ summary, index }: Props) {
-  const dominantColor = DOMINANT_COLOR[summary.dominant] ?? '#1D3FA0'
+  const dominantColor = DOMINANT_COLOR[summary.dominant] ?? '#0F766E'
 
   return (
     <div className="rounded-2xl bg-hume-card border border-hume-border p-5 space-y-4">

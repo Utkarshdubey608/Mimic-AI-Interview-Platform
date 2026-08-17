@@ -20,7 +20,7 @@ import { VideoInterview } from './screens/VideoStage'
 import { Completion } from './screens/Completion'
 import type { BrandingConfig } from '@shared/types'
 
-const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#1D3FA0' }
+const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#0E1420' }
 
 type PreStep = 'track' | 'welcome' | 'resume' | 'systemcheck'
 

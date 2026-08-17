@@ -34,7 +34,7 @@ export function CircularCountdown({ remaining, total, phase, warningThreshold, a
   let color = accentColor
   const warning = phase === 'answer' && remaining <= warningThreshold
   if (phase === 'answer') {
-    if (remaining <= warningThreshold) color = '#dc2626'      // danger token
+    if (remaining <= warningThreshold) color = '#B3261E'      // danger token
     else if (remaining <= total * 0.4) color = '#B45309'      // warning token
     else color = '#15803D'                                    // success token
   }
@@ -42,7 +42,7 @@ export function CircularCountdown({ remaining, total, phase, warningThreshold, a
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true" focusable="false">
-        <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="#E3E6ED" strokeWidth={trackStroke} />
+        <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="#E7E7EA" strokeWidth={trackStroke} />
         <circle
           cx={size / 2} cy={size / 2} r={R} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={C}

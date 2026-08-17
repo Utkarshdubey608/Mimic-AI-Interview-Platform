@@ -33,7 +33,7 @@ export default function AvatarScreeningGate() {
   return (
     <FaceFitCheck
       onReady={() => setFramed(true)}
-      accentColor="#1D3FA0"
+      accentColor="#0E1420"
       candidateName={candidateNameFrom(conv.conversation_name)}
     />
   )

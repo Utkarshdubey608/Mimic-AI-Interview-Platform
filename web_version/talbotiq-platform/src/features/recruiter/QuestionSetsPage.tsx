@@ -258,7 +258,7 @@ export default function QuestionSetsPage() {
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                     aria-label="Set name"
                     placeholder="Untitled set"
-                    className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-transparent px-3 font-display text-lg font-bold tracking-[-0.02em] text-neutral-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-neutral-400 hover:border-neutral-200 hover:bg-white focus:border-primary-700 focus:bg-white focus:shadow-[0_0_0_3px_rgba(107,43,224,0.12)]"
+                    className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-transparent px-3 font-display text-lg font-bold tracking-[-0.02em] text-neutral-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-neutral-400 hover:border-neutral-200 hover:bg-white focus:border-primary-700 focus:bg-white focus:shadow-[0_0_0_3px_rgba(11,122,69,0.12)]"
                   />
                   <p className="mt-1 px-3 text-xs text-neutral-500">
                     <span className="tabular-nums">{draft.questions.length}</span> question{draft.questions.length === 1 ? '' : 's'} · edits apply once you save

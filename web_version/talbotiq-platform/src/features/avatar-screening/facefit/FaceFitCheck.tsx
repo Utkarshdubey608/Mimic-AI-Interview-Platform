@@ -30,7 +30,7 @@ import {
 interface Props {
   /** Called once the candidate is framed + has started — hands off to Tavus. */
   onReady: () => void
-  /** Brand accent (hex). Defaults to the Mimic primary violet. */
+  /** Brand accent (hex). Defaults to the dark-surface mint. */
   accentColor?: string
   candidateName?: string
   /** Override the configured auto-start behaviour for this mount. */
@@ -40,11 +40,11 @@ interface Props {
 type CameraState = 'requesting' | 'ready' | 'denied' | 'error'
 
 /* ── Dark-surface state palette ──────────────────────────────────────────────
-   The stage is brand-black, so the accent used for INK is the light violet
+   The stage is brand-black, so the accent used for INK is the light mint
    (brand-gold token) rather than the deep primary, which would disappear. Mint
    marks the positive/locked state; the caller's accent fills solid controls. */
-const INK_ACCENT = '#8AA6F0'   // brand-gold — violet that reads on near-black
-const LOCK = '#7FD4AE'         // mint — framed, held, locked in (always dark ink on top)
+const INK_ACCENT = '#F2F3F5'   // brand-gold — mint that reads on near-black
+const LOCK = '#F2F3F5'         // mint — framed, held, locked in (always dark ink on top)
 
 const HINT_ICON: Record<HintId, LucideIcon> = {
   no_face: ScanFace,
@@ -68,7 +68,7 @@ const EMPTY_CHECKS: FramingChecks = {
   present: false, single: false, centered: false, distanceOk: false, frontal: false, lightingOk: false,
 }
 
-export function FaceFitCheck({ onReady, accentColor = '#8AA6F0', candidateName, autoStart = AUTO_START }: Props) {
+export function FaceFitCheck({ onReady, accentColor = '#F2F3F5', candidateName, autoStart = AUTO_START }: Props) {
   const reduce = useReducedMotion() ?? false
   const accent = accentColor
 
@@ -284,7 +284,7 @@ export function FaceFitCheck({ onReady, accentColor = '#8AA6F0', candidateName, 
         {/* ── Camera stage ── */}
         <div
           className="relative mx-auto aspect-[4/5] w-full overflow-hidden rounded-3xl border-2 bg-brand-card shadow-xl"
-          style={{ borderColor: good ? `${LOCK}b3` : '#2A3446', transition: 'border-color .4s ease' }}
+          style={{ borderColor: good ? `${LOCK}b3` : '#2C3036', transition: 'border-color .4s ease' }}
         >
           <video
             ref={videoRef}
@@ -408,9 +408,9 @@ export function FaceFitCheck({ onReady, accentColor = '#8AA6F0', candidateName, 
                 key={label}
                 className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors duration-150"
                 style={{
-                  borderColor: ok ? `${LOCK}59` : '#2A3446',
+                  borderColor: ok ? `${LOCK}59` : '#2C3036',
                   background: ok ? `${LOCK}1a` : 'rgba(255,255,255,0.03)',
-                  color: ok ? LOCK : '#93A0B4',
+                  color: ok ? LOCK : '#9BA0A6',
                 }}
               >
                 {ok

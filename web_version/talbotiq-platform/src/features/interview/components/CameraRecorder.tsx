@@ -94,7 +94,7 @@ export function CameraRecorder({ active, accentColor }: Props) {
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5 bg-brand-black/70 px-6 text-center backdrop-blur-[2px]">
           <span
             className="flex h-12 w-12 items-center justify-center rounded-full border"
-            style={{ borderColor: `${accentColor}66`, background: `${accentColor}24`, color: '#D7E0F5' }}
+            style={{ borderColor: `${accentColor}66`, background: `${accentColor}24`, color: '#E8E8ED' }}
           >
             <Video size={20} strokeWidth={1.75} aria-hidden="true" />
           </span>

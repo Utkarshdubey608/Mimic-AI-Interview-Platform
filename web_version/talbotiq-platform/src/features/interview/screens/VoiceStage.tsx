@@ -50,8 +50,8 @@ function StageCard({ children, reduce }: { children: ReactNode; reduce: boolean 
 function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; reduce: boolean | null }) {
   const speaking = phase === 'speaking' || phase === 'greeting'
   const listening = phase === 'listening'
-  // Mint INK, not the pale mint that used to sit here: this stage is light now,
-  // and #7FD4AE on white is barely a shape.
+  // The listening state reads teal — the one hue that separates "you are being
+  // heard" from the ink the rest of the stage is drawn in.
   const color = listening ? '#0F766E' : accent
   return (
     <div className="relative flex h-56 w-56 items-center justify-center">
@@ -79,14 +79,14 @@ function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; red
 export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer' }: Props) {
   const reduce = useReducedMotion()
   const v = useVoiceSession(sessionId)
-  /* Registrar ink, not the lifted blue.
+  /* Ink, matching the marketing site's primary action.
    *
-   * This used to fall back to #8AA6F0 with the note "dark stage: 7.72:1, not
-   * registrar ink at 1.99:1" — correct while the call ran on a black stage. The
-   * stage is white now, which inverts that arithmetic exactly: #8AA6F0 drops to
-   * about 2:1 on white, and #1D3FA0 rises to about 9.5:1. Same reasoning, other
-   * background. */
-  const accent = branding.accentColor || '#1D3FA0'
+   * The accent here paints a large filled button, and a tinted fill at that size is
+   * exactly what stopped this product reading as premium — the marketing site's own
+   * rule is that colour is spent on state and the action stays ink. On a stage this
+   * calm the ink already wins, and #0E1420 on white is 17.4:1, so the label is
+   * unambiguous at any size. */
+  const accent = branding.accentColor || '#0E1420'
   /* Captions default ON. The live transcript is the only signal a candidate has that
    * they are being heard at all — the orb animates identically whether the microphone
    * is working or not. Candidates reported not knowing whether their answer had

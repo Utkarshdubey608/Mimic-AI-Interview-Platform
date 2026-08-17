@@ -194,12 +194,13 @@ DEFAULT_INTEGRITY: dict = {
 
 DEFAULT_BRANDING: dict = {
     "companyName": "TalbotIQ",
-    # Registrar ink. The candidate-facing DEFAULT accent follows the identity, as
-    # it did when this moved off dark green onto violet. Recruiter-set
+    # Ink. The candidate-facing DEFAULT accent follows the identity, as it did each
+    # time the identity moved — and the identity's own rule is that the primary
+    # action is ink and colour is spent only on state. Recruiter-set
     # BrandingConfig.accentColor is untouched and still honoured — only the default
     # moves. This is also the default CTA colour in every invite, advance, selected
     # and rejection email, which is intended.
-    "accentColor": "#1D3FA0",
+    "accentColor": "#0E1420",
     "welcomeMessage": (
         "Welcome to your interview. Find a quiet spot, take a breath, and answer "
         "naturally — there are no trick questions."

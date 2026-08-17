@@ -24,7 +24,7 @@ export default {
       colors: {
         // Registrar ink — the authority colour. Primary actions, active spine
         // item, focus ring, citation links.
-        primary: { DEFAULT: '#1D3FA0', 50: '#F1F4FB', 100: '#E2E8F6', 200: '#C6D2ED', 300: '#9AAEDF', 400: '#6480C6', 500: '#3D5CB4', 600: '#2A4AAA', 700: '#1D3FA0', 800: '#152E76', 900: '#0F2154' },
+        primary: { DEFAULT: '#0E1420', 50: '#F5F5F7', 100: '#ECECEF', 200: '#DFDFE3', 300: '#C7C8CD', 400: '#8A8F98', 500: '#61666E', 600: '#3B4046', 700: '#0E1420', 800: '#23272E', 900: '#0E1420' },
 
         // ── Exhibit tabs — the six interview formats ────────────────────
         // Index-tab colour coding. Each is AA as ink on white and legible as a
@@ -51,11 +51,11 @@ export default {
         // 4.72:1 on the ground — so it clears AA as text on BOTH surfaces, which
         // is the binding constraint since secondary text sits on each.
         // 300 and below stay decorative (hairlines, tracks, skeletons) only.
-        neutral: { 50: '#F8F9FB', 100: '#F1F3F7', 200: '#E3E6ED', 300: '#CBD1DC', 400: '#626B79', 500: '#5C6879', 600: '#4A5566', 700: '#3A4454', 800: '#232C3A', 900: '#0E1420' },
+        neutral: { 50: '#F7F7F8', 100: '#F1F1F3', 200: '#E7E7EA', 300: '#D6D6DB', 400: '#63686F', 500: '#5B6067', 600: '#4A4F57', 700: '#3B4046', 800: '#24272C', 900: '#0E1420' },
 
         surface:    '#FFFFFF',   // the record page
-        background: '#EEF0F4',   // the desk the bundle sits on
-        border:     '#E3E6ED',   // hairline rules
+        background: '#F5F5F7',   // the desk the bundle sits on
+        border:     '#E7E7EA',   // hairline rules
 
         success: { DEFAULT: '#15803D', bg: '#EFF7F1', border: '#C9E5D2' },
         warning: { DEFAULT: '#B45309', bg: '#FDF5EA', border: '#F0DBBC' },
@@ -70,18 +70,18 @@ export default {
         // A bundle's cover and slipcase. Key names are legacy.
         brand: {
           black:         '#0E1420', // spine ground
-          card:          '#1A2231', // raised spine surface
-          border:        '#2A3446', // spine hairline
-          gold:          '#8AA6F0', // accent ON dark (ink blue, lifted for contrast)
-          'gold-light':  '#D7E0F5', // primary text on dark
-          gray:          '#93A0B4', // secondary text on dark — 4.6:1 on #0E1420
+          card:          '#1A1E24', // raised spine surface
+          border:        '#2C3036', // spine hairline
+          gold:          '#F2F3F5', // accent ON dark (near-white — ink cannot carry on ink)
+          'gold-light':  '#E8E8ED', // primary text on dark
+          gray:          '#9BA0A6', // secondary text on dark — ≥4.6:1 on #0E1420
           green:         '#34A574',
           'green-light': '#7FD4AE',
         },
 
         // Analysis panels. Light, cool, and coded from the exhibit ramp.
         hume: {
-          base:    '#EEF0F4',
+          base:    '#F5F5F7',
           surface: '#FFFFFF',
           card:    '#F8F9FB',
           border:  '#E3E6ED',
@@ -128,7 +128,7 @@ export default {
       // Documents and tabs, not pills. The pill grammar was the inherited
       // brand's signature and leaves with it.
       borderRadius: {
-        sm: '2px', DEFAULT: '3px', md: '4px', lg: '5px', xl: '6px', '2xl': '8px', '3xl': '10px',
+        sm: '6px', DEFAULT: '8px', md: '10px', lg: '12px', xl: '16px', '2xl': '20px', '3xl': '24px',
       },
 
       boxShadow: {
@@ -137,24 +137,24 @@ export default {
         sm:   '0 1px 2px 0 rgb(14 20 32 / 0.06), 0 1px 3px -1px rgb(14 20 32 / 0.05)',
         DEFAULT: '0 2px 4px -1px rgb(14 20 32 / 0.07), 0 1px 2px -1px rgb(14 20 32 / 0.05)',
         md:   '0 4px 10px -2px rgb(14 20 32 / 0.09), 0 2px 4px -2px rgb(14 20 32 / 0.05)',
-        lg:   '0 10px 24px -6px rgb(14 20 32 / 0.12), 0 4px 8px -4px rgb(14 20 32 / 0.06)',
-        xl:   '0 20px 44px -12px rgb(14 20 32 / 0.18), 0 8px 16px -8px rgb(14 20 32 / 0.08)',
+        lg:   '0 12px 32px -8px rgb(14 20 32 / 0.11), 0 4px 10px -4px rgb(14 20 32 / 0.05)',
+        xl:   '0 32px 64px -16px rgb(14 20 32 / 0.15), 0 12px 24px -12px rgb(14 20 32 / 0.07)',
         inner:'inset 0 1px 2px 0 rgb(14 20 32 / 0.06)',
         // The lift under a raised record while it is being read.
-        'record':    '0 1px 0 0 #E3E6ED, 0 6px 16px -6px rgb(14 20 32 / 0.10)',
-        'primary-sm':'0 2px 6px -2px rgb(29 63 160 / 0.30)',
-        'primary-md':'0 4px 12px -4px rgb(29 63 160 / 0.34)',
-        'mint-sm':   '0 2px 8px -2px rgb(15 118 110 / 0.30)',
+        'record':    '0 1px 0 0 #E7E7EA, 0 6px 16px -6px rgb(14 20 32 / 0.08)',
+        'primary-sm':'0 2px 6px -2px rgb(14 20 32 / 0.22)',
+        'primary-md':'0 4px 12px -4px rgb(14 20 32 / 0.28)',
+        'mint-sm':   '0 2px 8px -2px rgb(14 20 32 / 0.22)',
       },
 
       backgroundImage: {
         // Fields, never text. The spine's slipcase and the ruled gutter.
-        'brand-field': 'linear-gradient(168deg,#0E1420 0%,#16202F 58%,#1D2A3D 100%)',
-        'brand-band':  'linear-gradient(90deg,#1D3FA0 0%,#2A4AAA 50%,#3D5CB4 100%)',
-        'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,#E3E6ED 27px,#E3E6ED 28px)',
+        'brand-field': 'linear-gradient(168deg,#0E1420 0%,#171B20 58%,#1E2328 100%)',
+        'brand-band':  'linear-gradient(90deg,#0E1420 0%,#23272E 50%,#3B4046 100%)',
+        'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,#E7E7EA 27px,#E7E7EA 28px)',
       },
 
-      ringColor: { primary: '#1D3FA0' },
+      ringColor: { primary: '#0E1420' },
       zIndex: { '5': '5' },
 
       // Motion: one authored moment — the record turning to a cited line.

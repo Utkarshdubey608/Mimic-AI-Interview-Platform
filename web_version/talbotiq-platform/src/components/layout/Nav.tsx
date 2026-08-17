@@ -74,7 +74,7 @@ function Mark() {
   return (
     <span className="grid place-items-center h-8 w-8 rounded-md border border-brand-border bg-brand-card">
       <svg viewBox="0 0 32 32" className="h-[17px] w-[17px]" aria-hidden="true">
-        <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#D7E0F5" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#E8E8ED" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
   )
@@ -83,7 +83,7 @@ function Mark() {
 function itemClass(isActive: boolean) {
   return cn(
     'group relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 text-sm transition-colors duration-150',
-    // The seated-tab mark: an ink-blue edge and a lifted ground.
+    // The seated-tab mark: an accent edge and a lifted ground.
     isActive
       ? 'bg-brand-card text-brand-gold-light font-semibold before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-full before:bg-brand-gold'
       : 'text-brand-gray hover:text-brand-gold-light hover:bg-brand-card/60 font-medium',

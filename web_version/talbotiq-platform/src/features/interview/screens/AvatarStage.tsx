@@ -37,7 +37,7 @@ type Stage = 'connecting' | 'live' | 'ending' | 'ended' | 'error'
  */
 export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
   const reduce = useReducedMotion()
-  const accent = branding.accentColor || '#8AA6F0'
+  const accent = branding.accentColor || '#F2F3F5'
 
   const [stage, setStage] = useState<Stage>('connecting')
   // Face-fit gate (first entry only — mount-time value; later prop changes are
