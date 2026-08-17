@@ -1,0 +1,15 @@
+# What NOT to upload to Cloud Build when deploying with --source.
+# The service's runtime config lives on the Cloud Run service itself (env vars /
+# secrets); local dev credentials must never ride along in the build context.
+.gcloudignore
+.env
+.env.*
+serviceAccount.json
+*.json.key
+.venv/
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+tests/
+spikes/
+.gitignore

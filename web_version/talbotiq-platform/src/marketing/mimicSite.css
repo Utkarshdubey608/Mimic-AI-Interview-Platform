@@ -23,25 +23,39 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 .mimic-site{
-  /* ── Ink and paper ─────────────────────────────────────────────────── */
+  /* ── Ink and paper ───────────────────────────────────────────────────
+     The neutrals are NEUTRAL now — the blue cast left with the registrar
+     system. Near-black ink on white, one warm-gray band, and a single green
+     accent used sparingly: color is spent only where it means something. */
   --mm-ink:#0E1420;          /* headings, body ink, the cover ground */
-  --mm-ink-2:#3A4454;        /* body */
-  --mm-muted:#5C6879;        /* labels, meta — 5.66:1 on white */
-  --mm-faint:#626B79;        /* the quietest text that is still text — 5.39:1 */
+  --mm-ink-2:#3B4046;        /* body */
+  --mm-muted:#5B6067;        /* labels, meta — ≥5.6:1 on white */
+  --mm-faint:#63686F;        /* the quietest text that is still text */
   --mm-bg:#FFFFFF;           /* the record page */
-  --mm-bg-alt:#F4F6F9;       /* alternating band — cool, never lavender */
-  --mm-desk:#EEF0F4;         /* the desk the record sits on */
-  --mm-line:#E3E6ED;         /* hairline rule */
-  --mm-line-2:#CBD1DC;       /* stronger rule, input stroke on tint */
-  --mm-stroke:#848FA1;       /* field stroke — 3.27:1, a real boundary */
+  --mm-bg-alt:#F5F5F7;       /* alternating band — the quiet gray */
+  --mm-desk:#F0F0F2;         /* the desk the record sits on */
+  --mm-line:#E7E7EA;         /* hairline rule */
+  --mm-line-2:#D6D6DB;       /* stronger rule, input stroke on tint */
+  --mm-stroke:#8A8F98;       /* field stroke — a real boundary */
 
-  /* ── Registrar ink: authority, links, the primary action ──────────── */
-  --mm-reg:#1D3FA0;
-  --mm-reg-h:#152E76;
-  --mm-reg-d:#0F2154;
-  --mm-reg-tint:#E2E8F6;
-  --mm-reg-wash:#F1F4FB;
-  --mm-reg-line:#C6D2ED;
+  /* ── The accent: brand green, demoted to STATE ───────────────────────
+     Links, focus, progress, evidence — the jobs color does better than
+     weight. Never a large surface fill; the primary action stays ink,
+     because on a page this restrained ink already wins.
+     Every legacy `--mm-reg-*` reference resolves here by alias, so the
+     whole stylesheet changed accent in one place. */
+  --mm-acc:#0B7A45;          /* 4.9:1 on white — link-safe */
+  --mm-acc-h:#085F36;
+  --mm-acc-d:#064428;
+  --mm-acc-tint:#E1F3E9;
+  --mm-acc-wash:#F2FAF5;
+  --mm-acc-line:#C2E5D1;
+  --mm-reg:var(--mm-acc);
+  --mm-reg-h:var(--mm-acc-h);
+  --mm-reg-d:var(--mm-acc-d);
+  --mm-reg-tint:var(--mm-acc-tint);
+  --mm-reg-wash:var(--mm-acc-wash);
+  --mm-reg-line:var(--mm-acc-line);
 
   /* ── The seal: a terminal mark. Never a surface fill. ──────────────── */
   --mm-seal:#B3261E;
@@ -57,19 +71,22 @@
   --mm-ex-video:#15803D;
   --mm-ex-twoway:#0369A1;
 
-  /* On the ink field */
-  --mm-on-ink:#D7E0F5;
-  --mm-on-ink-2:#93A0B4;     /* 6.96:1 on #0E1420 */
-  --mm-on-ink-line:#2A3446;
-  --mm-on-ink-card:#1A2231;
-  --mm-on-ink-accent:#8AA6F0; /* 7.72:1 — the accent that works on dark */
+  /* On the ink field — neutral grays, not blue-tinted ones */
+  --mm-on-ink:#E8E8ED;
+  --mm-on-ink-2:#9BA0A6;     /* ≥6.9:1 on #0E1420 */
+  --mm-on-ink-line:#2C3036;
+  --mm-on-ink-card:#1A1E24;
+  --mm-on-ink-accent:#7FDCA8; /* the accent that works on dark */
 
-  --mm-r-ctl:4px;            /* squared. The pill grammar left with the violet. */
-  --mm-r-card:8px;
-  --mm-r-lg:10px;
-  --mm-shadow:0 1px 1px 0 rgb(14 20 32 / .04);
-  --mm-shadow-md:0 4px 10px -2px rgb(14 20 32 / .09), 0 2px 4px -2px rgb(14 20 32 / .05);
-  --mm-shadow-lg:0 20px 44px -12px rgb(14 20 32 / .18), 0 8px 16px -8px rgb(14 20 32 / .08);
+  /* Soft geometry. Controls are gently rounded; buttons are true pills
+     (set on .btn — a pill radius on inputs and menu rows reads as costume). */
+  --mm-r-ctl:10px;
+  --mm-r-card:16px;
+  --mm-r-lg:22px;
+  /* Shadows are LOWER and SOFTER: elevation you sense, not read. */
+  --mm-shadow:0 1px 2px 0 rgb(14 20 32 / .05);
+  --mm-shadow-md:0 8px 24px -8px rgb(14 20 32 / .10), 0 2px 6px -2px rgb(14 20 32 / .05);
+  --mm-shadow-lg:0 32px 64px -16px rgb(14 20 32 / .15), 0 12px 24px -12px rgb(14 20 32 / .07);
 
   /* ── Space — one rhythm, in rem ───────────────────────────────────────
      Every gap on this surface comes from this scale, and it is rem rather
@@ -87,8 +104,8 @@
   --mm-s-5:2rem;
   --mm-s-6:3rem;
   --mm-s-7:4.5rem;
-  --mm-s-8:6.5rem;
-  --mm-sec-y:clamp(4.5rem,8.5vw,8.5rem);   /* vertical air per section */
+  --mm-s-8:7rem;
+  --mm-sec-y:clamp(5rem,9.5vw,9.75rem);    /* vertical air per section */
   --mm-gutter:clamp(1.25rem,4vw,2.5rem);   /* page gutter, mobile-first */
   --mm-measure:66ch;                        /* the reading measure, everywhere */
 
@@ -229,16 +246,20 @@
 .mimic-site .detail,.mimic-site .l,.mimic-site .t{min-width:0}
 
 /* ── Controls ─────────────────────────────────────────────────────────
-   Squared, ink-first. The primary action is near-black rather than registrar
-   blue: on a page this restrained, ink is already the strongest thing on the
-   sheet, so the button needs no colour to win. Registrar blue is demoted to
+   Pills, ink-first. The primary action is near-black rather than the accent:
+   on a page this restrained, ink is already the strongest thing on the
+   sheet, so the button needs no colour to win. The green is demoted to
    STATE — links, focus, status, progress — which is the one job colour does
-   better than weight. Two roles, never mixed. */
+   better than weight. Two roles, never mixed.
+
+   The secondary is a QUIET FILL, not an outline: a hairline ring reads as a
+   form control, a soft gray pill reads as an action that simply is not the
+   main one. */
 .mimic-site .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
-  min-height:2.75rem;padding:0 1.15rem;border:1px solid transparent;
-  border-radius:var(--mm-r-ctl);
-  font-family:inherit;font-size:.9rem;font-weight:650;letter-spacing:-.004em;
+  min-height:2.8rem;padding:0 1.4rem;border:1px solid transparent;
+  border-radius:980px;
+  font-family:inherit;font-size:.9rem;font-weight:600;letter-spacing:-.004em;
   cursor:pointer;text-decoration:none;white-space:nowrap;
   /* transform is in the list so the press below composites rather than
      relayouts. Colour and shadow settle on the same curve as everything else. */
@@ -248,15 +269,19 @@
              box-shadow var(--mm-dur-1) var(--mm-ease),
              transform var(--mm-dur-1) var(--mm-ease);
 }
-.mimic-site .btn-lg{min-height:3.25rem;padding:0 1.6rem;font-size:1rem}
+.mimic-site .btn-lg{min-height:3.3rem;padding:0 1.85rem;font-size:1rem}
 /* Feedback belongs on the press, not the release. Waiting for click to
    acknowledge a tap is the single latency a reader feels most, and it is what
    separates a control that responds from one that merely works. */
-.mimic-site .btn:active{transform:scale(.976);transition-duration:.08s}
-.mimic-site .btn-primary{background:var(--mm-ink);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .16)}
-.mimic-site .btn-primary:hover{background:#1B2436;box-shadow:0 6px 16px -6px rgb(14 20 32 / .34)}
-.mimic-site .btn-ghost{background:var(--mm-bg);color:var(--mm-ink);border-color:var(--mm-line-2)}
-.mimic-site .btn-ghost:hover{border-color:var(--mm-stroke);background:var(--mm-bg-alt)}
+.mimic-site .btn:active{transform:scale(.97);transition-duration:.08s}
+.mimic-site .btn-primary{background:var(--mm-ink);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .14)}
+.mimic-site .btn-primary:hover{
+  background:#23272E;transform:translateY(-1px);
+  box-shadow:0 10px 24px -8px rgb(14 20 32 / .32)
+}
+.mimic-site .btn-primary:active{transform:scale(.97)}
+.mimic-site .btn-ghost{background:var(--mm-bg-alt);color:var(--mm-ink)}
+.mimic-site .btn-ghost:hover{background:#ECECEF}
 .mimic-site .btn-light{background:#fff;color:var(--mm-ink)}
 .mimic-site .btn-light:hover{background:var(--mm-bg-alt)}
 .mimic-site .btn .chev,.mimic-site .btn .caret{transition:transform .16s var(--mm-ease)}
@@ -270,12 +295,14 @@
 }
 
 /* ── Announcement band + nav ──────────────────────────────────────────── */
+/* A quiet note above the chrome, not a black slab that opens every page by
+   shouting. It scrolls away; the nav is what stays. */
 .mimic-site .banner{
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-bg-alt);color:var(--mm-ink-2);
   font-size:13px;text-align:center;padding:9px 20px;
-  border-bottom:1px solid var(--mm-on-ink-line)
+  border-bottom:1px solid var(--mm-line)
 }
-.mimic-site .banner a{color:#fff;text-decoration:underline;text-decoration-color:rgb(255 255 255 / .45)}
+.mimic-site .banner a{color:var(--mm-ink);text-decoration:underline;text-decoration-color:var(--mm-line-2)}
 /* The nav is a floating MATERIAL, not an opaque strip that owns 62px of the
    page. Content passes underneath and stays faintly readable through it, which
    is what tells you the page continues rather than ends at the chrome.
@@ -306,8 +333,8 @@
 }
 .mimic-site .navlinks{display:flex;align-items:center;gap:4px;margin-left:8px}
 .mimic-site .navlinks>*{
-  display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:var(--mm-r-ctl);
-  font-size:14.5px;font-weight:600;color:var(--mm-ink-2);text-decoration:none;background:none;
+  display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:980px;
+  font-size:14.5px;font-weight:500;color:var(--mm-ink-2);text-decoration:none;background:none;
   border:0;cursor:pointer;font-family:inherit;
   transition:background-color .15s var(--mm-ease),color .15s var(--mm-ease)
 }
@@ -316,8 +343,8 @@
 .mimic-site .signin{font-size:14.5px;font-weight:600;color:var(--mm-ink-2);text-decoration:none}
 .mimic-site .signin:hover{color:var(--mm-ink)}
 .mimic-site .navtoggle{
-  display:none;width:42px;height:42px;border:1px solid var(--mm-line-2);
-  border-radius:var(--mm-r-ctl);background:#fff;cursor:pointer;color:var(--mm-ink)
+  display:none;width:42px;height:42px;border:0;
+  border-radius:999px;background:var(--mm-bg-alt);cursor:pointer;color:var(--mm-ink)
 }
 .mimic-site .caret,.mimic-site .chev{flex-shrink:0}
 
@@ -375,12 +402,21 @@
    refuses to shrink below its longest link and pushes the grid past the
    viewport. Every multi-column grid on this page uses the explicit zero floor
    for that reason. */
-.mimic-site .hub-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}
-.mimic-site .hub-col h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--mm-muted);margin-bottom:12px}
-.mimic-site .hub-col a{display:block;padding:6px 0;font-size:14.5px;color:var(--mm-ink-2);
-  text-decoration:none;font-weight:550}
-.mimic-site .hub-col a:hover{color:var(--mm-reg)}
+.mimic-site .hub-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;margin-top:var(--mm-s-6)}
+/* The markup renders <h2> (right for the outline); the STYLE is a quiet label.
+   Three display-scale headings under a display hero is three headlines
+   shouting at once — the links are the content here, the heading only names
+   the pile. This rule out-specifies the global display h2 on purpose. */
+.mimic-site .hub-col h2,.mimic-site .hub-col h4{
+  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-stretch:100%;line-height:1.4;
+  color:var(--mm-muted);margin:0 0 14px}
+.mimic-site .hub-col ul{list-style:none;margin:0;padding:0}
+.mimic-site .hub-col a{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:15.5px;color:var(--mm-ink);
+  text-decoration:none;font-weight:550;letter-spacing:-.01em}
+.mimic-site .hub-col a svg{color:var(--mm-muted);transition:transform var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .hub-col a:hover{color:var(--mm-acc)}
+.mimic-site .hub-col a:hover svg{transform:translateX(3px);color:var(--mm-acc)}
 .mimic-site .mmenu{border-top:1px solid var(--mm-line);background:#fff;padding:14px 0 22px}
 .mimic-site .mmenu a,.mimic-site .mmenu button{
   display:block;width:100%;text-align:left;padding:12px 0;font-size:16px;font-weight:600;
@@ -473,7 +509,19 @@
 /* The frame below is parallaxed upward, and with only 16px of clearance it rode
    over this line. The clearance now exceeds the parallax travel (22px). */
 .mimic-site .hero-note{margin-top:var(--mm-s-4);margin-bottom:var(--mm-s-6);display:flex;align-items:flex-start;gap:.45rem}
-.mimic-site .hero-note svg{margin-top:.28em;color:var(--mm-ex-video)}
+
+/* The home hero is CENTERED: one statement, straight at the reader, with the
+   product frame beneath it. Sub-pages keep the left-aligned reading register —
+   they are documents; the cover is a poster. */
+.mimic-site .hero.centered .hero-in{display:flex;flex-direction:column;align-items:center;text-align:center}
+.mimic-site .hero.centered h1{max-width:19ch}
+.mimic-site .hero.centered .lede{margin-left:auto;margin-right:auto}
+.mimic-site .hero.centered .hero-cta{justify-content:center}
+.mimic-site .hero.centered .hero-note{justify-content:center;text-align:left}
+
+/* The global ::selection is registrar blue; on this surface selection is green. */
+.mimic-site ::selection{background:var(--mm-acc-tint)}
+.mimic-site .hero-note svg{margin-top:.28em;color:var(--mm-acc)}
 
 /* ── Product frame — the real screenshot, seated like a filed page ───── */
 /* `.app-mock` and its `.am-*` parts are gone with the hand-built workspace
@@ -533,7 +581,7 @@
 .mimic-site .mech-points li{list-style:none;padding-left:0}
 .mimic-site .rec{
   display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:2px;
-  border:1.5px solid var(--mm-ex-video);color:var(--mm-ex-video);
+  border:1.5px solid var(--mm-acc);color:var(--mm-acc);
   font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase
 }
 
@@ -547,11 +595,19 @@
 .mimic-site .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
 .mimic-site .track{
   display:flex;flex-direction:column;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);
-  background:#fff;padding:22px;position:relative;
+  background:#fff;padding:26px;position:relative;
   box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted));
-  transition:box-shadow .18s var(--mm-ease),border-color .18s var(--mm-ease)
+  transition:box-shadow .22s var(--mm-ease),border-color .22s var(--mm-ease),
+             transform .22s var(--mm-ease)
 }
-.mimic-site .track:hover{border-color:var(--mm-line-2);box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted)),var(--mm-shadow-md)}
+/* The lift is FELT, not watched: 2px and a softer, deeper shadow. */
+.mimic-site .track:hover{
+  border-color:var(--mm-line-2);transform:translateY(-2px);
+  box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted)),var(--mm-shadow-md)
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .track:hover{transform:none}
+}
 /* Closes the second row when the format count leaves a remainder of two.
    MimicSite applies it to the last card; the class is inert until it does. */
 .mimic-site .track.wide{grid-column:span 2}
@@ -967,8 +1023,8 @@
 .mimic-site .cta .lede,.mimic-site .on-dark .lede,.mimic-site .on-dark p{color:var(--mm-on-ink)}
 .mimic-site .cta .meta,.mimic-site .on-dark .meta,.mimic-site .on-dark .kn{color:var(--mm-on-ink-2)}
 .mimic-site .on-dark a{color:var(--mm-on-ink-accent)}
-.mimic-site .on-dark .btn-ghost{background:transparent;color:#fff;border-color:rgb(255 255 255 / .34)}
-.mimic-site .on-dark .btn-ghost:hover{background:rgb(255 255 255 / .08);border-color:rgb(255 255 255 / .6)}
+.mimic-site .on-dark .btn-ghost{background:rgb(255 255 255 / .12);color:#fff;border-color:transparent}
+.mimic-site .on-dark .btn-ghost:hover{background:rgb(255 255 255 / .2);border-color:transparent}
 
 /* ── Form: the demo request ───────────────────────────────────────────── */
 .mimic-site .demo,.mimic-site .roi{
@@ -989,6 +1045,26 @@
   border-color:var(--mm-reg);box-shadow:0 0 0 3px rgb(29 63 160 / .13)
 }
 .mimic-site .submit{width:100%;margin-top:6px}
+/* The demo form's submit is a bare <button> in the markup, so it must be fully
+   dressed here: inside the dark CTA band it inherited white text over a
+   transparent fill and disappeared into the white card. It is the primary
+   action of the page's final ask — the one control that must never be subtle. */
+.mimic-site .submit>button{
+  display:inline-flex;align-items:center;justify-content:center;width:100%;
+  min-height:3.1rem;padding:0 1.6rem;border:1px solid transparent;border-radius:980px;
+  background:var(--mm-ink);color:#fff;font-family:inherit;font-size:.95rem;
+  font-weight:600;letter-spacing:-.004em;cursor:pointer;
+  box-shadow:0 1px 2px 0 rgb(14 20 32 / .14);
+  transition:background-color var(--mm-dur-1) var(--mm-ease),
+             box-shadow var(--mm-dur-1) var(--mm-ease),
+             transform var(--mm-dur-1) var(--mm-ease)
+}
+.mimic-site .submit>button:hover{background:#23272E;transform:translateY(-1px);box-shadow:0 10px 24px -8px rgb(14 20 32 / .32)}
+.mimic-site .submit>button:active{transform:scale(.97);transition-duration:.08s}
+.mimic-site .submit>button:disabled{opacity:.55;cursor:default;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .submit>button:hover,.mimic-site .submit>button:active{transform:none}
+}
 .mimic-site .err{
   display:flex;align-items:flex-start;gap:6px;font-size:12.5px;color:var(--mm-seal);margin-top:2px
 }
@@ -1010,8 +1086,54 @@
   border-color:var(--mm-seal);box-shadow:0 0 0 3px rgb(179 38 30 / .14)
 }
 .mimic-site .thanks{
-  border:1px solid #C9E5D2;background:#EFF7F1;border-radius:var(--mm-r-card);padding:22px;
+  border:1px solid var(--mm-acc-line);background:var(--mm-acc-wash);border-radius:var(--mm-r-card);padding:22px;
   color:var(--mm-ink)
+}
+
+/* ── ROI calculator ───────────────────────────────────────────────────────
+   The results are the argument, so they read like one: big tabular numbers
+   with quiet labels, not a bare list. The sliders get this surface's skin —
+   without these rules they inherit the APP's global input[type=range] rule
+   from index.css, which is registrar blue and square-thumbed: the one place
+   the workspace's palette was leaking into the marketing world. */
+.mimic-site .roi{display:grid;grid-template-columns:1.1fr .9fr;gap:var(--mm-s-6);align-items:start}
+.mimic-site .roi .controls{display:block}
+.mimic-site .roi .ctl{
+  height:auto;padding:0;border:0;box-shadow:none;background:none;
+  display:grid;gap:.5rem;margin-bottom:var(--mm-s-4)
+}
+.mimic-site .roi .ctl label{font-size:.9rem;font-weight:550;color:var(--mm-ink-2)}
+.mimic-site .roi .ctl label b{color:var(--mm-ink);font-weight:700;font-variant-numeric:tabular-nums}
+.mimic-site .roi input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:20px;
+  background:none;margin:0;cursor:pointer
+}
+.mimic-site .roi input[type=range]::-webkit-slider-runnable-track{
+  height:4px;border-radius:999px;background:var(--mm-line)
+}
+.mimic-site .roi input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
+  background:#fff;border:1px solid var(--mm-line-2);box-shadow:var(--mm-shadow-md);
+  margin-top:-9px
+}
+.mimic-site .roi input[type=range]::-moz-range-track{height:4px;border-radius:999px;background:var(--mm-line)}
+.mimic-site .roi input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;background:#fff;
+  border:1px solid var(--mm-line-2);box-shadow:var(--mm-shadow-md)
+}
+.mimic-site .results{display:grid;gap:var(--mm-s-4);align-content:start}
+.mimic-site .res{
+  padding:var(--mm-s-4) var(--mm-s-5);border-radius:var(--mm-r-card);
+  background:var(--mm-bg-alt)
+}
+.mimic-site .res .n{
+  font-family:'Chivo Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  font-size:clamp(1.75rem,2.6vw,2.375rem);font-weight:600;color:var(--mm-ink);
+  letter-spacing:-.02em;line-height:1.1
+}
+.mimic-site .res .l{margin-top:.35rem;font-size:.875rem;color:var(--mm-muted)}
+@media (max-width:1040px){
+  .mimic-site .roi{grid-template-columns:minmax(0,1fr)}
 }
 
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
@@ -1043,35 +1165,40 @@
   content:"";position:absolute;left:2px;top:.62em;
   width:6px;height:6px;border-radius:1px;background:var(--mm-reg)
 }
-.mimic-site .tick{color:var(--mm-ex-video);margin-top:3px}
+.mimic-site .tick{color:var(--mm-acc);margin-top:3px}
 
-/* ── Footer ───────────────────────────────────────────────────────────── */
-.mimic-site .foot{background:var(--mm-ink);color:var(--mm-on-ink);padding:64px 0 30px}
-.mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px}
-.mimic-site .foot-brand .kn{color:var(--mm-on-ink-2);max-width:38ch;margin-top:12px}
-.mimic-site .foot h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--mm-on-ink-2);margin-bottom:12px}
-.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-on-ink);text-decoration:none;font-size:14px}
-.mimic-site .foot a:hover{color:#fff;text-decoration:underline}
-.mimic-site .foot-bottom{
-  margin-top:44px;padding-top:22px;border-top:1px solid var(--mm-on-ink-line);
-  display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
-  font-size:12.5px;color:var(--mm-on-ink-2)
+/* ── Footer ───────────────────────────────────────────────────────────────
+   Light, quiet, small — a colophon, not a second cover. The dark field is
+   reserved for the one CTA band, and ending every page on a wall of ink was
+   spending it twice. */
+.mimic-site .foot{
+  background:var(--mm-bg-alt);color:var(--mm-ink-2);
+  border-top:1px solid var(--mm-line);padding:64px 0 30px
 }
-.mimic-site .foot .brand{color:#fff}
-.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{background:var(--mm-on-ink-card);border:1px solid var(--mm-on-ink-line)}
+.mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px}
+.mimic-site .foot-brand .kn{color:var(--mm-muted);max-width:38ch;margin-top:12px}
+.mimic-site .foot h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--mm-muted);margin-bottom:12px}
+.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-ink-2);text-decoration:none;font-size:14px}
+.mimic-site .foot a:hover{color:var(--mm-ink);text-decoration:underline}
+.mimic-site .foot-bottom{
+  margin-top:44px;padding-top:22px;border-top:1px solid var(--mm-line-2);
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
+  font-size:12.5px;color:var(--mm-muted)
+}
+.mimic-site .foot .brand{color:var(--mm-ink)}
+.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{background:var(--mm-ink);border:0}
 
 /* ── Sub-pages (mk-*) — the reading register ──────────────────────────── */
 .mimic-site .mkpage{padding-bottom:0}
 /* These few rules render all 72 inner pages, so the rhythm here IS the site's
-   rhythm. The hairline between sections stays — ruled separation is this
-   surface's identity — but it now sits in far more space, so it reads as a
-   considered break rather than a ledger line. Rules divide; space is what
-   makes the division feel deliberate. */
-.mimic-site .mk-hero{padding:var(--mm-s-7) 0 var(--mm-s-5);border-bottom:1px solid var(--mm-line)}
-.mimic-site .mk-hero h1{font-size:clamp(2.25rem,4.6vw,3.75rem);line-height:1.04;letter-spacing:-.04em}
-.mimic-site .mk-sec{padding:var(--mm-s-7) 0;border-bottom:1px solid var(--mm-line)}
-.mimic-site .mk-sec:last-child{border-bottom:0}
+   rhythm. The ledger hairlines are gone: space alone carries the breaks now,
+   and it is generous enough to do it. A rule between sections tells the reader
+   where a section ends; enough air lets them feel it instead. */
+.mimic-site .mk-hero{padding:var(--mm-s-8) 0 var(--mm-s-6)}
+.mimic-site .mk-hero h1{font-size:clamp(2.375rem,4.8vw,4rem);line-height:1.04;letter-spacing:-.04em}
+.mimic-site .mk-sec{padding:var(--mm-s-7) 0}
+.mimic-site .mk-sec:last-child{padding-bottom:var(--mm-s-8)}
 /* 66ch, not 74. Past roughly 75 characters the eye loses the line return, and
    this site's pages are read top to bottom rather than skimmed. */
 .mimic-site .mk-body,.mimic-site .mk{max-width:var(--mm-measure)}
@@ -1143,11 +1270,17 @@
 .mimic-site .mk-spec td{padding:11px 12px;border-bottom:1px solid var(--mm-line);color:var(--mm-ink-2)}
 .mimic-site .mk-related{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .mimic-site .mk-related a{
-  display:block;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);padding:18px;
+  display:block;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);padding:22px;
   text-decoration:none;color:var(--mm-ink);background:#fff;
-  transition:border-color .18s var(--mm-ease),box-shadow .18s var(--mm-ease)
+  transition:border-color .22s var(--mm-ease),box-shadow .22s var(--mm-ease),
+             transform .22s var(--mm-ease)
 }
-.mimic-site .mk-related a:hover{border-color:var(--mm-line-2);box-shadow:var(--mm-shadow-md)}
+.mimic-site .mk-related a:hover{
+  border-color:var(--mm-line-2);transform:translateY(-2px);box-shadow:var(--mm-shadow-md)
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .mk-related a:hover{transform:none}
+}
 .mimic-site .results,.mimic-site .res{display:grid;gap:14px}
 .mimic-site .macc{border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;overflow:hidden}
 .mimic-site .macc>button{

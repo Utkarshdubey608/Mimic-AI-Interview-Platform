@@ -336,7 +336,7 @@ export default function MimicSite() {
       <main id="top">
 
         {/* ── HERO ── */}
-        <section className="hero" aria-labelledby="hero-h1">
+        <section className="hero centered" aria-labelledby="hero-h1">
           {/* A WebGL card field was built for this hero and never mounted. It was
               removed rather than left shelved: the composition had no negative
               space for it, and three passes at art direction could not fix what
@@ -732,7 +732,7 @@ export default function MimicSite() {
                 <h2>Understand the scoring</h2>
                 <ul>
                   <li><Link to="/trust/how-mimic-scores">How Mimic scores<Ico n="arrow" /></Link></li>
-                  <li><Link to="/trust/human in the loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
+                  <li><Link to="/trust/human-in-the-loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
                   <li><Link to="/platform/rubrics-scoring">Rubrics &amp; scoring<Ico n="arrow" /></Link></li>
                 </ul>
               </div>
