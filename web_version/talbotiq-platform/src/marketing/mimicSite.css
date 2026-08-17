@@ -257,8 +257,8 @@
    main one. */
 .mimic-site .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
-  min-height:2.8rem;padding:0 1.4rem;border:1px solid transparent;
-  border-radius:980px;
+  min-height:2.8rem;padding:0 1.3rem;border:1px solid transparent;
+  border-radius:var(--mm-r-ctl);
   font-family:inherit;font-size:.9rem;font-weight:600;letter-spacing:-.004em;
   cursor:pointer;text-decoration:none;white-space:nowrap;
   /* transform is in the list so the press below composites rather than
@@ -344,7 +344,7 @@
 .mimic-site .signin:hover{color:var(--mm-ink)}
 .mimic-site .navtoggle{
   display:none;width:42px;height:42px;border:0;
-  border-radius:999px;background:var(--mm-bg-alt);cursor:pointer;color:var(--mm-ink)
+  border-radius:var(--mm-r-ctl);background:var(--mm-bg-alt);cursor:pointer;color:var(--mm-ink)
 }
 .mimic-site .caret,.mimic-site .chev{flex-shrink:0}
 
@@ -515,7 +515,11 @@
    they are documents; the cover is a poster. */
 .mimic-site .hero.centered .hero-in{display:flex;flex-direction:column;align-items:center;text-align:center}
 .mimic-site .hero.centered h1{max-width:19ch}
-.mimic-site .hero.centered .lede{margin-left:auto;margin-right:auto}
+/* BOTH copy classes, and margin-inline auto is load-bearing: the copy sits in a
+   content-width wrapper stretched by the h1, and a max-width paragraph without
+   auto margins hugs that wrapper's left edge — centered text in a left-anchored
+   box, which reads as misalignment against the centered CTAs below it. */
+.mimic-site .hero.centered .lede,.mimic-site .hero.centered .sub{margin-left:auto;margin-right:auto}
 .mimic-site .hero.centered .hero-cta{justify-content:center}
 .mimic-site .hero.centered .hero-note{justify-content:center;text-align:left}
 
@@ -1051,7 +1055,7 @@
    action of the page's final ask — the one control that must never be subtle. */
 .mimic-site .submit>button{
   display:inline-flex;align-items:center;justify-content:center;width:100%;
-  min-height:3.1rem;padding:0 1.6rem;border:1px solid transparent;border-radius:980px;
+  min-height:3.1rem;padding:0 1.6rem;border:1px solid transparent;border-radius:var(--mm-r-ctl);
   background:var(--mm-ink);color:#fff;font-family:inherit;font-size:.95rem;
   font-weight:600;letter-spacing:-.004em;cursor:pointer;
   box-shadow:0 1px 2px 0 rgb(14 20 32 / .14);
