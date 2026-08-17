@@ -12,15 +12,15 @@ const CAT_LABELS: Record<EmotionCategory, string> = {
   disengagement: 'Disengaged',
 }
 
-// One brand hue per column, tinted by intensity — the ramp stays inside the
-// Mimic spectrum and always keeps ink-dark text legible on top.
+// One exhibit-ramp hue per column, tinted by intensity — the ramp always
+// keeps ink-dark text legible on top.
 const CAT_RGB: Record<EmotionCategory, [number, number, number]> = {
-  positive_high: [107, 43, 224],   // #1D3FA0 violet
-  positive_calm: [91, 111, 232],   // #3D5CB4 indigo
-  cognitive:     [196, 44, 147],   // #BE185D magenta
-  social:        [15, 122, 95],    // #15803D success
+  positive_high: [15, 118, 110],   // #0F766E teal
+  positive_calm: [67, 56, 202],    // #4338CA indigo
+  cognitive:     [190, 24, 93],    // #BE185D magenta
+  social:        [21, 128, 61],    // #15803D success
   negative:      [180, 83, 9],     // #B45309 warning
-  disengagement: [124, 117, 149],  // #5C6879 neutral
+  disengagement: [91, 96, 103],    // #5B6067 neutral
 }
 
 function heatColor(score: number, cat: EmotionCategory): string {

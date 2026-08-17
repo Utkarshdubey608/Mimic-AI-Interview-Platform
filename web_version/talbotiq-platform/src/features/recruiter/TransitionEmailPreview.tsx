@@ -62,7 +62,7 @@ export function TransitionEmailPreview({
   const sampleLink = `${origin || 'https://app.talbotiq.com'}/take/sample-next-round`
 
   let subject = '(no subject)'
-  let html = '<p style="padding:20px;font-family:Figtree,Arial,sans-serif;font-size:13px;color:#dc2626">Preview unavailable — check the subject and body for an unclosed token.</p>'
+  let html = '<p style="padding:20px;font-family:Archivo,Arial,sans-serif;font-size:13px;color:#B3261E">Preview unavailable — check the subject and body for an unclosed token.</p>'
   try {
     const rendered = renderTransitionEmail(
       draft, kind, vars,

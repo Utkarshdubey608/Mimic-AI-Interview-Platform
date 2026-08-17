@@ -51,7 +51,7 @@ function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; red
   const speaking = phase === 'speaking' || phase === 'greeting'
   const listening = phase === 'listening'
   // Mint INK, not the pale mint that used to sit here: this stage is light now,
-  // and #7FD4AE on white is barely a shape.
+  // and #7FDCA8 on white is barely a shape.
   const color = listening ? '#0F766E' : accent
   return (
     <div className="relative flex h-56 w-56 items-center justify-center">
@@ -79,14 +79,14 @@ function Orb({ phase, accent, reduce }: { phase: VoicePhase; accent: string; red
 export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer' }: Props) {
   const reduce = useReducedMotion()
   const v = useVoiceSession(sessionId)
-  /* Registrar ink, not the lifted blue.
+  /* Registrar ink, not the lifted mint.
    *
-   * This used to fall back to #8AA6F0 with the note "dark stage: 7.72:1, not
-   * registrar ink at 1.99:1" — correct while the call ran on a black stage. The
-   * stage is white now, which inverts that arithmetic exactly: #8AA6F0 drops to
-   * about 2:1 on white, and #1D3FA0 rises to about 9.5:1. Same reasoning, other
+   * This used to fall back to #7FDCA8 with the note "dark stage: 11.2:1, not
+   * registrar ink at 3.4:1" — correct while the call ran on a black stage. The
+   * stage is white now, which inverts that arithmetic exactly: #7FDCA8 drops to
+   * about 1.7:1 on white, and #0B7A45 rises to about 5.4:1. Same reasoning, other
    * background. */
-  const accent = branding.accentColor || '#1D3FA0'
+  const accent = branding.accentColor || '#0B7A45'
   /* Captions default ON. The live transcript is the only signal a candidate has that
    * they are being heard at all — the orb animates identically whether the microphone
    * is working or not. Candidates reported not knowing whether their answer had

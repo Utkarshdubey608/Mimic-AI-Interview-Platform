@@ -26,7 +26,9 @@ export function Button({ variant = 'primary', size = 'md', loading, icon, childr
 
   const variants = {
     // Registrar ink — the authority action.
-    primary:  'bg-primary-700 text-white hover:bg-primary-800 active:bg-primary-900 shadow-primary-sm hover:shadow-primary-md',
+    // Ink, not the tint: in this product green already means 'passed', and an
+    // action must never read as a verdict. Weight marks the action.
+    primary:  'bg-neutral-900 text-white hover:bg-neutral-800 active:bg-neutral-900 shadow-sm hover:shadow-md',
     secondary:'bg-white text-neutral-800 border border-neutral-300 hover:border-neutral-400 hover:bg-neutral-50 active:bg-neutral-100',
     ghost:    'bg-transparent text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200',
     danger:   'bg-white text-danger border border-danger-border hover:bg-danger-bg active:bg-danger-bg',

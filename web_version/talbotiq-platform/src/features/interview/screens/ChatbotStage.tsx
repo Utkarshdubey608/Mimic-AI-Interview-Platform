@@ -67,7 +67,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   const [breakStage, setBreakStage] = useState<'none' | 'choosing' | 'counting'>('none')
   const [breakRemaining, setBreakRemaining] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const accent = branding.accentColor || '#1D3FA0'
+  const accent = branding.accentColor || '#0B7A45'
   const accentVar = { '--accent': accent } as CSSProperties
   const s = chat.state
   const visibleTranscript = chat.visibleTranscript

@@ -14,16 +14,16 @@ const LABELS: Record<EmotionCategory, string> = {
 
 // Shared chart chrome — one grid colour, one tick colour, one tooltip shell
 // across every emotion visualisation.
-const GRID = '#E3E6ED'
-const TICK = { fill: '#5C6879', fontSize: 11, fontFamily: 'Figtree, system-ui, sans-serif' }
+const GRID = '#E7E7EA'
+const TICK = { fill: '#5B6067', fontSize: 11, fontFamily: 'Archivo, system-ui, sans-serif' }
 const TOOLTIP_STYLE = {
   background: '#ffffff',
-  border: '1px solid #E3E6ED',
+  border: '1px solid #E7E7EA',
   borderRadius: 10,
   color: '#0E1420',
   fontSize: 12,
-  fontFamily: 'Figtree, system-ui, sans-serif',
-  boxShadow: '0 8px 24px -4px rgb(27 11 59 / 0.10), 0 4px 10px -4px rgb(27 11 59 / 0.06)',
+  fontFamily: 'Archivo, system-ui, sans-serif',
+  boxShadow: '0 8px 24px -4px rgb(14 20 32 / 0.10), 0 4px 10px -4px rgb(14 20 32 / 0.06)',
 } as const
 
 interface Props {
@@ -31,7 +31,7 @@ interface Props {
   color?: string
 }
 
-export function EmotionRadar({ categoryScores, color = '#1D3FA0' }: Props) {
+export function EmotionRadar({ categoryScores, color = '#0B7A45' }: Props) {
   const data = (Object.keys(LABELS) as EmotionCategory[]).map(k => ({
     subject: LABELS[k],
     score: Math.round(categoryScores[k] * 100),

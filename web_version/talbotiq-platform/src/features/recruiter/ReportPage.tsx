@@ -33,7 +33,7 @@ const TRACK_LABEL: Record<string, string> = {
   two_way: 'Two-way Interview',
 }
 
-const scoreColor = (s: number) => (s >= 75 ? '#15803D' : s >= 55 ? '#B45309' : '#dc2626')
+const scoreColor = (s: number) => (s >= 75 ? '#15803D' : s >= 55 ? '#B45309' : '#B3261E')
 
 /** Locale-aware timestamp — readable in the UI and in the exported PDF. */
 const stamp = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -535,7 +535,7 @@ export default function ReportPage() {
                   <PolarGrid stroke="#E3E6ED" />
                   <PolarAngleAxis dataKey="kpi" tick={{ fontSize: 11, fill: '#5C6879' }} />
                   <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                  <Radar dataKey="score" stroke="#1D3FA0" strokeWidth={2} fill="#1D3FA0" fillOpacity={0.22} />
+                  <Radar dataKey="score" stroke="#0B7A45" strokeWidth={2} fill="#0B7A45" fillOpacity={0.22} />
                 </RadarChart>
               </ResponsiveContainer>
             </Card>

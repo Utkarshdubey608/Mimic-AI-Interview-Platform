@@ -163,18 +163,18 @@ export default function App() {
             style: {
               background: '#fff',
               color: '#0E1420',
-              border: '1px solid #E3E6ED',
+              border: '1px solid #E7E7EA',
               borderRadius: '14px',
               padding: '12px 16px',
               fontSize: '13px',
-              fontFamily: 'Figtree, system-ui, sans-serif',
+              fontFamily: 'Archivo, system-ui, sans-serif',
               fontWeight: '500',
-              boxShadow: '0 6px 18px -4px rgba(27,11,59,0.14)',
+              boxShadow: '0 6px 18px -4px rgba(14,20,32,0.14)',
               maxWidth: '380px',
             },
             success: { iconTheme: { primary: '#15803D', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-            loading: { iconTheme: { primary: '#1D3FA0', secondary: '#fff' } },
+            error: { iconTheme: { primary: '#B3261E', secondary: '#fff' } },
+            loading: { iconTheme: { primary: '#0B7A45', secondary: '#fff' } },
           }}
         />
     </QueryClientProvider>

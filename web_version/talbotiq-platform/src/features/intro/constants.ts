@@ -28,7 +28,7 @@ export const DEFAULT_CONFIG: IntroConfig = {
   // brand.gold — the token name is legacy; its value is the violet accent the
   // rest of the product uses, so the light sweep, rim light and lens flare land
   // in the same world as the app the film hands off to.
-  accentColor: '#8AA6F0',
+  accentColor: '#7FDCA8',
 }
 
 /** sessionStorage gate — the film plays once per browser session. */

@@ -4,8 +4,8 @@
  * animated corner brackets, a scanning sweep line, colour-state feedback, and a
  * lock-in progress ring that ends in a success glow pulse.
  *
- * Colour states follow the Mimic ramp: lavender-neutral while searching → soft
- * violet while locking in → the caller's accent (mint) once locked.
+ * Colour states follow the Mimic ramp: cool-neutral while searching → soft
+ * mint while locking in → the caller's accent (mint) once locked.
  *
  * It owns its own requestAnimationFrame render loop and reads the latest
  * landmarks + visual state from refs, so the ~18fps detection rate never forces
@@ -37,10 +37,10 @@ interface Props {
   dense?: boolean
 }
 
-/** Searching — lavender-neutral, calm and unalarming. */
-const SEARCHING = '#93A0B4'
-/** Locking in — soft violet (brand-gold token value), clearly "something's happening". */
-const LOCKING = '#8AA6F0'
+/** Searching — cool-neutral, calm and unalarming. */
+const SEARCHING = '#9BA0A6'
+/** Locking in — soft mint (brand-gold token value), clearly "something's happening". */
+const LOCKING = '#7FDCA8'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
@@ -133,7 +133,7 @@ export function FaceScannerOverlay({
       if (vis.phase === 'success' && prevPhaseRef.current !== 'success') successAtRef.current = t
       prevPhaseRef.current = vis.phase
 
-      // Colour ramp: lavender-neutral while searching, warming to soft violet as
+      // Colour ramp: cool-neutral while searching, warming to soft mint as
       // a face is found, then blending into the accent (mint) as the lock fills.
       const good = vis.phase === 'holding' || vis.phase === 'locked' || vis.phase === 'success'
       const blend = vis.phase === 'holding' ? Math.min(1, vis.progress) : good ? 1 : 0
@@ -151,7 +151,7 @@ export function FaceScannerOverlay({
       ctx.save()
       ctx.lineWidth = 2
       ctx.strokeStyle = color
-      // The lavender/violet ramp sits lower-contrast than the old amber, so the
+      // The neutral/mint ramp sits lower-contrast than the old amber, so the
       // reticle carries a touch more alpha to stay readable over a bright frame.
       ctx.globalAlpha = 0.62
       ctx.shadowBlur = reducedMotion ? 0 : 14

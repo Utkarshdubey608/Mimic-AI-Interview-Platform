@@ -6,26 +6,26 @@ import { AlertTriangle, Check, ChevronDown, Flag, ScanFace } from 'lucide-react'
 import { Card, SectionTitle, cn } from '@/components/ui'
 import type { FacialSessionSummary, RekognitionEmotionType, FacialFrame } from '@/types/rekognition.types'
 
-// Emotion accents, all drawn from the Mimic spectrum so eight distinct signals
+// Emotion accents, all drawn from the exhibit ramp so eight distinct signals
 // still read as one system on a white surface.
 const EMOTION_COLOR: Record<RekognitionEmotionType, string> = {
-  CALM:      '#3D5CB4',
+  CALM:      '#0F766E',
   HAPPY:     '#15803D',
   CONFUSED:  '#B45309',
-  SURPRISED: '#1D3FA0',
+  SURPRISED: '#4338CA',
   FEAR:      '#BE185D',
-  SAD:       '#4A5566',
-  ANGRY:     '#dc2626',
-  DISGUSTED: '#152E76',
+  SAD:       '#0369A1',
+  ANGRY:     '#B3261E',
+  DISGUSTED: '#064428',
 }
 
 function emotionChipStyle(type: RekognitionEmotionType) {
-  const c = EMOTION_COLOR[type] ?? '#5C6879'
+  const c = EMOTION_COLOR[type] ?? '#5B6067'
   return { color: c, background: `${c}14`, borderColor: `${c}33` } // 14/33 = ~8%/20% alpha hex
 }
 
 function barColor(pct: number) {
-  return pct >= 80 ? '#1D3FA0' : pct >= 60 ? '#B45309' : '#dc2626'
+  return pct >= 80 ? '#0B7A45' : pct >= 60 ? '#B45309' : '#B3261E'
 }
 
 function AttentionBar({ score, label }: { score: number; label: string }) {
