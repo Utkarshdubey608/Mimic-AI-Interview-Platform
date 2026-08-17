@@ -193,7 +193,8 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
           </div>
           <div className="foot-bottom">
             <span>© 2026 TalbotIQ. Mimic is a product of TalbotIQ.</span>
-            <span><Link to="/company/legal" style={{ color: 'rgba(255,255,255,.6)' }}>Legal &amp; privacy</Link></span>
+            {/* Inherits the light footer's muted ink — the footer is no longer a dark field. */}
+            <span><Link to="/company/legal" style={{ color: 'inherit' }}>Legal &amp; privacy</Link></span>
           </div>
         </div>
       </footer>
