@@ -2,6 +2,7 @@ import { humanizeDashes } from '@/lib/humanizeDashes'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Clock, EyeOff, Lock, ArrowRight } from 'lucide-react'
 import type { BrandingConfig, PublicTimingView } from '@shared/types'
+import { brandName } from '../branding'
 
 interface Props {
   branding: BrandingConfig
@@ -31,7 +32,7 @@ export function Welcome({ branding, timing, onContinue }: Props) {
       <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] text-balance text-neutral-900">
         {/* Normalised on the way out: welcomeMessage is recruiter data typed
             into Firestore, so no edit to this file can reach the dashes in it. */}
-        {humanizeDashes(branding.welcomeMessage) || `Welcome to your ${branding.companyName} interview.`}
+        {humanizeDashes(branding.welcomeMessage) || `Welcome to your ${brandName(branding)} interview.`}
       </h1>
       <p className="mt-3 leading-relaxed text-neutral-500">Here’s how it works before you begin:</p>
 

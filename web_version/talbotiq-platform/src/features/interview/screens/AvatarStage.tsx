@@ -7,6 +7,7 @@ import { localTimeOfDay } from '@shared/speech'
 import { sessionsApi } from '@/lib/api'
 import { startCallStats, type CallStatsHandle } from '@/lib/callStats'
 import { FaceFitCheck } from '@/features/avatar-screening/facefit/FaceFitCheck'
+import { brandName } from '../branding'
 
 interface Props {
   sessionId: string
@@ -174,7 +175,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           </div>
           <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">All done, thank you!</h1>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
-            Your interview with {branding.companyName} is complete. You can close this window.
+            Your interview with {brandName(branding)} is complete. You can close this window.
           </p>
         </motion.div>
       </div>
@@ -222,7 +223,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
     <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
       <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-card px-4">
         <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
-          <span className="truncate">{branding.companyName}</span>
+          <span className="truncate">{brandName(branding)}</span>
           {stage === 'live' && (
             <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live

@@ -9,7 +9,7 @@ import { InterviewFeedback } from '../screens/InterviewFeedback'
  * to reach: the tab-switch dialog and the completion feedback step. Registered
  * behind import.meta.env.DEV, like the System Check harness.
  */
-const BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#0E1420' }
+const BRANDING: BrandingConfig = { companyName: 'Mimic', accentColor: '#0E1420' }
 
 /**
  * The REAL detector, wired to the real listeners, with logging off so it needs

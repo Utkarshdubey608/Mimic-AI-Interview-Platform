@@ -21,7 +21,7 @@ export default function SystemCheckHarness() {
   return (
     <div className="mx-auto max-w-2xl p-6">
       <SystemCheckScreen
-        branding={{ companyName: 'TalbotIQ', accentColor: '#0E1420' }}
+        branding={{ companyName: 'Mimic', accentColor: '#0E1420' }}
         track={track}
         onBegin={() => { /* harness: what "start" means belongs to TakeInterviewPage */ }}
       />
