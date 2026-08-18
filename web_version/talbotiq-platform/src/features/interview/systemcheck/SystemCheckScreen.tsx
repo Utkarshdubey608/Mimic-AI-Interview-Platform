@@ -5,9 +5,11 @@
  * Start stays disabled until every check the MODE requires reports `passed` —
  * derived from the requirement table, so it cannot drift per mode.
  */
+import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { AlertTriangle, ArrowRight, Check, Loader2, RefreshCw, Volume2, XCircle } from 'lucide-react'
 import type { BrandingConfig, TrackType } from '@shared/types'
+import { FaceFitCheck } from '@/features/avatar-screening/facefit/FaceFitCheck'
 import { VideoIntro } from '../screens/VideoIntro'
 import { DevicePicker } from './DevicePicker'
 import { LevelMeter } from './LevelMeter'
@@ -30,10 +32,46 @@ const LABEL: Record<CheckId, string> = {
   connectivity: 'Connection',
 }
 
+/**
+ * Modes that must see a real face before the interview opens.
+ *
+ * `video_avatar` is absent on purpose: AvatarStage runs its own framing
+ * pre-flight while the Tavus conversation is created in parallel, and gating
+ * twice would make the candidate frame their face, wait, and frame it again.
+ */
+const NEEDS_FACE_GATE: TrackType[] = ['video', 'two_way']
+
 export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
   const reduce = useReducedMotion()
   const sc = useSystemCheck(track)
   const accent = branding.accentColor
+
+  /**
+   * Face framing sits BETWEEN the candidate committing and the interview
+   * opening — for Video Interview that is the moment after "I consent, begin".
+   *
+   * It lives in pre-flight rather than inside the stage for a specific reason:
+   * pre-flight is skipped entirely when a session is already `in_progress`, so
+   * a candidate who refreshes mid-interview is never sent back through it. A
+   * gate inside the stage would re-frame them on every reconnect.
+   */
+  const [facing, setFacing] = useState(false)
+  const gated = NEEDS_FACE_GATE.includes(track)
+
+  const start = () => {
+    if (gated) { setFacing(true); return }
+    onBegin()
+  }
+
+  if (facing) {
+    return (
+      <FaceFitCheck
+        accentColor={accent}
+        onReady={() => { setFacing(false); onBegin() }}
+      />
+    )
+  }
+
   // The video track keeps its own intro screen, which owns the start button.
   const videoIntroTakesOver = track === 'video' && sc.canStart
 
@@ -185,13 +223,13 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
 
       {videoIntroTakesOver ? (
         <div className="mt-7">
-          <VideoIntro branding={branding} onBegin={onBegin} busy={busy} />
+          <VideoIntro branding={branding} onBegin={start} busy={busy} />
         </div>
       ) : (
         <>
           <button
             data-testid="start-interview"
-            onClick={onBegin}
+            onClick={start}
             disabled={!sc.canStart || busy}
             className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: accent }}
