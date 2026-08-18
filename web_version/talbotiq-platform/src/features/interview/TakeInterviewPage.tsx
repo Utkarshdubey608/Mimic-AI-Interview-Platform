@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { AlertTriangle } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useInterviewClock } from './useInterviewClock'
 import { useIntegrityMonitor } from './useIntegrityMonitor'
 import { InterviewShell } from './components/InterviewShell'
+import { IntegrityWarningModal } from './components/IntegrityWarningModal'
 import { INITIAL_PRE_STEP, isConversational, type PreStep } from './preStep'
 import { Welcome } from './screens/Welcome'
 import { SystemCheckScreen } from './systemcheck/SystemCheckScreen'
@@ -94,6 +95,23 @@ export default function TakeInterviewPage() {
   const s = clock.state!
   const branding = s.branding ?? FALLBACK_BRANDING
 
+  /**
+   * Every live branch below returns through this, so the tab-switch warning
+   * reaches all six modes from one place. It is an overlay, never a replacement:
+   * the stage underneath keeps its sockets, streams and timers, so acknowledging
+   * resumes the interview rather than restarting anything.
+   */
+  const withIntegrityWarning = (node: ReactNode) => (
+    <>
+      {node}
+      <IntegrityWarningModal
+        warning={integrity.warning}
+        branding={branding}
+        onAcknowledge={integrity.acknowledge}
+      />
+    </>
+  )
+
   if (s.status === 'completed' || s.status === 'expired') {
     return (
       <InterviewShell branding={branding}>
@@ -104,14 +122,14 @@ export default function TakeInterviewPage() {
 
   // Conversational tracks run their own full-screen experience (engine-driven).
   if (s.track === 'chatbot' && (chatbotStarted || s.status === 'in_progress')) {
-    return <ChatbotStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} />
+    return withIntegrityWarning(<ChatbotStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} />)
   }
   if (s.track === 'video_avatar' && (chatbotStarted || s.status === 'in_progress')) {
     // First entry runs the on-device face-framing pre-flight inside AvatarStage
     // (the Tavus conversation is created in parallel while the candidate frames
     // their face). Reconnects — status already in_progress — skip straight back
     // into the room; never re-gate a refresh mid-call.
-    return (
+    return withIntegrityWarning(
       <AvatarStage
         sessionId={sessionId}
         branding={branding}
@@ -122,7 +140,7 @@ export default function TakeInterviewPage() {
   }
   // Voice track runs its own realtime call screen (WebSocket → Gemini Live).
   if (s.track === 'voice' && (chatbotStarted || s.status === 'in_progress')) {
-    return <VoiceStage sessionId={sessionId} branding={branding} />
+    return withIntegrityWarning(<VoiceStage sessionId={sessionId} branding={branding} />)
   }
   // Two-way track is a live recruiter↔candidate Daily call (own full-screen
   // room, not the timed engine) — reconnects (status already in_progress)
@@ -132,12 +150,12 @@ export default function TakeInterviewPage() {
     // pre-flight of its own to report on, and tab-switch/fullscreen detection
     // already runs unconditionally in the useIntegrityMonitor hook above
     // (keyed only on `active`, not on which stage is rendered).
-    return <TwoWayStage sessionId={sessionId} branding={branding} />
+    return withIntegrityWarning(<TwoWayStage sessionId={sessionId} branding={branding} />)
   }
 
   if (s.status === 'in_progress') {
     if (s.track === 'video') {
-      return (
+      return withIntegrityWarning(
         <InterviewShell branding={branding} progress={s.progress} live>
           <VideoInterview
             sessionId={sessionId}
@@ -152,7 +170,7 @@ export default function TakeInterviewPage() {
         </InterviewShell>
       )
     }
-    return (
+    return withIntegrityWarning(
       <InterviewShell branding={branding} progress={s.progress} live>
         <AnimatePresence mode="wait">
           <QuestionStage
