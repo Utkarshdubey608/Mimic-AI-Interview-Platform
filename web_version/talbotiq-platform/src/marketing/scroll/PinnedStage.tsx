@@ -25,13 +25,25 @@ import { scrollToY } from './ScrollProvider'
  * exactly as they did before.
  */
 export function PinnedStage({
-  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, children,
+  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, backdrop, children,
 }: {
   steps: number
   onStep: (i: number) => void
   id?: string
   className?: string
   labelledBy?: string
+  /**
+   * Decoration rendered behind the stage — the ambient field, in practice.
+   *
+   * A named slot rather than something the caller buries in `children`, because
+   * where this lands matters twice over: `contentHeight` below measures the
+   * inner box's children to decide whether the stage may pin at all, and an
+   * `inset:0` layer measures as tall as whatever it is anchored to. Rendered
+   * here it is first in the box and skipped by that measurement (out-of-flow
+   * children are explicitly excluded), so it cannot report the stage as too tall
+   * to pin.
+   */
+  backdrop?: ReactNode
   /**
    * Scroll distance each step costs, in viewport heights.
    *
@@ -110,7 +122,15 @@ export function PinnedStage({
       const inner = innerRef.current
       if (!inner) return 0
       let h = 0
-      for (const el of Array.from(inner.children)) h = Math.max(h, (el as HTMLElement).offsetHeight)
+      for (const el of Array.from(inner.children)) {
+        // Out-of-flow children are not content the stage has to afford room for,
+        // and an `inset:0` layer measures as tall as its container — which would
+        // make the fit test answer its own question. Skipped explicitly so a
+        // future decorative layer dropped in here cannot silently unpin the
+        // section.
+        if (getComputedStyle(el).position === 'absolute') continue
+        h = Math.max(h, (el as HTMLElement).offsetHeight)
+      }
       return h
     }
 
@@ -186,6 +206,14 @@ export function PinnedStage({
       style={pinned ? { height: `calc(${steps * vhPerStep}vh + 100vh)` } : undefined}
     >
       <div ref={innerRef} className={pinned ? 'mm-stage-sticky' : undefined}>
+        {/* Inside the sticky box, not the host section. When pinned the host is
+            several viewports tall, so a layer stretched over the host would be
+            that tall too — expensive, and the light would slide up the screen as
+            the reader scrolls instead of holding still behind the stage. In the
+            sticky box it is exactly the 100vh the reader is looking at. When the
+            stage is not pinned the box is static and the layer resolves against
+            the section, which is then an ordinary height. */}
+        {backdrop}
         {children({ step, pinned, goToStep })}
       </div>
     </section>

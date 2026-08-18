@@ -5,6 +5,7 @@ import { Reveal } from './motion'
 import { DemoVideo } from './DemoVideo'
 import { demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { RoiCalculator } from './RoiCalculator'
+import { Field } from './Field'
 import { Blocks, Related } from './sections'
 import { Ico } from './icons'
 
@@ -174,7 +175,14 @@ export default function MarketingPage() {
           ) : null}
         </div>
 
+        {/* The inner pages' one cinematic moment, and it costs nothing extra:
+            `.cta` is shared chrome, so every one of the 72 routes gets the same
+            ink field the homepage does with no per-page work.
+
+            The inline grid columns below finally apply, too — `.cta-in` was never
+            `display:grid`, so this style has been inert since it was written. */}
         <section className="cta" style={{ marginTop: 8 }}>
+          <Field seed={11} />
           <div className="wrap cta-in" style={{ gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center' }}>
             <div>
               <h2 style={{ fontSize: 'clamp(28px,3vw,38px)' }}>{cta.title}</h2>
