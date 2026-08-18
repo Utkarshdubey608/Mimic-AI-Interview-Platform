@@ -200,6 +200,28 @@
 }
 
 /* ── Type primitives (§15) ───────────────────────────────────────────────── */
+
+/**
+ * Headings need the family stated explicitly, not inherited.
+ *
+ * Setting font-family on the scope container only INHERITS it, and any base
+ * rule that names an element directly — `h2 { font-family: Archivo }` — beats
+ * an inherited value regardless of how specific the ancestor selector was. The
+ * result was a surface where the body had changed language and the headings
+ * had not, which is worse than either one alone. Caught by measuring the
+ * computed style, not by looking: at a glance it just read as "a heading".
+ */
+[data-surface='candidate'] :is(h1, h2, h3, h4, h5, h6),
+[data-surface='candidate'] .ap-title,
+[data-surface='candidate'] .ap-body,
+[data-surface='candidate'] .ap-caption,
+[data-surface='candidate'] button,
+[data-surface='candidate'] input,
+[data-surface='candidate'] textarea,
+[data-surface='candidate'] select {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
 [data-surface='candidate'] .ap-display {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: clamp(1.75rem, 4.5vw, 2.5rem);
