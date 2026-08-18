@@ -1,3 +1,4 @@
+import { pressHandlers } from '../motion/press'
 import { AgentStatus } from '../components/AgentStatus'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
@@ -175,9 +176,9 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[var(--ap-ground)]">
       {/* header */}
-      <div className="sticky top-0 z-10 border-b border-border bg-white/85 backdrop-blur">
+      <div className="ap-material ap-safe-top sticky top-0 z-20 border-b border-[var(--ap-separator)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             {branding.logoUrl ? (
@@ -217,12 +218,25 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
       </div>
 
       {/* transcript */}
-      <div ref={scrollRef} className="mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 py-7">
+      {/* pb-40 reserves the space the floating composer occupies, so the last
+          message can always be scrolled clear of it. ap-scroll-fade-bottom is
+          the scroll edge effect (§12): content dissolves into the chrome
+          instead of being cut by a 1px rule. */}
+      <div
+        ref={scrollRef}
+        className="ap-scroll-fade-bottom mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 pb-40 pt-7"
+      >
         {visibleTranscript.map((t) => (
           <motion.div
             key={t.id}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            // Anchored to where the message came FROM (§7): the candidate's own
+            // words grow out of the composer at bottom-right, the interviewer's
+            // out of its mark at bottom-left. A generic fade tells you a message
+            // appeared; this tells you where it came from.
+            initial={reduce ? false : { opacity: 0, scale: 0.94, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.38 }}
+            style={{ transformOrigin: t.role === 'candidate' ? 'bottom right' : 'bottom left' }}
             className={cn('flex items-end gap-2.5', t.role === 'candidate' ? 'justify-end' : 'justify-start')}
           >
             {t.role !== 'candidate' && <InterviewerMark branding={branding} accent={accent} />}
@@ -252,8 +266,10 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
         {interviewerThinking && <ThinkingIndicator branding={branding} accent={accent} />}
       </div>
 
-      {/* composer */}
-      <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur">
+      {/* Floating translucent chrome, not an opaque strip. absolute rather than
+          sticky so the transcript genuinely passes underneath it; the bright
+          top edge is light catching the material, not a border (§12). */}
+      <div className="ap-material ap-edge-top ap-safe-bottom absolute inset-x-0 bottom-0 z-20">
         <div className="mx-auto w-full max-w-3xl px-4 py-3.5">
           {inThinkingPhase && s && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-xs">
@@ -403,8 +419,15 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                   type="button"
                   onClick={submit}
                   disabled={!canSend}
-                  className="mb-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-all duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-sm"
-                  style={{ background: accent }}
+                  // Feedback on pointer-DOWN, and the haptic on the same frame
+                  // (§1, §13). Send is the one control in this screen that
+                  // earns a haptic: it commits the candidate's answer.
+                  {...pressHandlers({ haptic: true })}
+                  // No `transition-all`: a CSS transition cannot be grabbed and
+                  // reversed from its presentation value (§3). The press
+                  // transform is applied directly and cleared on release.
+                  className="ap-hit mb-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: accent, transitionProperty: 'transform', transitionDuration: '100ms' }}
                   aria-label="Send answer"
                 >
                   {chat.sending
