@@ -5,7 +5,7 @@
  * lock-in progress ring that ends in a success glow pulse.
  *
  * Colour states follow the Mimic ramp: cool-neutral while searching → soft
- * mint while locking in → the caller's accent (mint) once locked.
+ * dim green while searching, brightening to brand green as the lock fills.
  *
  * It owns its own requestAnimationFrame render loop and reads the latest
  * landmarks + visual state from refs, so the ~18fps detection rate never forces
@@ -29,7 +29,11 @@ interface Props {
   facesRef: React.MutableRefObject<Landmark[][]>
   stateRef: React.MutableRefObject<ScannerVisualState>
   mesh: FaceMesh | null
-  /** Brand accent (hex) used for the locked/good state. */
+  /**
+   * Kept for API compatibility with existing callers. It no longer tints the
+   * mesh — see the palette note below — because the scanner is a sensor
+   * readout, not brand chrome.
+   */
   accent: string
   mirror?: boolean
   reducedMotion?: boolean
@@ -37,10 +41,24 @@ interface Props {
   dense?: boolean
 }
 
-/** Searching — cool-neutral, calm and unalarming. */
-const SEARCHING = '#9BA0A6'
-/** Locking in — soft mint (brand-gold token value), clearly "something's happening". */
-const LOCKING = '#F2F3F5'
+/**
+ * The scanner's own palette, green throughout.
+ *
+ * It deliberately does NOT follow the brand accent. The mesh is a hardware
+ * affordance rather than brand chrome — it is telling the candidate a sensor is
+ * live and has found them — and green is the colour that reads that way without
+ * being taught. Blending the accent in produced a near-white mesh on this
+ * product's ink accent, which reads as a decoration rather than a sensor.
+ *
+ * The ramp still carries the state: dim while searching, brightening as the
+ * lock fills, so the colour is doing work rather than just being green.
+ */
+/** Searching — green, but held back, so finding a face is a visible change. */
+const SEARCHING = '#3F7F68'
+/** Locking in — brand green-light, the mesh at full confidence. */
+const LOCKING = '#7FD4AE'
+/** The lock completes here: brand green, the same value the marketing demo uses. */
+const LOCKED = '#34A574'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')
@@ -86,7 +104,7 @@ export function FaceScannerOverlay({
 
     const searchingRgb = hexToRgb(SEARCHING)
     const lockingRgb = hexToRgb(LOCKING)
-    const accentRgb = hexToRgb(accent)
+    const lockedRgb = hexToRgb(LOCKED)
 
     // Keep the backing store sized to the element's CSS box × DPR.
     const resize = () => {
@@ -133,12 +151,14 @@ export function FaceScannerOverlay({
       if (vis.phase === 'success' && prevPhaseRef.current !== 'success') successAtRef.current = t
       prevPhaseRef.current = vis.phase
 
-      // Colour ramp: cool-neutral while searching, warming to soft mint as
-      // a face is found, then blending into the accent (mint) as the lock fills.
+      // Colour ramp, green throughout: held back while searching, brightening
+      // as a face is found, resolving to brand green as the lock fills.
       const good = vis.phase === 'holding' || vis.phase === 'locked' || vis.phase === 'success'
       const blend = vis.phase === 'holding' ? Math.min(1, vis.progress) : good ? 1 : 0
+      // lockedRgb, not accentRgb: see the palette note above. The prop is still
+      // accepted so callers do not break, it just no longer tints the mesh.
       const rgb: [number, number, number] = good
-        ? mixTuple(lockingRgb, accentRgb, blend)
+        ? mixTuple(lockingRgb, lockedRgb, blend)
         : mixTuple(searchingRgb, lockingRgb, vis.phase === 'adjusting' ? 0.5 : 0)
       const color = rgbCss(rgb)
 
@@ -254,11 +274,11 @@ export function FaceScannerOverlay({
       // ── Lock-in progress ring (hugs the reticle, fills from top) ───────
       if (vis.progress > 0 && vis.phase !== 'success') {
         ctx.save()
-        ctx.strokeStyle = rgbCss(mixTuple(lockingRgb, accentRgb, blend))
+        ctx.strokeStyle = rgbCss(mixTuple(lockingRgb, lockedRgb, blend))
         ctx.lineWidth = 4
         ctx.lineCap = 'round'
         ctx.shadowBlur = reducedMotion ? 0 : 12
-        ctx.shadowColor = accent
+        ctx.shadowColor = LOCKED
         const start = -Math.PI / 2
         ctx.beginPath()
         ctx.ellipse(cx, cy, rx + 6, ry + 6, 0, start, start + vis.progress * Math.PI * 2)

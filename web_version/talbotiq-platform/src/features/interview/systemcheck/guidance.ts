@@ -125,7 +125,7 @@ const NO_SIGNAL: Partial<Record<CheckId, Guidance>> = {
     detail:
       'We could not establish the kind of connection a live interview needs. A corporate or public network may be blocking it.',
     steps: [
-      'Switch to another network — a home connection or a phone hotspot.',
+      'Switch to another network, a home connection or a phone hotspot.',
       'Turn off any VPN.',
       'Press Re-test.',
     ],
