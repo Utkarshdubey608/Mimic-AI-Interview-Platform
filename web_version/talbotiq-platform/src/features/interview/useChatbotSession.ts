@@ -2,10 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { chatbotApi, ApiError } from '@/lib/api'
 import type { ChatbotSessionState, TimeOfDay } from '@shared/types'
 
-/** Minimum time the "Thinking…" indicator stays up before an interviewer message
- *  is revealed — a deliberate floor, not a delay stacked on top of latency (§1). */
-const MIN_THINKING_MS = 3000
-const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+/**
+ * There is no minimum thinking time any more.
+ *
+ * A `MIN_THINKING_MS = 3000` floor used to hold every interviewer message back
+ * so the model would seem considered: a reply that arrived in 400ms sat behind
+ * the indicator for another 2.6 seconds. It was defended as "a floor, not a
+ * delay stacked on latency", which is true and beside the point — the interface
+ * was still misreporting how long the interviewer took, to a candidate who is
+ * being assessed and has no way to know.
+ *
+ * AgentStatus now reports the real state instead, so a fast answer feels fast.
+ */
 
 /** Candidate's local part-of-day, for a time-aware opening greeting (§3). */
 const localTimeOfDay = (): TimeOfDay => {
@@ -99,7 +107,6 @@ export function useChatbotSession(sessionId: string) {
       setSending(true)
       setThinking(true)
       if (optimistic != null) setPendingAnswer(optimistic)
-      const start = performance.now()
 
       let s: ChatbotSessionState
       try {
@@ -143,8 +150,6 @@ export function useChatbotSession(sessionId: string) {
         setPendingAnswer(null); apply(s); bump()
         const awaiting = newInterviewer.find((t) => t.id === s.currentTurnId)
         if (awaiting) {
-          const remain = MIN_THINKING_MS - (performance.now() - start)
-          if (remain > 0) await delay(remain)
           s = await present(s)
           revealed.current.add(awaiting.id)
         } else {
@@ -162,8 +167,6 @@ export function useChatbotSession(sessionId: string) {
       for (let i = 0; i < newInterviewer.length; i++) {
         const turn = newInterviewer[i]
         setThinking(true)
-        const remain = MIN_THINKING_MS - (i === 0 ? performance.now() - start : 0)
-        if (remain > 0) await delay(remain)
         if (turn.id === s.currentTurnId) s = await present(s)
         revealed.current.add(turn.id)
         setThinking(false)

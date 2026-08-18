@@ -1,0 +1,239 @@
+/**
+ * The candidate surface's Apple layer.
+ *
+ * THE RECORD — Archivo's width axis, 6–24px radii, flat hairline shadows on a
+ * paper desk — is the product's documented language and 24 recruiter files
+ * depend on those exact tokens. This file does not touch any of them. Every
+ * property below is namespaced `--ap-*` and every rule is scoped under
+ * `[data-surface="candidate"]`, which no recruiter tree carries.
+ *
+ * That scoping is the whole safety argument: a recruiter page cannot match
+ * these selectors, so it cannot render differently. Proven by diffing the
+ * compiled stylesheet before and after — the old rules must survive byte for
+ * byte, with these appended.
+ *
+ * Why a different language is justified here at all: the recruiter is reading
+ * evidence and wants a bundle. The candidate is being assessed and wants to be
+ * put at ease. Same product, opposite emotional job.
+ */
+
+[data-surface='candidate'] {
+  /* ── Ground and material ────────────────────────────────────────────────
+     Softer and warmer than the #F5F5F7 desk. Translucent chrome is built from
+     --ap-material-*, never from an opaque strip (§12). */
+  --ap-ground: #f2f2f7;
+  --ap-surface: #ffffff;
+  --ap-surface-sunken: #ebebf0;
+
+  --ap-material-thin: rgba(255, 255, 255, 0.62);
+  --ap-material-regular: rgba(255, 255, 255, 0.76);
+  --ap-material-thick: rgba(255, 255, 255, 0.88);
+  --ap-material-edge: rgba(255, 255, 255, 0.5);
+  --ap-blur-regular: 20px;
+  --ap-blur-thick: 32px;
+  --ap-saturate: 180%;
+
+  /* ── Ink ──────────────────────────────────────────────────────────────
+     Vibrancy rule (§12): text over translucency is heavier and higher
+     contrast than text over solid, never flat gray. */
+  --ap-label: #1c1c1e;
+  --ap-label-secondary: #3c3c43;
+  --ap-label-tertiary: #6b6b70;
+  --ap-on-material: #16161a;
+
+  --ap-accent: #0e1420;
+  --ap-accent-soft: rgba(14, 20, 32, 0.08);
+  --ap-separator: rgba(60, 60, 67, 0.16);
+
+  /* ── Radii ────────────────────────────────────────────────────────────
+     Continuous-corner feel. Larger than THE RECORD's 6–24px because a
+     candidate surface should read as soft, not filed. */
+  --ap-r-sm: 10px;
+  --ap-r-md: 14px;
+  --ap-r-lg: 20px;
+  --ap-r-xl: 28px;
+  --ap-r-sheet: 38px;
+  --ap-r-full: 999px;
+
+  /* ── Elevation ────────────────────────────────────────────────────────
+     Bigger surfaces read as thicker (§12): more blur, deeper shadow. */
+  --ap-shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --ap-shadow-card: 0 4px 16px -4px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --ap-shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --ap-shadow-sheet: 0 -8px 48px -12px rgba(0, 0, 0, 0.24);
+
+  /* ── Type (§15) ───────────────────────────────────────────────────────
+     Tracking is size-specific and leading is inverse to size. Spacing below
+     is in rem so a larger text setting scales layout with the text. */
+  --ap-track-display: -0.022em;
+  --ap-track-title: -0.014em;
+  --ap-track-body: 0em;
+  --ap-track-caption: 0.006em;
+  --ap-leading-display: 1.06;
+  --ap-leading-title: 1.2;
+  --ap-leading-body: 1.5;
+
+  /* ── Spring vocabulary (§4) ───────────────────────────────────────────
+     Mirrors the values Apple ships. Consumed by useSpringValue, kept here so
+     the numbers live with the rest of the language. */
+  --ap-spring-move: 0.4s;
+  --ap-spring-sheet: 0.3s;
+
+  color: var(--ap-label);
+}
+
+/* ── Dark, deliberately (not an inversion) ───────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  [data-surface='candidate'] {
+    --ap-ground: #000000;
+    --ap-surface: #1c1c1e;
+    --ap-surface-sunken: #2c2c2e;
+
+    --ap-material-thin: rgba(30, 30, 32, 0.62);
+    --ap-material-regular: rgba(30, 30, 32, 0.78);
+    --ap-material-thick: rgba(30, 30, 32, 0.9);
+    --ap-material-edge: rgba(255, 255, 255, 0.12);
+
+    --ap-label: #f2f2f7;
+    --ap-label-secondary: #d1d1d6;
+    --ap-label-tertiary: #9a9aa0;
+    --ap-on-material: #f7f7fa;
+
+    --ap-accent: #f2f2f7;
+    --ap-accent-soft: rgba(255, 255, 255, 0.12);
+    --ap-separator: rgba(255, 255, 255, 0.16);
+
+    --ap-shadow-card: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+    --ap-shadow-float: 0 12px 40px -8px rgba(0, 0, 0, 0.6);
+    --ap-shadow-sheet: 0 -8px 48px -12px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* ── §14: the three signals, all three honoured ──────────────────────────── */
+
+/* Frostier, not glassier. Raise opacity, drop the blur. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-surface='candidate'] {
+    --ap-material-thin: var(--ap-surface);
+    --ap-material-regular: var(--ap-surface);
+    --ap-material-thick: var(--ap-surface);
+    --ap-blur-regular: 0px;
+    --ap-blur-thick: 0px;
+  }
+  [data-surface='candidate'] .ap-material {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Near-solid with a defined border. */
+@media (prefers-contrast: more) {
+  [data-surface='candidate'] {
+    --ap-material-thin: var(--ap-surface);
+    --ap-material-regular: var(--ap-surface);
+    --ap-material-thick: var(--ap-surface);
+    --ap-separator: rgba(60, 60, 67, 0.6);
+    --ap-label-tertiary: #4a4a4f;
+    --ap-blur-regular: 0px;
+    --ap-blur-thick: 0px;
+  }
+  [data-surface='candidate'] .ap-material {
+    border: 1px solid var(--ap-separator);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Reduced motion is handled per-component in JS (springs are disabled at the
+   source, not overridden here) so nothing animates a property this file would
+   have to fight. The one thing worth stating in CSS: no looping oscillation. */
+@media (prefers-reduced-motion: reduce) {
+  [data-surface='candidate'] .ap-breathe {
+    animation: none !important;
+  }
+}
+
+/* ── Material primitives ─────────────────────────────────────────────────── */
+
+/* Floating translucent chrome. Content scrolls UNDER this, never beside it. */
+[data-surface='candidate'] .ap-material {
+  background: var(--ap-material-regular);
+  backdrop-filter: blur(var(--ap-blur-regular)) saturate(var(--ap-saturate));
+  -webkit-backdrop-filter: blur(var(--ap-blur-regular)) saturate(var(--ap-saturate));
+}
+
+[data-surface='candidate'] .ap-material-thick {
+  background: var(--ap-material-thick);
+  backdrop-filter: blur(var(--ap-blur-thick)) saturate(var(--ap-saturate));
+  -webkit-backdrop-filter: blur(var(--ap-blur-thick)) saturate(var(--ap-saturate));
+}
+
+/* The bright top edge is light catching the material, not a border. */
+[data-surface='candidate'] .ap-edge-top {
+  box-shadow: inset 0 1px 0 0 var(--ap-material-edge);
+}
+
+/**
+ * Scroll edge effect (§12): where content meets floating chrome, fade it out
+ * instead of drawing a 1px rule. Applied to the SCROLLER, so the fade only
+ * exists where the chrome actually overlaps.
+ */
+[data-surface='candidate'] .ap-scroll-fade-bottom {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 5rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 5rem), transparent 100%);
+}
+
+[data-surface='candidate'] .ap-scroll-fade-both {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem, #000 calc(100% - 5rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 2.5rem, #000 calc(100% - 5rem), transparent 100%);
+}
+
+/* ── Type primitives (§15) ───────────────────────────────────────────────── */
+[data-surface='candidate'] .ap-display {
+  font-size: clamp(1.75rem, 4.5vw, 2.5rem);
+  line-height: var(--ap-leading-display);
+  letter-spacing: var(--ap-track-display);
+  font-weight: 700;
+}
+
+[data-surface='candidate'] .ap-title {
+  font-size: 1.0625rem;
+  line-height: var(--ap-leading-title);
+  letter-spacing: var(--ap-track-title);
+  font-weight: 600;
+}
+
+[data-surface='candidate'] .ap-body {
+  font-size: 1rem;
+  line-height: var(--ap-leading-body);
+  letter-spacing: var(--ap-track-body);
+}
+
+[data-surface='candidate'] .ap-caption {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  letter-spacing: var(--ap-track-caption);
+}
+
+/* Text sitting ON a translucent surface: heavier and higher contrast, with a
+   small tracking bump. Flat gray over blur is the thing this exists to stop. */
+[data-surface='candidate'] .ap-vibrant {
+  color: var(--ap-on-material);
+  font-weight: 500;
+  letter-spacing: 0.004em;
+}
+
+/* ── Touch ───────────────────────────────────────────────────────────────── */
+/* 44pt minimum, and no hover-only affordances anywhere in this layer. */
+[data-surface='candidate'] .ap-hit {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+[data-surface='candidate'] .ap-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+[data-surface='candidate'] .ap-safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}

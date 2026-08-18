@@ -1,3 +1,9 @@
+/* The candidate surface Apple layer, scoped to [data-surface="candidate"].
+   Imported first because CSS requires @import before any rule; it does not
+   compete with THE RECORD on the cascade because every selector in it is
+   attribute-scoped to a tree no recruiter page renders. */
+@import "./styles/candidate-apple.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

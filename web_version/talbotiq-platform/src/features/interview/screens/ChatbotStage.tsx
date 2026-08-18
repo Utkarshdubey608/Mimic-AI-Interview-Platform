@@ -1,3 +1,4 @@
+import { AgentStatus } from '../components/AgentStatus'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
@@ -27,34 +28,22 @@ function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accen
   )
 }
 
-/** Claude-style "Thinking…" indicator — pulsing dots (or a static label under
- *  reduced motion). Its ≥3s minimum lifetime is enforced by the session hook. */
-function ThinkingIndicator({ reduce, branding, accent }: { reduce: boolean | null; branding: BrandingConfig; accent: string }) {
+/**
+ * The interviewer's status, on the message rail.
+ *
+ * Was a bubble of pulsing dots whose lifetime was padded to at least three
+ * seconds by the session hook, so a fast reply still looked slow. Both are
+ * gone: AgentStatus reports the real stage, and the floor was deleted.
+ *
+ * It sits on the rail rather than in a bubble because a bubble is a message,
+ * and "thinking" is not one. Reserving a bubble-sized box also made the
+ * transcript jump when the real message replaced it.
+ */
+function ThinkingIndicator({ branding, accent }: { branding: BrandingConfig; accent: string }) {
   return (
     <div className="flex items-end justify-start gap-2.5">
       <InterviewerMark branding={branding} accent={accent} />
-      <div
-        className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-white px-4 py-3.5 shadow-xs"
-        role="status"
-        aria-live="polite"
-        aria-label="Interviewer is thinking"
-      >
-        {reduce ? (
-          <span className="text-sm font-medium text-neutral-500">Thinking…</span>
-        ) : (
-          <>
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full bg-neutral-400"
-                animate={{ opacity: [0.25, 1, 0.25] }}
-                transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
-              />
-            ))}
-            <span className="ml-1.5 text-xs font-medium text-neutral-400">Thinking…</span>
-          </>
-        )}
-      </div>
+      <AgentStatus stage="thinking" className="pb-1" />
     </div>
   )
 }
@@ -260,7 +249,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
           </div>
         )}
 
-        {interviewerThinking && <ThinkingIndicator reduce={reduce} branding={branding} accent={accent} />}
+        {interviewerThinking && <ThinkingIndicator branding={branding} accent={accent} />}
       </div>
 
       {/* composer */}

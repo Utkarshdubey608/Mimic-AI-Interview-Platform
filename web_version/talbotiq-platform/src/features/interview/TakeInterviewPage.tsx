@@ -102,14 +102,18 @@ export default function TakeInterviewPage() {
    * resumes the interview rather than restarting anything.
    */
   const withIntegrityWarning = (node: ReactNode) => (
-    <>
+    // data-surface scopes the candidate Apple token layer. It lives here rather
+    // than in InterviewShell because the four conversational stages return
+    // outside the shell entirely, and they are the modes the layer matters most
+    // to. `display: contents` so the wrapper adds no box of its own.
+    <div data-surface="candidate" style={{ display: 'contents' }}>
       {node}
       <IntegrityWarningModal
         warning={integrity.warning}
         branding={branding}
         onAcknowledge={integrity.acknowledge}
       />
-    </>
+    </div>
   )
 
   if (s.status === 'completed' || s.status === 'expired') {

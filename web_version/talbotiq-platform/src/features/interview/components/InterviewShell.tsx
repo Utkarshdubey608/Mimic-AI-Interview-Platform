@@ -16,7 +16,7 @@ export function InterviewShell({ branding, progress, live, children }: Props) {
     : null
 
   return (
-    <div className="min-h-screen bg-background font-sans flex flex-col">
+    <div data-surface="candidate" className="min-h-screen bg-background font-sans flex flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-5">
           <div className="flex items-center gap-2.5 min-w-0">
