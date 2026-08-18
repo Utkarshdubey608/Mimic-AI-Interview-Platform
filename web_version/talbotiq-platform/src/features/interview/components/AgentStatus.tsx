@@ -125,9 +125,9 @@ export function AgentStatus({ stage, streamRate, className }: Props) {
         className="ap-caption flex items-center gap-2 text-[var(--ap-label-tertiary)]"
       >
         <span ref={dotsRef} className="flex items-end gap-[3px]" style={{ willChange: 'transform' }}>
-          <span className="block h-[5px] w-[5px] rounded-full bg-current" />
-          <span className="block h-[5px] w-[5px] rounded-full bg-current" />
-          <span className="block h-[5px] w-[5px] rounded-full bg-current" />
+          <span data-testid="agent-dot" className="block h-[5px] w-[5px] rounded-full bg-current" />
+          <span data-testid="agent-dot" className="block h-[5px] w-[5px] rounded-full bg-current" />
+          <span data-testid="agent-dot" className="block h-[5px] w-[5px] rounded-full bg-current" />
         </span>
         <span>{label}</span>
       </motion.span>

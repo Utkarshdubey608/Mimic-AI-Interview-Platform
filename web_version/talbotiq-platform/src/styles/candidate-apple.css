@@ -79,6 +79,17 @@
   --ap-spring-move: 0.4s;
   --ap-spring-sheet: 0.3s;
 
+  /* §15: the platform font, not a custom face.
+     Archivo with its width axis IS the recruiter's language, and keeping it
+     here left the candidate surface reading as THE RECORD with rounder
+     corners. The system stack ships optical sizing, tracking tables and
+     legibility tuning the product would otherwise have to reinvent, and it is
+     the face the candidate's own OS already renders everywhere else — which is
+     the point: this surface should feel like their device, not our filing
+     cabinet. Chivo Mono is deliberately NOT inherited; nothing on the candidate
+     side is a machine value. */
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-optical-sizing: auto;
   color: var(--ap-label);
 }
 
@@ -190,6 +201,7 @@
 
 /* ── Type primitives (§15) ───────────────────────────────────────────────── */
 [data-surface='candidate'] .ap-display {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: clamp(1.75rem, 4.5vw, 2.5rem);
   line-height: var(--ap-leading-display);
   letter-spacing: var(--ap-track-display);
