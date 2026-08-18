@@ -109,7 +109,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
           Voice interview with {branding.companyName}
         </h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
-          You’ll have a spoken conversation with {personaName}. Find a quiet spot — when you’re ready, we’ll ask for your
+          You’ll have a spoken conversation with {personaName}. Find a quiet spot, when you’re ready, we’ll ask for your
           microphone and begin.
         </p>
         <button
@@ -203,7 +203,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
         </p>
         {v.reconnecting && (
           <p className="mt-3 max-w-sm text-center text-xs leading-relaxed text-neutral-500">
-            Connection hiccup — your interview is saved and will resume in a moment.
+            Connection hiccup, your interview is saved and will resume in a moment.
           </p>
         )}
 

@@ -93,7 +93,11 @@ export default function App() {
             {/* DEV ONLY — the System Check with no session behind it, so the
                 Playwright suite can drive every mode and failure state without
                 minting invites. Stripped from the production bundle. */}
-            {import.meta.env.DEV && (
+            {/* Dev server always; a built bundle ONLY when VITE_PREVIEW=1 is
+                passed explicitly at build time. A normal `npm run build` sets
+                nothing, so production cannot carry these routes by accident —
+                verified after every preview build. */}
+            {(import.meta.env.DEV || import.meta.env.VITE_PREVIEW === '1') && (
               <>
                 <Route path="/__systemcheck" element={<SystemCheckHarness />} />
                 <Route path="/__interviewbits" element={<InterviewBitsHarness />} />

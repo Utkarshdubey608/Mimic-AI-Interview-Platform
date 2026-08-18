@@ -32,16 +32,29 @@ interface Props {
   className?: string
 }
 
-/** Copy per stage. The second line only appears once a wait is genuinely long. */
-const COPY: Record<AgentStage, { first: string; later: string }> = {
-  thinking: { first: 'Thinking', later: 'Still thinking' },
-  reading: { first: 'Reading your résumé', later: 'Still reading' },
-  cooking: { first: 'Writing', later: 'Still writing' },
-  almost: { first: 'Almost there', later: 'Almost there' },
+/**
+ * Words per stage. They cycle while the stage lasts, so a long wait reads as a
+ * mind at work rather than a frozen label.
+ *
+ * The honesty rule still holds and is worth being precise about: the STAGE is
+ * derived from a real signal, and every word in a stage's list is a synonym for
+ * that same state. Nothing here ever claims a state the system is not in — the
+ * `reading` list never says "writing". The variety is in the vocabulary, not in
+ * the claim.
+ *
+ * The first word is the plain one. A candidate who gets a fast answer sees only
+ * "Thinking" and never meets the rest.
+ */
+const WORDS: Record<AgentStage, string[]> = {
+  thinking: ['Thinking', 'Pondering', 'Musing', 'Considering', 'Mulling', 'Deliberating', 'Reflecting'],
+  reading: ['Reading your résumé', 'Taking it in', 'Absorbing', 'Poring over it', 'Digesting', 'Studying'],
+  cooking: ['Writing', 'Composing', 'Drafting', 'Assembling', 'Putting it together', 'Wording it'],
+  // The tail settles rather than roams: two words, so it reads as arriving.
+  almost: ['Almost there', 'Nearly done'],
 }
 
-/** Past this, and only past this, the copy is allowed to acknowledge the wait. */
-const LONG_WAIT_MS = 2500
+/** How long each word holds. Slow enough to read, quick enough to feel alive. */
+const WORD_HOLD_MS = 2200
 
 /** Three dots, drifting. Amplitude and rate differ per stage — that is the tell. */
 const RHYTHM: Record<AgentStage, { amp: number; period: number; stagger: number }> = {
@@ -57,17 +70,25 @@ const RHYTHM: Record<AgentStage, { amp: number; period: number; stagger: number 
 
 export function AgentStatus({ stage, streamRate, className }: Props) {
   const reduce = useReducedMotion()
-  const [longWait, setLongWait] = useState(false)
+  const [wordIndex, setWordIndex] = useState(0)
   const dotsRef = useRef<HTMLSpanElement>(null)
   const rafRef = useRef<number | null>(null)
 
-  // The wait clock restarts with each stage, so "still thinking" means still
-  // thinking about THIS, not a total elapsed since the turn began.
+  // The vocabulary restarts with each stage, so the plain word is always the
+  // one a candidate sees first and a fast answer never shows a fancy one.
   useEffect(() => {
-    setLongWait(false)
+    setWordIndex(0)
     if (!stage) return
-    const id = window.setTimeout(() => setLongWait(true), LONG_WAIT_MS)
-    return () => window.clearTimeout(id)
+    const words = WORDS[stage]
+    if (words.length < 2) return
+    const id = window.setInterval(
+      // Stops at the end rather than looping back to the start: cycling forever
+      // reads as a stuck spinner, and running out of words is itself a signal
+      // that this is taking a while.
+      () => setWordIndex((i) => Math.min(i + 1, words.length - 1)),
+      WORD_HOLD_MS,
+    )
+    return () => window.clearInterval(id)
   }, [stage])
 
   /**
@@ -105,7 +126,7 @@ export function AgentStatus({ stage, streamRate, className }: Props) {
     }
   }, [stage, streamRate, reduce])
 
-  const label = stage ? (longWait ? COPY[stage].later : COPY[stage].first) : ''
+  const label = stage ? WORDS[stage][Math.min(wordIndex, WORDS[stage].length - 1)] : ''
 
   return (
     // The row is always present at its full height, so nothing below it moves
@@ -113,7 +134,9 @@ export function AgentStatus({ stage, streamRate, className }: Props) {
     <div className={`flex h-6 items-center ${className ?? ''}`} data-testid="agent-status" data-stage={stage ?? 'idle'}>
       {/* One announcement per stage change, never per frame. The visual dots are
           hidden from assistive tech; the words carry the meaning. */}
-      <span className="sr-only" aria-live="polite" aria-atomic="true">{label}</span>
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {stage ? WORDS[stage][0] : ''}
+      </span>
 
       <motion.span
         aria-hidden="true"
@@ -129,7 +152,14 @@ export function AgentStatus({ stage, streamRate, className }: Props) {
           <span data-testid="agent-dot" className="block h-[5px] w-[5px] rounded-full bg-current" />
           <span data-testid="agent-dot" className="block h-[5px] w-[5px] rounded-full bg-current" />
         </span>
-        <span>{label}</span>
+        <motion.span
+          key={label}
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.28, ease: 'easeOut' }}
+        >
+          {label}
+        </motion.span>
       </motion.span>
     </div>
   )

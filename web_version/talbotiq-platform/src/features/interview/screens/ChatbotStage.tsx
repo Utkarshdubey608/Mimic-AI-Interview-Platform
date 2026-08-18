@@ -279,7 +279,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-warning">Preparation time</p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-neutral-600">
-                  Read the question and structure your answer — situation, task, action, result.
+                  Read the question and structure your answer, situation, task, action, result.
                 </p>
               </div>
               {s.timing.allowSkipThinking && (
@@ -304,7 +304,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                 <Clock size={19} strokeWidth={1.75} aria-hidden="true" />
               </span>
               <p className="mt-3 text-sm font-medium text-neutral-700">
-                No problem — take your time. I’ll begin automatically in:
+                No problem, take your time. I’ll begin automatically in:
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 {[30, 45, 60].map((sec) => (
@@ -446,7 +446,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-danger">{chat.error}</p>
                 <p className="mt-0.5 text-xs font-medium leading-relaxed text-danger/85">
-                  Check your connection and try again — your saved progress is kept.
+                  Check your connection and try again, your saved progress is kept.
                 </p>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { humanizeDashes } from '@/lib/humanizeDashes'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Clock, EyeOff, Lock, ArrowRight } from 'lucide-react'
 import type { BrandingConfig, PublicTimingView } from '@shared/types'
@@ -12,7 +13,7 @@ export function Welcome({ branding, timing, onContinue }: Props) {
   const reduce = useReducedMotion()
   const rules = [
     { icon: Clock, text: `Each question gives you ${timing.prepSeconds}s to prepare, then ${Math.round(timing.answerSeconds / 60) || 1} min${timing.answerSeconds >= 120 ? 's' : ''} to answer.` },
-    { icon: Lock, text: 'Your answer auto-submits when the timer ends — you cannot go back or edit earlier answers.' },
+    { icon: Lock, text: 'Your answer auto-submits when the timer ends, you cannot go back or edit earlier answers.' },
     { icon: EyeOff, text: 'Questions appear one at a time. Upcoming questions stay hidden until it’s their turn.' },
   ]
 
@@ -28,7 +29,9 @@ export function Welcome({ branding, timing, onContinue }: Props) {
           already says "Welcome to your … interview", so the label was repeating
           the next line back to a candidate who is about to be assessed. */}
       <h1 className="font-display text-3xl font-extrabold tracking-[-0.03em] text-balance text-neutral-900">
-        {branding.welcomeMessage || `Welcome to your ${branding.companyName} interview.`}
+        {/* Normalised on the way out: welcomeMessage is recruiter data typed
+            into Firestore, so no edit to this file can reach the dashes in it. */}
+        {humanizeDashes(branding.welcomeMessage) || `Welcome to your ${branding.companyName} interview.`}
       </h1>
       <p className="mt-3 leading-relaxed text-neutral-500">Here’s how it works before you begin:</p>
 
@@ -58,7 +61,7 @@ export function Welcome({ branding, timing, onContinue }: Props) {
           Continue <ArrowRight size={18} />
         </button>
         <p className="mt-3.5 text-xs leading-relaxed text-neutral-400">
-          Nothing starts yet — you’ll get a final ready check before the first question.
+          Nothing starts yet, you’ll get a final ready check before the first question.
         </p>
       </div>
     </motion.div>

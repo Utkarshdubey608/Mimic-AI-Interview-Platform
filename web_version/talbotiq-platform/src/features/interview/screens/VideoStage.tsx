@@ -180,7 +180,7 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-brand-black/55 px-6 text-center backdrop-blur-[2px]">
             <p className="text-[11px] font-bold uppercase tracking-widest text-brand-gold-light">Preparation time</p>
             <p className="max-w-xs text-sm font-medium leading-relaxed text-white/90">
-              Read the question and get ready. Answer aloud — the timer starts your response.
+              Read the question and get ready. Answer aloud, the timer starts your response.
             </p>
           </div>
         )}
@@ -196,13 +196,13 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
       {submitFailed && (
         <Notice tone="danger" alert>
           We couldn’t confirm that your answer was submitted. If the interview has already moved on, that question may be
-          missing its transcript — let the hiring team know.
+          missing its transcript, let the hiring team know.
         </Notice>
       )}
       {rec.error && <Notice tone="danger" alert>{rec.error}</Notice>}
       {warning && !uploading && (
         <Notice tone="warning">
-          <span className="tabular-nums">{secondsLeft}s</span> left — your answer submits automatically.
+          <span className="tabular-nums">{secondsLeft}s</span> left, your answer submits automatically.
         </Notice>
       )}
 

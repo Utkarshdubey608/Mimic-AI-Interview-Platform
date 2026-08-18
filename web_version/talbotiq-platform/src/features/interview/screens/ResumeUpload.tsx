@@ -124,7 +124,7 @@ export function ResumeUpload({ branding, busy, onUpload }: Props) {
       {error && (
         <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-danger-border bg-danger-bg p-3.5 text-sm text-danger">
           <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
-          <span>{error} — check the file and try again.</span>
+          <span>{error}, check the file and try again.</span>
         </div>
       )}
 
@@ -137,7 +137,7 @@ export function ResumeUpload({ branding, busy, onUpload }: Props) {
             />
           </div>
           <p className="mt-3 text-center text-xs leading-relaxed text-neutral-500">
-            Reading your résumé and tailoring your questions — this usually takes a few seconds.
+            Reading your résumé and tailoring your questions, this usually takes a few seconds.
           </p>
         </div>
       )}

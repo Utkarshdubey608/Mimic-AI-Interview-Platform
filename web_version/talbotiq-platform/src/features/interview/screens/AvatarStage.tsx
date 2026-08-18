@@ -68,7 +68,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           setProgress((p) => (p.asked === rr.asked && p.total === rr.total ? p : { asked: rr.asked!, total: rr.total! }))
         }
       })
-      .catch(() => { /* transcript is best-effort — never interrupt the call */ })
+      .catch(() => { /* transcript is best-effort, never interrupt the call */ })
   }, [sessionId])
 
   const finish = useCallback(async () => {
@@ -152,7 +152,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           } catch { /* noop */ }
         }
       } catch (e) {
-        console.warn('[avatar] Daily wrap unavailable — interview continues without live transcript', e)
+        console.warn('[avatar] Daily wrap unavailable, interview continues without live transcript', e)
       }
     }, 1500)
 
@@ -297,7 +297,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
                 </p>
                 <p className="max-w-sm text-sm leading-relaxed text-brand-gray">
                   {stage === 'ending'
-                    ? 'Saving your session — this only takes a moment.'
+                    ? 'Saving your session, this only takes a moment.'
                     : 'Setting up the room and your questions. This usually takes just a few seconds.'}
                 </p>
               </div>
