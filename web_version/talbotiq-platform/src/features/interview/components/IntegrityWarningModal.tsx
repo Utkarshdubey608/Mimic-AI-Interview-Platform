@@ -52,6 +52,7 @@ export function IntegrityWarningModal({ warning, branding, onAcknowledge }: Prop
 
   const showCount = typeof warning.count === 'number' && warning.count > 0
   const accent = branding.accentColor
+  const over = warning.terminated === true
 
   return (
     <div
@@ -75,7 +76,7 @@ export function IntegrityWarningModal({ warning, branding, onAcknowledge }: Prop
           id="integrity-warning-title"
           className="mt-5 font-display text-xl font-extrabold tracking-[-0.02em] text-balance text-neutral-900"
         >
-          You left the interview tab
+          {over ? 'Your interview has ended' : 'You left the interview tab'}
         </h2>
 
         <p id="integrity-warning-body" className="mt-2.5 text-sm leading-relaxed text-neutral-500">
@@ -85,23 +86,30 @@ export function IntegrityWarningModal({ warning, branding, onAcknowledge }: Prop
         {showCount && (
           <p className="mt-3 text-xs font-semibold text-neutral-400" data-testid="integrity-count">
             {warning.max
-              ? `Recorded ${warning.count} of ${warning.max} allowed`
+              ? `${warning.count} of ${warning.max} allowed`
               : `Switches recorded: ${warning.count}`}
           </p>
         )}
 
-        <button
-          ref={buttonRef}
-          onClick={onAcknowledge}
-          data-testid="integrity-acknowledge"
-          className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-          style={{ background: accent }}
-        >
-          I understand, return to the interview
-        </button>
+        {/* A terminated interview has nothing to return to. Offering a button
+            that says otherwise is the kind of small lie that makes a candidate
+            distrust everything else on the screen. */}
+        {!over && (
+          <button
+            ref={buttonRef}
+            onClick={onAcknowledge}
+            data-testid="integrity-acknowledge"
+            className="mt-7 inline-flex h-12 w-full items-center justify-center rounded-md text-base font-semibold text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{ background: accent, transitionProperty: 'transform', transitionDuration: '100ms' }}
+          >
+            I understand, return to the interview
+          </button>
+        )}
 
         <p className="mt-3.5 text-xs leading-relaxed text-neutral-400">
-          Your interview is still running. Nothing has been lost.
+          {over
+            ? 'Your answers so far have been submitted. The hiring team will be in touch.'
+            : 'Your interview is still running. Nothing has been lost.'}
         </p>
       </motion.div>
     </div>

@@ -734,20 +734,31 @@ async def complete(session_id: str, request: Request, user: AuthedUser = WebUser
         return conversation.compute_chatbot_state(session, template)
 
     await session_store.settle(settings, session, template)
-
-    if session.get("status") == "in_progress":
-        question = _current_question(session)
-        if question is not None and not question.get("submittedAt"):
-            if question.get("answerText") is None:
-                question["answerText"] = question.get("draft") or ""
-            question["submittedAt"] = _now()
-            question["autoSubmitted"] = True
-        session["status"] = "completed"
-        session["completedAt"] = _now()
-        await session_store.save(settings, session)
-
-    await session_store.maybe_score(settings, session, template)
+    await _force_complete(settings, session, template)
     return _state(session, template)
+
+
+async def _force_complete(settings, session: dict, template: dict) -> None:
+    """End a running interview, keeping whatever the candidate had written.
+
+    Shared by /complete and the tab-switch limit. A candidate cut off mid-answer
+    has still answered, and the two paths discarding drafts differently would be
+    a bug nobody notices until someone's work disappears.
+    """
+    if session.get("status") != "in_progress":
+        return
+
+    question = _current_question(session)
+    if question is not None and not question.get("submittedAt"):
+        if question.get("answerText") is None:
+            question["answerText"] = question.get("draft") or ""
+        question["submittedAt"] = _now()
+        question["autoSubmitted"] = True
+
+    session["status"] = "completed"
+    session["completedAt"] = _now()
+    await session_store.save(settings, session)
+    await session_store.maybe_score(settings, session, template)
 
 
 def _finish_conversation(session: dict) -> None:
@@ -800,10 +811,47 @@ async def integrity_event(
         session["tabSwitchCount"] = (session.get("tabSwitchCount") or 0) + 1
 
     await session_store.save(settings, session)
+
+    count = session.get("tabSwitchCount") or 0
+    maximum = integrity.get("maxTabSwitchWarnings")
+    terminated = False
+
+    # Enforce the recruiter's limit. This used to only count: a candidate could
+    # sit on "Recorded 4 of 3 allowed" and keep going, which made the limit a
+    # decoration. It is enforced HERE rather than in the browser because a check
+    # the client owns is bypassable by exactly the candidate it exists to stop.
+    #
+    # Two guard rails, both deliberate:
+    #   * an unset or zero maximum means "count, do not enforce" — the previous
+    #     behaviour, and the safe reading of a mis-saved template. Treating 0 as
+    #     "terminate immediately" would end every interview on the first blur.
+    #   * only tab-switch events count toward it. A blocked paste is logged, not
+    #     punished under a limit that is not about pasting.
+    if (
+        isinstance(maximum, int)
+        and maximum > 0
+        and event_type in ("tab_switch", "window_blur")
+        and count > maximum
+        and session.get("status") == "in_progress"
+    ):
+        if session.get("track") in ("chatbot", "video_avatar"):
+            _finish_conversation(session)
+            await session_store.save(settings, session)
+            await session_store.maybe_score(settings, session, template)
+        else:
+            await _force_complete(settings, session, template)
+        terminated = True
+        logger.warning(
+            "session %s ended: %s tab switches against a limit of %s", session_id, count, maximum
+        )
+
     return {
         "ok": True,
-        "tabSwitchWarnings": session.get("tabSwitchCount") or 0,
-        "maxTabSwitchWarnings": integrity.get("maxTabSwitchWarnings"),
+        "tabSwitchWarnings": count,
+        "maxTabSwitchWarnings": maximum,
+        # The client needs to know so it can say the interview has ended rather
+        # than inviting the candidate back into one that is over.
+        "terminated": terminated,
     }
 
 
