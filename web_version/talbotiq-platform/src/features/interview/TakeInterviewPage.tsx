@@ -9,7 +9,7 @@ import { useIntegrityMonitor } from './useIntegrityMonitor'
 import { InterviewShell } from './components/InterviewShell'
 import { INITIAL_PRE_STEP, isConversational, type PreStep } from './preStep'
 import { Welcome } from './screens/Welcome'
-import { SystemCheck } from './screens/SystemCheck'
+import { SystemCheckScreen } from './systemcheck/SystemCheckScreen'
 import { ResumeUpload } from './screens/ResumeUpload'
 import { QuestionStage } from './screens/QuestionStage'
 import { ChatbotStage } from './screens/ChatbotStage'
@@ -204,7 +204,7 @@ export default function TakeInterviewPage() {
           />
         )}
         {preStep === 'systemcheck' && (
-          <SystemCheck
+          <SystemCheckScreen
             key="check"
             branding={branding}
             track={s.track}
