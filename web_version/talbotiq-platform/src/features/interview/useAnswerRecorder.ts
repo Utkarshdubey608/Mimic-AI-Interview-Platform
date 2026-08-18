@@ -1,3 +1,4 @@
+import { pickAudioMimeType } from '@/lib/recorderCodec'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RekognitionService, aggregateFacialData } from '@/services/rekognitionService'
 import type { FacialSessionSummary } from '@/types/rekognition.types'
@@ -57,9 +58,11 @@ export function useAnswerRecorder() {
       ws.onopen = () => {
         if (gen !== transcribeGenRef.current) { try { ws.close() } catch { /* noop */ } return }
         setTranscriptConnected(true)
-        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+        // Not a webm fallback: Safari cannot write webm at all, so the old
+        // fallback threw NotSupportedError the moment a Mac candidate answered.
+        const mime = pickAudioMimeType()
         const audioStream = new MediaStream(stream.getAudioTracks())
-        const rec = new MediaRecorder(audioStream, { mimeType: mime })
+        const rec = new MediaRecorder(audioStream, mime ? { mimeType: mime } : {})
         audioRecRef.current = rec
         rec.ondataavailable = (e) => { if (e.data.size && ws.readyState === WebSocket.OPEN) ws.send(e.data) }
         rec.start(250)

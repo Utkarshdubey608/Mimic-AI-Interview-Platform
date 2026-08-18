@@ -12,6 +12,7 @@ import { guidanceFor, type CheckState, type Guidance } from './guidance'
 import { requirementsFor, type CheckId } from './requirements'
 import { useCameraCheck, type CameraCheck } from './useCameraCheck'
 import { useConnectivityCheck, type ConnectivityCheck } from './useConnectivityCheck'
+import { useFaceCheck, type FaceCheck } from './useFaceCheck'
 import { useMicCheck, type MicCheck } from './useMicCheck'
 import { useSpeakerCheck, type SpeakerCheck } from './useSpeakerCheck'
 
@@ -28,6 +29,7 @@ export interface SystemCheck {
   caps: Capabilities
   mic: MicCheck
   camera: CameraCheck
+  face: FaceCheck
   speaker: SpeakerCheck
   connectivity: ConnectivityCheck
 }
@@ -41,6 +43,9 @@ export function useSystemCheck(track: TrackType): SystemCheck {
   const wants = (id: CheckId) => required.includes(id) && !blocked.includes(id)
   const mic = useMicCheck(wants('mic'))
   const camera = useCameraCheck(wants('camera'))
+  // Shares the camera check's element: one stream, one preview, two questions
+  // asked of it (are frames live, and is a person in them).
+  const face = useFaceCheck(wants('face') && camera.state === 'passed', camera.videoRef)
   const speaker = useSpeakerCheck()
   const connectivity = useConnectivityCheck(wants('connectivity'))
 
@@ -58,6 +63,7 @@ export function useSystemCheck(track: TrackType): SystemCheck {
         return caps.isWebview && needsMedia ? 'unsupported' : 'passed'
       case 'mic': return mic.state
       case 'camera': return camera.state
+      case 'face': return face.state
       case 'speaker': return speaker.state
       case 'connectivity': return connectivity.state
     }
@@ -97,6 +103,7 @@ export function useSystemCheck(track: TrackType): SystemCheck {
     caps,
     mic,
     camera,
+    face,
     speaker,
     connectivity,
   }

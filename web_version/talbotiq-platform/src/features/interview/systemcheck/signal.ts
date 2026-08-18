@@ -80,3 +80,37 @@ export function cameraVerdict(deltas: number[], startedAt: number, now: number):
   if (now - startedAt >= CAMERA.timeoutMs) return 'frozen'
   return 'sampling'
 }
+
+export const FACE = {
+  /** Consecutive detections carrying exactly one face. */
+  detectionsToPass: 3,
+  /** Long enough to sit down and look up; short enough not to feel like a test. */
+  timeoutMs: 12_000,
+} as const
+
+export type FaceVerdict = 'searching' | 'passed' | 'absent' | 'crowded'
+
+/**
+ * Presence, not identity.
+ *
+ * This answers "is a person sitting there right now", which is all a screening
+ * interview needs and all we are willing to compute. It does not recognise
+ * anyone, and nothing about the face leaves the device — see useFaceCheck.
+ *
+ * `crowded` is reported separately from `absent` because the fix is different:
+ * one candidate needs to move into frame, the other needs the room to themselves.
+ */
+export function faceVerdict(
+  recentCounts: number[],
+  startedAt: number,
+  now: number,
+): FaceVerdict {
+  const tail = recentCounts.slice(-FACE.detectionsToPass)
+  if (tail.length >= FACE.detectionsToPass && tail.every((n) => n === 1)) return 'passed'
+  if (now - startedAt >= FACE.timeoutMs) {
+    // More than one face for most of the window is a different problem.
+    const many = recentCounts.filter((n) => n > 1).length
+    return many > recentCounts.length / 2 ? 'crowded' : 'absent'
+  }
+  return 'searching'
+}

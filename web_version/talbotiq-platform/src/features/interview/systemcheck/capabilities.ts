@@ -5,6 +5,7 @@
  * branch is testable from a user-agent string — the alternative is discovering a
  * detection bug from a candidate who could not start their interview.
  */
+import { pickVideoMimeType } from '@/lib/recorderCodec'
 import type { CheckId } from './requirements'
 
 export type BrowserFamily = 'chrome' | 'edge' | 'firefox' | 'safari' | 'samsung' | 'unknown'
@@ -83,7 +84,10 @@ export function readEnvironment(): Environment {
     hasGetUserMedia: typeof nav?.mediaDevices?.getUserMedia === 'function',
     hasAudioContext: !!(win && ('AudioContext' in win || 'webkitAudioContext' in win)),
     hasRTCPeerConnection: !!(win && 'RTCPeerConnection' in win),
-    hasMediaRecorder: !!(win && 'MediaRecorder' in win),
+    // Not merely 'is the constructor there'. Safari has MediaRecorder and
+    // cannot write WebM, so presence alone told us nothing useful. This asks
+    // whether a container it can actually write exists.
+    hasMediaRecorder: !!(win && 'MediaRecorder' in win) && pickVideoMimeType() !== undefined,
   }
 }
 

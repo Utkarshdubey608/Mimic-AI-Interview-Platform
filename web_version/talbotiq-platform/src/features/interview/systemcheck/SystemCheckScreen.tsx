@@ -25,6 +25,7 @@ const LABEL: Record<CheckId, string> = {
   browser: 'Browser',
   mic: 'Microphone',
   camera: 'Camera',
+  face: 'You on camera',
   speaker: 'Sound',
   connectivity: 'Connection',
 }
@@ -148,6 +149,13 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
                     </div>
                   )}
 
+                  {c.id === 'face' && (
+                    <p className="mt-2 text-xs leading-relaxed text-neutral-400" data-testid="face-privacy-note">
+                      Checked on your device only. We confirm someone is present, we do not identify you,
+                      and no image or face data is stored or sent anywhere.
+                    </p>
+                  )}
+
                   {c.guidance.steps.length > 0 && (
                     <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-relaxed text-neutral-500">
                       {c.guidance.steps.map((s, i) => <li key={i}>{s}</li>)}
@@ -160,6 +168,7 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
                       onClick={() => {
                         if (c.id === 'mic') sc.mic.retest()
                         else if (c.id === 'camera') sc.camera.retest()
+                        else if (c.id === 'face') sc.face.retest()
                         else if (c.id === 'connectivity') sc.connectivity.retest()
                       }}
                       className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 text-xs font-semibold text-neutral-700"
