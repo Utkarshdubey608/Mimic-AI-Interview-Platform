@@ -1,5 +1,6 @@
 import type { BrandingConfig } from '@shared/types'
 import { CandidateSurface, CandidateSignOff } from './CandidateSurface'
+import { brandName } from '../branding'
 
 /**
  * The shared sign-off. Four stages used to draw their own version of this with
@@ -11,7 +12,7 @@ export function Completion({ branding, sessionId }: { branding: BrandingConfig; 
   return (
     <CandidateSurface wide className="text-center">
       <CandidateSignOff
-        companyName={branding.companyName}
+        companyName={brandName(branding)}
         sessionId={sessionId}
         accentColor={branding.accentColor}
       />

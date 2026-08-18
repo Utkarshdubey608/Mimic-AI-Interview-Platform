@@ -7,6 +7,7 @@ import { useLiveKitCall } from '../useLiveKitCall'
 import { classifyJoinFailure } from '../twowayJoinError'
 import { LiveKitVideoTile } from '@/components/interview/LiveKitVideoTile'
 import { Completion } from './Completion'
+import { brandName } from '../branding'
 
 interface Props {
   sessionId: string
@@ -291,7 +292,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
         <header className="flex h-14 flex-shrink-0 items-center border-b border-brand-border bg-brand-card px-4">
-          <span className="truncate font-display font-bold tracking-[-0.02em] text-white">{branding.companyName}</span>
+          <span className="truncate font-display font-bold tracking-[-0.02em] text-white">{brandName(branding)}</span>
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
@@ -324,7 +325,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
     <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
       <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-card px-4">
         <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
-          <span className="truncate">{branding.companyName}</span>
+          <span className="truncate">{brandName(branding)}</span>
           <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
           </span>

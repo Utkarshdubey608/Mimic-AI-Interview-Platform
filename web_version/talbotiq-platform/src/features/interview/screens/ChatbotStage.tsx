@@ -5,6 +5,8 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/components/ui'
 import type { BrandingConfig } from '@shared/types'
+import { MimicMark } from '@/components/MimicMark'
+import { brandInitial, brandName, isProductBranding } from '../branding'
 import { useChatbotSession } from '../useChatbotSession'
 import { CircularCountdown } from '../components/CircularCountdown'
 
@@ -14,7 +16,15 @@ interface Props {
   onIntegrity?: (type: string) => void
 }
 
-/** Small brand mark that anchors every interviewer bubble to the company. */
+/**
+ * Small brand mark that anchors every interviewer bubble to whoever is asking.
+ *
+ * Three cases, in the order they settle: the recruiter's uploaded logo, the
+ * product mark when no recruiter identity was ever set, and only then a letter.
+ * The chip is white and the glyph takes `accent`, so the mark's `currentColor`
+ * stroke lands as ink here — the inverse of the header, which is the same mark
+ * on an ink chip.
+ */
 function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accent: string }) {
   return (
     <span
@@ -24,7 +34,9 @@ function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accen
     >
       {branding.logoUrl
         ? <img src={branding.logoUrl} alt="" className="h-full w-full object-contain" />
-        : branding.companyName.charAt(0).toUpperCase()}
+        : isProductBranding(branding)
+          ? <MimicMark className="h-5 w-5" />
+          : brandInitial(branding)}
     </span>
   )
 }
@@ -165,7 +177,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               All done, thank you!
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-neutral-500">
-              Your responses were submitted to {branding.companyName}. The hiring team will be in touch.
+              Your responses were submitted to {brandName(branding)}. The hiring team will be in touch.
             </p>
             <div className="divider my-7" />
             <p className="text-xs text-neutral-400">You can safely close this window.</p>
@@ -188,11 +200,11 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
                 style={{ background: accent }}
               >
-                {branding.companyName.charAt(0)}
+                {isProductBranding(branding) ? <MimicMark className="h-4.5 w-4.5" /> : brandInitial(branding)}
               </span>
             )}
             <span className="truncate font-display text-sm font-bold tracking-[-0.01em] text-neutral-800">
-              {branding.companyName}
+              {brandName(branding)}
             </span>
           </div>
           <div className="flex items-center gap-3">

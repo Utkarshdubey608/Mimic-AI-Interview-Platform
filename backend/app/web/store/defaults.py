@@ -193,7 +193,16 @@ DEFAULT_INTEGRITY: dict = {
 }
 
 DEFAULT_BRANDING: dict = {
-    "companyName": "TalbotIQ",
+    # The PRODUCT's name, not the company's. A candidate opening an unbranded
+    # interview is meeting Mimic; TalbotIQ is who builds it, which is a fact about
+    # us and not one the candidate is there for. A recruiter who sets their own
+    # companyName still overrides this, and that identity wins everywhere.
+    #
+    # Only NEW templates read this. Templates created before the rename carry
+    # "TalbotIQ" persisted in Firestore, and the candidate UI treats that stored
+    # value as unbranded so those interviews show the Mimic mark too — see
+    # `isProductBranding` in web_version/talbotiq-platform/src/features/interview/branding.ts.
+    "companyName": "Mimic",
     # Ink. The candidate-facing DEFAULT accent follows the identity, as it did each
     # time the identity moved — and the identity's own rule is that the primary
     # action is ink and colour is spent only on state. Recruiter-set

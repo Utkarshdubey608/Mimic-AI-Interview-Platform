@@ -4,6 +4,7 @@ import { Mic, MicOff, PhoneOff, Loader2, AlertTriangle, Captions, Radio, ShieldC
 import type { BrandingConfig, VoicePhase } from '@shared/types'
 import { useVoiceSession } from '../useVoiceSession'
 import { CandidateSignOff } from './CandidateSurface'
+import { brandName } from '../branding'
 
 interface Props {
   sessionId: string
@@ -106,7 +107,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
         </div>
         <span className="pill mb-4 inline-flex">Voice interview</span>
         <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
-          Voice interview with {branding.companyName}
+          Voice interview with {brandName(branding)}
         </h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
           You’ll have a spoken conversation with {personaName}. Find a quiet spot, when you’re ready, we’ll ask for your
@@ -133,11 +134,11 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
     return (
       <StageCard reduce={reduce}>
         <CandidateSignOff
-          companyName={branding.companyName}
+          companyName={brandName(branding)}
           interrupted={!v.endedGraceful}
           sessionId={sessionId}
           accentColor={branding.accentColor}
-          note={`Your voice interview with ${branding.companyName} is complete. The hiring team will be in touch about next steps.`}
+          note={`Your voice interview with ${brandName(branding)} is complete. The hiring team will be in touch about next steps.`}
         />
       </StageCard>
     )
@@ -179,7 +180,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
       {/* header */}
       <header className="flex h-14 flex-shrink-0 items-center border-b border-border bg-white">
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4">
-          <span className="truncate font-display font-bold tracking-[-0.02em] text-neutral-900">{branding.companyName}</span>
+          <span className="truncate font-display font-bold tracking-[-0.02em] text-neutral-900">{brandName(branding)}</span>
           <span
             className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${pending ? 'border-warning-border bg-warning-bg text-warning' : 'border-success-border bg-success-bg text-success'}`}
             aria-live="polite"

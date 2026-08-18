@@ -21,7 +21,7 @@ import { VideoInterview } from './screens/VideoStage'
 import { Completion } from './screens/Completion'
 import type { BrandingConfig } from '@shared/types'
 
-const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#0E1420' }
+import { FALLBACK_BRANDING } from './branding'
 
 export default function TakeInterviewPage() {
   const { sessionId = '' } = useParams()
