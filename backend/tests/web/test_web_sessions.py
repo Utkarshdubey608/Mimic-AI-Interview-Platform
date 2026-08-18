@@ -226,6 +226,91 @@ def test_an_interview_with_no_questions_refuses_to_start(seeded) -> None:
     assert response.status_code == 400
 
 
+# ── when the question plan is built ───────────────────────────────────────────
+#
+# A production session pressed Begin and waited 26.5 seconds on a warm instance,
+# because /begin was where the model call happened. These pin the plan to the
+# résumé upload — the one step where the candidate is already told to wait.
+
+
+def _adaptive(seeded) -> None:
+    seeded.templates.docs["t1"] = _template(questionSource="adaptive")
+    seeded.sessions.docs["s1"] = _session(0)
+
+
+def _upload(client: TestClient):
+    return client.post(
+        "/api/web/sessions/s1/resume",
+        files={"resume": ("cv.txt", b"Ada Lovelace. Ten years of Python and Kafka.", "text/plain")},
+        data={"fullName": "Ada Lovelace"},
+    )
+
+
+@pytest.fixture
+def generated(monkeypatch):
+    """Stands in for the Gemini call, and counts how often it is made."""
+    from app.web.services import question_gen
+
+    calls: list[str] = []
+
+    async def _generate(settings, *, resume_text: str, **kwargs) -> list[dict]:
+        calls.append(resume_text)
+        return [
+            {"text": "Tell me about your Kafka work.", "category": "Experience", "idealAnswerNotes": "n"},
+            {"text": "How do you test async code?", "category": "Technical", "idealAnswerNotes": "n"},
+        ]
+
+    monkeypatch.setattr(question_gen, "generate_from_resume_text", _generate)
+    return calls
+
+
+def test_uploading_a_resume_builds_the_question_plan(seeded, generated) -> None:
+    _adaptive(seeded)
+
+    assert _upload(_client(CANDIDATE)).status_code == 200
+
+    questions = seeded.sessions.docs["s1"]["questions"]
+    assert [q["text"] for q in questions] == [
+        "Tell me about your Kafka work.",
+        "How do you test async code?",
+    ]
+    assert len(generated) == 1, "the résumé upload should generate exactly once"
+
+
+def test_begin_makes_no_model_call_once_the_plan_exists(seeded, generated) -> None:
+    """The whole point: pressing Begin is a database write, not a model call."""
+    _adaptive(seeded)
+    _upload(_client(CANDIDATE))
+    assert len(generated) == 1
+
+    response = _client(CANDIDATE).post("/api/web/sessions/s1/begin")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "in_progress"
+    assert len(generated) == 1, "/begin must not generate again — the plan is already stored"
+
+
+def test_begin_still_generates_for_a_session_that_never_got_a_plan(seeded, generated) -> None:
+    """The fallback path, for résumés uploaded before the plan moved upstream."""
+    _adaptive(seeded)
+    seeded.sessions.docs["s1"]["resumeText"] = "Ada Lovelace. Ten years of Python."
+
+    response = _client(CANDIDATE).post("/api/web/sessions/s1/begin")
+
+    assert response.status_code == 200
+    assert len(generated) == 1, "no stored plan, so /begin has to build one"
+
+
+def test_a_fixed_question_set_is_never_sent_to_the_model(seeded, generated) -> None:
+    """A recruiter's own question set is the plan; there is nothing to generate."""
+    seeded.templates.docs["t1"] = _template(questionSource="fixed")
+    seeded.sessions.docs["s1"] = _session(2)
+    seeded.sessions.docs["s1"]["track"] = "video_avatar"
+
+    assert _upload(_client(CANDIDATE)).status_code == 200
+    assert generated == []
+
+
 # ── answering ─────────────────────────────────────────────────────────────────
 
 
