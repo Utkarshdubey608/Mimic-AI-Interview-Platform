@@ -19,3 +19,6 @@ server/data/
 # Face-Fit: optional self-hosted MediaPipe WASM runtime (~22MB). Vendor it for
 # offline/Capacitor builds — see public/mediapipe/README.md. Model .task IS committed.
 public/mediapipe/wasm/
+e2e/shots/
+playwright-report/
+test-results/

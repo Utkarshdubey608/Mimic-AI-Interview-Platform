@@ -51,6 +51,22 @@ assert('listening does not claim to be waiting for permission', !/permission/i.t
 assert('listening does not accuse them of being inaudible', !/can.?t hear/i.test(listening.title + listening.detail))
 assert('listening asks them to speak', /say something|speak|out loud/i.test(listening.title + listening.detail))
 
+console.log('\n=== the copy is grammatical ===')
+// Caught by looking at a screenshot, not by a green test: DEVICE_WORD used the
+// plural "speakers", so the passed state read "Your speakers is working".
+for (const id of IDS) {
+  for (const state of STATES) {
+    const g = guidanceFor(id, state, 'chrome', false)
+    const text = `${g.title} ${g.detail}`
+    assert(`${id}/${state} has no "s is" disagreement`, !/\bspeakers is\b/i.test(text))
+  }
+}
+
+console.log('\n=== the speaker check never invents a permission prompt ===')
+const tonePlaying = guidanceFor('speaker', 'requesting', 'chrome', false)
+assert('no browser prompt is claimed', !/prompt|allow/i.test(tonePlaying.title + tonePlaying.detail))
+assert('it asks whether they heard it', /hear/i.test(tonePlaying.title + tonePlaying.detail))
+
 console.log('\n=== unsupported names a browser to switch to ===')
 const un = guidanceFor('mic', 'unsupported', 'unknown', false)
 assert('suggests Chrome/Edge/Safari', /chrome|edge|safari/i.test(un.detail + un.steps.join(' ')))

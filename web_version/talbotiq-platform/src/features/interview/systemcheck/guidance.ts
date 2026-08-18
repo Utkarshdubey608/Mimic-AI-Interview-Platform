@@ -25,11 +25,16 @@ export interface Guidance {
   steps: string[]
 }
 
+/**
+ * Singular throughout: every sentence below reads "Your ${thing} is …", and
+ * "your speakers is working" is the kind of thing that quietly cheapens an
+ * enterprise product. "Sound" also matches the checklist label.
+ */
 const DEVICE_WORD: Record<CheckId, string> = {
   browser: 'browser',
   mic: 'microphone',
   camera: 'camera',
-  speaker: 'speakers',
+  speaker: 'sound',
   connectivity: 'connection',
 }
 
@@ -157,11 +162,19 @@ export function guidanceFor(
         steps: [],
       }
     case 'requesting':
-      return {
-        title: 'Waiting for permission',
-        detail: `Choose Allow in the browser prompt to let us test your ${thing}.`,
-        steps: ['The prompt usually appears near the address bar.'],
-      }
+      // The speaker check has no permission prompt — this state means the tone
+      // has played and we are waiting on the one thing we cannot measure.
+      return id === 'speaker'
+        ? {
+            title: 'Did you hear that?',
+            detail: 'We played a short tone. Tell us whether it came through.',
+            steps: [],
+          }
+        : {
+            title: 'Waiting for permission',
+            detail: `Choose Allow in the browser prompt to let us test your ${thing}.`,
+            steps: ['The prompt usually appears near the address bar.'],
+          }
     case 'listening':
       return id === 'mic'
         ? {
