@@ -86,11 +86,17 @@ export function Field({ seed = 0, amp, className = '' }: {
 
     // Read the ramp off the element itself, so the shader is fed the
     // stylesheet's own values and cannot drift from the palette. `--mm-ink` is
-    // the ground; `--mm-on-ink-accent` is the one accent the tokens document as
-    // legible on that ground, which makes it the honest lit end of the ramp.
+    // the ground; `--mm-field-light` is the lit end.
+    //
+    // That token exists ONLY for this. Reading `--mm-on-ink-accent` here instead
+    // seemed tidier — one accent, used everywhere — but the accent is sized for
+    // single elements, and pouring it across a whole surface turned every ink
+    // band the colour of the accent. The same value must drive the CSS lamps in
+    // mimicSite.css, or the canvas cross-fades to a different colour than the
+    // fallback it is replacing.
     const cs = getComputedStyle(host)
     const ink = parseColor(cs.getPropertyValue('--mm-ink'))
-    const light = parseColor(cs.getPropertyValue('--mm-on-ink-accent'))
+    const light = parseColor(cs.getPropertyValue('--mm-field-light'))
     if (!ink || !light) return
 
     let field: AmbientField | null = null

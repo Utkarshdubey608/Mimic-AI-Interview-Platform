@@ -77,6 +77,13 @@
   --mm-on-ink-line:#2C3036;
   --mm-on-ink-card:#1A1E24;
   --mm-on-ink-accent:#7FDCA8; /* the accent that works on dark */
+  /* The field's LIGHT — deliberately NOT the accent above.
+     The accent marks single elements: a link, a tick, a focus ring. The ambient
+     field lights a whole surface, and spending the green there tinted every ink
+     band green — it read as a change of palette rather than as light falling on
+     one. This is the blue the field was designed and tuned against, kept at the
+     accent's own saturation and lightness so the two carry equal weight. */
+  --mm-field-light:#8AA6F0;
 
   /* Soft geometry. Controls are gently rounded; buttons are true pills
      (set on .btn — a pill radius on inputs and menu rows reads as costume). */
@@ -1172,26 +1179,35 @@
 .mimic-site .tick{color:var(--mm-acc);margin-top:3px}
 
 /* ── Footer ───────────────────────────────────────────────────────────────
-   Light, quiet, small — a colophon, not a second cover. The dark field is
-   reserved for the one CTA band, and ending every page on a wall of ink was
-   spending it twice. */
+   An INK surface, because it hosts an ink field.
+
+   This was briefly a light colophon (`--mm-bg-alt` behind `--mm-ink-2` text).
+   That is a perfectly good footer, but it is not one an ambient field can sit
+   in: the field's canvas is created with `alpha:false`, so once it lights it
+   paints the ink ground over the whole element and the dark text on top of it
+   goes to roughly 1.3:1. There is no halfway position available — the surface
+   is either light with no field, or ink with on-ink text. Every colour below is
+   the on-ink set, so the words stay white whether the canvas lights or the CSS
+   fallback is all the visitor gets. */
 .mimic-site .foot{
-  background:var(--mm-bg-alt);color:var(--mm-ink-2);
-  border-top:1px solid var(--mm-line);padding:64px 0 30px
+  background:var(--mm-ink);color:var(--mm-on-ink);
+  border-top:1px solid var(--mm-on-ink-line);padding:64px 0 30px
 }
 .mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px}
-.mimic-site .foot-brand .kn{color:var(--mm-muted);max-width:38ch;margin-top:12px}
+.mimic-site .foot-brand .kn{color:var(--mm-on-ink-2);max-width:38ch;margin-top:12px}
 .mimic-site .foot h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--mm-muted);margin-bottom:12px}
-.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-ink-2);text-decoration:none;font-size:14px}
-.mimic-site .foot a:hover{color:var(--mm-ink);text-decoration:underline}
+  color:var(--mm-on-ink-2);margin-bottom:12px}
+.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-on-ink);text-decoration:none;font-size:14px}
+.mimic-site .foot a:hover{color:#fff;text-decoration:underline}
 .mimic-site .foot-bottom{
-  margin-top:44px;padding-top:22px;border-top:1px solid var(--mm-line-2);
+  margin-top:44px;padding-top:22px;border-top:1px solid var(--mm-on-ink-line);
   display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
-  font-size:12.5px;color:var(--mm-muted)
+  font-size:12.5px;color:var(--mm-on-ink-2)
 }
-.mimic-site .foot .brand{color:var(--mm-ink)}
-.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{background:var(--mm-ink);border:0}
+.mimic-site .foot .brand{color:#fff}
+.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{
+  background:var(--mm-on-ink-card);border:1px solid var(--mm-on-ink-line)
+}
 
 /* ── Sub-pages (mk-*) — the reading register ──────────────────────────── */
 .mimic-site .mkpage{padding-bottom:0}
@@ -1418,9 +1434,9 @@
 .mimic-site{
   /* The lamp, at three strengths. Named once so the ambient field, the seams and
      the ink-field edges cannot drift apart. */
-  --mm-lamp:color-mix(in srgb, var(--mm-on-ink-accent) 15%, transparent);
-  --mm-lamp-soft:color-mix(in srgb, var(--mm-on-ink-accent) 8%, transparent);
-  --mm-lamp-edge:color-mix(in srgb, var(--mm-on-ink-accent) 32%, transparent);
+  --mm-lamp:color-mix(in srgb, var(--mm-field-light) 15%, transparent);
+  --mm-lamp-soft:color-mix(in srgb, var(--mm-field-light) 8%, transparent);
+  --mm-lamp-edge:color-mix(in srgb, var(--mm-field-light) 32%, transparent);
   /* The shadow one sheet casts on the sheet beneath it. */
   --mm-seam:color-mix(in srgb, var(--mm-ink) 5%, transparent);
 }
