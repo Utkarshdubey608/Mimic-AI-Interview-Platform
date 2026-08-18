@@ -205,6 +205,11 @@ export const sessionsApi = {
     ),
   complete: (id: string) =>
     http<CandidateSessionState>(`/sessions/${id}/complete`, { method: 'POST' }),
+  /** The candidate's opinion of the experience. Never part of scoring. */
+  submitFeedback: (
+    id: string,
+    body: { rating: number; comment?: string; hadTechnicalIssues?: boolean },
+  ) => http<{ ok: boolean }>(`/sessions/${id}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   // Video Interview: upload the aggregated AWS Rekognition facial summary
   // (computed client-side from frames captured off the shared camera stream).
   facial: (id: string, summary: unknown) =>
@@ -403,4 +408,25 @@ export function downloadCsv(filename: string, header: string[], rows: (string | 
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** Feedback across this recruiter's interviews. Tenant-scoped server-side. */
+export interface FeedbackItem {
+  sessionId: string
+  track?: string
+  role?: string
+  candidateName?: string
+  rating: number
+  comment?: string
+  hadTechnicalIssues?: boolean
+  createdAt: string
+}
+export interface FeedbackSummary {
+  items: FeedbackItem[]
+  count: number
+  averageRating: number | null
+  technicalIssueCount: number
+}
+export const feedbackApi = {
+  list: () => http<FeedbackSummary>('/feedback'),
 }

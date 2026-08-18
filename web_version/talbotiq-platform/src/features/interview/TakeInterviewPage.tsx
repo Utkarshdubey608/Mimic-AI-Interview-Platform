@@ -115,7 +115,7 @@ export default function TakeInterviewPage() {
   if (s.status === 'completed' || s.status === 'expired') {
     return (
       <InterviewShell branding={branding}>
-        <Completion branding={branding} />
+        <Completion branding={branding} sessionId={sessionId} />
       </InterviewShell>
     )
   }

@@ -13,6 +13,7 @@
  * ONLY: no timers, no media, no lifecycle. Every stage keeps its own machinery
  * and simply stops re-drawing the frame around it.
  */
+import { InterviewFeedback } from './InterviewFeedback'
 import type { ReactNode } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Check, AlertTriangle, ShieldCheck } from 'lucide-react'
@@ -77,8 +78,17 @@ export function StatusPlate({
    The last thing a candidate sees. It has to answer three questions without
    being asked: is it over, did it count, and may I leave. */
 export function CandidateSignOff({
-  companyName, interrupted, note,
-}: { companyName: string; interrupted?: boolean; note?: string }) {
+  companyName, interrupted, note, sessionId, accentColor,
+}: {
+  companyName: string
+  interrupted?: boolean
+  note?: string
+  /** Present on a finished interview: enables the feedback step and the
+   *  redirect back to the Mimic app. Absent on an interrupted one, where
+   *  asking someone to rate a call that dropped would be tone-deaf. */
+  sessionId?: string
+  accentColor?: string
+}) {
   return (
     <>
       <StatusPlate tone={interrupted ? 'warn' : 'done'}>
@@ -92,8 +102,12 @@ export function CandidateSignOff({
         {interrupted
           ? `The connection dropped before the interview finished, so it ended early. Please reach out to the ${companyName} hiring team and we’ll help you complete it.`
           : note ??
-            `Your responses have been submitted to the ${companyName} team. There’s nothing more you need to do — you can safely close this window.`}
+            `Your responses have been submitted to the ${companyName} team. There’s nothing more you need to do.`}
       </p>
+
+      {!interrupted && sessionId && (
+        <InterviewFeedback sessionId={sessionId} accentColor={accentColor ?? '#0E1420'} />
+      )}
 
       {!interrupted && (
         <div className="mt-8 border-t border-border pt-5">
