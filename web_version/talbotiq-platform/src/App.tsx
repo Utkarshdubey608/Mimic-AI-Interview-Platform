@@ -65,7 +65,6 @@ const MarketingPage    = lazy(() => import('@/marketing/MarketingPage'))
    reads the public pages never fetches the WebGL scene or framer-motion, and
    mounted on /login rather than at the root so it plays when someone chooses to
    enter the product instead of in front of everyone who opens the site. */
-const MimicIntro       = lazy(() => import('@/features/intro/MimicIntro'))
 
 /** Route-transition fallback. Deliberately quiet — a spinner that appears for
  *  120ms reads as jank, so this is just the page ground. */
@@ -83,19 +82,11 @@ export default function App() {
           <Routes>
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>
-            {/* Its own Suspense with a null fallback: the intro must not hold
-                up the login form behind it. The form paints immediately and the
-                splash covers it (position:fixed, top of the stack) as soon as
-                its chunk lands, then fades out. */}
-            <Route
-              path="/login"
-              element={
-                <>
-                  <Suspense fallback={null}><MimicIntro /></Suspense>
-                  <LoginPage />
-                </>
-              }
-            />
+            {/* No intro splash. It covered the sign-in form with a WebGL scene
+                the moment its chunk landed, so the page a returning user sees
+                most often was also its slowest, and it pulled Three.js onto the
+                login path for an animation nobody asked to watch twice. */}
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/access-denied" element={<AccessDenied />} />
 
             {/* DEV ONLY — the System Check with no session behind it, so the

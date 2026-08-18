@@ -28,12 +28,12 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop',
-      testIgnore: /no-signal\.spec\.ts/,
+      testIgnore: [/no-signal\.spec\.ts/, /cross-browser\.spec\.ts/],
       use: { ...devices['Desktop Chrome'], launchOptions: { args: FAKE_MEDIA } },
     },
     {
       name: 'mobile',
-      testIgnore: /no-signal\.spec\.ts/,
+      testIgnore: [/no-signal\.spec\.ts/, /cross-browser\.spec\.ts/],
       use: { ...devices['Pixel 7'], launchOptions: { args: FAKE_MEDIA } },
     },
     {
@@ -47,6 +47,23 @@ export default defineConfig({
           args: [...FAKE_MEDIA, '--use-file-for-fake-audio-capture=e2e/fixtures/silence.wav'],
         },
       },
+    },
+    {
+      // Safari's engine. The tab-switch bug was reported on macOS, and this is
+      // the only way to exercise it without a Mac in the loop.
+      name: 'webkit',
+      testMatch: /cross-browser\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'firefox',
+      testMatch: /cross-browser\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'chromium-cross',
+      testMatch: /cross-browser\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 })

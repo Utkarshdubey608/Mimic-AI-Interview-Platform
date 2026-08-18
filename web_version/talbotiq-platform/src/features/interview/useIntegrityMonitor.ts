@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { sessionsApi } from '@/lib/api'
+import { initialLatch, nextLatch, type AwaySignal } from './awayLatch'
 import type { IntegrityConfig, IntegrityEvent } from '@shared/types'
 
 /**
@@ -56,16 +57,45 @@ export function useIntegrityMonitor(
 
   const acknowledge = useCallback(() => setWarning(null), [])
 
-  // Tab / window switching
+  // Tab / window switching, across engines.
+  //
+  // `visibilitychange` alone is a Chrome assumption. Safari on macOS does not
+  // reliably fire it when the candidate switches to another APPLICATION — it
+  // blurs the window instead — which is why a Mac candidate could switch away
+  // indefinitely and nothing was recorded. Several signals are listened to and
+  // reconciled by awayLatch, which handles the two problems that creates:
+  // Chrome firing more than one signal per switch, and clicking the embedded
+  // call iframe blurring the window without the candidate going anywhere.
   useEffect(() => {
     if (!active || !integrity?.detectTabSwitch) return
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        post('tab_switch', 'Please stay on this tab. Switching away is recorded.')
-      }
+
+    let latch = initialLatch
+    const signal = (s: AwaySignal) => {
+      const { state, report } = nextLatch(latch, s, document.hasFocus())
+      latch = state
+      if (report) post('tab_switch', 'Please stay on this tab. Switching away is recorded.')
     }
+
+    const onVisibility = () => signal(document.visibilityState === 'hidden' ? 'hidden' : 'visible')
+    const onBlur = () => {
+      // Deferred a tick: at the instant blur fires, document.hasFocus() has not
+      // settled yet, and reading it too early misclassifies an iframe click as
+      // the candidate leaving.
+      window.setTimeout(() => signal('blur'), 0)
+    }
+    const onFocus = () => signal('focus')
+    const onPageHide = () => signal('pagehide')
+
     document.addEventListener('visibilitychange', onVisibility)
-    return () => document.removeEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pagehide', onPageHide)
+    }
   }, [active, integrity?.detectTabSwitch, post])
 
   // Fullscreen enforcement (best-effort; entered via user gesture in enterFullscreen)

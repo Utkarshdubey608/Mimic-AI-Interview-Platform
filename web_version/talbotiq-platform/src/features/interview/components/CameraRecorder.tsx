@@ -1,3 +1,4 @@
+import { recorderOptions } from '@/lib/recorderCodec'
 import { useEffect, useRef, useState } from 'react'
 import { Video, VideoOff } from 'lucide-react'
 
@@ -51,7 +52,9 @@ export function CameraRecorder({ active, accentColor }: Props) {
     if (!stream) return
     if (active && !recorderRef.current) {
       try {
-        const rec = new MediaRecorder(stream)
+        // recorderOptions() rather than a bare constructor: same portable
+        // behaviour, but it states the intent so nobody hardcodes a container.
+        const rec = new MediaRecorder(stream, recorderOptions('video'))
         chunks.current = []
         rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data)
         rec.start()
