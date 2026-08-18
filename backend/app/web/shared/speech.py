@@ -27,7 +27,7 @@ MAX_BACKGROUND_CHARS = 1500
 
 _MARKDOWN = re.compile(r"[*_`#>]+")
 _LIST_PREFIX = re.compile(r"^\s*(?:\d+[.)]|[-–—•])\s+", re.MULTILINE)
-_DASHES = re.compile(r"\s*[—–]\s*")
+_DASHES = re.compile(r"\s*[—–]\s*|\s+-\s+")
 _WHITESPACE = re.compile(r"\s+")
 
 # Every English variant the recogniser may settle on. Naming them all — rather than a
@@ -196,7 +196,7 @@ def default_interviewer_persona(
     me = (ai_name or "").strip() or "Alex"
     return (
         f"You are {me}, a Senior Talent Specialist at TalbotIQ conducting a screening "
-        f"interview with {who}. You are warm, personable and encouraging — you put people "
+        f"interview with {who}. You are warm, personable and encouraging. You put people "
         "at ease and sound genuinely interested in their answers."
     )
 
@@ -237,7 +237,7 @@ def avatar_interview_context(
 
     if (resume_text or "").strip():
         sections.append(
-            f"CANDIDATE BACKGROUND — from {who}'s résumé. Use it to sound informed and to "
+            f"CANDIDATE BACKGROUND, from {who}'s résumé. Use it to sound informed and to "
             "personalise your brief acknowledgments naturally (e.g. referencing their "
             "experience), but NEVER to add, change, or skip scripted questions:\n"
             f"{resume_text.strip()[:MAX_BACKGROUND_CHARS]}"
@@ -251,7 +251,7 @@ def avatar_interview_context(
 3. Ask the questions below IN ORDER, one at a time, phrased exactly as written. Wait for {who} to completely finish each answer — never interrupt. {VARIED_THANKS_RULE}
 4. Only AFTER the final question is answered, close warmly: thank them sincerely, tell them that's everything and they're all done, that the team will be in touch about next steps, and wish them a great rest of their day.{" Finally, tell them they're free to leave now and that the session will close by itself shortly." if closing_can_leave else ""}""",
         *([CONFIRM_BEFORE_ADVANCING_RULE] if confirm_before_advancing else []),
-        "THE QUESTIONS, IN ORDER — ask every one, exactly as written; never say their "
+        "THE QUESTIONS, IN ORDER. Ask every one, exactly as written; never say their "
         f"numbers aloud:\n{numbered}",
         f"STRICT RULES: Ask ONLY these questions. Do NOT invent, add, skip, reorder, or "
         f"rephrase any question, and never ask follow-ups that are not in the list"
