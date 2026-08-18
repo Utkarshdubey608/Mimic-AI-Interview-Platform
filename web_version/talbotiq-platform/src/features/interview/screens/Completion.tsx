@@ -7,10 +7,14 @@ import { CandidateSurface, CandidateSignOff } from './CandidateSurface'
  * `CandidateSignOff`, so a candidate sees the same ending whichever mode they
  * were interviewed in.
  */
-export function Completion({ branding }: { branding: BrandingConfig }) {
+export function Completion({ branding, sessionId }: { branding: BrandingConfig; sessionId?: string }) {
   return (
     <CandidateSurface wide className="text-center">
-      <CandidateSignOff companyName={branding.companyName} />
+      <CandidateSignOff
+        companyName={branding.companyName}
+        sessionId={sessionId}
+        accentColor={branding.accentColor}
+      />
     </CandidateSurface>
   )
 }

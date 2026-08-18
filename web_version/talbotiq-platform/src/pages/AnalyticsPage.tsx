@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { AlertTriangle, BarChart3, Inbox, Info, LineChart as LineChartIcon, RotateCcw } from 'lucide-react'
 import { Button, Card, PageHeader, Select, Skeleton, EmptyState, SectionTitle, cn } from '@/components/ui'
+import { FeedbackPanel } from '@/features/recruiter/FeedbackPanel'
 import { analyticsApi, templatesApi } from '@/lib/api'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { matchOption, normalizeTrack } from '@/features/guide/autopilot/filterMatch'
@@ -612,6 +613,11 @@ export default function AnalyticsPage() {
             )}
           </Card>
           )}
+
+          {/* Candidates' view of the experience. Sits below the scored analytics
+              because it answers a different question: those charts measure the
+              candidates, this measures us. */}
+          <FeedbackPanel />
 
           <p className="text-center text-[11px] text-neutral-400">Aggregated {new Date(a.generatedAt).toLocaleString()} · scored interviews only</p>
         </div>

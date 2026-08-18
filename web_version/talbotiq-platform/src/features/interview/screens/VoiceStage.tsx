@@ -135,7 +135,9 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
         <CandidateSignOff
           companyName={branding.companyName}
           interrupted={!v.endedGraceful}
-          note={`Your voice interview with ${branding.companyName} is complete. You can close this window; the hiring team will be in touch about next steps.`}
+          sessionId={sessionId}
+          accentColor={branding.accentColor}
+          note={`Your voice interview with ${branding.companyName} is complete. The hiring team will be in touch about next steps.`}
         />
       </StageCard>
     )

@@ -80,7 +80,7 @@ def clean_question_text(text: str | None) -> str:
     value = re.sub(r"\*+", "", value)              # **bold** and * bullets
     value = re.sub(r"`+", "", value)               # `code`
     value = re.sub(r"^\s*#+\s*", "", value, flags=re.MULTILINE)  # # headings
-    value = re.sub(r"\s*[—–]\s*", ", ", value)     # em/en dashes → commas
+    value = re.sub(r"\s*[—–]\s*|\s+-\s+", ", ", value)     # em/en dashes → commas
     value = re.sub(r",\s*,", ",", value)           # doubled commas from the above
     value = re.sub(r",\s*([.!?])", r"\1", value)   # a comma stranded before a stop
     value = re.sub(r"\s+", " ", value)
@@ -137,9 +137,9 @@ def build_prompt(
     return f"""Read the attached candidate résumé and generate exactly {total} interview questions{role_clause}.
 {style_line}
 {difficulty_line}
-Each question MUST be specific to THIS résumé — reference real technologies, projects, or experiences from it. Avoid duplicates and generic filler.
+Each question MUST be specific to THIS résumé. Reference real technologies, projects, or experiences from it. Avoid duplicates and generic filler.
 Keep each question SHORT and conversational: ONE or two sentences, at most ~30 words, single-focus. Never bundle multiple questions together (no "and how... and why..."). Ask one clear thing.
-Write the question text as PLAIN TEXT only: no markdown, no asterisks (*), no bullets, no bold, no backticks, no headings. Do NOT use em dashes or en dashes ("—" or "–") — use commas or periods instead (they read as AI-written).
+Write the question text as PLAIN TEXT only: no markdown, no asterisks (*), no bullets, no bold, no backticks, no headings. Do NOT use em dashes or en dashes ("—" or "–"). Use commas or periods instead (they read as AI-written).
 For each question provide: the question text, its type ("technical" or "non_technical"), a category (e.g. coding, system_design, behavioral, situational, culture_fit), a difficulty (easy|medium|hard), a skillTag (the résumé skill/topic it targets, e.g. React, Kafka, leadership), and a one-sentence rationale for why it fits this candidate.
 Return ONLY JSON matching the provided schema."""
 
@@ -340,7 +340,7 @@ def build_resume_prompt(
 {style_line}
 {difficulty_line}
 {topics_line}
-Each question MUST be specific to THIS résumé — reference real technologies, projects, or experiences from it. Avoid duplicates and generic filler.
+Each question MUST be specific to THIS résumé. Reference real technologies, projects, or experiences from it. Avoid duplicates and generic filler.
 Keep each question SHORT and conversational: ONE or two sentences, at most ~30 words, single-focus. Never bundle multiple questions together.
 Write the question text as PLAIN TEXT only: no markdown, no asterisks, no bullets, no backticks. Do NOT use em dashes or en dashes — use commas or periods instead.
 For each question also give a short category (e.g. Experience, Problem-Solving, Collaboration) and one sentence of ideal-answer notes describing what a strong answer covers.

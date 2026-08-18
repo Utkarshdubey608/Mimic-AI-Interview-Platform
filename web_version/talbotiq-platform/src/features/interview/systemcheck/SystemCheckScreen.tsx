@@ -6,7 +6,7 @@
  * derived from the requirement table, so it cannot drift per mode.
  */
 import { motion, useReducedMotion } from 'framer-motion'
-import { AlertTriangle, ArrowRight, Check, Loader2, RefreshCw, Volume2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Check, Loader2, RefreshCw, Volume2, XCircle } from 'lucide-react'
 import type { BrandingConfig, TrackType } from '@shared/types'
 import { VideoIntro } from '../screens/VideoIntro'
 import { DevicePicker } from './DevicePicker'
@@ -49,6 +49,20 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
         We’ll make sure everything works before your first question.
       </p>
 
+      {/* Not a footnote. Closing other tabs measurably helps the realtime modes
+          (voice, avatar and two-way all hold a live stream), and it removes the
+          commonest cause of an accidental tab-switch flag against a candidate
+          who was not doing anything wrong. */}
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-warning-border bg-warning-bg p-4">
+        <span className="mt-0.5 flex-shrink-0 text-warning">
+          <XCircle size={18} strokeWidth={1.75} />
+        </span>
+        <p className="text-sm leading-relaxed text-neutral-700" data-testid="close-tabs-notice">
+          <span className="font-semibold text-neutral-900">Close other tabs and apps before you start.</span>{' '}
+          It keeps audio and video smooth, and it stops you accidentally switching away, which is recorded during the interview.
+        </p>
+      </div>
+
       <ul className="mt-7 space-y-3">
         {sc.checks.map((c) => {
           const failed = c.state === 'denied' || c.state === 'granted-no-signal' || c.state === 'unsupported'
@@ -75,7 +89,7 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-neutral-900">
-                    {LABEL[c.id]} — {c.guidance.title}
+                    {LABEL[c.id]}: {c.guidance.title}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-neutral-500">{c.guidance.detail}</p>
 
