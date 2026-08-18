@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { useInterviewClock } from './useInterviewClock'
 import { useIntegrityMonitor } from './useIntegrityMonitor'
 import { InterviewShell } from './components/InterviewShell'
-import { TrackSelect } from './screens/TrackSelect'
+import { INITIAL_PRE_STEP, isConversational, type PreStep } from './preStep'
 import { Welcome } from './screens/Welcome'
 import { SystemCheck } from './screens/SystemCheck'
 import { ResumeUpload } from './screens/ResumeUpload'
@@ -22,13 +22,11 @@ import type { BrandingConfig } from '@shared/types'
 
 const FALLBACK_BRANDING: BrandingConfig = { companyName: 'TalbotIQ', accentColor: '#0E1420' }
 
-type PreStep = 'track' | 'welcome' | 'resume' | 'systemcheck'
-
 export default function TakeInterviewPage() {
   const { sessionId = '' } = useParams()
   const { signOutUser } = useAuth()
   const clock = useInterviewClock(sessionId)
-  const [preStep, setPreStep] = useState<PreStep>('track')
+  const [preStep, setPreStep] = useState<PreStep>(INITIAL_PRE_STEP)
   const [chatbotStarted, setChatbotStarted] = useState(false)
   // Hooks must run unconditionally (before the early returns below).
   const integrity = useIntegrityMonitor(sessionId, clock.state?.integrity, clock.state?.status === 'in_progress')
@@ -174,33 +172,19 @@ export default function TakeInterviewPage() {
   }
 
   // status: created | system_check → pre-interview screens.
-  // The chatbot/voice track's format is fixed by the template, so skip "choose format".
-  const conversational = s.track === 'chatbot' || s.track === 'video_avatar' || s.track === 'voice' || s.track === 'two_way'
-  // Video Interview's format is fixed by the invite too — skip "choose format",
-  // but it runs on the timed engine (not the conversational full-screen engines).
-  const fixedFormat = conversational || s.track === 'video'
+  // The format is the recruiter's, fixed by the invite for every track — the
+  // candidate is never asked to choose it. See preStep.ts for the bug that
+  // reasoning replaced.
+  const conversational = isConversational(s.track)
   // Video-avatar interviews ALWAYS collect the candidate's full name + résumé
   // first — both are fed to the Tavus avatar (name in the greeting/questions,
   // résumé as its background knowledge). Other tracks only when the question
   // plan needs the résumé.
   const needsIntake = s.awaitingResume || (s.track === 'video_avatar' && !s.hasResume)
-  const step: PreStep = fixedFormat && preStep === 'track' ? 'welcome' : preStep
   return (
     <InterviewShell branding={branding}>
       <AnimatePresence mode="wait">
-        {step === 'track' && (
-          <TrackSelect
-            key="track"
-            branding={branding}
-            defaultTrack={s.track}
-            busy={clock.busy}
-            onChoose={async (t) => {
-              await clock.setTrack(t)
-              setPreStep('welcome')
-            }}
-          />
-        )}
-        {step === 'welcome' && (
+        {preStep === 'welcome' && (
           <Welcome
             key="welcome"
             branding={branding}
@@ -211,7 +195,7 @@ export default function TakeInterviewPage() {
             }}
           />
         )}
-        {step === 'resume' && (
+        {preStep === 'resume' && (
           <ResumeUpload
             key="resume"
             branding={branding}
@@ -219,7 +203,7 @@ export default function TakeInterviewPage() {
             onUpload={async (file, fullName) => { await clock.uploadResume(file, fullName); clock.systemCheck(); setPreStep('systemcheck') }}
           />
         )}
-        {step === 'systemcheck' && (
+        {preStep === 'systemcheck' && (
           <SystemCheck
             key="check"
             branding={branding}
