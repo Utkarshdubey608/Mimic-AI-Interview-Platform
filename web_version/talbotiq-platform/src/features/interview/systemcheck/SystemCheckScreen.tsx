@@ -89,7 +89,7 @@ export function SystemCheckScreen({ branding, track, busy, onBegin }: Props) {
 
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-neutral-900">
-                    {LABEL[c.id]} — {c.guidance.title}
+                    {LABEL[c.id]}: {c.guidance.title}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-neutral-500">{c.guidance.detail}</p>
 

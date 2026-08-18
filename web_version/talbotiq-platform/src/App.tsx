@@ -41,6 +41,7 @@ const LiveInterviewPage  = lazy(() => import('@/features/recruiter/LiveInterview
 const TakeInterviewPage  = lazy(() => import('@/features/interview/TakeInterviewPage'))
 // DEV ONLY — see the /__systemcheck route below.
 const SystemCheckHarness = lazy(() => import('@/features/interview/systemcheck/SystemCheckHarness'))
+const InterviewBitsHarness = lazy(() => import('@/features/interview/systemcheck/InterviewBitsHarness'))
 
 /**
  * The auth boundary. Everything below reaches Firebase — the guards and Nav via
@@ -101,7 +102,10 @@ export default function App() {
                 Playwright suite can drive every mode and failure state without
                 minting invites. Stripped from the production bundle. */}
             {import.meta.env.DEV && (
-              <Route path="/__systemcheck" element={<SystemCheckHarness />} />
+              <>
+                <Route path="/__systemcheck" element={<SystemCheckHarness />} />
+                <Route path="/__interviewbits" element={<InterviewBitsHarness />} />
+              </>
             )}
 
             {/* Candidate-only — assigned-session list + the interview itself */}
