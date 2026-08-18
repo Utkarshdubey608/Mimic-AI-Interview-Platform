@@ -3,7 +3,7 @@
  * Run with:  npx tsx src/features/interview/systemcheck/signal.test.ts
  */
 import {
-  CAMERA, MIC, cameraVerdict, lumaDelta, micVerdict, rmsOf, toDbfs,
+  CAMERA, FACE, MIC, cameraVerdict, faceVerdict, lumaDelta, micVerdict, rmsOf, toDbfs,
 } from './signal'
 
 let failures = 0
@@ -76,6 +76,25 @@ assert(
 assert(
   'no frames at all fails after the timeout',
   cameraVerdict([], c0, c0 + CAMERA.timeoutMs + 1) === 'frozen',
+)
+
+console.log('\n=== face presence: a person is there, not who they are ===')
+const f0 = 3_000_000
+assert('nothing yet', faceVerdict([], f0, f0 + 100) === 'searching')
+assert('one detection is not enough', faceVerdict([1], f0, f0 + 200) === 'searching')
+assert(`${FACE.detectionsToPass} in a row passes`, faceVerdict([1, 1, 1], f0, f0 + 900) === 'passed')
+assert('a flicker to zero breaks the run', faceVerdict([1, 0, 1], f0, f0 + 900) === 'searching')
+assert(
+  'nobody there by the timeout',
+  faceVerdict([0, 0, 0, 0], f0, f0 + FACE.timeoutMs + 1) === 'absent',
+)
+assert(
+  'a room full of people is a DIFFERENT problem',
+  faceVerdict([2, 2, 3, 2], f0, f0 + FACE.timeoutMs + 1) === 'crowded',
+)
+assert(
+  'someone who arrives late still passes',
+  faceVerdict([0, 0, 1, 1, 1], f0, f0 + 4_000) === 'passed',
 )
 
 console.log(failures === 0 ? '\nAll signal assertions passed\n' : `\n${failures} failed\n`)

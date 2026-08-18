@@ -20,9 +20,9 @@ const EXPECTED: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
   voice:        ['browser', 'mic', 'speaker'],
-  video_avatar: ['browser', 'mic', 'camera', 'speaker'],
-  video:        ['browser', 'mic', 'camera'],
-  two_way:      ['browser', 'mic', 'camera', 'speaker', 'connectivity'],
+  video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],
+  video:        ['browser', 'mic', 'camera', 'face'],
+  two_way:      ['browser', 'mic', 'camera', 'face', 'speaker', 'connectivity'],
 }
 
 console.log('\n=== every track has an explicit requirement list ===')
@@ -44,6 +44,17 @@ for (const track of Object.keys(EXPECTED) as TrackType[]) {
 console.log('\n=== only two-way probes connectivity ===')
 assert('two_way probes', requires('two_way', 'connectivity'))
 assert('video_avatar does not', !requires('video_avatar', 'connectivity'))
+
+console.log('\n=== presence is checked wherever the camera is, and nowhere else ===')
+// Pointing a face detector at someone is justified where a camera is already
+// required and indefensible where it is not.
+for (const track of ['video_avatar', 'video', 'two_way'] as TrackType[]) {
+  assert(`${track} verifies presence`, requires(track, 'face'))
+  assert(`${track} also needs the camera it uses`, requires(track, 'camera'))
+}
+for (const track of ['chat', 'chatbot', 'voice'] as TrackType[]) {
+  assert(`${track} does NOT run a face detector`, !requires(track, 'face'))
+}
 
 console.log(failures === 0 ? '\nAll requirement assertions passed\n' : `\n${failures} failed\n`)
 process.exit(failures === 0 ? 0 : 1)

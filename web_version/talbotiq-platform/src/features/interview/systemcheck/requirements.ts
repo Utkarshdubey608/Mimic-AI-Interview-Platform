@@ -11,18 +11,18 @@
  */
 import type { TrackType } from '@shared/types'
 
-export type CheckId = 'browser' | 'mic' | 'camera' | 'speaker' | 'connectivity'
+export type CheckId = 'browser' | 'mic' | 'camera' | 'face' | 'speaker' | 'connectivity'
 
 const BY_TRACK: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
   // Spoken: the candidate must hear the interviewer, so output is confirmed too.
   voice:        ['browser', 'mic', 'speaker'],
-  video_avatar: ['browser', 'mic', 'camera', 'speaker'],
+  video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],
   // Recorded answers — questions are on screen, so no speaker requirement.
-  video:        ['browser', 'mic', 'camera'],
+  video:        ['browser', 'mic', 'camera', 'face'],
   // A live call fails in ways device access cannot predict; hence connectivity.
-  two_way:      ['browser', 'mic', 'camera', 'speaker', 'connectivity'],
+  two_way:      ['browser', 'mic', 'camera', 'face', 'speaker', 'connectivity'],
 }
 
 export function requirementsFor(track: TrackType): CheckId[] {

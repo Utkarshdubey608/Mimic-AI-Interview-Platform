@@ -34,6 +34,7 @@ const DEVICE_WORD: Record<CheckId, string> = {
   browser: 'browser',
   mic: 'microphone',
   camera: 'camera',
+  face: 'camera view',
   speaker: 'sound',
   connectivity: 'connection',
 }
@@ -97,6 +98,16 @@ const NO_SIGNAL: Partial<Record<CheckId, Guidance>> = {
       'Close Zoom, Teams, Meet or any other app that may be using the camera.',
       'Remove any lens cover or privacy shutter.',
       'If you have more than one camera, pick another from the list, then press Re-test.',
+    ],
+  },
+  face: {
+    title: 'We cannot see anyone on camera',
+    detail:
+      'Your camera is working, but nobody is in the picture. Sit so your face is inside the frame, with enough light to be seen.',
+    steps: [
+      'Move so your whole face is visible in the preview.',
+      'Turn on a light in front of you, not behind you.',
+      'Then press Re-test.',
     ],
   },
   speaker: {
@@ -176,6 +187,9 @@ export function guidanceFor(
             steps: ['The prompt usually appears near the address bar.'],
           }
     case 'listening':
+      if (id === 'face') {
+        return { title: 'Looking for you', detail: 'Sit so your face is inside the frame.', steps: [] }
+      }
       return id === 'mic'
         ? {
             title: 'Say something',
@@ -207,7 +221,10 @@ export function guidanceFor(
             ? 'We can hear you clearly.'
             : id === 'camera'
               ? 'We can see you.'
-              : `Your ${thing} is ready.`,
+              : id === 'face'
+                // Says what it did and, just as importantly, what it did not.
+                ? 'Someone is in frame. We check that a person is present, we do not identify anyone, and nothing about your face is stored or sent.'
+                : `Your ${thing} is ready.`,
         steps: [],
       }
   }
