@@ -21,6 +21,11 @@ export interface IntegrityWarning {
   /** Server-side count; undefined until the event round-trips. */
   count?: number
   max?: number
+  /**
+   * The server ended the interview over this. The dialog must then stop
+   * offering to return the candidate to a session that is finished.
+   */
+  terminated?: boolean
 }
 
 export function useIntegrityMonitor(
@@ -30,6 +35,7 @@ export function useIntegrityMonitor(
 ) {
   const [warnings, setWarnings] = useState(0)
   const [warning, setWarning] = useState<IntegrityWarning | null>(null)
+  const [terminated, setTerminated] = useState(false)
 
   const post = useCallback(
     (type: IntegrityEvent['type'], notify?: string) => {
@@ -42,11 +48,15 @@ export function useIntegrityMonitor(
         .integrityEvent(sessionId, { type })
         .then((r) => {
           if (typeof r.tabSwitchWarnings === 'number') setWarnings(r.tabSwitchWarnings)
+          if (r.terminated) setTerminated(true)
           if (notify) {
             setWarning({
-              message: notify,
+              message: r.terminated
+                ? 'You switched away more times than this interview allows, so it has been ended and your answers submitted.'
+                : notify,
               count: r.tabSwitchWarnings,
               max: r.maxTabSwitchWarnings,
+              terminated: r.terminated,
             })
           }
         })
@@ -55,7 +65,13 @@ export function useIntegrityMonitor(
     [sessionId, integrity?.logEvents],
   )
 
-  const acknowledge = useCallback(() => setWarning(null), [])
+  const acknowledge = useCallback(
+    // A terminated interview keeps its dialog: there is nothing to return to,
+    // and clearing it would drop the candidate onto a dead screen with no
+    // explanation of what just happened.
+    () => setWarning((w) => (w?.terminated ? w : null)),
+    [],
+  )
 
   // Tab / window switching, across engines.
   //
@@ -114,5 +130,5 @@ export function useIntegrityMonitor(
     }
   }, [integrity?.enforceFullscreen])
 
-  return { warnings, warning, acknowledge, post, enterFullscreen }
+  return { warnings, warning, terminated, acknowledge, post, enterFullscreen }
 }

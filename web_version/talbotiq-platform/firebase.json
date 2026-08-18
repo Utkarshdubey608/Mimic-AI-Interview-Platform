@@ -4,8 +4,16 @@
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [
-      { "source": "/assets/**", "headers": [{ "key": "Cache-Control", "value": "public,max-age=31536000,immutable" }] },
-      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+      {
+        "comment": "The SPA entry. A rule for '/index.html' alone does NOT cover it: candidates open /take/<id>, and the rewrite serves index.html at THAT url without inheriting the literal path's rule. It was max-age=3600, so a deploy took up to an hour to reach anyone who already had their link open, and until then they kept loading the previous build's asset hashes. Ordered FIRST because Firebase lets a later matching rule win, and /assets/** below must beat this one.",
+        "source": "**",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+      },
+      {
+        "comment": "Hashed filenames, so the bytes at a given url never change. LAST so it overrides the catch-all above.",
+        "source": "/assets/**",
+        "headers": [{ "key": "Cache-Control", "value": "public,max-age=31536000,immutable" }]
+      }
     ]
   }
 }

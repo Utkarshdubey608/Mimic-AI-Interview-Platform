@@ -52,7 +52,7 @@ export function CandidateStage({ children }: { children: ReactNode }) {
 }
 
 /* ── Status plate ───────────────────────────────────────────────────────────
-   The disc every moment opens with. One geometry — 64px plate, 26px glyph —
+   The disc every moment opens with. One geometry, 64px plate, 26px glyph —
    instead of the 56/64/80px discs the four sign-offs each chose. Tone carries
    meaning: `neutral` for a step, `done` for a finish, `warn` for an interrupted
    one. Ink rather than a tint, because on a card this quiet ink already reads,
@@ -96,7 +96,7 @@ export function CandidateSignOff({
       </StatusPlate>
 
       <h1 className="mt-6 font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900 sm:text-3xl">
-        {interrupted ? 'Interview interrupted' : 'All done — thank you.'}
+        {interrupted ? 'Interview interrupted' : 'All done, thank you.'}
       </h1>
       <p className="mx-auto mt-3 max-w-md text-balance leading-relaxed text-neutral-500">
         {interrupted

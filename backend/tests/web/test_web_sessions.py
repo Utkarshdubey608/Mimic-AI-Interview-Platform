@@ -517,12 +517,22 @@ def test_completing_a_finished_session_is_harmless(seeded) -> None:
 
 def test_a_tab_switch_is_counted_and_the_limit_returned(seeded) -> None:
     """The count comes back with the recruiter's maximum so the client can warn the
-    candidate before it matters — the point is deterrence, not a silent tally."""
+    candidate before it matters.
+
+    `terminated` rides along because the limit is now enforced, not merely
+    tallied — see test_web_integrity_limit.py. It is False here: one switch
+    against a maximum of three.
+    """
     body = _client(CANDIDATE).post(
         "/api/web/sessions/s1/integrity-event", json={"type": "tab_switch"}
     ).json()
 
-    assert body == {"ok": True, "tabSwitchWarnings": 1, "maxTabSwitchWarnings": 3}
+    assert body == {
+        "ok": True,
+        "tabSwitchWarnings": 1,
+        "maxTabSwitchWarnings": 3,
+        "terminated": False,
+    }
     assert seeded.sessions.docs["s1"]["integrityEvents"][0]["type"] == "tab_switch"
 
 

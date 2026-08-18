@@ -18,7 +18,7 @@ export function VideoIntro({ branding, onBegin, busy }: Props) {
   const accent = branding.accentColor
   const checks = [
     { icon: Camera, label: 'Camera on', hint: 'Your webcam records each answer. Close other apps using the camera (Zoom, Teams, Meet).' },
-    { icon: Mic, label: 'Microphone on', hint: 'Speak clearly — your spoken answer is transcribed and scored.' },
+    { icon: Mic, label: 'Microphone on', hint: 'Speak clearly, your spoken answer is transcribed and scored.' },
     { icon: ShieldCheck, label: 'Quiet, well-lit space', hint: 'You get 30s to prepare, then up to 2 minutes to answer each question.' },
   ]
 
@@ -83,7 +83,7 @@ export function VideoIntro({ branding, onBegin, busy }: Props) {
         className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
         style={{ background: accent }}
       >
-        {busy ? 'Starting…' : <>I consent — begin <ArrowRight size={18} /></>}
+        {busy ? 'Starting…' : <>I consent, begin <ArrowRight size={18} /></>}
       </button>
       {!consent && (
         <p className="mt-3 text-center text-xs text-neutral-400">

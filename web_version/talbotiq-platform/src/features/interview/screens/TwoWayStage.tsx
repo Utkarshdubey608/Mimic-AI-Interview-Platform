@@ -240,7 +240,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         >
           <RefreshCw size={15} /> Reconnect
         </button>
-        <p className="mt-4 text-xs text-neutral-400">Check your network, then try again — your session is still open.</p>
+        <p className="mt-4 text-xs text-neutral-400">Check your network, then try again, your session is still open.</p>
       </StageCard>
     )
   }
@@ -255,7 +255,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         </PulseRing>
         <div>
           <p className="font-display text-lg font-bold tracking-[-0.02em] text-white">Wrapping up your interview</p>
-          <p className="mt-1.5 text-sm text-brand-gray">Saving your session — this only takes a moment.</p>
+          <p className="mt-1.5 text-sm text-brand-gray">Saving your session, this only takes a moment.</p>
         </div>
       </div>
     )
@@ -268,24 +268,24 @@ export function TwoWayStage({ sessionId, branding }: Props) {
       ? {
           chip: 'Reconnecting', // backend briefly unreachable (restart/deploy); retrying automatically
           title: 'Reconnecting…',
-          body: 'We briefly lost the connection to the interview server — reconnecting automatically. No need to do anything.',
+          body: 'We briefly lost the connection to the interview server, reconnecting automatically. No need to do anything.',
         }
       : waitingForHost
         ? {
             chip: 'Waiting room',
             title: 'Waiting for the interviewer to start the interview…',
-            body: 'Your camera and mic are ready — you’ll be connected the moment the interviewer lets you in.',
+            body: 'Your camera and mic are ready, you’ll be connected the moment the interviewer lets you in.',
           }
         : dc.callState === 'joined' && hadRemoteRef.current
           ? {
               chip: 'Reconnecting', // was live; the interviewer's tile just dropped momentarily
               title: 'Reconnecting…',
-              body: 'We briefly lost the connection to the interview server — reconnecting automatically. No need to do anything.',
+              body: 'We briefly lost the connection to the interview server, reconnecting automatically. No need to do anything.',
             }
           : {
               chip: 'Knocking',
               title: 'Waiting for the interviewer to admit you…',
-              body: 'Your camera and mic are ready — you’ll be connected the moment the interviewer lets you in.',
+              body: 'Your camera and mic are ready, you’ll be connected the moment the interviewer lets you in.',
             }
 
     return (
@@ -313,7 +313,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
             <p className="max-w-sm text-sm leading-relaxed text-brand-gray">{lobby.body}</p>
           </div>
 
-          <p className="text-xs text-brand-gray/80">Keep this window open — you’ll join automatically.</p>
+          <p className="text-xs text-brand-gray/80">Keep this window open, you’ll join automatically.</p>
         </div>
       </div>
     )

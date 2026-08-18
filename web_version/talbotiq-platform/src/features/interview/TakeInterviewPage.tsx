@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { AlertTriangle } from 'lucide-react'
@@ -31,6 +31,14 @@ export default function TakeInterviewPage() {
   const [chatbotStarted, setChatbotStarted] = useState(false)
   // Hooks must run unconditionally (before the early returns below).
   const integrity = useIntegrityMonitor(sessionId, clock.state?.integrity, clock.state?.status === 'in_progress')
+
+  // The server ends the interview when the tab-switch limit is exceeded. Pull
+  // the new state straight away rather than letting the candidate sit in a
+  // finished interview until the next five-second poll notices.
+  useEffect(() => {
+    if (integrity.terminated) void clock.refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [integrity.terminated])
 
   // Initial load — skeleton mirrors the shell + pre-flight card that follow.
   if (clock.loading && !clock.state) {
@@ -102,14 +110,18 @@ export default function TakeInterviewPage() {
    * resumes the interview rather than restarting anything.
    */
   const withIntegrityWarning = (node: ReactNode) => (
-    <>
+    // data-surface scopes the candidate Apple token layer. It lives here rather
+    // than in InterviewShell because the four conversational stages return
+    // outside the shell entirely, and they are the modes the layer matters most
+    // to. `display: contents` so the wrapper adds no box of its own.
+    <div data-surface="candidate" style={{ display: 'contents' }}>
       {node}
       <IntegrityWarningModal
         warning={integrity.warning}
         branding={branding}
         onAcknowledge={integrity.acknowledge}
       />
-    </>
+    </div>
   )
 
   if (s.status === 'completed' || s.status === 'expired') {

@@ -94,7 +94,7 @@ export function QuestionStage({
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-warning">Interview tip</p>
             <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-              Structure your answer with <strong className="font-semibold text-neutral-900">STAR</strong> — situation,
+              Structure your answer with <strong className="font-semibold text-neutral-900">STAR</strong>, situation,
               task, action, result.
             </p>
           </div>
@@ -155,7 +155,7 @@ export function QuestionStage({
             <AlertTriangle size={15} strokeWidth={2} />
           </span>
           <p className="text-sm font-semibold text-danger">
-            <span className="tabular-nums">{secondsLeft}s</span> left — your answer submits automatically at zero.
+            <span className="tabular-nums">{secondsLeft}s</span> left, your answer submits automatically at zero.
           </p>
         </motion.div>
       )}

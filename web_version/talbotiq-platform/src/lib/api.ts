@@ -199,7 +199,7 @@ export const sessionsApi = {
       body: JSON.stringify(body),
     }),
   integrityEvent: (id: string, body: IntegrityEventRequest) =>
-    http<{ ok: boolean; tabSwitchWarnings?: number; maxTabSwitchWarnings?: number }>(
+    http<{ ok: boolean; tabSwitchWarnings?: number; maxTabSwitchWarnings?: number; terminated?: boolean }>(
       `/sessions/${id}/integrity-event`,
       { method: 'POST', body: JSON.stringify(body) },
     ),

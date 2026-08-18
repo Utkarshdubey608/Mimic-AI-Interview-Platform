@@ -1,3 +1,5 @@
+import { pressHandlers } from '../motion/press'
+import { AgentStatus } from '../components/AgentStatus'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
@@ -27,34 +29,22 @@ function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accen
   )
 }
 
-/** Claude-style "Thinking…" indicator — pulsing dots (or a static label under
- *  reduced motion). Its ≥3s minimum lifetime is enforced by the session hook. */
-function ThinkingIndicator({ reduce, branding, accent }: { reduce: boolean | null; branding: BrandingConfig; accent: string }) {
+/**
+ * The interviewer's status, on the message rail.
+ *
+ * Was a bubble of pulsing dots whose lifetime was padded to at least three
+ * seconds by the session hook, so a fast reply still looked slow. Both are
+ * gone: AgentStatus reports the real stage, and the floor was deleted.
+ *
+ * It sits on the rail rather than in a bubble because a bubble is a message,
+ * and "thinking" is not one. Reserving a bubble-sized box also made the
+ * transcript jump when the real message replaced it.
+ */
+function ThinkingIndicator({ branding, accent }: { branding: BrandingConfig; accent: string }) {
   return (
     <div className="flex items-end justify-start gap-2.5">
       <InterviewerMark branding={branding} accent={accent} />
-      <div
-        className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-border bg-white px-4 py-3.5 shadow-xs"
-        role="status"
-        aria-live="polite"
-        aria-label="Interviewer is thinking"
-      >
-        {reduce ? (
-          <span className="text-sm font-medium text-neutral-500">Thinking…</span>
-        ) : (
-          <>
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="h-1.5 w-1.5 rounded-full bg-neutral-400"
-                animate={{ opacity: [0.25, 1, 0.25] }}
-                transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.18 }}
-              />
-            ))}
-            <span className="ml-1.5 text-xs font-medium text-neutral-400">Thinking…</span>
-          </>
-        )}
-      </div>
+      <AgentStatus stage="thinking" className="pb-1" />
     </div>
   )
 }
@@ -186,9 +176,9 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[var(--ap-ground)]">
       {/* header */}
-      <div className="sticky top-0 z-10 border-b border-border bg-white/85 backdrop-blur">
+      <div className="ap-material ap-safe-top sticky top-0 z-20 border-b border-[var(--ap-separator)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             {branding.logoUrl ? (
@@ -228,12 +218,25 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
       </div>
 
       {/* transcript */}
-      <div ref={scrollRef} className="mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 py-7">
+      {/* pb-40 reserves the space the floating composer occupies, so the last
+          message can always be scrolled clear of it. ap-scroll-fade-bottom is
+          the scroll edge effect (§12): content dissolves into the chrome
+          instead of being cut by a 1px rule. */}
+      <div
+        ref={scrollRef}
+        className="ap-scroll-fade-bottom mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 pb-40 pt-7"
+      >
         {visibleTranscript.map((t) => (
           <motion.div
             key={t.id}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
+            // Anchored to where the message came FROM (§7): the candidate's own
+            // words grow out of the composer at bottom-right, the interviewer's
+            // out of its mark at bottom-left. A generic fade tells you a message
+            // appeared; this tells you where it came from.
+            initial={reduce ? false : { opacity: 0, scale: 0.94, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.38 }}
+            style={{ transformOrigin: t.role === 'candidate' ? 'bottom right' : 'bottom left' }}
             className={cn('flex items-end gap-2.5', t.role === 'candidate' ? 'justify-end' : 'justify-start')}
           >
             {t.role !== 'candidate' && <InterviewerMark branding={branding} accent={accent} />}
@@ -260,11 +263,13 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
           </div>
         )}
 
-        {interviewerThinking && <ThinkingIndicator reduce={reduce} branding={branding} accent={accent} />}
+        {interviewerThinking && <ThinkingIndicator branding={branding} accent={accent} />}
       </div>
 
-      {/* composer */}
-      <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur">
+      {/* Floating translucent chrome, not an opaque strip. absolute rather than
+          sticky so the transcript genuinely passes underneath it; the bright
+          top edge is light catching the material, not a border (§12). */}
+      <div className="ap-material ap-edge-top ap-safe-bottom absolute inset-x-0 bottom-0 z-20">
         <div className="mx-auto w-full max-w-3xl px-4 py-3.5">
           {inThinkingPhase && s && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-xs">
@@ -274,7 +279,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-warning">Preparation time</p>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-neutral-600">
-                  Read the question and structure your answer — situation, task, action, result.
+                  Read the question and structure your answer, situation, task, action, result.
                 </p>
               </div>
               {s.timing.allowSkipThinking && (
@@ -299,7 +304,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                 <Clock size={19} strokeWidth={1.75} aria-hidden="true" />
               </span>
               <p className="mt-3 text-sm font-medium text-neutral-700">
-                No problem — take your time. I’ll begin automatically in:
+                No problem, take your time. I’ll begin automatically in:
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 {[30, 45, 60].map((sec) => (
@@ -414,8 +419,15 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                   type="button"
                   onClick={submit}
                   disabled={!canSend}
-                  className="mb-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-all duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-sm"
-                  style={{ background: accent }}
+                  // Feedback on pointer-DOWN, and the haptic on the same frame
+                  // (§1, §13). Send is the one control in this screen that
+                  // earns a haptic: it commits the candidate's answer.
+                  {...pressHandlers({ haptic: true })}
+                  // No `transition-all`: a CSS transition cannot be grabbed and
+                  // reversed from its presentation value (§3). The press
+                  // transform is applied directly and cleared on release.
+                  className="ap-hit mb-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: accent, transitionProperty: 'transform', transitionDuration: '100ms' }}
                   aria-label="Send answer"
                 >
                   {chat.sending
@@ -434,7 +446,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-danger">{chat.error}</p>
                 <p className="mt-0.5 text-xs font-medium leading-relaxed text-danger/85">
-                  Check your connection and try again — your saved progress is kept.
+                  Check your connection and try again, your saved progress is kept.
                 </p>
               </div>
             </div>
