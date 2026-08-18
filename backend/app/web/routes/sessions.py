@@ -59,6 +59,7 @@ from app.web.services import (
     video_transcript,
     voice_setup,
 )
+from app.web.shared import speech
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions")
@@ -748,6 +749,55 @@ def _finish_conversation(session: dict) -> None:
     session["completedAt"] = now
 
 
+# ── candidate feedback ────────────────────────────────────────────────────────
+
+
+@router.post("/{session_id}/feedback", summary="Candidate feedback on the interview experience")
+async def candidate_feedback(
+    session_id: str, request: Request, body: dict = Body(...), user: AuthedUser = WebUser
+) -> dict:
+    """The CANDIDATE's view of the interview, captured after they finish.
+
+    Deliberately distinct from every other "feedback" in this codebase, all of which is
+    the recruiter-facing per-answer scoring feedback. This is the opposite direction:
+    the person who was assessed telling us how the assessment went.
+
+    It is stored on the session rather than in a separate collection because it is only
+    ever meaningful next to the interview it describes, and because a candidate must be
+    able to leave it exactly once, from a session they own. `session_store.load` already
+    enforces that ownership, so a candidate cannot rate somebody else's interview.
+
+    Nothing here reaches scoring. A candidate who says the interview was poor must not
+    be able to change their own result by saying so, and one who flatters it must not
+    gain either, so this is written to a key the scorer never reads.
+    """
+    settings = settings_of(request)
+    session, _template = await session_store.load(settings, session_id, user)
+
+    rating = body.get("rating")
+    try:
+        rating_int = int(rating) if rating is not None else None
+    except (TypeError, ValueError):
+        rating_int = None
+    if rating_int is not None and not 1 <= rating_int <= 5:
+        rating_int = None
+
+    comment = str(body.get("comment") or "")[:2000].strip()
+
+    # Ignore an empty submission rather than storing a hollow record: a row that says
+    # nothing is worse than no row, because it looks like the candidate answered.
+    if rating_int is None and not comment:
+        return {"ok": True, "ignored": True}
+
+    session["candidateFeedback"] = {
+        "rating": rating_int,
+        "comment": comment,
+        "at": _now(),
+    }
+    await session_store.save(settings, session)
+    return {"ok": True}
+
+
 # ── integrity and facial analysis ─────────────────────────────────────────────
 
 
@@ -1034,12 +1084,14 @@ async def voice_token(
     await session_store.save(settings, session)
 
     setup = voice_setup.build_live_setup(
-        session, template, model=settings.live_model_name
+        session, template, model=settings.web_live_model_name
     )
     token = await GeminiClient(settings).mint_live_token(
         setup,
         session_minutes=voice_setup.session_minutes(
-            template, settings.gemini_token_expiry_buffer_minutes
+            template,
+            settings.gemini_token_expiry_buffer_minutes,
+            question_count=len(session.get("questions") or []),
         ),
     )
 
@@ -1050,6 +1102,14 @@ async def voice_token(
         "expiresAt": rfc3339(token.expires_at),
         "connectBy": rfc3339(token.connect_by),
         "totalQuestions": len(session.get("questions") or []),
+        # ADDITIVE. The browser runs a local, display-only live captioner (Web Speech
+        # API) so the candidate sees their words the moment they say them — Google's
+        # authoritative transcription arrives only at the end of the turn. This is the
+        # locale that captioner should listen in: the first (most specific) of the same
+        # language hints the recogniser itself was given.
+        "language": speech.transcription_languages(
+            (template.get("voice") or {}).get("language")
+        )[0],
     }
 
 

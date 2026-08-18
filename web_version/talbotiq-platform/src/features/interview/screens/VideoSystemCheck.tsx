@@ -40,22 +40,22 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
     <motion.div
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-3xl border border-border bg-white p-8 shadow-lg sm:p-10"
+      className="rounded-3xl border border-rule bg-surface p-8 shadow-lg sm:p-10"
     >
       {/* Eyebrow deleted. An uppercase label above a heading is the one
           pattern no brief earns back, and on a candidate surface it was pure
           overhead: the heading below already carries the step. */}
-      <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
+      <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-ink">
         Camera &amp; microphone
       </h1>
-      <p className="mt-2.5 text-sm leading-relaxed text-neutral-500">
+      <p className="mt-2.5 text-sm leading-relaxed text-ink-muted">
         {isTwoWay
           ? 'You’ll join a live video call with your interviewer. We need access to your camera and mic to connect you.'
           : 'The AI avatar will ask each question aloud. We need access to your camera and mic to record your answers.'}
       </p>
 
-      {/* Preview frame — dark stage so the self-view sits on brand ground. */}
-      <div className="relative mt-7 aspect-video w-full overflow-hidden rounded-2xl border border-border bg-brand-black">
+      {/* Preview frame, dark stage so the self-view sits on brand ground. */}
+      <div className="relative mt-7 aspect-video w-full overflow-hidden rounded-2xl border border-rule bg-brand-black">
         <video
           ref={videoRef}
           autoPlay
@@ -74,7 +74,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
           </div>
         )}
         {status === 'granted' && (
-          <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-md border border-mint-border bg-mint-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-mint-ink">
+          <span className="absolute bottom-3 left-3 flex items-center gap-1.5 rounded-md border border-live-bg bg-live-bg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-live">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-mint-ink" />
             Preview
           </span>
@@ -85,24 +85,23 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
         <>
           <button
             onClick={request}
-            className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border-[1.5px] bg-white text-base font-semibold transition-all duration-150 hover:-translate-y-px hover:shadow-sm active:translate-y-0"
-            style={{ borderColor: accent, color: accent }}
+            className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-signal bg-surface text-base font-semibold text-signal-ink transition-colors duration-fast hover:bg-signal-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Camera size={18} strokeWidth={1.75} /> Enable camera &amp; microphone
           </button>
-          <p className="mt-2.5 text-center text-xs text-neutral-400">
-            Your browser will ask for permission — nothing is recorded during this check.
+          <p className="mt-2.5 text-center text-xs text-ink-muted">
+            Your browser will ask for permission, nothing is recorded during this check.
           </p>
         </>
       )}
 
       {status === 'denied' && (
-        <div className="mt-5 rounded-2xl border border-danger-border bg-danger-bg p-4">
+        <div className="mt-5 rounded-2xl border border-risk-rule bg-risk-bg p-4">
           <div className="flex items-start gap-2.5">
-            <AlertTriangle size={16} strokeWidth={1.75} className="mt-0.5 flex-shrink-0 text-danger" />
+            <AlertTriangle size={16} strokeWidth={1.75} className="mt-0.5 flex-shrink-0 text-risk" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-danger">Camera and microphone access was blocked</p>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-600">
+              <p className="text-sm font-semibold text-risk">Camera and microphone access was blocked</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-body">
                 Open your browser’s site permissions (the icon in the address bar), allow camera and
                 microphone for this page, then try again.
               </p>
@@ -110,7 +109,7 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
           </div>
           <button
             onClick={request}
-            className="mt-3.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-white px-4 text-xs font-semibold text-danger ring-1 ring-inset ring-danger-border transition-colors duration-150 hover:bg-danger-bg"
+            className="mt-3.5 inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-surface px-4 text-xs font-semibold text-risk ring-1 ring-inset ring-danger-border transition-colors duration-150 hover:bg-risk-bg"
           >
             <RefreshCw size={13} strokeWidth={2} /> Try again
           </button>
@@ -119,10 +118,10 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
 
       {status === 'granted' && (
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-3 py-1.5 text-xs font-semibold text-ok">
             <Check size={13} strokeWidth={3} /> Camera ready
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-3 py-1.5 text-xs font-semibold text-ok">
             <Check size={13} strokeWidth={3} /> Mic ready
           </span>
         </div>
@@ -131,15 +130,14 @@ export function VideoSystemCheck({ branding, track, onBegin, busy }: Props) {
       <button
         onClick={onBegin}
         disabled={status !== 'granted' || busy}
-        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-        style={{ background: accent }}
+        className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-action text-base font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy
           ? 'Connecting…'
           : <>{isTwoWay ? 'Join the call' : 'Start the interview'} <ArrowRight size={18} /></>}
       </button>
       {status !== 'granted' && (
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-neutral-400">
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-ink-muted">
           <Mic size={13} strokeWidth={1.75} className="flex-shrink-0" />
           Enable your camera and mic above to continue.
         </p>

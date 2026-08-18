@@ -58,11 +58,29 @@ const HomeRedirect     = lazy(() => import('@/features/auth/guards').then((m) =>
 const MimicSite        = lazy(() => import('@/marketing/MimicSite'))
 const MarketingPage    = lazy(() => import('@/marketing/MarketingPage'))
 
-/* The cinematic splash, scoped to the sign-in route. Lazy so a visitor who only
-   reads the public pages never fetches the WebGL scene or framer-motion, and
-   mounted on /login rather than at the root so it plays when someone chooses to
-   enter the product instead of in front of everyone who opens the site. */
-const MimicIntro       = lazy(() => import('@/features/intro/MimicIntro'))
+/* The WebGL splash that used to cover /login has been removed.
+ *
+ * It was mounted over the sign-in form with its own null-fallback Suspense
+ * boundary so the form painted first and the splash faded in on top — careful
+ * engineering in service of the wrong goal. The most frequent action in the
+ * product is a recruiter arriving at work, and it was gated behind an animation
+ * they had already seen, plus a 356 KB IntroCanvas chunk and three.js on the
+ * entry route.
+ *
+ * The atmosphere now lives in the page itself: `AmbientField variant="entry"`,
+ * two slow CSS light fields on near-black, present from the first frame and
+ * costing nothing.
+ *
+ * `/login` was the only importer of MimicIntro, so removing it took the whole
+ * WebGL scene graph out of the build with it — three.js (668 KB), the
+ * IntroCanvas chunk (356 KB), @react-three/fiber, drei and postprocessing are no
+ * longer emitted at all. `features/intro/` is left on disk rather than deleted:
+ * `IntroFaceSync` still ships (RecruiterShell mounts it to warm the replica
+ * thumbnail cache), and the scene files are worth keeping as a starting point
+ * if a hero moment is ever wanted somewhere it earns its cost. Nothing in the
+ * application imports MimicIntro any more, so it is dead code, deliberately
+ * parked rather than removed in a UI pass.
+ */
 
 /** Route-transition fallback. Deliberately quiet — a spinner that appears for
  *  120ms reads as jank, so this is just the page ground. */
@@ -80,19 +98,7 @@ export default function App() {
           <Routes>
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>
-            {/* Its own Suspense with a null fallback: the intro must not hold
-                up the login form behind it. The form paints immediately and the
-                splash covers it (position:fixed, top of the stack) as soon as
-                its chunk lands, then fades out. */}
-            <Route
-              path="/login"
-              element={
-                <>
-                  <Suspense fallback={null}><MimicIntro /></Suspense>
-                  <LoginPage />
-                </>
-              }
-            />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/access-denied" element={<AccessDenied />} />
 
             {/* Candidate-only — assigned-session list + the interview itself */}
@@ -155,26 +161,32 @@ export default function App() {
           </Suspense>
         </BrowserRouter>
 
+        {/* Toasts are an ink chip on BOTH grounds — see --toast-* in
+            design/tokens.css for why they deliberately do not follow the ground.
+            Everything here reads from tokens: the previous version specified
+            Figtree (a font the product no longer loads, so toasts silently fell
+            back to system-ui), a 14px radius that exists nowhere in the scale,
+            and a violet-tinted shadow left over from the retired brand. */}
         <Toaster
           position="bottom-right"
           gutter={8}
           toastOptions={{
             duration: 4000,
             style: {
-              background: '#fff',
-              color: '#0E1420',
-              border: '1px solid #E3E6ED',
-              borderRadius: '14px',
-              padding: '12px 16px',
+              background: 'var(--toast-bg)',
+              color: 'var(--toast-ink)',
+              border: '1px solid var(--toast-rule)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '10px 14px',
               fontSize: '13px',
-              fontFamily: 'Figtree, system-ui, sans-serif',
+              fontFamily: 'var(--font-sans)',
               fontWeight: '500',
-              boxShadow: '0 6px 18px -4px rgba(27,11,59,0.14)',
+              boxShadow: '0 12px 28px -8px rgb(0 0 0 / 0.55)',
               maxWidth: '380px',
             },
-            success: { iconTheme: { primary: '#15803D', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-            loading: { iconTheme: { primary: '#1D3FA0', secondary: '#fff' } },
+            success: { iconTheme: { primary: 'var(--live-room)', secondary: 'var(--toast-bg)' } },
+            error:   { iconTheme: { primary: '#FF8A80', secondary: 'var(--toast-bg)' } },
+            loading: { iconTheme: { primary: 'var(--signal-room)', secondary: 'var(--toast-bg)' } },
           }}
         />
     </QueryClientProvider>

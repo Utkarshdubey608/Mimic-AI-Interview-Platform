@@ -435,7 +435,7 @@ export function FaceFitCheck({ onReady, accentColor = '#8AA6F0', candidateName, 
           {locked && !autoStart && !starting && (
             <button
               onClick={proceed}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-neutral-900 shadow-mint-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
+              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md text-base font-semibold text-ink shadow-mint-sm transition-transform duration-150 hover:-translate-y-px active:translate-y-0"
               style={{ background: LOCK }}
             >
               Start interview <ArrowRight size={18} strokeWidth={2.25} aria-hidden="true" />

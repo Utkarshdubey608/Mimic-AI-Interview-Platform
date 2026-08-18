@@ -205,6 +205,19 @@ export const sessionsApi = {
     ),
   complete: (id: string) =>
     http<CandidateSessionState>(`/sessions/${id}/complete`, { method: 'POST' }),
+  /**
+   * The CANDIDATE's feedback on the interview experience, left after they finish.
+   *
+   * Not to be confused with the per-answer `feedback` on a scored report, which runs
+   * the other way: that is the recruiter's assessment OF the candidate. This is the
+   * candidate's assessment of the process, it reaches no scoring path, and the server
+   * ignores an empty submission rather than storing a hollow record.
+   */
+  candidateFeedback: (id: string, body: { rating?: number; comment?: string }) =>
+    http<{ ok: boolean; ignored?: boolean }>(`/sessions/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   // Video Interview: upload the aggregated AWS Rekognition facial summary
   // (computed client-side from frames captured off the shared camera stream).
   facial: (id: string, summary: unknown) =>
@@ -255,6 +268,13 @@ export const sessionsApi = {
 /** The voice-interview grant: a LiveGrant plus the planned-question count. */
 export interface VoiceTokenGrant extends LiveGrant {
   totalQuestions: number
+  /**
+   * BCP-47 tag for the interview's language, for the browser's own display-only
+   * captioner. Not used for anything Google does: the locked setup carries its
+   * own language hints. It exists because defaulting the local recogniser to
+   * English would caption a Hindi interview in English.
+   */
+  language?: string
 }
 
 /* ─── Chatbot (conversational) track ────────────────────────────────────── */

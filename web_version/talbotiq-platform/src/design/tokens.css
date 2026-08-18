@@ -1,0 +1,330 @@
+/* ═════════════════════════════════════════════════════════════════════════════
+   MIMIC — token layer.
+
+   ONE system, TWO grounds.
+
+   The product is read in two very different rooms, and pretending otherwise is
+   what produced four competing identities in this codebase before now.
+
+     THE RECORD (light)  A recruiter at a desk in daylight, reading transcripts
+                         and scanning tables for hours. Cool paper, ink type,
+                         hairline rules, no glow. Legibility outranks drama.
+
+     THE ROOM (dark)     A candidate in an interview, or a producer in Avatar
+                         Studio. Near-black indigo so a video feed, an avatar or
+                         a voice orb is the brightest thing on screen. Light is
+                         used sparingly and always means something.
+
+   They are not two themes. They are two grounds of ONE system: the same type
+   scale, the same spacing rhythm, the same radii, the same motion, the same
+   accent identity. Only the ground and the ink swap.
+
+   ── Rules that govern every value below ────────────────────────────────────
+   1. Colour is functional. The exhibit ramp encodes the six interview formats;
+      it is index-tab coding, not decoration. Status is never colour alone.
+   2. Every text pair in here has been measured, not asserted. See
+      scripts/contrast-audit.mjs — it fails the build gate on a regression.
+   3. Accents are restrained by budget, not by taste: at most one accent-bearing
+      element per region of a screen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ═══ TYPE ═══════════════════════════════════════════════════════════════
+     One family, two voices. Archivo carries the interface; its real width axis
+     (wdth 62–125) gives the display voice its widened, editorial character, so
+     no second face is loaded. Chivo Mono appears only on machine values —
+     scores, timers, IDs, timestamps, line numbers. Never as a costume. */
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Archivo', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Chivo Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --width-ui: 100%;      /* body voice — normal width */
+  --width-display: 118%; /* display voice — the widened cover-sheet character */
+
+  /* Weights. 650 is Archivo's semibold-plus; it holds at small sizes where 600
+     goes limp and 700 goes shouty. */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-strong: 650;
+  --weight-bold: 700;
+  --weight-display: 800;
+
+  /* ═══ SPACE ══════════════════════════════════════════════════════════════
+     A 4px base with a deliberate jump at --space-7. Page rhythm uses 6/7/8;
+     component internals use 1–5. Nothing outside this scale. */
+  --space-0: 0;
+  --space-1: 0.25rem;   /*  4 */
+  --space-2: 0.5rem;    /*  8 */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.5rem;    /* 24 */
+  --space-6: 2rem;      /* 32 */
+  --space-7: 3rem;      /* 48 */
+  --space-8: 4rem;      /* 64 */
+  --space-9: 6rem;      /* 96 */
+
+  /* Page geometry. Every workspace page uses --page-max; nothing invents its
+     own width. --page-pad steps at the sm breakpoint via the utility in
+     index.css, so no page is flush to a 320px edge. */
+  --page-max: 1440px;
+  --page-max-reading: 880px;  /* transcripts, editors, long-form settings */
+  --page-pad: 1rem;
+  --page-pad-sm: 1.5rem;
+  --spine-w: 15rem;
+  --spine-w-collapsed: 4rem;
+  --commandbar-h: 3.5rem;
+
+  /* ═══ RADIUS ═════════════════════════════════════════════════════════════
+     Squared. A document is filed with square tabs and stamped boxes; a fully
+     rounded control reads as a different product. The largest radius in the
+     system is 12px and it is reserved for the video canvas. */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+  --radius-round: 9999px; /* ONLY: avatars, status dots, the voice orb. */
+
+  /* ═══ MOTION ═════════════════════════════════════════════════════════════
+     Motion is a state change, not a performance. Four durations, three curves.
+     Everything that moves is transform or opacity — never layout. */
+  --dur-instant: 90ms;
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+  --dur-cinematic: 720ms;   /* stage entrances and interview-state changes only */
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);        /* exponential — the default */
+  --ease-turn: cubic-bezier(0.32, 0.72, 0, 1);      /* the authored reveal */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);    /* symmetric, for loops */
+
+  /* ═══ Z-INDEX ════════════════════════════════════════════════════════════
+     A named scale. Nothing in the product may write a bare z-index number.  */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 20;
+  --z-spine: 40;
+  --z-overlay: 50;      /* scrims */
+  --z-modal: 60;
+  --z-drawer: 60;
+  --z-palette: 70;      /* command palette sits above modals by design */
+  --z-toast: 80;
+  --z-stage-hud: 90;    /* interview transport — must never be covered */
+
+  /* ═══ EXHIBIT RAMP — the six interview formats ═══════════════════════════
+     Index-tab coding. The colour IS the format, so a recruiter scanning a
+     column reads format before reading a word. Each has a light-surface value
+     (AA as ink on white) and a room value (AA as ink on near-black). This is
+     the ONLY place saturation is permitted, and it is never decorative. */
+  --ex-chat: #B45309;          --ex-chat-room: #E9A23B;      /* Timed Q&A      */
+  --ex-chatbot: #0F766E;       --ex-chatbot-room: #45C7B8;   /* Conversational */
+  --ex-voice: #4338CA;         --ex-voice-room: #9B8CFF;     /* Live voice     */
+  --ex-avatar: #BE185D;        --ex-avatar-room: #F97BB0;    /* AI video       */
+  --ex-video: #15803D;         --ex-video-room: #5CC98A;     /* Recorded video */
+  --ex-twoway: #0369A1;        --ex-twoway-room: #5BB3E8;    /* Live two-way   */
+
+  /* ═══ ACCENT IDENTITY ════════════════════════════════════════════════════
+     Taken from the marketing site (src/marketing/mimicSite.css), which is the
+     brand as it actually ships, so the product and the public site are one
+     surface rather than two that happen to share a wordmark.
+
+     Read from that stylesheet rather than invented:
+
+       .btn-primary   background: var(--mm-ink)   → the primary action is INK,
+                                                     not a colour. Hover #1B2436.
+       a, :focus-visible  var(--mm-reg) #1D3FA0   → registrar blue is for LINKS
+                                                     and the FOCUS RING only.
+       --mm-ex-*                                  → the six exhibit colours are
+                                                     the only saturation on the
+                                                     whole site.
+
+     So this product is ink-and-paper with one blue for navigation and one
+     colour per interview format. That restraint IS the identity — the premium
+     reading comes from type, space and rule weight, not from a palette.
+
+       action  the primary action. Ink on paper; on a dark ground it inverts to
+               near-white with ink text, which is exactly what the marketing
+               site's own dark sections do (.btn-light).
+       signal  registrar blue — links, the focus ring, the progress rail. Never
+               a large fill.
+       live    the live-connection and pass mark. Ink-teal, from the exhibit
+               ramp's chatbot seat, so it introduces no new hue.
+
+     An earlier draft of this file added an electric violet as a third accent
+     to mark machine output. It was removed: the marketing site has no violet,
+     and a hue that exists nowhere else in the brand is exactly the kind of
+     decoration this system is meant to refuse. AI provenance is now marked by a
+     glyph and a word — see ProvenanceMark — which is more honest anyway,
+     because it survives export, print and monochrome. */
+  --action: #0E1420;
+  --action-hover: #1B2436;
+  --action-ink: #FFFFFF;
+
+  --signal: #1D3FA0;
+  --signal-hover: #152E76;
+  --signal-soft: #E2E8F6;
+  --signal-line: #C6D2ED;
+  --signal-room: #8AA6F0;      /* the accent that works on dark — from --mm-on-ink-accent */
+  --signal-room-soft: #1B2842;
+
+  --live: #0F766E;
+  --live-room: #4FD1B0;
+  --live-soft: #EDF6F5;
+  --live-room-soft: #10302C;
+
+  /* ═══ TOAST ══════════════════════════════════════════════════════════════
+     Ground-INDEPENDENT on purpose.
+
+     A toast is a transient chip floating above whatever is underneath it, and
+     it can appear on either ground — a recruiter saving a template, or a
+     candidate whose connection just recovered mid-interview. If it followed the
+     ground it would be a white rectangle punched into a dark interview room.
+
+     So it is always an ink chip: lifted, dark, legible on both worlds, and
+     unmistakably an overlay rather than part of the page. */
+  --toast-bg: #131A27;
+  --toast-ink: #EDF1F8;
+  --toast-rule: #33415A;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   GROUND 1 — THE RECORD (light)
+
+   Cool paper under daylight. Never warm, never lavender. Applied at :root so it
+   is the default for every surface that does not opt into the room.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root,
+[data-ground='record'] {
+  --ground: #EEF0F4;        /* the desk the bundle sits on */
+  --ground-sunk: #E6E9F0;   /* wells, table headers, inset regions */
+  --surface: #FFFFFF;       /* the record page */
+  --surface-raised: #FFFFFF;
+  --surface-sunk: #F8F9FB;
+  --surface-hover: #F1F3F7;
+
+  --rule: #E3E6ED;          /* hairline */
+  --rule-strong: #CBD1DC;   /* a rule meant to be noticed — STRUCTURAL, not a
+                               perceivable-boundary token. A divider is not a UI
+                               component under WCAG 1.4.11, so it is deliberately
+                               below 3:1; --rule-input is the one that must be
+                               findable, and that one is gated. */
+  --rule-input: #7A8598;    /* form borders MUST be findable — 3.27:1 on the page
+                               ground, 3.73:1 on a panel. Darkened from #848FA1,
+                               which cleared 3:1 on white but only reached 2.86:1
+                               on the ground — and filter-bar inputs sit on the
+                               ground, so the ground is the binding constraint. */
+
+  --ink: #0E1420;           /* headings, primary values    — 16.15:1 worst case */
+  --ink-body: #3A4454;      /* body                        —  8.62:1 worst case */
+  --ink-muted: #5C6879;     /* secondary, captions, labels —  4.96:1 worst case */
+  --ink-faint: #626B79;     /* quietest permissible TEXT   —  4.72:1 worst case */
+  --ink-disabled: #8B94A3;  /* disabled text only — never carries meaning */
+  --ink-inverse: #FFFFFF;
+
+  /* The primary action: ink, exactly as the marketing site's .btn-primary. */
+  --on-action: var(--action-ink);
+
+  /* Registrar blue. Links, focus, the progress rail — never a large fill. */
+  --accent: var(--signal);
+  --accent-hover: var(--signal-hover);
+  --accent-soft: var(--signal-soft);
+  --accent-ink: #152E76;    /* the accent used AS text on a light ground */
+
+  /* Machine output. Neutral by design — the glyph and the word carry it. */
+  --intel-fg: var(--ink-body);
+  --intel-bg: #F1F3F7;
+  --live-fg: var(--live);
+  --live-bg: var(--live-soft);
+
+  --ok: #15803D;      --ok-bg: #EFF7F1;      --ok-rule: #C9E5D2;
+  --warn: #8A4308;    --warn-bg: #FDF5EA;    --warn-rule: #F0DBBC;
+  --risk: #B3261E;    --risk-bg: #FCF0EF;    --risk-rule: #F0CFCC;
+
+  /* Elevation: paper stacking on paper. Real offset, soft blur, cool ink tone —
+     never a zero-offset halo. */
+  --elev-0: none;
+  --elev-1: 0 1px 1px 0 rgb(14 20 32 / 0.04);
+  --elev-2: 0 1px 2px 0 rgb(14 20 32 / 0.06), 0 1px 3px -1px rgb(14 20 32 / 0.05);
+  --elev-3: 0 4px 10px -2px rgb(14 20 32 / 0.09), 0 2px 4px -2px rgb(14 20 32 / 0.05);
+  --elev-4: 0 10px 24px -6px rgb(14 20 32 / 0.12), 0 4px 8px -4px rgb(14 20 32 / 0.06);
+  --elev-5: 0 20px 44px -12px rgb(14 20 32 / 0.18), 0 8px 16px -8px rgb(14 20 32 / 0.08);
+  --elev-accent: 0 1px 2px 0 rgb(14 20 32 / 0.16);
+  --elev-accent-strong: 0 6px 16px -6px rgb(14 20 32 / 0.34);
+
+  --scrim: rgb(14 20 32 / 0.45);
+  --focus-ring: var(--signal);
+
+  color-scheme: light;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   GROUND 2 — THE ROOM (dark)
+
+   Near-black indigo. The ground is deliberately BELOW the ink of the light
+   surface (#0B0F18 vs #0E1420) so that a video feed, an avatar or a lit control
+   is unambiguously the brightest thing on screen.
+
+   Opt in with `data-ground="room"` on any subtree. It is a ground, not a theme:
+   a room inside the recruiter app (Avatar Studio's preview, the live call) uses
+   the same declaration as a full-screen candidate interview.
+   ═══════════════════════════════════════════════════════════════════════════ */
+[data-ground='room'] {
+  --ground: #0B0F18;         /* the room */
+  --ground-sunk: #070A11;    /* the void behind a video canvas */
+  --surface: #131A27;        /* a lit panel */
+  --surface-raised: #1A2333; /* a panel above a panel */
+  --surface-sunk: #0E141F;
+  --surface-hover: #1F2937;
+
+  --rule: #232D3F;
+  --rule-strong: #33415A;    /* structural, see the record ground note above */
+  --rule-input: #5D6E8A;    /* 3.37:1 on --surface, 3.71:1 on --ground */
+
+  --ink: #EDF1F8;            /* headings                   — 15.39:1 worst case */
+  --ink-body: #C6D0E0;       /* body                       — 11.21:1 worst case */
+  --ink-muted: #93A0B4;      /* secondary                  —  6.58:1 worst case */
+  --ink-faint: #7D8AA0;      /* quietest permissible TEXT  —  4.99:1 worst case */
+  --ink-disabled: #5A6577;
+  --ink-inverse: #0B0F18;
+
+  /* On a dark ground an ink button is invisible, so the action inverts to
+     near-white with ink text — which is precisely what the marketing site does
+     in its own dark sections (.btn-light: background #fff, colour --mm-ink). */
+  --action: #EDF1F8;
+  --action-hover: #FFFFFF;
+  --on-action: #0B0F18;
+
+  --accent: var(--signal-room);
+  --accent-hover: #A8BEFA;
+  --accent-soft: var(--signal-room-soft);
+  --accent-ink: var(--signal-room);
+
+  --intel-fg: var(--ink-body);
+  --intel-bg: #1F2937;
+  --live-fg: var(--live-room);
+  --live-bg: var(--live-room-soft);
+
+  --ok: #5CC98A;      --ok-bg: #10261A;      --ok-rule: #1F4A31;
+  --warn: #E9A23B;    --warn-bg: #2A1D0B;    --warn-rule: #4D3616;
+  --risk: #FF8A80;    --risk-bg: #2C1211;    --risk-rule: #59201D;
+
+  /* In a dark room a drop shadow is nearly invisible, so elevation is carried
+     by a lifted ground plus a light-catching top hairline — the way a real
+     object in a dim room reads. */
+  --elev-0: none;
+  --elev-1: inset 0 1px 0 0 rgb(255 255 255 / 0.03);
+  --elev-2: inset 0 1px 0 0 rgb(255 255 255 / 0.04), 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elev-3: inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 4px 12px -2px rgb(0 0 0 / 0.5);
+  --elev-4: inset 0 1px 0 0 rgb(255 255 255 / 0.06), 0 12px 28px -8px rgb(0 0 0 / 0.6);
+  --elev-5: inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 24px 56px -16px rgb(0 0 0 / 0.7);
+  --elev-accent: 0 1px 2px 0 rgb(0 0 0 / 0.5);
+  --elev-accent-strong: 0 6px 18px -6px rgb(0 0 0 / 0.65);
+
+  --scrim: rgb(4 6 11 / 0.72);
+  --focus-ring: #A8BEFA;
+
+  color-scheme: dark;
+}

@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
+import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react'
 import type { BrandingConfig } from '@shared/types'
 import { sessionsApi, ApiError } from '@/lib/api'
 import { useLiveKitCall } from '../useLiveKitCall'
 import { classifyJoinFailure } from '../twowayJoinError'
 import { LiveKitVideoTile } from '@/components/interview/LiveKitVideoTile'
+import { InterviewStage, PhaseMark } from '../stage/InterviewStage'
+import { MimicLockup } from '@/components/brand/MimicMark'
+import { Transport, ConnectionMeter } from '../stage/Transport'
 import { Completion } from './Completion'
 
 interface Props {
@@ -21,15 +24,10 @@ const RETRY_MS = 4000
 // recruiter may take minutes — and is NOT bounded by this.)
 const MAX_TRANSIENT_RETRIES = 10
 
-/* ── Shared call-room atoms (one language across every live stage) ────────── */
-
-/** 56px circular control. */
-const CONTROL =
-  'flex h-14 w-14 items-center justify-center rounded-full border transition-all duration-150 ' +
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold focus-visible:ring-offset-2 ' +
-  'focus-visible:ring-offset-brand-black'
-const CONTROL_IDLE = 'border-brand-border bg-white/5 text-white hover:bg-white/10'
-const CONTROL_OFF = 'border-danger/50 bg-danger/20 text-red-300 hover:bg-danger/30'
+/* The 56px circular call-control constants that used to live here are gone. They
+   were this file's private copy of a control language that VoiceStage and
+   LiveInterviewPage each also had their own copy of — three definitions of
+   "mute", none of which agreed. All three now use <Transport>. */
 
 /** Breathing ring — the lobby's "we're working on it" signal. */
 function PulseRing({ accent, reduce, children }: { accent: string; reduce: boolean | null; children: ReactNode }) {
@@ -54,8 +52,8 @@ function PulseRing({ accent, reduce, children }: { accent: string; reduce: boole
 /** Candidate-facing full-page recovery card. */
 function StageCard({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-white p-10 text-center shadow-lg">{children}</div>
+    <div className="flex min-h-screen items-center justify-center bg-ground px-4 py-12">
+      <div className="w-full max-w-md rounded-3xl border border-rule bg-surface p-10 text-center shadow-lg">{children}</div>
     </div>
   )
 }
@@ -180,20 +178,24 @@ export function TwoWayStage({ sessionId, branding }: Props) {
     if (dc.callState === 'left') void finish()
   }, [dc.callState, finish])
 
-  const handleEnd = useCallback(() => {
-    if (!window.confirm('End the interview now? You can’t rejoin afterwards.')) return
-    void dc.leave()
-  }, [dc.leave])
+  /* `handleEnd` and its `window.confirm` are gone: leaving is now confirmed by
+     the product's own ConfirmDialog inside <Transport>, which is styled, labelled,
+     focus-trapped and identical across every interview format. A native confirm()
+     is unstyled, differs per browser, and can be suppressed outright on some
+     mobile browsers — for the single most irreversible action a candidate has. */
 
   const remote = dc.participants[0] ?? null
   if (remote) hadRemoteRef.current = true
 
-  /* ── finished ── */
+  /* ── finished ──
+     Inside InterviewStage, not bare on the page: the completion screen keeps the
+     same header, brand mark and help sheet as the rest of the journey, which is
+     the whole point of having one stage. */
   if (completed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-        <Completion branding={branding} />
-      </div>
+      <InterviewStage branding={branding} track="two_way" ground="record">
+        <Completion branding={branding} sessionId={sessionId} />
+      </InterviewStage>
     )
   }
 
@@ -201,13 +203,13 @@ export function TwoWayStage({ sessionId, branding }: Props) {
   if (joinError) {
     return (
       <StageCard>
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-danger-border bg-danger-bg text-danger">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-risk-rule bg-risk-bg text-risk">
           <AlertTriangle size={28} />
         </span>
-        <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">
+        <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-ink">
           We couldn’t join your interview
         </h1>
-        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">{joinError}</p>
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-muted">{joinError}</p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
           className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
@@ -215,7 +217,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         >
           <RefreshCw size={15} /> Try joining again
         </button>
-        <p className="mt-4 text-xs text-neutral-400">If this keeps happening, contact your recruiter.</p>
+        <p className="mt-4 text-xs text-ink-muted">If this keeps happening, contact your recruiter.</p>
       </StageCard>
     )
   }
@@ -224,13 +226,13 @@ export function TwoWayStage({ sessionId, branding }: Props) {
   if (dc.callState === 'error') {
     return (
       <StageCard>
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-danger-border bg-danger-bg text-danger">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-risk-rule bg-risk-bg text-risk">
           <AlertTriangle size={28} />
         </span>
-        <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">
+        <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-ink">
           The call hit a connection problem
         </h1>
-        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
+        <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-muted">
           {dc.error ?? 'We lost the connection to the interview room.'}
         </p>
         <button
@@ -240,7 +242,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         >
           <RefreshCw size={15} /> Reconnect
         </button>
-        <p className="mt-4 text-xs text-neutral-400">Check your network, then try again — your session is still open.</p>
+        <p className="mt-4 text-xs text-ink-muted">Check your network, then try again, your session is still open.</p>
       </StageCard>
     )
   }
@@ -255,7 +257,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         </PulseRing>
         <div>
           <p className="font-display text-lg font-bold tracking-[-0.02em] text-white">Wrapping up your interview</p>
-          <p className="mt-1.5 text-sm text-brand-gray">Saving your session — this only takes a moment.</p>
+          <p className="mt-1.5 text-sm text-brand-gray">Saving your session, this only takes a moment.</p>
         </div>
       </div>
     )
@@ -268,30 +270,30 @@ export function TwoWayStage({ sessionId, branding }: Props) {
       ? {
           chip: 'Reconnecting', // backend briefly unreachable (restart/deploy); retrying automatically
           title: 'Reconnecting…',
-          body: 'We briefly lost the connection to the interview server — reconnecting automatically. No need to do anything.',
+          body: 'We briefly lost the connection to the interview server, reconnecting automatically. No need to do anything.',
         }
       : waitingForHost
         ? {
             chip: 'Waiting room',
             title: 'Waiting for the interviewer to start the interview…',
-            body: 'Your camera and mic are ready — you’ll be connected the moment the interviewer lets you in.',
+            body: 'Your camera and mic are ready, you’ll be connected the moment the interviewer lets you in.',
           }
         : dc.callState === 'joined' && hadRemoteRef.current
           ? {
               chip: 'Reconnecting', // was live; the interviewer's tile just dropped momentarily
               title: 'Reconnecting…',
-              body: 'We briefly lost the connection to the interview server — reconnecting automatically. No need to do anything.',
+              body: 'We briefly lost the connection to the interview server, reconnecting automatically. No need to do anything.',
             }
           : {
               chip: 'Knocking',
               title: 'Waiting for the interviewer to admit you…',
-              body: 'Your camera and mic are ready — you’ll be connected the moment the interviewer lets you in.',
+              body: 'Your camera and mic are ready, you’ll be connected the moment the interviewer lets you in.',
             }
 
     return (
       <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
         <header className="flex h-14 flex-shrink-0 items-center border-b border-brand-border bg-brand-card px-4">
-          <span className="truncate font-display font-bold tracking-[-0.02em] text-white">{branding.companyName}</span>
+          <MimicLockup size="sm" />
         </header>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
@@ -313,68 +315,50 @@ export function TwoWayStage({ sessionId, branding }: Props) {
             <p className="max-w-sm text-sm leading-relaxed text-brand-gray">{lobby.body}</p>
           </div>
 
-          <p className="text-xs text-brand-gray/80">Keep this window open — you’ll join automatically.</p>
+          <p className="text-xs text-brand-gray/80">Keep this window open, you’ll join automatically.</p>
         </div>
       </div>
     )
   }
 
-  /* ── the live room — full-viewport, interviewer big, self small ── */
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
-      <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-card px-4">
-        <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
-          <span className="truncate">{branding.companyName}</span>
-          <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
-          </span>
-        </span>
-        <button
-          onClick={handleEnd}
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
-        >
-          <PhoneOff size={15} /> End interview
-        </button>
-      </header>
+  /* ── the live room ──────────────────────────────────────────────────────
+     Participant hierarchy: the interviewer holds the stage, the candidate's own
+     camera is a small self-view in the corner. That asymmetry is deliberate —
+     in a two-way interview the person you are talking to is the subject, and a
+     symmetric grid makes a candidate watch themselves for half an hour.
 
+     The self-view is bottom-RIGHT and inset from the transport tray, so it can
+     never sit under the controls on a short viewport. */
+  return (
+    <InterviewStage
+      branding={branding}
+      track="two_way"
+      layout="focus"
+      phase={<PhaseMark phase="live" />}
+      connection={<ConnectionMeter quality={remote ? 'good' : 'fair'} compact />}
+      transport={
+        <Transport
+          micOn={!dc.muted}
+          onToggleMic={dc.toggleMic}
+          cameraOn={!dc.camOff}
+          onToggleCamera={dc.toggleCam}
+          onLeave={() => void dc.leave()}
+          leaveTitle="Leave this interview?"
+          leaveBody="The interviewer will see that you left, and you will not be able to rejoin."
+          leaveLabel="Leave interview"
+        />
+      }
+    >
       <div className="relative flex-1 p-4">
         <div className="mx-auto h-full max-w-4xl">
           <LiveKitVideoTile participant={remote} label="Interviewer" />
         </div>
         {dc.localParticipant && (
-          <div className="absolute bottom-4 right-6 w-40 overflow-hidden rounded-2xl shadow-xl sm:w-52">
+          <div className="absolute bottom-4 right-4 w-32 overflow-hidden rounded-lg border border-rule shadow-xl sm:right-6 sm:w-48">
             <LiveKitVideoTile participant={dc.localParticipant} label="You" />
           </div>
         )}
       </div>
-
-      <div className="flex-shrink-0 border-t border-brand-border bg-brand-black">
-        <div className="mx-auto flex max-w-3xl items-center justify-center gap-5 px-4 py-6">
-          <button
-            onClick={dc.toggleMic}
-            aria-pressed={dc.muted}
-            className={`${CONTROL} ${dc.muted ? CONTROL_OFF : CONTROL_IDLE}`}
-            aria-label={dc.muted ? 'Unmute microphone' : 'Mute microphone'}
-          >
-            {dc.muted ? <MicOff size={22} /> : <Mic size={22} />}
-          </button>
-          <button
-            onClick={handleEnd}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-danger text-white shadow-lg transition-transform duration-150 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-black"
-            aria-label="End interview"
-          >
-            <PhoneOff size={24} />
-          </button>
-          <button
-            onClick={dc.toggleCam}
-            aria-pressed={dc.camOff}
-            className={`${CONTROL} ${dc.camOff ? CONTROL_OFF : CONTROL_IDLE}`}
-            aria-label={dc.camOff ? 'Turn camera on' : 'Turn camera off'}
-          >
-            {dc.camOff ? <VideoOff size={22} /> : <Video size={22} />}
-          </button>
-        </div>
-      </div>
-    </div>
+    </InterviewStage>
   )
 }

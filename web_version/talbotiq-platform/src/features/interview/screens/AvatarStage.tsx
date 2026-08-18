@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import DailyIframe from '@daily-co/daily-js'
 import { Loader2, AlertTriangle, CheckCircle2, PhoneOff, UserRound, RefreshCw } from 'lucide-react'
+import { InterviewStage, PhaseMark } from '../stage/InterviewStage'
+import { Transport } from '../stage/Transport'
+import { Completion } from './Completion'
 import type { BrandingConfig } from '@shared/types'
 import { localTimeOfDay } from '@shared/speech'
 import { sessionsApi } from '@/lib/api'
@@ -68,7 +71,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           setProgress((p) => (p.asked === rr.asked && p.total === rr.total ? p : { asked: rr.asked!, total: rr.total! }))
         }
       })
-      .catch(() => { /* transcript is best-effort — never interrupt the call */ })
+      .catch(() => { /* transcript is best-effort, never interrupt the call */ })
   }, [sessionId])
 
   const finish = useCallback(async () => {
@@ -152,7 +155,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           } catch { /* noop */ }
         }
       } catch (e) {
-        console.warn('[avatar] Daily wrap unavailable — interview continues without live transcript', e)
+        console.warn('[avatar] Daily wrap unavailable, interview continues without live transcript', e)
       }
     }, 1500)
 
@@ -161,38 +164,29 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
 
   /* ── finished ── */
   if (stage === 'ended') {
+    // The shared completion, on the shared stage. This was a bespoke card with
+    // its own heading, its own tick plate tinted from the tenant accent, and its
+    // own wording, so the last thing a candidate saw depended on which format
+    // their recruiter picked. It is now identical across every mode.
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="w-full max-w-md rounded-3xl border border-border bg-white p-10 text-center shadow-lg"
-        >
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl" style={{ background: `${accent}14`, color: accent }}>
-            <CheckCircle2 size={30} />
-          </div>
-          <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">All done, thank you!</h1>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">
-            Your interview with {branding.companyName} is complete. You can close this window.
-          </p>
-        </motion.div>
-      </div>
+      <InterviewStage branding={branding} track="video_avatar" ground="record">
+        <Completion branding={branding} sessionId={sessionId} />
+      </InterviewStage>
     )
   }
 
   /* ── error (couldn't start) ── */
   if (stage === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-        <div className="w-full max-w-md rounded-3xl border border-border bg-white p-10 text-center shadow-lg">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-danger-border bg-danger-bg text-danger">
+      <div className="flex min-h-screen items-center justify-center bg-ground px-4 py-12">
+        <div className="w-full max-w-md rounded-3xl border border-rule bg-surface p-10 text-center shadow-lg">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-risk-rule bg-risk-bg text-risk">
             <AlertTriangle size={28} />
           </span>
-          <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">
+          <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-ink">
             We couldn’t start your interview
           </h1>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-neutral-500">{error}</p>
+          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-muted">{error}</p>
           <button
             onClick={() => { setError(null); setAttempt((a) => a + 1) }}
             className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
@@ -200,7 +194,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           >
             <RefreshCw size={15} /> Try again
           </button>
-          <p className="mt-4 text-xs text-neutral-400">If this keeps happening, contact your recruiter.</p>
+          <p className="mt-4 text-xs text-ink-muted">If this keeps happening, contact your recruiter.</p>
         </div>
       </div>
     )
@@ -217,45 +211,33 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
 
   const asked = Math.min(progress.asked, progress.total)
 
-  /* ── the live room — full-viewport, no page scroll, Tavus UI untouched ── */
+  /* ── the live room ────────────────────────────────────────────────────
+     Wrapped in the shared InterviewStage, so this format carries the same
+     identity, progress rail, help sheet and transport as every other one. The
+     Tavus iframe inside is untouched — it owns its own device controls and
+     join UI, and this shell deliberately does not compete with them.
+
+     The leave action was a `window.confirm`. That is a browser dialog for the
+     single most irreversible thing a candidate can do in this product: it is
+     unstyled, unlabelled, differs per browser, and on some mobile browsers can
+     be suppressed entirely. It now uses the product's own confirmation. */
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-brand-black">
-      <header className="flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-card px-4">
-        <span className="flex min-w-0 items-center gap-2.5 font-display font-bold tracking-[-0.02em] text-white">
-          <span className="truncate">{branding.companyName}</span>
-          {stage === 'live' && (
-            <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-green-light">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-green-light" /> Live
-            </span>
-          )}
-        </span>
-
-        <div className="flex flex-shrink-0 items-center gap-3">
-          {progress.total > 0 && progress.asked > 0 && (
-            <span
-              className="hidden items-center gap-2.5 rounded-md border border-brand-border bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-brand-gold-light sm:inline-flex"
-              aria-live="polite"
-            >
-              <span className="h-1 w-12 overflow-hidden rounded-full bg-white/10">
-                <span
-                  className="block h-full rounded-full bg-brand-gold transition-[width] duration-500 ease-out"
-                  style={{ width: `${Math.round((asked / progress.total) * 100)}%` }}
-                />
-              </span>
-              <span className="tabular-nums">Question {asked} of {progress.total}</span>
-            </span>
-          )}
-          <button
-            onClick={() => { if (window.confirm('End the interview now? You can’t rejoin afterwards.')) void finish() }}
-            disabled={stage === 'ending'}
-            className="inline-flex items-center gap-1.5 rounded-md border border-danger/40 bg-danger/15 px-4 py-1.5 text-sm font-semibold text-red-300 transition-colors duration-150 hover:bg-danger/25 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-card"
-          >
-            {stage === 'ending' ? <Loader2 size={15} className="animate-spin" /> : <PhoneOff size={15} />}
-            End interview
-          </button>
-        </div>
-      </header>
-
+    <InterviewStage
+      branding={branding}
+      track="video_avatar"
+      layout="focus"
+      progress={progress.total > 0 && progress.asked > 0 ? { current: asked, total: progress.total } : undefined}
+      phase={stage === 'live' ? <PhaseMark phase="live" /> : <PhaseMark phase="connecting" />}
+      transport={
+        <Transport
+          onLeave={() => void finish()}
+          leaveTitle="End the interview now?"
+          leaveBody="Your answers so far are saved and will be submitted. You will not be able to rejoin this interview."
+          leaveLabel="End interview"
+          busy={stage === 'ending'}
+        />
+      }
+    >
       <div className="relative flex-1">
         {conversationUrl ? (
           // EXACTLY the InterviewPage embed: the Tavus-hosted room, full-bleed,
@@ -297,7 +279,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
                 </p>
                 <p className="max-w-sm text-sm leading-relaxed text-brand-gray">
                   {stage === 'ending'
-                    ? 'Saving your session — this only takes a moment.'
+                    ? 'Saving your session, this only takes a moment.'
                     : 'Setting up the room and your questions. This usually takes just a few seconds.'}
                 </p>
               </div>
@@ -310,6 +292,6 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
           </div>
         )}
       </div>
-    </div>
+    </InterviewStage>
   )
 }

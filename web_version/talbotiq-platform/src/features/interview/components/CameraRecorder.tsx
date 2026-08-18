@@ -70,7 +70,7 @@ export function CameraRecorder({ active, accentColor }: Props) {
   }, [active])
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-brand-black shadow-sm">
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-rule bg-brand-black shadow-sm">
       {/* Base layer — a designed "no signal" ground the live stream paints over,
           so a slow or blocked camera never reads as a broken black rectangle. */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 text-brand-gray" aria-hidden="true">
@@ -82,7 +82,7 @@ export function CameraRecorder({ active, accentColor }: Props) {
 
       {recording ? (
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white shadow-sm">
-          <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse-live" aria-hidden="true" /> Recording
+          <span className="h-1.5 w-1.5 rounded-full bg-surface animate-pulse-live" aria-hidden="true" /> Recording
         </span>
       ) : (
         <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md border border-brand-border bg-brand-card/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-brand-gold-light backdrop-blur-sm">

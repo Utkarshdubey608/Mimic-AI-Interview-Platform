@@ -1,52 +1,46 @@
+@import './design/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   THE RECORD — base layer.
+   MIMIC — base layer.
 
-   The world is the legal evidence bundle. Archivo carries the interface, and
-   its real width axis (wdth 62–125) does the work a second face would
-   otherwise do: display text sets EXPANDED, for the widened character of a
-   registrar's cover sheet, while body text sets normal. One family, two voices.
+   Values live in design/tokens.css. This file applies them: the type voices, the
+   focus model, the motion policy, and the component classes that more than one
+   screen needs.
 
-   Chivo Mono appears only on machine values — line numbers, citations,
-   scores, IDs, timers. Measurement, never a costume for "technical".
+   Archivo carries the interface, and its real width axis (wdth 62–125) does the
+   work a second face would otherwise do — display text sets EXPANDED, for the
+   widened character of a cover sheet, while body text sets normal. One family,
+   two voices, one download.
+
+   Chivo Mono appears only on machine values: scores, timers, IDs, timestamps,
+   line numbers. Measurement, never a costume for "technical".
 ───────────────────────────────────────────────────────────────────────────── */
 @layer base {
-  :root {
-    /* Exhibit-tab coding, exposed as vars so a track colour can be resolved
-       from data without a Tailwind class map. */
-    --ex-chat:    #B45309;
-    --ex-chatbot: #0F766E;
-    --ex-voice:   #4338CA;
-    --ex-avatar:  #BE185D;
-    --ex-video:   #15803D;
-    --ex-twoway:  #0369A1;
-
-    --ink:        #0E1420;
-    --ink-body:   #3A4454;
-    --ink-muted:  #5C6879;
-    --rule:       #E3E6ED;
-    --record:     #FFFFFF;
-    --desk:       #EEF0F4;
-    --registrar:  #1D3FA0;
-  }
-
   *, *::before, *::after { box-sizing: border-box; }
 
-  html { font-size: 16px; scroll-behavior: smooth; }
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    /* The ground is painted on html as well as body so an over-scroll bounce on
+       iOS reveals the room's near-black rather than white — which is what made
+       a full-screen dark interview flash white at the edges. */
+    background-color: var(--ground);
+  }
 
   body {
-    font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
     /* font-stretch, NOT font-variation-settings. Google Fonts declares the
        Archivo variable face as `font-stretch: 62% 125%`, so the high-level
        property is the one that drives the width axis. font-variation-settings
        would take precedence over the axes it names and does not compose
        reliably with Tailwind's font-weight utilities, which risks headings
        silently losing their weight. */
-    font-stretch: 100%;
-    background-color: var(--desk);
+    font-stretch: var(--width-ui);
+    background-color: var(--ground);
     color: var(--ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -54,101 +48,151 @@
     letter-spacing: -0.006em;
   }
 
-  /* Display voice: the width axis widened to 118%. This is why the face was
-     chosen — the same family carries both voices, so no second font loads. */
+  /* Display voice: the same face with its width axis widened. This is why
+     Archivo was chosen — both voices come from one download. */
   h1, h2, h3, h4, h5, h6, .font-display, .font-head {
-    font-family: 'Archivo', system-ui, sans-serif;
-    font-stretch: 118%;
+    font-family: var(--font-display);
+    font-stretch: var(--width-display);
     color: var(--ink);
     letter-spacing: -0.024em;
     line-height: 1.16;
     text-wrap: balance;
   }
 
-  /* Machine values sit on the mono, always tabular so columns align. */
+  /* Machine values sit on the mono, always tabular so columns align to the
+     digit. A score column that jitters as values change is unreadable. */
   .font-mono, code, kbd, samp, pre { font-variant-numeric: tabular-nums; }
 
-  ::selection { background: #C6D2ED; color: #152E76; }
+  ::selection { background: var(--signal-soft); color: var(--signal-hover); }
 
-  :focus-visible { outline: 2px solid var(--registrar); outline-offset: 2px; }
+  /* ── Focus ──────────────────────────────────────────────────────────────
+     One focus model for the whole product, and it follows the ground: the ring
+     is measured at 3:1 against BOTH the page ground and a panel on each ground
+     (see scripts/contrast-audit.mjs). The offset is what makes it readable on a
+     filled button — without it the ring sits on the button's own colour. */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  /* Never remove the outline without replacing it. This exists so that a
+     component that manages its own focus presentation still leaves a trace. */
+  :focus:not(:focus-visible) { outline: none; }
 
-  /* Range slider — squared track, squared thumb. No pills anywhere. */
+  /* Range slider — squared track, squared thumb. */
   input[type='range'] { -webkit-appearance: none; cursor: pointer; background: transparent; }
   input[type='range']::-webkit-slider-runnable-track { height: 3px; border-radius: 1px; background: var(--rule); }
   input[type='range']::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px; height: 14px; border-radius: 2px;
-    background: var(--registrar); margin-top: -6px;
+    width: 14px; height: 14px; border-radius: var(--radius-xs);
+    background: var(--accent); margin-top: -6px;
     box-shadow: 0 1px 3px rgb(14 20 32 / 0.24);
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow var(--dur-fast) ease;
   }
   input[type='range']::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgb(29 63 160 / 0.14); }
   input[type='range']::-moz-range-thumb {
-    width: 14px; height: 14px; border-radius: 2px;
-    background: var(--registrar); border: none;
+    width: 14px; height: 14px; border-radius: var(--radius-xs);
+    background: var(--accent); border: none;
     box-shadow: 0 1px 3px rgb(14 20 32 / 0.24);
   }
 
-  input[type='checkbox'], input[type='radio'] { accent-color: var(--registrar); }
+  input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #CBD1DC; border-radius: 0; border: 3px solid transparent; background-clip: content-box; }
-  ::-webkit-scrollbar-thumb:hover { background: #6E7889; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--rule-strong); border-radius: 0;
+    border: 3px solid transparent; background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); background-clip: content-box; }
 
+  /* ── Motion policy ──────────────────────────────────────────────────────
+     The previous rule was a blanket
+       *, *::before, *::after { transition-duration: 0.01ms !important }
+     which is the standard snippet and is wrong in an important way: it removes
+     TRANSITIONS, not just motion. Under that rule a reduced-motion user lost the
+     hover, focus and selected-state feedback that tells them the interface
+     registered their input — feedback they need more, not less.
+
+     So the policy here is narrower and deliberate:
+       · travel and scale are removed        (transform)
+       · continuous loops are stopped        (animation)
+       · colour, opacity, border and shadow transitions SURVIVE, capped short,
+         so state changes are still felt instantly rather than not at all.
+
+     Components additionally receive the preference through `useReducedMotion`
+     and skip rendering ambient layers entirely — see design/motion.ts. */
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
+
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
+      /* Kill travel, keep feedback. */
+      transition-property: color, background-color, border-color, box-shadow,
+                           opacity, outline-color, fill, stroke !important;
+      transition-duration: var(--dur-instant) !important;
+      scroll-behavior: auto !important;
     }
+
+    /* Anything explicitly marked as atmosphere is not rendered as motion at
+       all — the element stays, its animation does not. */
+    [data-ambient] { animation: none !important; }
   }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
    COMPONENTS
+
+   A class earns a place here only if more than one screen needs it AND it is
+   awkward as a utility string. Everything else belongs in a React primitive.
 ───────────────────────────────────────────────────────────────────────────── */
 @layer components {
 
   /* ── The record surface ─────────────────────────────────────────────────
-     A page in the bundle. Squared, hairline-ruled, with a real offset lift.
-     `.card` keeps its legacy name so every existing consumer inherits this. */
+     A page in the bundle. Squared, hairline-ruled, with a real offset lift on
+     paper and a light-catching top edge in a room — elevation follows the
+     ground, so `.card` is correct in both worlds. `.card` keeps its legacy name
+     so every existing consumer inherits this. */
   .record, .card {
-    background: var(--record);
+    background: var(--surface);
     border: 1px solid var(--rule);
-    border-radius: 8px;
-    box-shadow: 0 1px 1px 0 rgb(14 20 32 / 0.04);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--elev-1);
   }
   .card-hover, .record-hover {
-    transition: box-shadow 0.18s cubic-bezier(0.16,1,0.3,1),
-                border-color 0.18s cubic-bezier(0.16,1,0.3,1);
+    transition: box-shadow var(--dur-fast) var(--ease-out),
+                border-color var(--dur-fast) var(--ease-out);
   }
   .card-hover:hover, .record-hover:hover {
-    border-color: #CBD1DC;
-    box-shadow: 0 4px 10px -2px rgb(14 20 32 / 0.09), 0 2px 4px -2px rgb(14 20 32 / 0.05);
+    border-color: var(--rule-strong);
+    box-shadow: var(--elev-3);
   }
 
   /* ── Filed header strip ─────────────────────────────────────────────────
-     The ruled band at the top of a record. Replaces the gradient hairline. */
+     The ruled band at the top of a record: a hairline below, and the ink
+     cover-rule above. Drawn as an inset shadow so it cannot shift the band's
+     height or its text baseline. */
   .record-head {
     border-bottom: 1px solid var(--rule);
     box-shadow: inset 0 2px 0 0 var(--ink);
   }
 
   /* ── Exhibit tab ────────────────────────────────────────────────────────
-     The index tab on a bundle section. The colour IS the interview format.
+     The index tab on a bundle section. The colour IS the interview format, so a
+     recruiter scanning a column reads format before reading a word.
+
      Fully squared: the 3px seated edge is the tab's whole point, and a radius
-     would leave that colour band dying into a curve at both ends. */
-  /* The seated edge is drawn as an inset shadow rather than a bottom border:
-     identical pixels, but it stays outside the border box, so the tab's height
-     and text baseline do not shift with the colour band, and the band can never
-     interact with a corner radius. `--seat` is the format's exhibit colour. */
+     would leave that colour band dying into a curve at both ends. The edge is an
+     inset shadow rather than a border-bottom — identical pixels, but it stays
+     outside the border box, so height and baseline do not move with it.
+
+     The label is ALWAYS present. The colour is a second, faster encoding of
+     something the text already says; it is never the only carrier. */
   .tab {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 3px 9px 4px 8px;
-    font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.01em;
-    color: var(--ink); background: #F8F9FB;
+    font-size: 0.6875rem; font-weight: var(--weight-strong); letter-spacing: 0.01em;
+    color: var(--ink); background: var(--surface-sunk);
     border: 1px solid var(--rule);
     border-radius: 0;
     box-shadow: inset 0 -3px 0 0 var(--seat, var(--ink-muted));
@@ -160,60 +204,77 @@
   .tab-video   { --seat: var(--ex-video); }
   .tab-twoway  { --seat: var(--ex-twoway); }
 
+  /* In a room the ramp switches to its lifted values, or the tab edge
+     disappears into the dark. Same six formats, same meaning. */
+  [data-ground='room'] .tab-chat    { --seat: var(--ex-chat-room); }
+  [data-ground='room'] .tab-chatbot { --seat: var(--ex-chatbot-room); }
+  [data-ground='room'] .tab-voice   { --seat: var(--ex-voice-room); }
+  [data-ground='room'] .tab-avatar  { --seat: var(--ex-avatar-room); }
+  [data-ground='room'] .tab-video   { --seat: var(--ex-video-room); }
+  [data-ground='room'] .tab-twoway  { --seat: var(--ex-twoway-room); }
+
   /* ── Citation ───────────────────────────────────────────────────────────
-     The product's signature affordance: a score that names its evidence.
-     Mono because it is a reference, underlined because it is a link. */
+     The product's signature affordance: a score that names its evidence. Mono
+     because it is a reference, underlined because it is a link. */
   .cite {
-    font-family: 'Chivo Mono', ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 0.75rem; font-variant-numeric: tabular-nums;
-    color: var(--registrar);
+    color: var(--accent-ink);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 2px;
-    text-decoration-color: #9AAEDF;
-    transition: text-decoration-color 0.15s ease, color 0.15s ease;
+    text-decoration-color: color-mix(in srgb, var(--accent-ink) 45%, transparent);
+    transition: text-decoration-color var(--dur-fast) ease, color var(--dur-fast) ease;
   }
-  .cite:hover { text-decoration-color: var(--registrar); color: #152E76; }
+  .cite:hover { text-decoration-color: currentColor; color: var(--accent-hover); }
 
   /* Line number in a transcript gutter. Right-aligned, recessive, tabular. */
   .gutter-num {
-    font-family: 'Chivo Mono', ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 0.6875rem; font-variant-numeric: tabular-nums;
-    color: #6E7889; text-align: right; user-select: none;
+    color: var(--ink-faint); text-align: right; user-select: none;
   }
 
-  /* ── Form field ─────────────────────────────────────────────────────────
-     Squared, because a pill text field reads as a search box and because the
-     pill grammar left with the inherited brand. */
+  /* ── Form fields ────────────────────────────────────────────────────────
+     Squared, because a pill text field reads as a search box. The border is
+     --rule-input, which is the one hairline in the system held to 3:1 on both
+     grounds: an input you cannot find is an input that does not work. */
   .input-base {
     width: 100%; height: 40px; padding: 0 11px;
     font-size: 0.9375rem;
-    font-family: 'Archivo', system-ui, sans-serif;
-    color: var(--ink); background: var(--record);
-    border: 1px solid #848FA1; border-radius: 4px;
+    font-family: var(--font-sans);
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--rule-input); border-radius: var(--radius-md);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
   }
   .input-base::placeholder { color: var(--ink-muted); }
-  .input-base:hover  { border-color: #6E7889; }
-  .input-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(29 63 160 / 0.13); }
+  .input-base:hover  { border-color: var(--ink-faint); }
+  .input-base:focus  {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .input-base:disabled { background: var(--surface-sunk); color: var(--ink-disabled); cursor: not-allowed; }
 
   .textarea-base {
     width: 100%; padding: 9px 11px;
     font-size: 0.9375rem;
-    font-family: 'Archivo', system-ui, sans-serif;
-    color: var(--ink); background: var(--record);
-    border: 1px solid #848FA1; border-radius: 4px;
+    font-family: var(--font-sans);
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--rule-input); border-radius: var(--radius-md);
     outline: none; resize: vertical; min-height: 96px; line-height: 1.6;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
   }
   .textarea-base::placeholder { color: var(--ink-muted); }
-  .textarea-base:hover  { border-color: #6E7889; }
-  .textarea-base:focus  { border-color: var(--registrar); box-shadow: 0 0 0 3px rgb(29 63 160 / 0.13); }
+  .textarea-base:hover  { border-color: var(--ink-faint); }
+  .textarea-base:focus  {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
 
   .field-label {
     display: block;
-    font-size: 0.75rem; font-weight: 600;
+    font-size: 0.75rem; font-weight: var(--weight-semibold);
     color: var(--ink-body);
     letter-spacing: 0.01em;
     margin-bottom: 5px;
@@ -223,46 +284,57 @@
      A label that rules off a region. It never sits above a heading as an
      eyebrow; it labels a column, a field group, or a table region. */
   .section-label {
-    font-size: 0.6875rem; font-weight: 700;
+    font-size: 0.6875rem; font-weight: var(--weight-bold);
     letter-spacing: 0.09em; text-transform: uppercase;
     color: var(--ink-muted);
   }
 
-  /* Legacy `.pill` name, redefined as a squared meta label. Nothing in this
-     world is pill-shaped. */
+  /* Legacy `.pill` name, redefined as a squared meta label. */
   .pill {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 0.6875rem; font-weight: 650;
+    font-size: 0.6875rem; font-weight: var(--weight-strong);
     letter-spacing: 0.01em;
-    background: #F1F3F7; color: var(--ink-body);
+    background: var(--surface-hover); color: var(--ink-body);
     border: 1px solid var(--rule);
-    padding: 2px 8px; border-radius: 3px;
+    padding: 2px 8px; border-radius: var(--radius-sm);
   }
 
   /* ── The stamp ──────────────────────────────────────────────────────────
-     The filed/sealed mark. Ruled box, tracked caps, seal ink. Used for a
-     terminal state — never as decoration. */
+     The filed/sealed mark. Ruled box, tracked caps, seal ink. A terminal state
+     only — never decoration. */
   .stamp {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 0.625rem; font-weight: 700;
+    font-size: 0.625rem; font-weight: var(--weight-bold);
     letter-spacing: 0.14em; text-transform: uppercase;
-    color: #B3261E; border: 1.5px solid #B3261E;
-    padding: 2px 7px; border-radius: 2px;
+    color: var(--risk); border: 1.5px solid var(--risk);
+    padding: 2px 7px; border-radius: var(--radius-xs);
   }
-  .stamp-filed { color: #15803D; border-color: #15803D; }
+  .stamp-filed { color: var(--ok); border-color: var(--ok); }
 
   .live-dot {
-    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: #15803D; animation: pulseLive 1.6s ease-in-out infinite;
+    display: inline-block; width: 6px; height: 6px; border-radius: var(--radius-round);
+    background: var(--live-fg); animation: pulseLive 1.6s var(--ease-in-out) infinite;
   }
 
-  /* ── Status badge — squared, ruled, ink-toned ───────────────────────── */
-  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 3px; font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.005em; }
-  .badge-success { background: #EFF7F1; color: #15803D; border: 1px solid #C9E5D2; }
-  .badge-warning { background: #FDF5EA; color: #8A4308; border: 1px solid #F0DBBC; }
-  .badge-danger  { background: #FCF0EF; color: #B3261E; border: 1px solid #F0CFCC; }
-  .badge-neutral { background: #F1F3F7; color: var(--ink-body); border: 1px solid var(--rule); }
-  .badge-info    { background: #E2E8F6; color: #152E76; border: 1px solid #C6D2ED; }
+  /* ── Status badge ───────────────────────────────────────────────────────
+     Squared, ruled, ink-toned. These follow the ground, so the same badge is
+     legible in a report and in a live call. Each is paired with a word — and
+     where the surface is dense, with a glyph — so status never rests on colour
+     alone. */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: var(--radius-sm);
+    font-size: 0.6875rem; font-weight: var(--weight-strong); letter-spacing: 0.005em;
+    border: 1px solid transparent;
+  }
+  .badge-success { background: var(--ok-bg);   color: var(--ok);   border-color: var(--ok-rule); }
+  .badge-warning { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-rule); }
+  .badge-danger  { background: var(--risk-bg); color: var(--risk); border-color: var(--risk-rule); }
+  .badge-neutral { background: var(--surface-hover); color: var(--ink-body); border-color: var(--rule); }
+  .badge-info    { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--accent-soft); }
+  /* Machine output. The one legal use of violet: this content came from a model. */
+  .badge-intel   { background: var(--intel-bg); color: var(--intel-fg); border-color: var(--intel-bg); }
+  .badge-live    { background: var(--live-bg);  color: var(--live-fg);  border-color: var(--live-bg); }
 
   .divider { width: 100%; height: 1px; background: var(--rule); }
 }
@@ -276,29 +348,76 @@
   .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
   .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
 
-  /* Body measure. 65–75ch keeps a transcript readable. */
-  .measure { max-width: 68ch; }
+  /* Body measure. 65–75ch keeps a transcript readable; beyond that the eye
+     loses the line return. */
+  .measure      { max-width: 68ch; }
+  .measure-tight { max-width: 54ch; }
 
   /* Tabular numerics for every score, count and duration in a column. */
   .nums { font-variant-numeric: tabular-nums; }
 
-  /* Atmosphere for the full-screen auth surfaces: the slipcase, lit from one
-     side. Two soft cool washes, fixed size so nothing tiles. */
+  /* ── Page geometry ──────────────────────────────────────────────────────
+     One class, so no screen invents its own width or its own edge padding. The
+     audit found four different page widths and only one page that stepped its
+     padding down on mobile. */
+  .page {
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-inline: var(--page-pad);
+  }
+  .page-reading { max-width: var(--page-max-reading); }
+  @media (min-width: 640px) {
+    .page { padding-inline: var(--page-pad-sm); }
+  }
+
+  /* ── GPU hygiene ────────────────────────────────────────────────────────
+     Applied to ambient layers and anything that animates continuously. Promotes
+     the element to its own layer so a slow drift cannot repaint the text above
+     it, and `contain: paint` stops it participating in layout at all. */
+  .gpu {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .isolate-paint { contain: paint; }
+
+  /* Atmosphere for the full-screen entry surfaces: two large, soft, non-tiling
+     radial washes. Non-tiling matters — a repeating dot or grid pattern is the
+     single most recognisable generated-UI tell. */
   .bg-brand-wash {
     background-image:
-      radial-gradient(58rem 38rem at 8% -12%, rgba(29, 63, 160, 0.13), transparent 62%),
-      radial-gradient(46rem 32rem at 96% 110%, rgba(14, 20, 32, 0.10), transparent 64%);
+      radial-gradient(58rem 38rem at 8% -12%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 62%),
+      radial-gradient(46rem 32rem at 96% 110%, color-mix(in srgb, var(--ink) 10%, transparent), transparent 64%);
     background-repeat: no-repeat;
   }
 
-  /* The ruled gutter of a transcript page. 28px rhythm matches the line box.
-     This previously resolved to `none` — a dead no-op — so the ruling a bundle
-     page is actually made of never rendered anywhere. */
+  /* The ruled gutter of a transcript page. 28px rhythm matches the line box. */
   .ruled {
     background-image: repeating-linear-gradient(
       to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px
     );
     background-position: 0 0;
+  }
+
+  /* Grain. A single tiled SVG of fractal noise at very low opacity, which is
+     what keeps a large dark field from banding on an 8-bit display. Cheap: one
+     data URI, no animation, composited once. */
+  .grain::after {
+    content: '';
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Screen-reader-only, but focusable — for the skip link. */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; border-width: 0;
   }
 }

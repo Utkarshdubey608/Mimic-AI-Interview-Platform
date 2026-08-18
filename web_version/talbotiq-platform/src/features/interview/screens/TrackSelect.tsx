@@ -1,91 +1,109 @@
 import { useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { MessageSquareText, Video, AudioLines, Loader2, Check, ArrowRight } from 'lucide-react'
-import { cn } from '@/components/ui'
+import { MessageSquareText, Video, AudioLines, Check, ArrowRight } from 'lucide-react'
+import { cn, Button } from '@/components/ui'
+import { PreflightCard, type PreflightStep } from '../stage/Preflight'
+import { exhibit } from '@/design/tokens'
 import type { BrandingConfig, TrackType } from '@shared/types'
 
 interface Props {
   branding: BrandingConfig
   defaultTrack: TrackType
+  steps: PreflightStep[]
   onChoose: (track: TrackType) => void
   busy?: boolean
 }
 
-const TRACKS: { id: TrackType; title: string; blurb: string; icon: typeof Video; tag?: string }[] = [
-  { id: 'chat', title: 'Chat Interview', blurb: 'Answer each question by typing. Calm, focused, and fully keyboard-friendly.', icon: MessageSquareText },
-  { id: 'voice', title: 'Voice Interview', blurb: 'A spoken conversation with an AI interviewer — just talk, like a phone call.', icon: AudioLines, tag: 'New' },
-  { id: 'video_avatar', title: 'Video Avatar', blurb: 'An AI avatar asks each question and you respond on camera.', icon: Video, tag: 'Preview' },
+/**
+ * Choosing a format.
+ *
+ * Shown only when the recruiter left the choice open. The copy leads with what
+ * is the same across all three — the questions and the timer — because the thing
+ * a candidate is actually worried about here is picking the "wrong" one and
+ * being marked down for it.
+ *
+ * The plate on each option carries the format's exhibit colour, the same colour
+ * the recruiter sees in their sessions index for this interview. That is the one
+ * piece of visual vocabulary shared across both audiences, and using it here
+ * costs nothing while making the two halves of the product visibly one system.
+ */
+const TRACKS: { id: TrackType; title: string; blurb: string; icon: typeof Video }[] = [
+  {
+    id: 'chat',
+    title: 'Written',
+    blurb: 'Type your answers. Calm, fully keyboard-driven, and the easiest to edit as you think.',
+    icon: MessageSquareText,
+  },
+  {
+    id: 'voice',
+    title: 'Voice',
+    blurb: 'A spoken conversation with an AI interviewer, like a phone call. Nothing to type.',
+    icon: AudioLines,
+  },
+  {
+    id: 'video_avatar',
+    title: 'Video',
+    blurb: 'An AI avatar asks each question and you answer on camera.',
+    icon: Video,
+  },
 ]
 
-export function TrackSelect({ branding, defaultTrack, onChoose, busy }: Props) {
-  const reduce = useReducedMotion()
+export function TrackSelect({ branding, defaultTrack, steps, onChoose, busy }: Props) {
   const [selected, setSelected] = useState<TrackType>(defaultTrack)
-  const accent = branding.accentColor
 
   return (
-    <motion.div
-      initial={reduce ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+    <PreflightCard
+      step="track"
+      steps={steps}
+      title="Choose how you'd like to interview"
+      description="Every format asks the same questions on the same timer, and they are assessed the same way. Pick whichever you are most comfortable with."
+      footer={
+        <Button size="lg" onClick={() => onChoose(selected)} loading={busy} iconRight={<ArrowRight size={18} />}>
+          Continue
+        </Button>
+      }
     >
-      <div className="text-center">
-      {/* Eyebrow deleted. An uppercase label above a heading is the one
-          pattern no brief earns back, and on a candidate surface it was pure
-          overhead: the heading below already carries the step. */}
-        <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em] text-neutral-900">
-          Choose your format
-        </h1>
-        <p className="mx-auto mt-3 max-w-md text-balance leading-relaxed text-neutral-500">
-          Every format asks the same questions on the same timer. Pick whichever feels most comfortable.
-        </p>
-      </div>
-
-      <div className="mt-8 space-y-3" role="group" aria-label="Interview format">
+      <div className="space-y-2.5" role="radiogroup" aria-label="Interview format">
         {TRACKS.map((t) => {
           const Icon = t.icon
           const active = selected === t.id
+          const color = exhibit[t.id as keyof typeof exhibit]?.record
           return (
             <button
               key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
               onClick={() => setSelected(t.id)}
-              aria-pressed={active}
               className={cn(
-                'flex w-full items-start gap-4 rounded-2xl border-[1.5px] bg-white p-5 text-left transition-all duration-150',
+                'flex w-full items-start gap-4 rounded-lg border p-4 text-left',
+                'transition-[border-color,background-color,box-shadow] duration-fast',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-                active ? 'shadow-md' : 'border-border hover:border-neutral-300 hover:shadow-sm',
+                active
+                  ? 'border-ink bg-surface-sunk shadow-sm'
+                  : 'border-rule bg-surface hover:border-rule-strong',
               )}
-              style={active ? { borderColor: accent, background: accent + '08' } : undefined}
             >
               <span
-                className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-colors duration-150"
-                style={active
-                  ? { background: accent, color: '#ffffff' }
-                  : { background: accent + '14', color: accent }}
+                className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-rule bg-surface"
+                style={{ color }}
+                aria-hidden="true"
               >
-                <Icon size={20} strokeWidth={1.75} />
+                <Icon size={19} strokeWidth={1.75} />
               </span>
 
               <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-display text-base font-bold tracking-[-0.02em] text-neutral-900">{t.title}</span>
-                  {t.tag && (
-                    <span
-                      className="rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                      style={{ color: accent, borderColor: accent + '33', background: accent + '0D' }}
-                    >
-                      {t.tag}
-                    </span>
-                  )}
-                </span>
-                <span className="mt-1 block text-sm leading-relaxed text-neutral-500">{t.blurb}</span>
+                <span className="font-display text-base font-bold tracking-[-0.02em] text-ink">{t.title}</span>
+                <span className="mt-1 block text-sm leading-relaxed text-ink-muted">{t.blurb}</span>
               </span>
 
-              {/* Selection indicator — accent fill when chosen. */}
+              {/* Selection is marked by a tick, not only by the tinted ground 
+                  so it survives for someone who cannot separate the two. */}
               <span
                 className={cn(
-                  'mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-[1.5px] text-white transition-colors duration-150',
-                  !active && 'border-neutral-300',
+                  'mt-0.5 grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border',
+                  active ? 'border-ink bg-ink text-ink-inverse' : 'border-rule-input bg-surface',
                 )}
-                style={active ? { background: accent, borderColor: accent } : undefined}
+                aria-hidden="true"
               >
                 {active && <Check size={12} strokeWidth={3} />}
               </span>
@@ -94,18 +112,10 @@ export function TrackSelect({ branding, defaultTrack, onChoose, busy }: Props) {
         })}
       </div>
 
-      <div className="mt-8 text-center">
-        <button
-          onClick={() => onChoose(selected)}
-          disabled={busy}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md px-8 text-base font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ background: accent }}
-        >
-          {busy
-            ? <><Loader2 size={18} className="animate-spin" /> Setting up…</>
-            : <>Continue <ArrowRight size={18} /></>}
-        </button>
-      </div>
-    </motion.div>
+      <p className="mt-4 text-xs leading-relaxed text-ink-muted">
+        You cannot change format once the interview begins, so pick the one you would
+        rather be judged on. The hiring team sees the same answers either way.
+      </p>
+    </PreflightCard>
   )
 }
