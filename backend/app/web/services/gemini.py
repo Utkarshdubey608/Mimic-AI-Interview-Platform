@@ -204,12 +204,21 @@ async def generate_text(
     response_schema: dict | None = None,
     response_mime_type: str | None = None,
     temperature: float | None = None,
+    thinking_budget: int | None = None,
 ) -> str:
     """One generateContent turn, returning the model's text.
 
     Raises `GeminiAuthError` for a credential problem and `GeminiUnavailable` for
     anything else, so callers can degrade differently for the two — see those
     classes for why that distinction matters.
+
+    `thinking_budget` is the reasoning-token allowance. Gemini 2.5 Flash thinks by
+    default with a *dynamic* budget, which is the right trade for open-ended work
+    and the wrong one for a call a candidate is sitting and waiting on. Measured
+    over five runs of the résumé question prompt: default thinking averaged 11.1s
+    (7.5–12.9s, ~1200–2000 thinking tokens), and `thinking_budget=0` averaged 3.6s
+    (2.9–4.4s) for output of the same length. Pass 0 on any candidate-facing path;
+    leave it None where quality matters more than the wait.
     """
     import json as _json
 
@@ -227,6 +236,8 @@ async def generate_text(
         generation_config["responseSchema"] = response_schema
     if temperature is not None:
         generation_config["temperature"] = temperature
+    if thinking_budget is not None:
+        generation_config["thinkingConfig"] = {"thinkingBudget": thinking_budget}
     if generation_config:
         body["generationConfig"] = generation_config
 

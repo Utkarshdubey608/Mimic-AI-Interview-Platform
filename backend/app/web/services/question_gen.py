@@ -393,6 +393,10 @@ async def generate_from_resume_text(
         ],
         response_mime_type="application/json",
         response_schema=RESUME_QUESTION_SCHEMA,
+        # A candidate is waiting on this call. Thinking triples the latency here
+        # without lengthening the output — see generate_text's docstring for the
+        # measurements. The prompt is prescriptive enough not to need it.
+        thinking_budget=0,
     )
 
     try:

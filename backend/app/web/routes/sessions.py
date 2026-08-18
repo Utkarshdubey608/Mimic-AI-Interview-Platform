@@ -485,6 +485,28 @@ async def upload_resume(
     if fullName.strip():
         session.setdefault("candidate", {})["name"] = fullName.strip()[:120]
 
+    # Generate the question plan HERE, not at /begin.
+    #
+    # This is the only moment before the interview where the candidate already
+    # expects to wait — they have just handed over a file and the screen says so.
+    # Generating at /begin instead put a multi-second model call behind a button
+    # press that looks instantaneous: one production session sat on a dead "Begin"
+    # button for 26.5s on a warm instance.
+    #
+    # Done inside the request rather than as a background task on purpose. A
+    # fire-and-forget task belongs to one replica's event loop, so it is lost when
+    # that instance is recycled and invisible to the instance that serves the next
+    # request. Everything here is persisted before the response, which is what lets
+    # any replica serve /begin — the property that matters under autoscaling.
+    #
+    # Never fatal: _generate_adaptive_questions falls back to a generic set rather
+    # than raising, and /begin still generates if this somehow left none. A résumé
+    # that uploaded fine must not fail because a model call did.
+    if template.get("questionSource") == "adaptive" and not (session.get("questions") or []):
+        session["questions"] = await _generate_adaptive_questions(
+            settings, session, template
+        )
+
     await session_store.save(settings, session)
     return _state(session, template)
 
@@ -508,6 +530,10 @@ async def begin(session_id: str, request: Request, user: AuthedUser = WebUser) -
     if session.get("status") in ("completed", "expired"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Interview already finished")
 
+    # Fallback only. The question plan is normally built when the résumé is uploaded
+    # (see upload_resume) precisely so this path does not make the candidate wait on
+    # a model call after pressing Begin. This still covers a session whose résumé
+    # predates that change, or whose generation was interrupted.
     if not (session.get("questions") or []) and template.get("questionSource") == "adaptive":
         if not session.get("resumeText"):
             raise HTTPException(
