@@ -3,6 +3,7 @@ import type {
   QuestionSet,
   McqQuestionSet,
   McqQuestion,
+  McqPaperState,
   CandidateSessionState,
   CreateSessionRequest,
   SubmitAnswerRequest,
@@ -112,6 +113,30 @@ export const templatesApi = {
   update: (id: string, body: Partial<InterviewTemplate>) =>
     http<InterviewTemplate>(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id: string) => http<void>(`/templates/${id}`, { method: 'DELETE' }),
+}
+
+/* ─── MCQ candidate runtime ──────────────────────────────────────────────── */
+/**
+ * The paper a candidate sits. Three calls, and none of them can return the answer
+ * key: the server builds every response through an allow-list (see
+ * backend/app/web/routes/sessions_mcq.py), so `correctOptionIds` has no field to
+ * travel in.
+ */
+export const mcqSessionApi = {
+  /** The paper plus whatever has been answered so far. Opening it starts the clock. */
+  paper: (id: string) => http<McqPaperState>(`/sessions/${id}/mcq`),
+  /** Auto-save. A refresh must not cost a candidate the answers they chose. */
+  save: (id: string, answers: Record<string, string[]>) =>
+    http<{ ok: boolean; saved: number }>(`/sessions/${id}/mcq/answers`, {
+      method: 'POST',
+      body: JSON.stringify({ answers }),
+    }),
+  /** Score and finish. Answers sent here count even if nothing was auto-saved. */
+  submit: (id: string, answers?: Record<string, string[]>) =>
+    http<McqPaperState>(`/sessions/${id}/mcq/submit`, {
+      method: 'POST',
+      body: JSON.stringify(answers ? { answers } : {}),
+    }),
 }
 
 /* ─── MCQ sets (closed-ended papers, owner-scoped) ──────────────────────── */

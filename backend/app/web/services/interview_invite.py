@@ -79,6 +79,7 @@ def build_document(
     source: str | None = None,
     config: dict | None = None,
     question_set_id: str | None = None,
+    mcq_set_id: str | None = None,
     pipeline: dict | None = None,
     server_timestamp: object = None,
 ) -> dict:
@@ -105,6 +106,11 @@ def build_document(
         )
     if source == "set" and question_set_id:
         screening["questionSetId"] = question_set_id
+    # MCQ references its paper rather than embedding it: `questions` here is a list
+    # of plain strings, which cannot carry an option list or an answer key. The set
+    # stays in the recruiter's own collection and the session resolves it at create.
+    if mcq_set_id:
+        screening["mcqSetId"] = mcq_set_id
 
     document = {
         # ── the frozen Flutter schema, exact field names ──

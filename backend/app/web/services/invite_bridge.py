@@ -124,6 +124,21 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
         "updatedAt": now,
     }
 
+    # MCQ carries a SET ID, not embedded question text. The rest of this pipeline
+    # stores questions as plain strings, which cannot express an option list or an
+    # answer key — so the paper stays in the recruiter's own mcq_sets document and
+    # the session resolves it at create time (routes/sessions.py), with the key
+    # never leaving the server.
+    if track == "mcq":
+        # Under `screening`, where build_document puts it, with a top-level fallback
+        # for a document written by hand or by another client.
+        mcq_set_id = screening.get("mcqSetId") or data.get("mcqSetId")
+        if mcq_set_id:
+            template["mcqSetId"] = str(mcq_set_id)
+        mcq_config = screening.get("mcqConfig") or data.get("mcqConfig")
+        if isinstance(mcq_config, dict):
+            template["mcqConfig"] = dict(mcq_config)
+
     if source == "adaptive":
         template["adaptive"] = {
             "role": role,
