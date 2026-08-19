@@ -5,6 +5,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { companyKey, companyDisplay } from '@/lib/companyKey'
 import { firebaseAuth, firestore, firebaseConfigured, getIdTokenOrNull } from '@/lib/firebase'
 import { httpBase, commonBase } from '@/lib/apiOrigin'
 import type { AppUser, UserRole } from '@shared/types'
@@ -30,7 +31,7 @@ interface AuthContextValue {
   role: UserRole | null
   error: string | null
   signInWithEmail: (email: string, password: string) => Promise<void>
-  signUpWithEmail: (email: string, password: string, role: UserRole, displayName?: string) => Promise<void>
+  signUpWithEmail: (email: string, password: string, role: UserRole, displayName?: string, company?: string) => Promise<void>
   signOutUser: () => Promise<void>
 }
 
@@ -117,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUpWithEmail = useCallback(
-    async (email: string, password: string, role: UserRole, displayName?: string) => {
+    async (email: string, password: string, role: UserRole, displayName?: string, company?: string) => {
       const cred = await createUserWithEmailAndPassword(firebaseAuth(), email.trim(), password)
       const dn = displayName?.trim()
       if (dn) { try { await updateProfile(cred.user, { displayName: dn }) } catch { /* non-fatal */ } }
@@ -128,6 +129,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailLower: (cred.user.email ?? email).trim().toLowerCase(),
         role,
         ...(dn ? { name: dn } : {}),
+        // Both forms, and both are needed. `company` is what they typed, kept for
+        // display; `companyKey` is the normalised form and the only thing ever
+        // compared, so "TalbotIQ" and "talbotiq" are one company. Written only
+        // when given — an empty key must never become a bucket that everyone with
+        // no company falls into. See src/lib/companyKey.ts.
+        ...(companyKey(company) ? { company: companyDisplay(company), companyKey: companyKey(company) } : {}),
         createdAt: serverTimestamp(),
       })
     },
