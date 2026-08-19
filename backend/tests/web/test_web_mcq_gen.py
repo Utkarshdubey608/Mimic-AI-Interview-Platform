@@ -161,3 +161,74 @@ class TestThePromptSaysTheThingsThatMatter:
 
     def test_the_topic_prompt_asks_for_testable_topics(self):
         assert "multiple-choice" in mcq_gen.build_topic_prompt("SRE")
+
+
+class TestThePromptActuallyReachesTheModel:
+    """The bug this class exists for.
+
+    `suggest_topics` built its message as `{"role", "text"}`. `to_contents` reads
+    `content` and DROPS any message without it, so the conversation came out empty
+    and `generate_text` refused it before a request was ever sent. Gemini was never
+    called at all — and it surfaced to the recruiter as the generic "Gemini request
+    failed. Please try again."
+
+    Every other test in this file passed throughout: they cover the prompt TEXT and
+    the response PARSING, and the break was in the hand-off between them.
+    """
+
+    def test_the_topic_message_survives_to_contents(self):
+        from app.web.services import gemini
+
+        contents = gemini.to_contents(
+            [{"role": "user", "content": mcq_gen.build_topic_prompt("SRE")}]
+        )
+        assert contents, "the conversation was empty — the prompt never reaches Gemini"
+        assert contents[0]["role"] == "user"
+        assert "SRE" in contents[0]["parts"][0]["text"]
+
+    def test_the_paper_message_survives_to_contents(self):
+        from app.web.services import gemini
+
+        prompt = mcq_gen.build_paper_prompt(
+            role="Backend Engineer", topics=["Caching"], count=5,
+            difficulty="mixed", allow_multi=False,
+        )
+        contents = gemini.to_contents([{"role": "user", "content": prompt}])
+        assert contents
+        assert "Backend Engineer" in contents[0]["parts"][0]["text"]
+
+    def test_the_wrong_key_produces_nothing_which_is_how_this_broke(self):
+        """Kept as the counter-example, so the failure mode stays legible."""
+        from app.web.services import gemini
+
+        assert gemini.to_contents([{"role": "user", "text": "hello"}]) == []
+
+
+class TestADeniedProjectIsNotABadKey:
+    """Both are 403, and the advice for each is the opposite of the other's.
+
+    A key that worked a minute earlier can start answering
+    "your project has been denied access" after a quota or billing action. Telling
+    that person their key is malformed sends them to check the one thing that is
+    fine.
+    """
+
+    def test_a_denied_project_says_so(self):
+        from app.web.services import gemini, question_gen
+
+        exc = gemini.GeminiAuthError(
+            'Gemini rejected the credential (403). {"error": {"code": 403, '
+            '"message": "Your project has been denied access. Please contact support.", '
+            '"status": "PERMISSION_DENIED"}}'
+        )
+        message = question_gen.friendly_error(exc)
+        assert "denied this project access" in message
+        assert "AIza" not in message, "a denied project is not a malformed key"
+
+    def test_a_genuinely_bad_key_still_says_so(self):
+        from app.web.services import gemini, question_gen
+
+        exc = gemini.GeminiAuthError(
+            'Gemini rejected the credential (400). {"error": {"message": "API key not valid"}}'
+        )
+        assert "AIza" in question_gen.friendly_error(exc)

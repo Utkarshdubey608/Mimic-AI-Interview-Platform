@@ -241,6 +241,17 @@ def friendly_error(exc: Exception) -> str:
     next step rather than the symptom.
     """
     message = str(exc).lower()
+    # A DENIED PROJECT is not a bad key, and saying so sends people to check the
+    # one thing that is fine. Google answers 403 PERMISSION_DENIED — "your project
+    # has been denied access" — for a key that is perfectly well-formed and was
+    # working minutes earlier, typically after a quota or billing action. Checked
+    # before the key branch, because that branch also matches a 403.
+    if "denied access" in message or "permission_denied" in message:
+        return (
+            "Google has denied this project access to Gemini. The key itself is "
+            "likely fine — check the project's quota and billing in Google AI "
+            "Studio, or use a different key."
+        )
     if isinstance(exc, gemini.GeminiAuthError) or "api key" in message or "api_key" in message:
         return (
             "Gemini rejected the API key. Make sure it’s a valid Google AI Studio "
