@@ -92,6 +92,14 @@ export interface QuestionSet {
   id: string
   name: string
   questions: FixedQuestion[]
+  /**
+   * Who authored it. RECORDED, not enforced — question sets are still listed to
+   * every recruiter on the deployment, exactly as before. Optional because
+   * documents created before this field existed have no author and must not be
+   * given one retroactively. See the ⚠️ in backend routes/templates.py for the
+   * isolation decision this exists to keep open.
+   */
+  recruiterId?: string
   createdAt: string
   updatedAt: string
 }
@@ -496,6 +504,13 @@ export interface VoiceConfig {
 
 export interface InterviewTemplate {
   id: string
+  /**
+   * Who authored it. RECORDED, not enforced — templates are still listed to every
+   * recruiter on the deployment. Optional because templates created before this
+   * field existed have no author, and editing one must not invent one. See the ⚠️
+   * in backend routes/templates.py.
+   */
+  recruiterId?: string
   name: string
   role: string
   seniority?: string

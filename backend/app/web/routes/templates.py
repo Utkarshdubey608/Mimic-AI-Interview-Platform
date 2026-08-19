@@ -40,7 +40,9 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def build_template(body: dict, *, template_id: str, now: str) -> dict:
+def build_template(
+    body: dict, *, template_id: str, now: str, recruiter_id: str | None = None
+) -> dict:
     """A complete template from a partial request. Pure, so it is directly testable.
 
     The defaults are applied per-section with the request layered on top, so a client
@@ -48,6 +50,15 @@ def build_template(body: dict, *, template_id: str, now: str) -> dict:
     blanking them. The track-dependent sections are populated only for the tracks
     that read them — a `chat` template carrying a voice config would suggest the
     voice is used, and it is not.
+
+    `recruiter_id` RECORDS the author without restricting anyone. Templates are
+    still listed to every recruiter on the deployment exactly as before — this
+    changes no visibility. It exists because the author was already known at this
+    moment (and even logged: "template %s created by %s") and then thrown away, so
+    every template ever created was permanently unattributable. Deciding later
+    whether a company's templates should be private to it is impossible without
+    this field, and every day it is not recorded adds documents no migration can
+    ever attribute. See the ⚠️ at the top of this module for the decision itself.
     """
     track = body.get("track") or "chat"
     question_source = body.get("questionSource") or "fixed"
@@ -69,6 +80,11 @@ def build_template(body: dict, *, template_id: str, now: str) -> dict:
         "createdAt": now,
         "updatedAt": now,
     }
+
+    # Recorded only when known. A legacy template edited by someone else must not
+    # gain them as an "owner" — that would invent attribution rather than record it.
+    if recruiter_id:
+        template["recruiterId"] = recruiter_id
 
     # ── track-dependent sections ─────────────────────────────────────────────
     mode = body.get("mode")
@@ -131,7 +147,9 @@ async def create_template(
     body: dict, request: Request, user: AuthedUser = WebUser
 ) -> dict:
     store = get_store(settings_of(request))
-    template = build_template(body or {}, template_id=str(uuid.uuid4()), now=_now())
+    template = build_template(
+        body or {}, template_id=str(uuid.uuid4()), now=_now(), recruiter_id=user.uid
+    )
     await store.templates.put(template)
     logger.info("template %s created by %s", template["id"], user.uid)
     return template
@@ -154,8 +172,15 @@ async def update_template(
         **(body or {}),
         "id": existing["id"],
         "createdAt": existing.get("createdAt"),
+        # Re-pinned like id and createdAt, and for the same reason: a client that
+        # echoed this could claim someone else's template, or hand its own away.
+        # Absent stays absent — editing a legacy template does not make the editor
+        # its author.
+        "recruiterId": existing.get("recruiterId"),
         "updatedAt": _now(),
     }
+    if updated.get("recruiterId") is None:
+        updated.pop("recruiterId", None)
     await store.templates.put(updated)
     return updated
 
