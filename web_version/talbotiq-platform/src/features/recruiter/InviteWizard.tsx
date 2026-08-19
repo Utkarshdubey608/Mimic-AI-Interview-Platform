@@ -2,9 +2,10 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X } from 'lucide-react'
+import { MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
+} from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
-import { questionSetsApi, invitesApi, settingsApi, pipelinesApi } from '@/lib/api'
+import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi } from '@/lib/api'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
 import { ReviewSend } from './invite-email/ReviewSend'
@@ -28,7 +29,7 @@ const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
  * the Firestore `interviews` schema + Admin credentials + email provider are in place.
  */
 
-type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way'>
+type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq'>
 type Source = 'tailor' | 'set'
 
 const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode }[] = [
@@ -36,6 +37,7 @@ const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode 
   { value: 'voice',        label: 'Voice',        blurb: 'Live spoken AI interviewer (Gemini Live).', icon: <Mic size={20} /> },
   { value: 'video_avatar', label: 'Video Avatar', blurb: 'Conversational AI video avatar (Tavus).',   icon: <Video size={20} /> },
   { value: 'chat',         label: 'Timed Q&A',    blurb: '30s prep + timed answers (HireVue-style).', icon: <Clock size={20} /> },
+  { value: 'mcq',          label: 'MCQ Test',     blurb: 'Multiple choice, scored instantly.',       icon: <ListChecks size={20} /> },
   { value: 'video',        label: 'Video Interview', blurb: 'Candidate records webcam answers per question.', icon: <Clapperboard size={20} /> },
   { value: 'two_way',      label: 'Two-way Interview', blurb: 'Live recruiter ↔ candidate video interview.', icon: <Users size={20} /> },
 ]
@@ -327,6 +329,7 @@ export default function InviteWizard() {
   const [source, setSource] = useState<Source | ''>('')
   const [cfg, setCfg] = useState<TailorConfig>({ style: 'mix', techCount: 5, nonTechCount: 3, difficulty: 'mixed', domains: [], model: 'gemini-2.5-flash' })
   const [selectedSetId, setSelectedSetId] = useState('')
+  const [selectedMcqSetId, setSelectedMcqSetId] = useState('')
   const [genOpen, setGenOpen] = useState(false)
   // Step 2 (multi) — the ordered rounds being authored; modes/config are per-round.
   const [rounds, setRounds] = useState<RoundDraft[]>(defaultRounds())
@@ -355,6 +358,8 @@ export default function InviteWizard() {
   }))
 
   const sets = useQuery({ queryKey: ['question-sets'], queryFn: questionSetsApi.list, enabled: step === 2 && mode !== 'two_way' })
+  // MCQ papers are a separate, owner-scoped collection — see mcqSetsApi.
+  const mcqSets = useQuery({ queryKey: ['mcq-sets'], queryFn: mcqSetsApi.list, enabled: step === 2 && mode === 'mcq' })
 
   const validCount = candidates.filter((c) => emailOk(c.email)).length
   const validCandidates = candidates.filter((c) => emailOk(c.email)).map((c) => ({ email: c.email.trim(), role: c.role.trim() || role }))
@@ -437,14 +442,18 @@ export default function InviteWizard() {
     }
     // Two-way Interview has no scripted question source (live recruiter-led
     // call) — every other mode requires one.
-    if (!mode || (mode !== 'two_way' && !source) || validCount === 0) return
+    if (!mode || (mode !== 'two_way' && mode !== 'mcq' && !source) || validCount === 0) return
+    if (mode === 'mcq' && !selectedMcqSetId) { toast.error('Pick an MCQ set first'); return }
     if (!emailLocked.ok) { toast.error(`The invite email is missing the interview link (${emailLocked.missing.join(', ')})`); return }
     setCreating(true)
     try {
       const res = await invitesApi.create({
         mode: mode as Mode,
         role: role.trim(),
-        ...(mode !== 'two_way' ? { source: source as Source } : {}),
+        // Neither two-way nor MCQ has a question SOURCE to send: one has no scripted
+        // questions at all, the other references a pre-authored paper by id.
+        ...(mode !== 'two_way' && mode !== 'mcq' ? { source: source as Source } : {}),
+        ...(mode === 'mcq' ? { mcqSetId: selectedMcqSetId } : {}),
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
         candidates: validCandidates,
@@ -554,6 +563,9 @@ export default function InviteWizard() {
   // recruiter-led call, so Step 2 has nothing to require here.
   const step2Valid = mode === 'two_way'
     ? true
+    // MCQ has no résumé-tailored path: the paper is authored in advance, with its
+    // answers, so the only thing to choose is which paper.
+    : mode === 'mcq' ? !!selectedMcqSetId
     : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25 : source === 'set' ? !!selectedSetId : false
   const step2ValidMulti = rounds.length >= 1 && rounds.every((r) => r.name.trim().length >= 1 && !!r.mode)
 
@@ -744,7 +756,66 @@ export default function InviteWizard() {
             </>
           ) : (
             <>
-              {mode === 'two_way' ? (
+              {mode === 'mcq' ? (
+                /* MCQ: one choice, which paper. There is no résumé-tailored path
+                   here because a multiple-choice question needs its options and its
+                   correct answer authored in advance — generated-per-candidate
+                   options would have no key to score against. */
+                <div>
+                  <StepSection
+                    title="Choose the MCQ paper"
+                    hint="Authored in MCQ sets, with the answers. Scored the moment a candidate submits — no model, no waiting."
+                  >
+                    {mcqSets.isLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-[62px]" />
+                        <Skeleton className="h-[62px]" />
+                      </div>
+                    ) : (mcqSets.data ?? []).length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-5 py-6 text-center">
+                        <p className="text-sm font-semibold text-neutral-900">No MCQ sets yet</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-neutral-500">
+                          Build one in MCQ sets — questions, options and the correct answer — then it appears here.
+                        </p>
+                        <Button className="mt-3" size="sm" variant="outline" onClick={() => navigate('/mcq-sets')}>
+                          Go to MCQ sets
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(mcqSets.data ?? []).map((set) => {
+                          const sel = selectedMcqSetId === set.id
+                          const points = set.questions.reduce((sum, q) => sum + (q.points ?? 1), 0)
+                          return (
+                            <button
+                              key={set.id}
+                              type="button"
+                              onClick={() => setSelectedMcqSetId(set.id)}
+                              className={cn(
+                                'flex w-full items-center gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-colors duration-150',
+                                sel
+                                  ? 'border-primary-700 bg-primary-50/40 ring-1 ring-primary-700'
+                                  : 'border-border bg-white hover:border-neutral-300',
+                              )}
+                            >
+                              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+                                <ListChecks size={17} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-bold text-neutral-900">{set.name}</span>
+                                <span className="mt-0.5 block text-xs text-neutral-500">
+                                  {set.questions.length} question{set.questions.length === 1 ? '' : 's'} · {points} point{points === 1 ? '' : 's'}
+                                </span>
+                              </span>
+                              {sel && <Check size={16} className="flex-shrink-0 text-primary-700" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </StepSection>
+                </div>
+              ) : mode === 'two_way' ? (
                 <div className="flex items-start gap-3.5 rounded-2xl border border-border bg-white p-5 shadow-xs">
                   <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Users size={20} /></span>
                   <div className="min-w-0">
@@ -826,7 +897,7 @@ export default function InviteWizard() {
 
               <StepFooter
                 left={<Button variant="ghost" icon={<ArrowLeft size={15} />} onClick={() => setStep(1)}>Back</Button>}
-                hint={step2Valid ? undefined : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
+                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
                 right={<Button disabled={!step2Valid} onClick={() => setStep(3)}>Next: Candidates <ArrowRight size={15} /></Button>}
               />
 

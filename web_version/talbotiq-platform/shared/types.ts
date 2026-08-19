@@ -215,6 +215,39 @@ export interface McqTopicResult {
   pointsAvailable: number
 }
 
+/** What the candidate's runtime receives. No answer key, by construction. */
+export interface McqPaperState {
+  sessionId: string
+  status: SessionStatus
+  questions: McqQuestionPublic[]
+  /** questionId → selected option ids, so a reload restores the paper as left. */
+  answers: Record<string, string[]>
+  submittedAt?: string | null
+  totalSeconds?: number
+  perQuestionSeconds?: number
+  branding?: Partial<BrandingConfig>
+  /** Only when the recruiter chose to show it, and never with the key. */
+  result?: McqCandidateResult | null
+}
+
+/** The score as a CANDIDATE may see it: right or wrong, never which option. */
+export interface McqCandidateResult {
+  kind: 'mcq'
+  correctCount: number
+  questionCount: number
+  points: number
+  pointsAvailable: number
+  percent: number | null
+  passThreshold?: number
+  passed?: boolean
+  questions: {
+    questionId: string
+    correct: boolean
+    points: number
+    pointsAvailable: number
+  }[]
+}
+
 export interface McqResult {
   kind: 'mcq'
   multiRule: McqMultiRule
@@ -1047,6 +1080,13 @@ export interface CreateInvitesRequest {
     model: GeminiModel
   }
   questionSetId?: string                            // when source === 'set'
+  /**
+   * When mode === 'mcq'. The paper is REFERENCED, not embedded: the invite
+   * pipeline carries questions as plain strings, which cannot express an option
+   * list or an answer key, so the set stays in the recruiter's own collection and
+   * the session resolves it at create time — the key never reaching a browser.
+   */
+  mcqSetId?: string
   candidates: { email: string; role: string }[]
   origin?: string                                   // web origin, for the invite link in emails
   // Configurable invite email (additive). When neither is set, the legacy built-in

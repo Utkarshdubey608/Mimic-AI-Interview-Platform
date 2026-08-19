@@ -17,6 +17,7 @@ import { DeviceCheck } from './stage/DeviceCheck'
 import { ResumeUpload } from './screens/ResumeUpload'
 import { QuestionStage } from './screens/QuestionStage'
 import { ChatbotStage } from './screens/ChatbotStage'
+import { McqStage } from './screens/McqStage'
 import { AvatarStage } from './screens/AvatarStage'
 import { VoiceStage } from './screens/VoiceStage'
 import { TwoWayStage } from './screens/TwoWayStage'
@@ -159,6 +160,13 @@ export default function TakeInterviewPage() {
   /* ── Conversational and realtime tracks ────────────────────────────────
      Each runs its own full-screen engine and mounts InterviewStage itself,
      because only they know their transport controls and connection state. */
+  /* MCQ is neither conversational nor timed: it runs its own paper, mounts its
+     own stage, and needs no résumé, no devices and no engine. It therefore comes
+     BEFORE the pre-step machinery below, which exists to choose a format and
+     collect a résumé neither of which apply to a written assessment. */
+  if (s.track === 'mcq') {
+    return <>{gate}<McqStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} /></>
+  }
   if (s.track === 'chatbot' && (chatbotStarted || s.status === 'in_progress')) {
     return <>{gate}<ChatbotStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} /></>
   }

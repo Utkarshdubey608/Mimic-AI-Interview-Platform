@@ -32,6 +32,7 @@ from app.web.routes import (
     sessions,
     sessions_avatar,
     sessions_chat,
+    sessions_mcq,
     sessions_twoway,
     sessions_twoway_livekit,
     settings,
@@ -73,6 +74,7 @@ _MODULES = (
     # to match the Express file they were split out of.
     sessions_avatar,
     sessions_chat,
+    sessions_mcq,
     sessions_twoway,
     settings,
     invite_email_templates,

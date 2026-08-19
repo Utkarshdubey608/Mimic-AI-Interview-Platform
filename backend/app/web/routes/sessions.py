@@ -244,7 +244,34 @@ async def create_session(
         )
 
     questions: list[dict] = []
-    if template.get("questionSource") == "fixed":
+    mcq_config: dict | None = None
+    if (body.get("track") or template.get("track")) == "mcq":
+        # The MCQ paper. Resolved here, WITH its answer key, into the session
+        # document — the key stays server-side for the whole interview and the
+        # candidate's view is built by an allow-list (see routes/sessions_mcq.py).
+        mcq_set = await store.mcq_sets.get(str(template.get("mcqSetId") or ""))
+        if not mcq_set or not (mcq_set.get("questions") or []):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Template references an empty or missing MCQ set",
+            )
+        # The set belongs to one recruiter, so a template may only point at a set
+        # its own recruiter owns. Without this, a template id plus somebody else's
+        # set id would read a paper — and its answers — across the boundary.
+        if mcq_set.get("recruiterId") not in (None, "", user.uid):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Template references an MCQ set owned by another recruiter",
+            )
+        # Fresh question ids, for the same reason the fixed track uses them: editing
+        # the set later must not reach back into a finished assessment. Options keep
+        # THEIR ids, because the stored answers reference them.
+        questions = [
+            {**question, "id": str(uuid.uuid4())}
+            for question in mcq_set["questions"]
+        ]
+        mcq_config = {**(template.get("mcqConfig") or {})}
+    elif template.get("questionSource") == "fixed":
         question_set = await store.question_sets.get(
             str(template.get("fixedQuestionSetId") or "")
         )
@@ -280,6 +307,8 @@ async def create_session(
         "integrityEvents": [],
         "tabSwitchCount": 0,
     }
+    if mcq_config is not None:
+        session["mcqConfig"] = mcq_config
     await store.sessions.put(session)
     return {"id": session["id"]}
 

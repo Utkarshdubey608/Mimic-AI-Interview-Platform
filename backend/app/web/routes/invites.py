@@ -253,6 +253,25 @@ async def create_invites(
             q["text"] for q in question_set.get("questions") or [] if q.get("text")
         ]
 
+    # MCQ: the paper is REFERENCED, not embedded. The rest of this pipeline stores
+    # questions as plain strings, which cannot express an option list or an answer
+    # key, so the paper stays in the recruiter's own mcq_sets document and the
+    # session resolves it at create time — the key never leaving the server.
+    #
+    # Ownership is checked here for the same reason the email template is below: a
+    # set id from another recruiter must not be usable, and an MCQ set carries the
+    # answers. 404 rather than 403, so the response does not confirm it exists.
+    mcq_set_id = None
+    if mode == "mcq":
+        mcq_set_id = str(body.get("mcqSetId") or "")
+        if not mcq_set_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "An MCQ set must be selected")
+        mcq_set = await store.mcq_sets.get(mcq_set_id)
+        if not mcq_set or not (mcq_set.get("questions") or []):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "MCQ set not found")
+        if str(mcq_set.get("recruiterId") or "") not in ("", user.uid):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "MCQ set not found")
+
     stored_template = None
     if body.get("emailTemplateId"):
         found = await store.invite_email_templates.get(str(body["emailTemplateId"]))
@@ -302,6 +321,7 @@ async def create_invites(
             source=source if isinstance(source, str) else None,
             config=body.get("config") if isinstance(body.get("config"), dict) else None,
             question_set_id=str(question_set_id) if question_set_id else None,
+            mcq_set_id=mcq_set_id or None,
             server_timestamp=admin_firestore.SERVER_TIMESTAMP,
         )
 
