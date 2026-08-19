@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Check, Mail, ShieldCheck } from 'lucide-react'
 import { pageVariants } from '@/design/motion'
@@ -28,6 +29,9 @@ import type { BrandingConfig } from '@shared/types'
  */
 export function Completion({ branding, sessionId }: { branding: BrandingConfig; sessionId?: string }) {
   const reduce = useReducedMotion() ?? false
+  // Set once the feedback step is answered EITHER way — sent or declined. Both
+  // mean the same thing here: the candidate is finished with this page.
+  const [done, setDone] = useState(false)
 
   return (
     <>
@@ -87,13 +91,24 @@ export function Completion({ branding, sessionId }: { branding: BrandingConfig; 
         interview is over and submitted; this is a request, not a gate. Because
         every track now ends on this one component, adding it here gives all six
         formats the same closing step. */}
-    {sessionId && <CandidateFeedback sessionId={sessionId} />}
+    {sessionId && <CandidateFeedback sessionId={sessionId} onResolved={() => setDone(true)} />}
 
     {/* And then out of the product. The candidate arrived from an emailed link
         straight into an interview, so without this the only exit is closing the
-        tab. The countdown defers to the feedback form above it: any interaction
-        cancels it, so nobody is dragged away mid-sentence. */}
-    <ReturnToSite />
+        tab.
+
+        TWO countdowns, because the two situations are not alike. Until the
+        feedback step is answered the long one runs and ANY interaction cancels
+        it, so nobody is dragged away mid-sentence. Once they have sent feedback
+        or declined it there is nothing left on this page to interrupt, so it
+        becomes a short countdown that no longer listens for interaction — the
+        interaction that would have cancelled it is the very click that finished
+        the step. Remounted by `key` so the new countdown starts from full. */}
+    <ReturnToSite
+      key={done ? 'after-feedback' : 'initial'}
+      seconds={done ? 4 : 20}
+      cancellable={!done}
+    />
     </>
   )
 }

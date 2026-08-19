@@ -18,23 +18,29 @@ function fmt(s: number) {
   return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : String(r)
 }
 
-/** Linear blend between two hex colours, so no step is ever visible. */
+/**
+ * Linear blend between two TOKENS, so no step is ever visible.
+ *
+ * Mixed in CSS rather than in JavaScript, and that is the whole point. The ramp
+ * used to interpolate three hardcoded hexes — #15803D, #B45309, #B3261E — which
+ * are the light surface's colours. A candidate interview runs on
+ * `data-ground="room"`, a near-black ground where all three are dark on dark:
+ * the countdown numeral was rendering at roughly 3:1 against the very ground it
+ * sits on, and in the prepare phase it was invisible outright.
+ *
+ * `color-mix` defers the blend to the browser, which resolves the tokens in
+ * whatever ground the component happens to be mounted in — #15803D on the
+ * record page and #5CC98A in the room, from one expression.
+ */
 function mix(from: string, to: string, t: number): string {
   const k = Math.max(0, Math.min(1, t))
-  const parse = (h: string) => [
-    parseInt(h.slice(1, 3), 16),
-    parseInt(h.slice(3, 5), 16),
-    parseInt(h.slice(5, 7), 16),
-  ]
-  const [r1, g1, b1] = parse(from)
-  const [r2, g2, b2] = parse(to)
-  const c = (a: number, b: number) => Math.round(a + (b - a) * k)
-  return `rgb(${c(r1, r2)}, ${c(g1, g2)}, ${c(b1, b2)})`
+  return `color-mix(in srgb, ${to} ${(k * 100).toFixed(1)}%, ${from})`
 }
 
-const CALM = '#15803D'
-const WARM = '#B45309'
-const URGENT = '#B3261E'
+/** The ramp, as tokens. Each resolves per ground — see the note on `mix`. */
+const CALM = 'var(--ok)'
+const WARM = 'var(--warn)'
+const URGENT = 'var(--risk)'
 
 /**
  * Time as a physical quantity, not an alarm.
@@ -80,14 +86,29 @@ export function CircularCountdown({ remaining, total, phase, warningThreshold, a
   const R = size / 2 - baseStroke * 1.6 - 8
   const C = 2 * Math.PI * R
 
+  /**
+   * Preparation is not urgent, so it takes the ground's own accent rather than
+   * the ramp.
+   *
+   * NOT `accentColor`, which is the recruiter's brand colour. That defaults to
+   * ink (#0E1420) and a candidate interview runs on a near-black ground, so the
+   * numeral was drawing itself in the ground colour — invisible, which is
+   * exactly what it looked like. `--accent` resolves to the on-dark blue in the
+   * room and to the brand blue on the record page. The recruiter's colour still
+   * brands the header and the primary actions, where it sits on a surface light
+   * enough to carry it.
+   */
   const color = phase === 'answer'
     ? (urgency < 0.5 ? mix(CALM, WARM, urgency * 2) : mix(WARM, URGENT, (urgency - 0.5) * 2))
-    : accentColor
+    : 'var(--accent)'
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true" focusable="false">
-        <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="#E7E7EA" strokeWidth={trackStroke} />
+        {/* The unspent part of the ring. `--rule` rather than a fixed #E7E7EA:
+            that grey is a hairline on white and a bright band on the room's
+            near-black ground, where it drew more attention than the arc. */}
+        <circle cx={size / 2} cy={size / 2} r={R} fill="none" stroke="var(--rule)" strokeWidth={trackStroke} />
         <circle
           cx={size / 2} cy={size / 2} r={R} fill="none" stroke={color}
           strokeWidth={stroke} strokeLinecap="round"

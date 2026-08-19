@@ -37,7 +37,19 @@ const RATINGS = [
   { value: 5, label: 'Great' },
 ]
 
-export function CandidateFeedback({ sessionId }: { sessionId: string }) {
+export function CandidateFeedback({
+  sessionId,
+  onResolved,
+}: {
+  sessionId: string
+  /**
+   * Fired when the candidate is finished with this step, whichever way they
+   * finished it — sent or declined. From this screen's point of view the two are
+   * the same event, and treating "No thanks" as unfinished would strand exactly
+   * the people who answered quickest.
+   */
+  onResolved?: () => void
+}) {
   const [rating, setRating] = useState<number | null>(null)
   const [comment, setComment] = useState('')
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
@@ -59,6 +71,7 @@ export function CandidateFeedback({ sessionId }: { sessionId: string }) {
       // with their actual interview, which is the last thing they should think.
     }
     setState('sent')
+    onResolved?.()
   }
 
   if (state === 'sent') {
@@ -137,7 +150,7 @@ export function CandidateFeedback({ sessionId }: { sessionId: string }) {
         </Button>
         <button
           type="button"
-          onClick={() => setState('sent')}
+          onClick={() => { setState('sent'); onResolved?.() }}
           className="rounded-sm text-sm text-ink-muted underline underline-offset-2 transition-colors duration-fast hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           No thanks
