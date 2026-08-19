@@ -240,6 +240,15 @@ class FakeDocument:
         else:
             self._collection.docs[self.id] = copy.deepcopy(data)
 
+    def update(self, data: dict) -> None:
+        """Merge fields into an existing document, as the Admin SDK's update does.
+
+        The invite route calls this to stamp the send result onto each interview
+        after mailing it, so without it the invite path could not be tested past
+        the write — which is how a mode missing from MODE_LABELS stayed invisible.
+        """
+        self._collection.docs.setdefault(self.id, {}).update(copy.deepcopy(data))
+
     def get(self):
         raise NotImplementedError(
             "a web unit test read the shared interviews collection; seed it explicitly"
@@ -251,9 +260,24 @@ class FakeFirestoreCollection:
         self.name = name
         self.docs: dict[str, dict] = {}
         self.deleted: list[str] = []
+        self._next_id = 0
 
     def document(self, doc_id: str) -> FakeDocument:
         return FakeDocument(self, doc_id)
+
+    def add(self, document: dict) -> tuple[object, FakeDocument]:
+        """Append with a generated id, returning `(write_result, reference)`.
+
+        The real Admin SDK returns that pair and the invite route indexes `[1]` for
+        the reference, so the shape matters as much as the write. Added because the
+        MCQ journey test sends a real invite: without `add`, the whole invite path —
+        the one where a mode missing from MODE_LABELS made finished papers
+        unsendable — could not be exercised by any test at all.
+        """
+        self._next_id += 1
+        doc_id = f"fake-{self.name}-{self._next_id}"
+        self.docs[doc_id] = dict(document)
+        return (None, FakeDocument(self, doc_id))
 
 
 class FakeFirestoreClient:
