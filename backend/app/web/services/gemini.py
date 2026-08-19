@@ -101,6 +101,21 @@ def to_contents(messages: list[dict]) -> list[dict]:
     return contents
 
 
+def user_turn(prompt: str) -> list[dict]:
+    """One user message, already in the shape `contents` needs.
+
+    Exists because building it inline is how the MCQ generator spent a day sending
+    an EMPTY conversation: `to_contents` reads `content`, a `text` key is dropped
+    without complaint, and the request then fails before it is ever made. The
+    symptom — "Gemini request failed" — pointed at the vendor rather than at a
+    misspelled dict key.
+
+    A caller holding a single prompt should not have to know that contract. This is
+    the only correct way to express it, so the mistake has nowhere left to live.
+    """
+    return to_contents([{"role": "user", "content": prompt}])
+
+
 async def resolve_key(settings: Settings) -> str:
     """The active Gemini key: the recruiter's saved one, else the environment.
 

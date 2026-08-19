@@ -232,3 +232,29 @@ class TestADeniedProjectIsNotABadKey:
             'Gemini rejected the credential (400). {"error": {"message": "API key not valid"}}'
         )
         assert "AIza" in question_gen.friendly_error(exc)
+
+
+class TestTheMistakeHasNowhereToLive:
+    """`gemini.user_turn` is the reason the `text`/`content` bug cannot recur.
+
+    Building the message inline was the whole failure: a misspelled key produced an
+    empty conversation, and the request failed before it was made. A caller with one
+    prompt now has a single correct way to express it.
+    """
+
+    def test_user_turn_produces_a_real_conversation(self):
+        from app.web.services import gemini
+
+        contents = gemini.user_turn("Hello")
+        assert len(contents) == 1
+        assert contents[0]["role"] == "user"
+        assert contents[0]["parts"][0]["text"] == "Hello"
+
+    def test_both_generators_go_through_it(self):
+        """Asserted on the source, because the point is that no caller hand-rolls
+        the dict any more — a future one that did would reintroduce the bug."""
+        from pathlib import Path
+
+        source = Path("app/web/services/mcq_gen.py").read_text(encoding="utf-8")
+        assert source.count("gemini.user_turn(") == 2
+        assert "to_contents(" not in source
