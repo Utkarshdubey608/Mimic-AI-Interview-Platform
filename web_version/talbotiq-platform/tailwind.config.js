@@ -105,8 +105,22 @@ export default {
            Kept so existing consumers re-skin without edits. Do not use in new
            code; the semantic tokens above say what they mean. */
 
-        // Registrar ink — primary actions, active nav, focus ring, links.
-        primary: { DEFAULT: '#1D3FA0', 50: '#F1F4FB', 100: '#E2E8F6', 200: '#C6D2ED', 300: '#9AAEDF', 400: '#6480C6', 500: '#3D5CB4', 600: '#2A4AAA', 700: '#1D3FA0', 800: '#152E76', 900: '#0F2154' },
+        // The primary action ramp — INK, and neutral all the way down.
+        //
+        // This was the registrar blue (#1D3FA0). It is the single most widely
+        // consumed legacy alias in the recruiter app — the wizard's step markers,
+        // its selected cards, segmented controls, chips and the résumé notice all
+        // read `primary-*` — so its value alone decides whether that half of the
+        // product looks like the marketing site or like the palette that left with
+        // the registrar system.
+        //
+        // It went back to blue by accident: the candidate-stage rebuild was authored
+        // against the Aug-16 tree and carried the old config with it, so merging that
+        // branch reverted a decision taken deliberately in `ade62e24` ("ink primary
+        // actions"). Same values as the semantic `--action` above; kept as a scale
+        // because the callers want tints (`primary-50`, `primary-100`) a single token
+        // cannot give them.
+        primary: { DEFAULT: '#0E1420', 50: '#F5F5F7', 100: '#ECECEF', 200: '#DFDFE3', 300: '#C7C8CD', 400: '#8A8F98', 500: '#61666E', 600: '#3B4046', 700: '#0E1420', 800: '#23272E', 900: '#0E1420' },
 
         // Cool neutral ramp — paper under daylight. Static by design: a fixed
         // ramp is what a chart axis or a skeleton needs. Ground-following text
