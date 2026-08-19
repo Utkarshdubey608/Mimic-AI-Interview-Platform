@@ -43,3 +43,29 @@ if (failed.length) {
   process.exit(1)
 }
 console.log('\n✅ All test files passed')
+
+/* ── The browser harness must never ship ───────────────────────────────────
+   `/__mcq` mounts a recruiter screen OUTSIDE the identity gate, so Playwright can
+   drive it without a Firebase session. It is guarded by `import.meta.env.DEV`,
+   which Vite replaces at build time, so a production bundle should not contain it.
+
+   "Should" is exactly why this check exists. A refactor that moved the route
+   behind a runtime flag, or a bundler setting that stopped folding the constant,
+   would silently publish an unauthenticated recruiter route — and nothing else in
+   this pipeline would notice. Runs only when a build is present, so it is a no-op
+   before one. */
+const distAssets = path.join(ROOT, 'dist', 'assets')
+if (fs.existsSync(distAssets)) {
+  const leaked = fs
+    .readdirSync(distAssets)
+    .filter((f) => f.endsWith('.js'))
+    .filter((f) => fs.readFileSync(path.join(distAssets, f), 'utf8').includes('/__mcq'))
+  if (leaked.length) {
+    console.log(
+      `\n❌ A dev-only harness route reached the production bundle: ${leaked.join(', ')}`,
+    )
+    console.log('   /__mcq renders a recruiter screen with no identity check.')
+    process.exit(1)
+  }
+  console.log('✅ No dev-only harness route in the production bundle')
+}

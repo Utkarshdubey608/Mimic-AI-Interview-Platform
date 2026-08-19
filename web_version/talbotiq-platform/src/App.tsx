@@ -97,6 +97,21 @@ export default function App() {
         <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
+            {/* ── Browser-test harnesses ───────────────────────────────────
+                Dev-only, and OUTSIDE the identity gate on purpose: a Playwright
+                run has no Firebase session, and the alternative — stubbing auth
+                — would put a bypass in the same code path production uses.
+                `import.meta.env.DEV` is replaced at build time, so these routes
+                are dead code a production bundle never contains (asserted by
+                scripts/verify-deploy.mjs).
+
+                They mount a real screen with its API mocked by the spec, which
+                is the layer unit tests cannot reach: a disabled button, a
+                control that does not toggle, a colour nobody can read. */}
+            {import.meta.env.DEV && (
+              <Route path="/__mcq" element={<McqSetsPage />} />
+            )}
+
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>
             <Route path="/login" element={<LoginPage />} />
