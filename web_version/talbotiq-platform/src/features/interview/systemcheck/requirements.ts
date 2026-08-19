@@ -16,6 +16,11 @@ export type CheckId = 'browser' | 'mic' | 'camera' | 'face' | 'speaker' | 'conne
 const BY_TRACK: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
+  // A written assessment: nothing to say, nothing to hear, nothing to record.
+  // Asking for device permissions an MCQ paper will never use is a pointless
+  // obstacle in front of a candidate, so the browser check is the whole honest
+  // requirement here.
+  mcq:          ['browser'],
   // Spoken: the candidate must hear the interviewer, so output is confirmed too.
   voice:        ['browser', 'mic', 'speaker'],
   video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],

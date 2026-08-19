@@ -66,7 +66,15 @@ logger = logging.getLogger("web.sessions")
 
 router = APIRouter(prefix="/sessions", tags=["web:sessions"])
 
-TRACKS = ("chat", "chatbot", "video_avatar", "voice", "video", "two_way")
+# The interview modes the server will accept on a session.
+#
+# `mcq` is the closed-ended mode: its answers are compared to a stored key by
+# `services/mcq_scoring.py` rather than judged by Gemini, so it is the only track
+# whose score is exact, instant and reproducible.
+#
+# Mirrors `TrackType` in web_version/talbotiq-platform/shared/types.ts, which
+# carries the note on the third copy of this list (the Flutter client).
+TRACKS = ("chat", "chatbot", "video_avatar", "voice", "video", "two_way", "mcq")
 
 # A résumé, not a portfolio.
 MAX_RESUME_BYTES = 8 * 1024 * 1024

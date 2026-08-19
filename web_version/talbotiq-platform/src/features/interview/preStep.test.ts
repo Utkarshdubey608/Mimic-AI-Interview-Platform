@@ -24,6 +24,7 @@ function assert(label: string, cond: boolean, extra = '') {
 const TRACKS: Record<TrackType, { conversational: boolean }> = {
   chat:         { conversational: false },  // "Timed Q&A" — the timed engine
   video:        { conversational: false },  // recorded webcam answers — also timed
+  mcq:          { conversational: false },  // a written paper — no engine at all
   chatbot:      { conversational: true },
   voice:        { conversational: true },
   video_avatar: { conversational: true },
@@ -52,8 +53,8 @@ for (const track of ALL_TRACKS) {
 console.log('\n=== the Timed Q&A regression, stated directly ===')
 assert("'chat' runs on the timed engine, not a conversational one", !isConversational('chat'))
 assert(
-  'all six tracks are covered',
-  ALL_TRACKS.length === 6,
+  'all seven tracks are covered',
+  ALL_TRACKS.length === 7,
   `got ${ALL_TRACKS.length}`,
 )
 

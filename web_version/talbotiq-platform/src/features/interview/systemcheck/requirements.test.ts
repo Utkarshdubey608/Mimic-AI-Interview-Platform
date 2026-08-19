@@ -19,6 +19,7 @@ function same(label: string, actual: CheckId[], expected: CheckId[]) {
 const EXPECTED: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
+  mcq:          ['browser'],
   voice:        ['browser', 'mic', 'speaker'],
   video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],
   video:        ['browser', 'mic', 'camera', 'face'],
