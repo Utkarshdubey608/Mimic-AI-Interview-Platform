@@ -131,6 +131,8 @@ class FakeStore:
         prefix = store_db.PREFIX
         self.templates = FakeCollection(f"{prefix}templates")
         self.question_sets = FakeCollection(f"{prefix}question_sets")
+        # Owner-scoped, unlike question_sets — it holds answer keys. See db.py.
+        self.mcq_sets = FakeCollection(f"{prefix}mcq_sets")
         self.invite_email_templates = FakeCollection(f"{prefix}invite_email_templates")
         self.sessions = FakeCollection(f"{prefix}sessions")
         self.reports = FakeCollection(f"{prefix}reports", key_field="sessionId")

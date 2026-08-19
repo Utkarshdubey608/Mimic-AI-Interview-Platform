@@ -55,6 +55,26 @@ class WebStore:
         self.invite_email_templates = Collection(
             client, f"{PREFIX}invite_email_templates"
         )
+        # MCQ question sets — OWNER-SCOPED, unlike `question_sets` above.
+        #
+        # A separate collection rather than a `kind` on the existing one, and the
+        # reason is the answer key. `templates` and `question_sets` are shared
+        # across every recruiter on the deployment (see the ⚠️ note in
+        # routes/templates.py): for open-ended questions that is a deliberate
+        # product choice — recruiters in a company reuse each other's work. An MCQ
+        # set is different in kind, because it CONTAINS THE CORRECT ANSWERS. Shared
+        # storage would mean every recruiter on the deployment can read every
+        # assessment's key.
+        #
+        # Adding ownership to the existing shared collections is the change that
+        # note says not to make silently — recruiters would stop seeing sets they
+        # rely on. A NEW collection avoids that entirely: nothing existing changes
+        # behaviour, and the surface that holds answer keys is owner-scoped from
+        # its first day, with no migration to run later.
+        #
+        # `recruiterId` is stamped server-side from the auth token and never taken
+        # from the client, matching pipelines and feedback.
+        self.mcq_sets = Collection(client, f"{PREFIX}mcq_sets")
 
         # ── the interview engine ─────────────────────────────────────────────
         self.sessions = Collection(client, f"{PREFIX}sessions")
