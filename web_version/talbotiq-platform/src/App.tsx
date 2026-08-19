@@ -33,6 +33,7 @@ const TemplatesPage      = lazy(() => import('@/features/recruiter/TemplatesPage
 const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEditorPage'))
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
 const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
+const McqStageHarness    = lazy(() => import('@/features/interview/screens/McqStageHarness'))
 const SessionsPage       = lazy(() => import('@/features/recruiter/SessionsPage'))
 const PipelinesPage      = lazy(() => import('@/features/recruiter/PipelinesPage'))
 const PipelineBoardPage  = lazy(() => import('@/features/recruiter/PipelineBoardPage'))
@@ -110,6 +111,12 @@ export default function App() {
                 control that does not toggle, a colour nobody can read. */}
             {import.meta.env.DEV && (
               <Route path="/__mcq" element={<McqSetsPage />} />
+            )}
+            {/* The CANDIDATE side of MCQ. Harnessed separately because it is the
+                irreversible path: a recruiter can re-edit a paper, a candidate
+                sits the assessment once and is scored on it. */}
+            {import.meta.env.DEV && (
+              <Route path="/__mcq-take" element={<McqStageHarness />} />
             )}
 
             {/* Everything below needs an identity. */}
