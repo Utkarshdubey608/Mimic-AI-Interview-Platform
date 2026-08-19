@@ -23,6 +23,7 @@ const AXIS_TICK = { fill: '#5C6879', fontSize: 11 }
 
 const TRACK_LABEL: Record<TrackType, string> = {
   chat: 'Timed Q&A', chatbot: 'Chatbot', voice: 'Voice', video_avatar: 'Video Avatar', video: 'Video Interview', two_way: 'Two-way Interview',
+  mcq: 'MCQ Assessment',
 }
 const REC_LABEL: Record<string, string> = {
   strong_yes: 'Strong Yes', yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unscored',

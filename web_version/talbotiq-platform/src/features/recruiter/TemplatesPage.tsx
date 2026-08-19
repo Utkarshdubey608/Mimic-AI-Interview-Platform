@@ -17,6 +17,9 @@ const TRACK_META: Record<InterviewTemplate['track'], { Icon: LucideIcon; label: 
   video_avatar: { Icon: Video,          label: 'Video avatar' },
   video:        { Icon: Video,          label: 'Video' },
   two_way:      { Icon: Video,          label: 'Two-way' },
+  // ListChecks, not a document glyph: the distinguishing thing about this mode
+  // is the choosing, not the writing.
+  mcq:          { Icon: ListChecks,     label: 'MCQ' },
 }
 
 /** A single meta fact on a card — icon, label, and a tabular value. */

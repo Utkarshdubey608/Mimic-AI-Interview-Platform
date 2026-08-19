@@ -55,6 +55,10 @@ export function requirementsFor(track: TrackType): DeviceRequirements {
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
     case 'chatbot':
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
+    // A written assessment: nothing is spoken, streamed or recorded, so there is
+    // nothing to require or to consent to beyond the browser itself.
+    case 'mcq':
+      return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
     case 'voice':
       return { microphone: true, camera: false, faceFraming: false, realtime: true, liveCaptions: true, recordingConsent: true }
     case 'video':

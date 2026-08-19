@@ -6,7 +6,26 @@
 
 /* ─── Core config ───────────────────────────────────────────────────────── */
 
-export type TrackType = 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way'
+/**
+ * The interview modes.
+ *
+ * `mcq` is the one CLOSED-ended mode: the correct answer is known in advance, so
+ * it is scored by comparison rather than by a model. That difference is why it
+ * carries its own question shape and its own scorer (see
+ * `backend/app/web/services/mcq_scoring.py`) instead of routing through the
+ * Gemini evaluation path the other six share.
+ *
+ * Adding to this union is an interop event, not a local change: the same list
+ * exists in `backend/app/web/routes/sessions.py` (`TRACKS`, server-side
+ * validation) and in `mobile_desktop_app_version/.../recruiter_models.dart`
+ * (`TrackType`). The Flutter client stores these as plain string constants with a
+ * `default:` fallback in `label()`, so an unrecognised value does NOT crash it —
+ * it renders as "Timed Q&A (Chat)". `voice`, `video` and `two_way` are already
+ * mislabelled there for exactly this reason; `mcq` joins them until that client
+ * is updated.
+ */
+export type TrackType =
+  | 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way' | 'mcq'
 export type QuestionSource = 'adaptive' | 'fixed'
 
 /* ─── Identity & access control (IAM) ───────────────────────────────────────
@@ -75,6 +94,116 @@ export interface QuestionSet {
   questions: FixedQuestion[]
   createdAt: string
   updatedAt: string
+}
+
+/* ─── MCQ (multiple choice) ─────────────────────────────────────────────────
+ * The closed-ended mode. Everything here is additive: an existing question set
+ * has no `kind` and keeps behaving exactly as it did.
+ *
+ * THE ONE RULE THAT MATTERS: `McqQuestion` — the stored, authored question —
+ * carries the answer key and NEVER crosses to a candidate's browser.
+ * `McqQuestionPublic` is what a candidate receives, and it is built by an
+ * allow-list on the server (`mcq_public_question`), not by deleting fields from
+ * the stored one. A field added to `McqQuestion` later is therefore invisible to
+ * the client until someone adds it to the public shape on purpose. */
+
+export interface McqOption {
+  id: string
+  text: string
+}
+
+/** Single-answer or multi-select. Multi is inferred from a key of >1 either way. */
+export type McqAnswerType = 'single' | 'multi'
+
+/** The AUTHORED question. Recruiter-side and server-side only. */
+export interface McqQuestion {
+  id: string
+  text: string
+  options: McqOption[]
+  /** The answer key. Never sent to a candidate. */
+  correctOptionIds: string[]
+  type: McqAnswerType
+  /** Defaults to 1. Lets a paper be weighted; percentages are over points. */
+  points?: number
+  topic?: string
+  difficulty?: 'easy' | 'medium' | 'hard'
+  /** Shown in the recruiter's report, and to the candidate only after scoring. */
+  explanation?: string
+}
+
+/** What a candidate actually receives. No key, by construction. */
+export interface McqQuestionPublic {
+  id: string
+  text: string
+  type: McqAnswerType
+  options: McqOption[]
+  points: number
+}
+
+/** How a multi-select question is credited. See the scorer for why all-or-nothing
+ *  is the default: under a naive partial rule, selecting every option scores full
+ *  marks on every multi-select question in the paper. */
+export type McqMultiRule = 'all_or_nothing' | 'partial'
+
+export interface McqConfig {
+  multiRule: McqMultiRule
+  /** Per-question seconds, or absent for an untimed paper. */
+  perQuestionSeconds?: number
+  /** Whole-paper seconds, or absent. Independent of the per-question timer. */
+  totalSeconds?: number
+  /** Percentage a candidate must reach. Absent means no pass/fail verdict is made. */
+  passThreshold?: number
+  /** Shuffle option order per candidate, so a leaked "it's the third one" is worthless. */
+  shuffleOptions?: boolean
+  shuffleQuestions?: boolean
+}
+
+/** An MCQ question set. Same per-recruiter ownership and isolation as the others. */
+export interface McqQuestionSet {
+  id: string
+  kind: 'mcq'
+  name: string
+  questions: McqQuestion[]
+  createdAt: string
+  updatedAt: string
+}
+
+/* ── Results ──────────────────────────────────────────────────────────────── */
+
+export interface McqQuestionResult {
+  questionId: string
+  selectedOptionIds: string[]
+  /** Recruiter-facing: it is what makes a result reviewable. */
+  correctOptionIds: string[]
+  correct: boolean
+  /** A question with no key cannot be scored; it counts for neither side. */
+  unscored?: boolean
+  points: number
+  pointsAvailable: number
+}
+
+export interface McqTopicResult {
+  topic: string
+  correct: number
+  count: number
+  points: number
+  pointsAvailable: number
+}
+
+export interface McqResult {
+  kind: 'mcq'
+  multiRule: McqMultiRule
+  questions: McqQuestionResult[]
+  correctCount: number
+  questionCount: number
+  points: number
+  pointsAvailable: number
+  /** null when nothing in the paper was scoreable — NOT 0, which would read as
+   *  a candidate who got everything wrong. */
+  percent: number | null
+  passThreshold?: number
+  passed?: boolean
+  topics?: McqTopicResult[]
 }
 
 /* ── Invite-email templates (owned per recruiter; Express/JSON store) ──────────

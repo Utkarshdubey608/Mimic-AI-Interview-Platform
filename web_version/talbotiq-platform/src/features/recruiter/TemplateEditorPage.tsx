@@ -38,6 +38,7 @@ const TRACK_LABEL: Record<InterviewTemplate['track'], string> = {
   video_avatar: 'Video avatar',
   video: 'Video',
   two_way: 'Two-way',
+  mcq: 'MCQ',
 }
 
 function normalizedWeights(kpis: KpiDefinition[]) {
