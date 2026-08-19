@@ -27,6 +27,7 @@ from app.web.routes import (
     feedback,
     leads,
     pipelines,
+    mcq_sets,
     question_sets,
     sessions,
     sessions_avatar,
@@ -64,6 +65,7 @@ _MODULES = (
     avatar,
     voices,
     templates,
+    mcq_sets,
     question_sets,
     sessions,
     # The session sub-tracks add paths under the same prefix. No path is a prefix of
