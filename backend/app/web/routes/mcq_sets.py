@@ -36,7 +36,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 
 from app.security import AuthedUser
-from app.web.deps import WebUser, settings_of
+from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
+from app.web.services import mcq_gen, question_gen
 from app.web.store import get_store
 
 logger = logging.getLogger("web.mcq_sets")
@@ -281,3 +282,109 @@ async def delete_set(set_id: str, request: Request, user: AuthedUser = WebUser) 
     await _owned_or_404(store, set_id, user.uid)
     await store.mcq_sets.delete(set_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ── Mode A: role → topics → generated paper ─────────────────────────────────
+#
+# Two one-time calls at authoring. Neither runs per candidate: a paper is written
+# once and sat by everyone, which is why this mode costs almost nothing to operate
+# compared with the six open-ended ones.
+#
+# Generation RETURNS rather than saves, matching question_sets/generate: a model
+# call costs something, and a recruiter who dislikes the result should not have to
+# delete a set they never wanted.
+
+
+@router.post(
+    "/suggest-topics",
+    summary="Topics worth testing for a role",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def suggest_topics(
+    request: Request, body: dict = Body(...), user: AuthedUser = WebUser
+) -> dict:
+    role = _text((body or {}).get("role"), 120)
+    if not role:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A role is required.")
+
+    settings = settings_of(request)
+    try:
+        topics = await mcq_gen.suggest_topics(settings, role=role)
+    except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+        ) from exc
+
+    if not topics:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "No topics came back for that role. Try naming it more specifically, "
+            "or add your own topics.",
+        )
+    return {"role": role, "topics": topics}
+
+
+@router.post(
+    "/generate",
+    summary="Generate MCQs from a role and topics (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def generate(
+    request: Request, body: dict = Body(...), user: AuthedUser = WebUser
+) -> dict:
+    """Questions for review. The recruiter edits them, then saves separately."""
+    body = body or {}
+    role = _text(body.get("role"), 120)
+    if not role:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "A role is required.")
+
+    topics = [
+        t for t in (_text(x, 60) for x in (body.get("topics") or [])) if t
+    ][: mcq_gen.MAX_TOPICS]
+    if not topics:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Pick at least one topic — questions spread across nothing is not a paper.",
+        )
+
+    raw_count = body.get("count")
+    count = raw_count if isinstance(raw_count, int) and not isinstance(raw_count, bool) else 10
+    count = max(1, min(mcq_gen.MAX_QUESTIONS, count))
+
+    difficulty = _text(body.get("difficulty"), 12).lower()
+    if difficulty not in mcq_gen.DIFFICULTIES:
+        difficulty = "mixed"
+
+    settings = settings_of(request)
+    try:
+        questions = await mcq_gen.generate_paper(
+            settings,
+            role=role,
+            topics=topics,
+            count=count,
+            difficulty=difficulty,
+            allow_multi=bool(body.get("allowMulti")),
+        )
+    except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+        ) from exc
+
+    if not questions:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Nothing usable came back. Every generated question was missing its "
+            "options or its correct answer, so none were kept — try again, or "
+            "narrow the topics.",
+        )
+
+    # `dropped` is reported rather than hidden: a recruiter who asked for 20 and
+    # received 17 is entitled to know the difference was thrown away for being
+    # unusable, not that the model was asked for 17.
+    return {
+        "role": role,
+        "topics": topics,
+        "questions": questions,
+        "requested": count,
+        "dropped": max(0, count - len(questions)),
+    }
