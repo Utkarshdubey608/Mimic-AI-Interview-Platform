@@ -219,14 +219,18 @@ def test_the_setup_is_audio_out_with_transcription_on() -> None:
     """Input transcription IS the record the interview is scored from — without it there
     is nothing to evaluate.
 
-    It is no longer a bare `{}`: an unconstrained recogniser picked its own language and
-    returned Devanagari for English-only interviews, so the language hints are part of
-    "transcription on" now.
+    It IS a bare `{}` again, and the language constraint moved rather than vanished. The
+    hints that used to live here were never read: AudioTranscriptionConfig "has no
+    fields", so an unconstrained recogniser went on picking its own language — Devanagari
+    for English interviews, and Spanish for a candidate saying "EC2". The constraint now
+    sits in `speechConfig.languageCode`, asserted below, which is the field Google
+    documents for it.
     """
     setup = voice_setup.build_live_setup(_session(), _template(), model="models/live")
 
     assert setup["generationConfig"]["responseModalities"] == ["AUDIO"]
-    assert setup["inputAudioTranscription"]["languageHints"]["languageCodes"]
+    assert setup["inputAudioTranscription"] == {}
+    assert setup["generationConfig"]["speechConfig"]["languageCode"]
     assert setup["outputAudioTranscription"] == {}
 
 

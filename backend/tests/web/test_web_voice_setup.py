@@ -78,25 +78,46 @@ class TestAdaptationPhrases:
 
 
 class TestBuildLiveSetup:
-    def test_input_transcription_pins_english(self):
+    def test_language_is_pinned_where_the_api_actually_reads_it(self):
+        """`speechConfig.languageCode` — not the transcription config.
+
+        These assertions MOVED. They used to check `inputAudioTranscription`, which let
+        them pass while interviews still drifted into Spanish: the Live API's
+        AudioTranscriptionConfig "has no fields", so everything put there was discarded
+        on arrival. A test asserting the shape of a dict nobody reads proves only that
+        we built the dict.
+        """
         setup = voice_setup.build_live_setup(
             _session(["Tell me about caching."]), {"voice": {}}, model="models/x"
         )
-        hints = setup["inputAudioTranscription"]["languageHints"]["languageCodes"]
-        assert hints == list(speech.ENGLISH_VARIANTS)
+        assert setup["generationConfig"]["speechConfig"]["languageCode"] == "en-US"
 
     def test_recruiter_language_choice_is_honoured(self):
-        # template.voice.language is written by the editor and, before this, read by nothing.
+        # template.voice.language is written by the editor; it now reaches the wire.
         setup = voice_setup.build_live_setup(
             _session(["Bonjour."]), {"voice": {"language": "fr-FR"}}, model="models/x"
         )
-        assert setup["inputAudioTranscription"]["languageHints"]["languageCodes"] == ["fr-FR"]
+        assert setup["generationConfig"]["speechConfig"]["languageCode"] == "fr-FR"
 
-    def test_question_vocabulary_becomes_adaptation_phrases(self):
+    def test_the_voice_still_travels_beside_the_language(self):
+        """languageCode must not displace voiceConfig — both live in speechConfig."""
+        setup = voice_setup.build_live_setup(
+            _session(["Anything."]), {"voice": {"voiceId": "Kore"}}, model="models/x"
+        )
+        speech_config = setup["generationConfig"]["speechConfig"]
+        assert speech_config["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"]
+        assert speech_config["languageCode"]
+
+    def test_input_transcription_is_empty(self):
+        """The API type has no fields, so anything sent there is discarded in transit.
+
+        Asserted rather than merely left alone: putting hints back here looks like a fix
+        and silently is not, which is the exact trap this replaces.
+        """
         setup = voice_setup.build_live_setup(
             _session(["How have you used Redis?"]), {"voice": {}}, model="models/x"
         )
-        assert "Redis" in setup["inputAudioTranscription"]["adaptationPhrases"]
+        assert setup["inputAudioTranscription"] == {}
 
     def test_output_transcription_stays_on(self):
         setup = voice_setup.build_live_setup(
@@ -104,8 +125,9 @@ class TestBuildLiveSetup:
         )
         assert setup["outputAudioTranscription"] == {}
 
-    def test_adaptation_phrases_omitted_when_there_is_no_vocabulary(self):
-        # An empty list would be a meaningless field on the wire.
+    def test_no_vocabulary_hints_are_sent_at_all(self):
+        # Not "omitted when empty" — omitted always. The Live API has no phrase-hint
+        # field, so the only honest thing to send is nothing.
         setup = voice_setup.build_live_setup(
             _session(["tell me more"]), {"voice": {}}, model="models/x"
         )
