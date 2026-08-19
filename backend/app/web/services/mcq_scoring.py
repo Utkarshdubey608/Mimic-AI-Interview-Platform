@@ -25,6 +25,8 @@ decides what a candidate is actually shown.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 # The scoring rules for a multi-select question.
 ALL_OR_NOTHING = "all_or_nothing"
 PARTIAL = "partial"
@@ -150,21 +152,27 @@ def score_submission(
     return result
 
 
-def topic_breakdown(questions: list[dict], scored: list[dict]) -> list[dict]:
-    """Per-topic totals, for the report.
+def _breakdown(
+    questions: list[dict], scored: list[dict], *, label: str, of: "Callable[[dict], str]"
+) -> list[dict]:
+    """Totals grouped by whatever `of` names a question, for the report.
 
-    Built from the questions rather than the answers so a topic every candidate
-    got wrong still appears — the topics nobody can answer are the interesting
+    Built from the QUESTIONS rather than the answers, so a group every candidate
+    got wrong still appears — the parts nobody can answer are the interesting
     ones, and a breakdown that silently omits them is misleading.
+
+    Generalised over the grouping key because topics and sections need identical
+    arithmetic and differ only in what they read off the question. Two copies of
+    a scoring loop is two places for the rounding to drift apart.
     """
     by_id = {str(q.get("id")): q for q in questions or []}
     buckets: dict[str, dict] = {}
 
     for record in scored or []:
         question = by_id.get(str(record.get("questionId"))) or {}
-        topic = (question.get("topic") or question.get("category") or "Uncategorised").strip()
+        name = of(question)
         bucket = buckets.setdefault(
-            topic, {"topic": topic, "correct": 0, "count": 0, "points": 0.0, "pointsAvailable": 0.0}
+            name, {label: name, "correct": 0, "count": 0, "points": 0.0, "pointsAvailable": 0.0}
         )
         bucket["count"] += 1
         bucket["correct"] += 1 if record.get("correct") else 0
@@ -175,7 +183,38 @@ def topic_breakdown(questions: list[dict], scored: list[dict]) -> list[dict]:
         bucket["points"] = round(bucket["points"], 4)
         bucket["pointsAvailable"] = round(bucket["pointsAvailable"], 4)
 
-    return sorted(buckets.values(), key=lambda b: b["topic"].lower())
+    return sorted(buckets.values(), key=lambda b: b[label].lower())
+
+
+def topic_breakdown(questions: list[dict], scored: list[dict]) -> list[dict]:
+    """Per-topic totals, for the report."""
+    return _breakdown(
+        questions,
+        scored,
+        label="topic",
+        of=lambda q: (q.get("topic") or q.get("category") or "Uncategorised").strip(),
+    )
+
+
+def section_breakdown(questions: list[dict], scored: list[dict]) -> list[dict]:
+    """Per-section totals — how the candidate did on each half of the paper.
+
+    This is the point of dividing a paper. A recruiter who splits ten questions
+    into six technical and four judgement-based did it to see those two numbers
+    separately; a single overall percentage throws away exactly the distinction
+    they set up.
+
+    Papers written before sections existed have no labels, so this returns [] for
+    them rather than one meaningless "Unsectioned" row covering everything.
+    """
+    if not any(q.get("section") for q in questions or []):
+        return []
+    return _breakdown(
+        questions,
+        scored,
+        label="section",
+        of=lambda q: str(q.get("section") or "unsectioned"),
+    )
 
 
 def mcq_public_question(question: dict, *, shuffle_seed: str | None = None) -> dict:

@@ -327,3 +327,102 @@ class TestUsingIsStrictEvenThoughSavingIsNot:
         )
         assert response.status_code == 400
         assert "no questions yet" in response.json()["detail"]
+
+
+class TestSectionsSurviveTheHandOffs:
+    """A section label has to cross three boundaries to mean anything.
+
+    Modal to route, route to generator, and generated paper to saved set. Each is
+    a place the label can be dropped with nothing failing loudly - the paper still
+    saves, the questions are still right, and only the report is quietly poorer.
+    The save one had already been broken: `_clean_question` is an allow-list, so
+    the labels were discarded the first time a recruiter pressed Save.
+    """
+
+    def test_the_route_turns_a_style_and_counts_into_a_split(self, monkeypatch):
+        from app.web.services import mcq_gen
+
+        seen = {}
+
+        async def fake_paper(settings, **kwargs):
+            seen.update(kwargs)
+            return [
+                {"id": "q1", "text": "t", "options": [{"id": "a", "text": "a"}],
+                 "correctOptionIds": ["a"], "type": "single", "section": "technical"},
+            ]
+
+        monkeypatch.setattr(mcq_gen, "generate_paper", fake_paper)
+        client = _client(RECRUITER)
+        r = client.post(
+            "/api/web/mcq-sets/generate",
+            json={"role": "Backend Engineer", "topics": ["Caching"],
+                  "style": "mix", "technicalCount": 6, "nonTechnicalCount": 4},
+        )
+        assert r.status_code == 200, r.text
+        assert seen["split"] == {"technical": 6, "non_technical": 4}
+
+    def test_a_body_with_no_style_still_makes_the_paper_it_always_made(self, monkeypatch):
+        """Every caller written before sections existed keeps working unchanged."""
+        from app.web.services import mcq_gen
+
+        seen = {}
+
+        async def fake_paper(settings, **kwargs):
+            seen.update(kwargs)
+            return [{"id": "q1", "text": "t", "options": [{"id": "a", "text": "a"}],
+                     "correctOptionIds": ["a"], "type": "single"}]
+
+        monkeypatch.setattr(mcq_gen, "generate_paper", fake_paper)
+        client = _client(RECRUITER)
+        r = client.post(
+            "/api/web/mcq-sets/generate",
+            json={"role": "X", "topics": ["Y"], "count": 7},
+        )
+        assert r.status_code == 200, r.text
+        assert seen["split"] == {"technical": 7}
+
+    def test_the_response_reports_what_was_asked_for_and_what_arrived(self, monkeypatch):
+        """A model told "6 and 4" can return 7 and 3. The recruiter about to screen
+        people on this paper should be told, not left to count."""
+        from app.web.services import mcq_gen
+
+        async def fake_paper(settings, **kwargs):
+            return [
+                {"id": f"q{i}", "text": "t", "options": [{"id": "a", "text": "a"}],
+                 "correctOptionIds": ["a"], "type": "single",
+                 "section": "technical" if i < 7 else "non_technical"}
+                for i in range(10)
+            ]
+
+        monkeypatch.setattr(mcq_gen, "generate_paper", fake_paper)
+        client = _client(RECRUITER)
+        r = client.post(
+            "/api/web/mcq-sets/generate",
+            json={"role": "X", "topics": ["Y"], "style": "mix",
+                  "technicalCount": 6, "nonTechnicalCount": 4},
+        ).json()
+        assert r["sections"] == {"technical": 6, "non_technical": 4}
+        assert r["delivered"] == {"technical": 7, "non_technical": 3}
+
+    def test_a_section_label_survives_being_saved(self):
+        """THE ONE THAT WAS BROKEN. A generated paper looked sectioned in review
+        and arrived unsectioned in the set, because the save cleaner named every
+        field it kept and nobody had added this one."""
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={"name": "Paper", "questions": [_question(section="non_technical")]},
+        ).json()
+        assert created["questions"][0]["section"] == "non_technical"
+
+        # And on the way back out again, not just in the create response.
+        fetched = client.get(f"/api/web/mcq-sets/{created['id']}").json()
+        assert fetched["questions"][0]["section"] == "non_technical"
+
+    def test_a_nonsense_section_is_dropped_rather_than_stored(self):
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={"name": "Paper", "questions": [_question(section="marketing")]},
+        ).json()
+        assert "section" not in created["questions"][0]

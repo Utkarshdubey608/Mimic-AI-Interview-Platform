@@ -40,6 +40,69 @@ MAX_TOPICS = 24
 MAX_QUESTIONS = 40
 DIFFICULTIES = ("easy", "medium", "hard", "mixed")
 
+# A paper is divided into sections, the same two the rest of the platform has
+# always used. `style` is what the recruiter picks; SECTIONS is what a question
+# can be tagged with. Deliberately the same vocabulary as the invite wizard, the
+# template editor and resume generation (`style` / `technicalCount` /
+# `nonTechnicalCount`), so "Mix, 6 and 4" means one thing everywhere a recruiter
+# meets it rather than one thing per screen.
+SECTIONS = ("technical", "non_technical")
+STYLES = ("technical", "non_technical", "mix")
+SECTION_LABELS = {"technical": "Technical", "non_technical": "Non-technical"}
+
+
+def normalise_split(style: str, technical: int, non_technical: int) -> dict[str, int]:
+    """The requested paper as {section: how many}, clamped and never empty.
+
+    One function decides this so the route, the prompt and the tests cannot
+    disagree about what a given choice means. Two rules worth stating:
+
+    * **A section asked for zero questions is dropped, not kept at zero.** A "mix"
+      with one side empty is a single-section paper, and prompting for it as one
+      stops the model being told to write a section of nothing.
+    * **The total is bounded, not each side.** Two sections of the maximum is not
+      twice the maximum; the wider section gives up questions until the whole
+      paper fits.
+    """
+    if style not in STYLES:
+        style = "technical"
+    technical = max(0, min(MAX_QUESTIONS, technical))
+    non_technical = max(0, min(MAX_QUESTIONS, non_technical))
+
+    if style == "technical":
+        split = {"technical": technical or 1}
+    elif style == "non_technical":
+        split = {"non_technical": non_technical or 1}
+    else:
+        split = {
+            section: n
+            for section, n in (("technical", technical), ("non_technical", non_technical))
+            if n > 0
+        }
+        if not split:
+            split = {"technical": 1}
+
+    while sum(split.values()) > MAX_QUESTIONS:
+        widest = max(split, key=lambda section: split[section])
+        split[widest] -= 1
+    return split
+
+
+def section_counts(questions: list[dict]) -> dict[str, int]:
+    """The split that actually ARRIVED, counting only labelled questions.
+
+    Reported next to the split that was requested. A model told "6 technical and 4
+    non-technical" can return 7 and 3, and a recruiter about to screen people on
+    this paper should see that before they save it rather than discover it by
+    reading all ten questions.
+    """
+    counts: dict[str, int] = {}
+    for question in questions:
+        section = question.get("section")
+        if section:
+            counts[section] = counts.get(section, 0) + 1
+    return counts
+
 _TOPIC_SCHEMA = {
     "type": "object",
     "properties": {
@@ -58,6 +121,7 @@ _PAPER_SCHEMA = {
                 "properties": {
                     "text": {"type": "string"},
                     "topic": {"type": "string"},
+                    "section": {"type": "string"},
                     "difficulty": {"type": "string"},
                     "explanation": {"type": "string"},
                     "options": {
@@ -101,7 +165,28 @@ def normalise_topics(payload: dict) -> list[str]:
     return out[:MAX_TOPICS]
 
 
-def normalise_generated(payload: dict) -> list[dict]:
+def _section_of(item: dict, sections: tuple[str, ...]) -> str | None:
+    """Which section a generated question belongs to, or None.
+
+    A SINGLE-section paper labels by construction: the recruiter asked for a
+    technical paper, so every question in it is technical whatever the model chose
+    to call it. Trusting the label there would let a mislabelled question make the
+    delivered split look wrong when it is not.
+
+    A MIXED paper has to trust the label, and when it is missing or unrecognised
+    the question is left UNLABELLED rather than guessed. An invented section would
+    make the delivered split report a balance the model never actually struck,
+    which is the one thing that report exists to catch.
+    """
+    if len(sections) == 1:
+        return sections[0]
+    claimed = _clean(item.get("section"), 20).lower().replace("-", "_").replace(" ", "_")
+    return claimed if claimed in sections else None
+
+
+def normalise_generated(
+    payload: dict, *, sections: tuple[str, ...] = ()
+) -> list[dict]:
     """Model output → questions in OUR shape, rebuilt rather than forwarded.
 
     A generated question is not trusted to be usable. Each is reconstructed from
@@ -153,6 +238,8 @@ def normalise_generated(payload: dict) -> list[dict]:
         }
         if topic := _clean(item.get("topic"), 120):
             question["topic"] = topic
+        if section := _section_of(item, sections):
+            question["section"] = section
         if (difficulty := _clean(item.get("difficulty"), 12).lower()) in ("easy", "medium", "hard"):
             question["difficulty"] = difficulty
         if explanation := _clean(item.get("explanation"), 2000):
@@ -175,9 +262,41 @@ def build_topic_prompt(role: str) -> str:
     )
 
 
+def _section_brief(section: str, role: str) -> str:
+    """What this section is actually testing, spelled out for the model.
+
+    Without this, a request for "non-technical questions" produces personality
+    quizzes or general-knowledge trivia, because the model has no idea what a
+    non-technical question is meant to MEASURE in a hiring context.
+    """
+    if section == "technical":
+        return (
+            "TECHNICAL questions test the craft: how something works, which "
+            "approach is right and why, what a given design or piece of code "
+            "actually does. Draw these from the topics listed above."
+        )
+    return (
+        "NON-TECHNICAL questions test judgement on the job. Not personality, and "
+        "not general knowledge: prioritising when everything is urgent, what to do "
+        "with a requirement nobody can pin down, how to raise a risk to someone who "
+        "does not want to hear it, how to explain a trade-off to a person without "
+        "the background. Each still has one defensibly correct answer and wrong "
+        f"options a reasonable person might pick. These are about working as a {role} "
+        "and need NOT come from the topic list above. If competent people would "
+        "genuinely disagree about the answer, the question does not belong in a "
+        "paper that is scored."
+    )
+
+
 def build_paper_prompt(
-    *, role: str, topics: list[str], count: int, difficulty: str, allow_multi: bool
+    *,
+    role: str,
+    topics: list[str],
+    split: dict[str, int],
+    difficulty: str,
+    allow_multi: bool,
 ) -> str:
+    total = sum(split.values())
     spread = (
         "Mix easy, medium and hard across the paper."
         if difficulty == "mixed"
@@ -192,9 +311,30 @@ def build_paper_prompt(
     )
     topic_list = "\n".join(f"- {topic}" for topic in topics)
 
+    if len(split) > 1:
+        wanted = "\n".join(
+            f"- {SECTION_LABELS[section]}: {n} question{'' if n == 1 else 's'}"
+            for section, n in split.items()
+        )
+        shape = (
+            f"The paper is divided into sections:\n{wanted}\n\n"
+            "Write the sections in that order and do not exceed either count. Tag "
+            'every question with its section, using exactly "technical" or '
+            '"non_technical".'
+        )
+    else:
+        only = next(iter(split))
+        shape = (
+            f"Every question in this paper is {SECTION_LABELS[only].lower()}. Tag "
+            f'each one "{only}".'
+        )
+
+    briefs = "\n\n".join(_section_brief(section, role) for section in split)
+
     return (
-        f"Write {count} multiple-choice questions to screen a {role}.\n\n"
+        f"Write {total} multiple-choice questions to screen a {role}.\n\n"
         f"Cover these topics, spread evenly:\n{topic_list}\n\n"
+        f"{shape}\n\n{briefs}\n\n"
         f"{spread}\n{multi}\n\n"
         "What makes these questions good, and what usually makes them bad:\n"
         "- The WRONG options are the hard part. Each should be something a "
@@ -239,13 +379,19 @@ async def generate_paper(
     *,
     role: str,
     topics: list[str],
-    count: int,
+    split: dict[str, int],
     difficulty: str,
     allow_multi: bool,
 ) -> list[dict]:
-    """A paper, returned for review. Never saved here."""
+    """A paper, returned for review. Never saved here.
+
+    Takes the split rather than a bare total, so the sections the recruiter chose
+    reach both the prompt AND the labelling of what comes back. Passing only a
+    count would let the model be asked for a balance nobody could afterwards
+    check was honoured.
+    """
     prompt = build_paper_prompt(
-        role=role, topics=topics, count=count, difficulty=difficulty, allow_multi=allow_multi
+        role=role, topics=topics, split=split, difficulty=difficulty, allow_multi=allow_multi
     )
     text = await gemini.generate_text(
         settings,
@@ -264,4 +410,4 @@ async def generate_paper(
     except ValueError:
         logger.warning("mcq_gen: paper response was not JSON")
         return []
-    return normalise_generated(payload)
+    return normalise_generated(payload, sections=tuple(split))

@@ -25,7 +25,7 @@ import { test, expect, type Page } from '@playwright/test'
  * into the path production uses.
  */
 
-type Store = { sets: any[] }
+type Store = { sets: any[]; lastGenerate?: any; skewDelivered?: any }
 
 /** A paper the server would consider finished. */
 const READY_QUESTION = {
@@ -74,6 +74,12 @@ async function mockApi(page: Page, store: Store) {
       return json({ role: 'Backend Engineer', topics: ['Caching', 'SQL indexing', 'Concurrency'] })
     }
     if (url.pathname.endsWith('/generate')) {
+      // RECORDED, so a test can assert what the modal actually asked the server
+      // for. A mock that ignores its request cannot show that the sections a
+      // recruiter chose ever left the browser.
+      const asked = request.postDataJSON()
+      store.lastGenerate = asked
+
       const generated = {
         id: 'q-gen', text: 'Which cache eviction policy evicts the least recently used entry?',
         type: 'single',
@@ -83,11 +89,21 @@ async function mockApi(page: Page, store: Store) {
         ],
         correctOptionIds: ['g1'],
         topic: 'Caching',
+        section: 'technical',
         explanation: 'LRU evicts the entry unused for longest.',
       }
+      const sections =
+        asked.style === 'mix'
+          ? { technical: asked.technicalCount, non_technical: asked.nonTechnicalCount }
+          : asked.style === 'technical'
+            ? { technical: asked.technicalCount }
+            : { non_technical: asked.nonTechnicalCount }
       return json({
         role: 'Backend Engineer', topics: ['Caching'], questions: [generated],
         requested: 2, dropped: 1,
+        sections,
+        // Deliberately NOT what was asked for when a skew is being tested.
+        delivered: store.skewDelivered ?? sections,
       })
     }
 
@@ -258,5 +274,111 @@ test.describe('MCQ authoring — Mode A (generated)', () => {
     }
     await expect(page.getByRole('button', { name: /Generate \d+ questions/ })).toBeDisabled()
     await expect(page.getByText('spread across nothing')).toBeVisible()
+  })
+})
+
+test.describe('MCQ authoring — sections', () => {
+  /* Dividing the paper is the reason a recruiter would use Mix at all: they want
+     the technical score and the judgement score apart, not blended into one
+     percentage. Each test below guards one place that intent can vanish. */
+
+  const toStep2 = async (page: any) => {
+    await page.getByRole('button', { name: 'Generate with AI' }).click()
+    await page.getByLabel('Role').fill('Backend Engineer')
+    await page.getByRole('button', { name: 'Suggest topics' }).click()
+    await expect(page.getByText('Caching')).toBeVisible()
+  }
+
+  test('Mix reveals a count per section, and the button totals them', async ({ page }) => {
+    const store: Store = { sets: [] }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+
+    // A single-section paper asks for one number.
+    await expect(page.getByLabel('Number of questions')).toBeVisible()
+    await expect(page.getByLabel('# Technical')).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Mix', exact: true }).click()
+
+    await page.getByLabel('# Technical').fill('6')
+    await page.getByLabel('# Non-technical').fill('4')
+    await expect(page.getByText('10 questions in total.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Generate 10 questions' })).toBeEnabled()
+  })
+
+  test('the sections the recruiter chose actually reach the server', async ({ page }) => {
+    /* THE HAND-OFF. Every control above could render perfectly while the request
+       still carried the old bare count, and nothing on screen would say so. */
+    const store: Store = { sets: [] }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+
+    await page.getByRole('button', { name: 'Mix', exact: true }).click()
+    await page.getByLabel('# Technical').fill('7')
+    await page.getByLabel('# Non-technical').fill('3')
+    await page.getByRole('button', { name: /Generate \d+ questions/ }).click()
+
+    await expect.poll(() => store.lastGenerate?.style).toBe('mix')
+    expect(store.lastGenerate.technicalCount).toBe(7)
+    expect(store.lastGenerate.nonTechnicalCount).toBe(3)
+  })
+
+  test('a single-section paper does not send the other count as questions', async ({ page }) => {
+    const store: Store = { sets: [] }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+
+    await page.getByLabel('Number of questions').fill('12')
+    await page.getByRole('button', { name: /Generate \d+ questions/ }).click()
+
+    await expect.poll(() => store.lastGenerate?.style).toBe('technical')
+    expect(store.lastGenerate.technicalCount).toBe(12)
+  })
+
+  test('a split that came back skewed is reported, not quietly accepted', async ({ page }) => {
+    /* A model told "6 and 4" can return 7 and 3. The recruiter is about to screen
+       people on this paper; they should be told rather than count the questions. */
+    const store: Store = { sets: [], skewDelivered: { technical: 7, non_technical: 3 } }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+
+    await page.getByRole('button', { name: 'Mix', exact: true }).click()
+    await page.getByLabel('# Technical').fill('6')
+    await page.getByLabel('# Non-technical').fill('4')
+    await page.getByRole('button', { name: /Generate \d+ questions/ }).click()
+
+    await expect(page.getByText(/came back 7 technical and 3 non-technical/)).toBeVisible()
+  })
+
+  test('an empty paper cannot be generated', async ({ page }) => {
+    const store: Store = { sets: [] }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+
+    await page.getByRole('button', { name: 'Mix', exact: true }).click()
+    await page.getByLabel('# Technical').fill('0')
+    await page.getByLabel('# Non-technical').fill('0')
+    await expect(page.getByText('A paper needs at least one question.')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Generate \d+ question/ })).toBeDisabled()
+  })
+
+  test('a generated section lands in the editor where it can be corrected', async ({ page }) => {
+    /* The label is the model's guess, and the recruiter is the one who has to
+       defend the paper — so it must be visible and changeable, not baked in. */
+    const store: Store = { sets: [] }
+    await mockApi(page, store)
+    await page.goto('/__mcq')
+    await toStep2(page)
+    await page.getByRole('button', { name: /Generate \d+ questions/ }).click()
+
+    const section = page.getByLabel('Question 1 section')
+    await expect(section).toHaveValue('technical')
+    await section.selectOption('non_technical')
+    await expect(section).toHaveValue('non_technical')
   })
 })

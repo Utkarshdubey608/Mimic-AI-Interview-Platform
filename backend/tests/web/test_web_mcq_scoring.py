@@ -240,3 +240,69 @@ class TestTopicBreakdown:
 def test_malformed_selections_never_raise(junk):
     """This reads a client submission; a stray null is not worth a 500."""
     assert m.score_question(q("1", key=["a"]), junk)["correct"] is False
+
+
+class TestSectionBreakdown:
+    """How the candidate did on each half of the paper.
+
+    This is the point of dividing a paper at all. A recruiter who split ten
+    questions into six technical and four judgement-based did it to see those two
+    numbers apart; one overall percentage discards exactly the distinction they
+    set up.
+    """
+
+    def _paper(self):
+        questions = [
+            {"id": "t1", "section": "technical"},
+            {"id": "t2", "section": "technical"},
+            {"id": "n1", "section": "non_technical"},
+        ]
+        scored = [
+            {"questionId": "t1", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+            {"questionId": "t2", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
+            {"questionId": "n1", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+        ]
+        return questions, scored
+
+    def test_each_section_is_totalled_separately(self):
+        questions, scored = self._paper()
+        rows = {r["section"]: r for r in m.section_breakdown(questions, scored)}
+        assert rows["technical"]["correct"] == 1
+        assert rows["technical"]["count"] == 2
+        assert rows["non_technical"]["correct"] == 1
+        assert rows["non_technical"]["count"] == 1
+
+    def test_an_unsectioned_paper_gets_nothing_rather_than_one_meaningless_row(self):
+        """Papers written before sections existed must not sprout an
+        "unsectioned" heading covering every question in them."""
+        questions = [{"id": "q1"}, {"id": "q2"}]
+        scored = [{"questionId": "q1", "correct": True, "points": 1.0, "pointsAvailable": 1.0}]
+        assert m.section_breakdown(questions, scored) == []
+
+    def test_a_section_nobody_scored_still_appears(self):
+        """The part everyone fails is the interesting part; omitting it misleads."""
+        questions = [{"id": "t1", "section": "technical"}, {"id": "n1", "section": "non_technical"}]
+        scored = [
+            {"questionId": "t1", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
+            {"questionId": "n1", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
+        ]
+        rows = m.section_breakdown(questions, scored)
+        assert len(rows) == 2
+        assert all(r["correct"] == 0 for r in rows)
+
+    def test_topics_and_sections_agree_on_the_arithmetic(self):
+        """Both breakdowns share one implementation, so a paper whose topic and
+        section happen to partition it identically must total identically. If these
+        ever diverge, the two grouping paths have drifted apart."""
+        questions = [
+            {"id": "a", "topic": "Alpha", "section": "technical"},
+            {"id": "b", "topic": "Alpha", "section": "technical"},
+        ]
+        scored = [
+            {"questionId": "a", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+            {"questionId": "b", "correct": False, "points": 0.0, "pointsAvailable": 2.0},
+        ]
+        by_topic = m.topic_breakdown(questions, scored)[0]
+        by_section = m.section_breakdown(questions, scored)[0]
+        for field in ("correct", "count", "points", "pointsAvailable"):
+            assert by_topic[field] == by_section[field]
