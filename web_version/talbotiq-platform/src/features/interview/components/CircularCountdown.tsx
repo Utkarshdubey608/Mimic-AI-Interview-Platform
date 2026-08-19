@@ -107,7 +107,7 @@ export function CircularCountdown({ remaining, total, phase, warningThreshold, a
           {fmt(remaining)}
         </span>
         {!compact && (
-          <span className="mt-2 text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-neutral-400">
+          <span className="mt-2 text-[10px] font-bold uppercase leading-none tracking-[0.16em] text-ink-muted">
             {phase === 'prep' ? 'Prepare' : 'Answer'}
           </span>
         )}

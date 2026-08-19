@@ -56,12 +56,16 @@ export function FeedbackPanel() {
   }, [q.data, track, role])
 
   const shown = useMemo(() => {
-    const rated = items.filter((i) => typeof i.rating === 'number')
+    // Ratings only, and narrowed to numbers — a candidate may now leave a comment
+    // without a star, and an unrated row must not be counted as a zero.
+    const rated = items
+      .map((i) => i.rating)
+      .filter((r): r is number => typeof r === 'number')
     return {
       count: items.length,
       // null, not 0 — "nobody has answered" and "everyone rated us zero" are
       // different facts, and a zero here would libel the interview.
-      average: rated.length ? rated.reduce((a, b) => a + b.rating, 0) / rated.length : null,
+      average: rated.length ? rated.reduce((a, b) => a + b, 0) / rated.length : null,
       issues: items.filter((i) => i.hadTechnicalIssues).length,
     }
   }, [items])
@@ -139,7 +143,14 @@ export function FeedbackPanel() {
           <ul className="divide-y divide-border">
             {items.map((i: FeedbackItem) => (
               <li key={i.sessionId} className="flex flex-wrap items-start gap-x-4 gap-y-1.5 py-3">
-                <Stars value={i.rating} />
+                {/* An unrated row is comment-only feedback, not a zero-star one.
+                    Empty stars would read as the harshest possible verdict from a
+                    candidate who never gave one. */}
+                {typeof i.rating === 'number' ? (
+                  <Stars value={i.rating} />
+                ) : (
+                  <span className="text-xs font-medium text-neutral-400">No rating</span>
+                )}
                 <span className="text-sm font-semibold text-neutral-900">{i.candidateName || 'Candidate'}</span>
                 <span className="text-xs text-neutral-400">
                   {TRACK_LABEL[i.track as TrackType] ?? i.track}

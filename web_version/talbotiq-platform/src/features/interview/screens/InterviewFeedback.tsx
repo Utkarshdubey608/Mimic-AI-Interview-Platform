@@ -47,7 +47,7 @@ export function InterviewFeedback({ sessionId, accentColor }: Props) {
     if (rating < 1) return
     setPhase('sending')
     try {
-      await sessionsApi.submitFeedback(sessionId, {
+      await sessionsApi.candidateFeedback(sessionId, {
         rating,
         comment: comment.trim(),
         hadTechnicalIssues: issues,

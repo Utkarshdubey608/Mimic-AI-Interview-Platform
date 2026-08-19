@@ -109,10 +109,43 @@ def test_feedback_requires_a_token(seeded) -> None:
     assert TestClient(create_app()).post("/api/web/sessions/s1/feedback", json={"rating": 5}).status_code == 401
 
 
-@pytest.mark.parametrize("rating", [0, 6, -1, "five", None])
+@pytest.mark.parametrize("rating", [0, 6, -1, "five"])
 def test_a_rating_outside_one_to_five_is_rejected(seeded, rating) -> None:
+    """A rating that is PRESENT but unusable is a client bug, and still a 400.
+
+    `None` has deliberately left this list: it does not mean "a bad rating", it
+    means "no rating", which is now something a candidate is allowed to do.
+    """
     response = _client(CANDIDATE).post("/api/web/sessions/s1/feedback", json={"rating": rating})
     assert response.status_code == 400
+
+
+def test_a_comment_without_a_rating_is_kept(seeded) -> None:
+    """The most useful feedback there is, and it used to be a 400.
+
+    The stars were mandatory when this endpoint was written. The candidate
+    feedback step now accepts a sentence without a number, and the candidate who
+    takes the time to say what went wrong is exactly the one whose words must not
+    be discarded for want of a star.
+    """
+    response = _client(CANDIDATE).post(
+        "/api/web/sessions/s1/feedback", json={"comment": "The camera kept dropping."}
+    )
+    assert response.status_code == 200
+    assert seeded.feedback.docs["s1"]["comment"] == "The camera kept dropping."
+    assert seeded.feedback.docs["s1"]["rating"] is None
+
+
+def test_an_entirely_empty_submission_is_ignored(seeded) -> None:
+    """No rating and no comment stores nothing.
+
+    A row that says nothing reads in the recruiter's listing as though the
+    candidate answered and had no view, which is worse than the absence of a row.
+    """
+    response = _client(CANDIDATE).post("/api/web/sessions/s1/feedback", json={"comment": "   "})
+    assert response.status_code == 200
+    assert response.json() == {"ok": True, "ignored": True}
+    assert "s1" not in seeded.feedback.docs
 
 
 def test_a_comment_is_optional(seeded) -> None:

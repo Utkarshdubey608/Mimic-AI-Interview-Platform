@@ -199,17 +199,32 @@ export const sessionsApi = {
       body: JSON.stringify(body),
     }),
   integrityEvent: (id: string, body: IntegrityEventRequest) =>
-    http<{ ok: boolean; tabSwitchWarnings?: number; maxTabSwitchWarnings?: number; terminated?: boolean }>(
+    http<{ ok: boolean; tabSwitchWarnings?: number; maxTabSwitchWarnings?: number }>(
       `/sessions/${id}/integrity-event`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
   complete: (id: string) =>
     http<CandidateSessionState>(`/sessions/${id}/complete`, { method: 'POST' }),
-  /** The candidate's opinion of the experience. Never part of scoring. */
-  submitFeedback: (
+  /**
+   * The CANDIDATE's feedback on the interview experience, left after they finish.
+   *
+   * Not to be confused with the per-answer `feedback` on a scored report, which runs
+   * the other way: that is the recruiter's assessment OF the candidate. This is the
+   * candidate's assessment of the process, it reaches no scoring path, and the server
+   * ignores an empty submission rather than storing a hollow record.
+   */
+  candidateFeedback: (
     id: string,
-    body: { rating: number; comment?: string; hadTechnicalIssues?: boolean },
-  ) => http<{ ok: boolean }>(`/sessions/${id}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
+    // `hadTechnicalIssues` rides along because the recruiter's listing counts it
+    // separately from the rating: "the interview was fine but the camera kept
+    // dropping" is a different problem from "the interview was poor", and
+    // collapsing the two loses the one that is actually fixable.
+    body: { rating?: number; comment?: string; hadTechnicalIssues?: boolean },
+  ) =>
+    http<{ ok: boolean; ignored?: boolean }>(`/sessions/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   // Video Interview: upload the aggregated AWS Rekognition facial summary
   // (computed client-side from frames captured off the shared camera stream).
   facial: (id: string, summary: unknown) =>
@@ -260,9 +275,12 @@ export const sessionsApi = {
 /** The voice-interview grant: a LiveGrant plus the planned-question count. */
 export interface VoiceTokenGrant extends LiveGrant {
   totalQuestions: number
-  /** BCP-47 locale for the browser's local display-only captioner (e.g. "en-IN") —
-   *  the first of the language hints the server gave the recogniser itself.
-   *  Optional: older backends do not send it. */
+  /**
+   * BCP-47 tag for the interview's language, for the browser's own display-only
+   * captioner. Not used for anything Google does: the locked setup carries its
+   * own language hints. It exists because defaulting the local recogniser to
+   * English would caption a Hindi interview in English.
+   */
   language?: string
 }
 
@@ -410,13 +428,20 @@ export function downloadCsv(filename: string, header: string[], rows: (string | 
   URL.revokeObjectURL(url)
 }
 
-/** Feedback across this recruiter's interviews. Tenant-scoped server-side. */
+/**
+ * Feedback across this recruiter's interviews. Tenant-scoped server-side.
+ *
+ * `rating` is optional because the candidate feedback step accepts a comment
+ * without a star rating — a candidate who writes a sentence about what went
+ * wrong is the most useful feedback there is, and requiring a number would have
+ * thrown it away. The recruiter's average simply skips the rows without one.
+ */
 export interface FeedbackItem {
   sessionId: string
   track?: string
   role?: string
   candidateName?: string
-  rating: number
+  rating?: number | null
   comment?: string
   hadTechnicalIssues?: boolean
   createdAt: string

@@ -1,21 +1,99 @@
+import { motion, useReducedMotion } from 'framer-motion'
+import { Check, Mail, ShieldCheck } from 'lucide-react'
+import { pageVariants } from '@/design/motion'
+import { CandidateFeedback } from './CandidateFeedback'
+import { ReturnToSite } from '../stage/ReturnToSite'
 import type { BrandingConfig } from '@shared/types'
-import { CandidateSurface, CandidateSignOff } from './CandidateSurface'
-import { brandName } from '../branding'
 
 /**
- * The shared sign-off. Four stages used to draw their own version of this with
- * different disc geometry and copy; they now all route through
- * `CandidateSignOff`, so a candidate sees the same ending whichever mode they
- * were interviewed in.
+ * The last thing a candidate sees.
+ *
+ * Almost every product in this category treats it as a receipt. It is worth more
+ * than that: it is the only screen a rejected candidate will remember, and the
+ * only impression of the employer that the product itself controls.
+ *
+ * ── Three things it has to do, in this order ──────────────────────────────
+ *   1. CLOSE THE LOOP. Confirm the answers arrived, so nobody sits wondering
+ *      whether to redo it.
+ *   2. SAY WHAT HAPPENS NEXT, honestly and without over-promising. "The team
+ *      will review and be in touch" is true; a timeline we cannot keep is not.
+ *   3. RELEASE THEM. Say explicitly that there is nothing left to do. A
+ *      candidate who is not told this will keep the tab open for a day.
+ *
+ * ── What it deliberately does NOT do ──────────────────────────────────────
+ * No score, no percentile, no "how you did", no strengths and weaknesses. That
+ * analysis exists and is on the recruiter's report, and showing any of it here
+ * would be an evaluation delivered by a machine with no human in the loop and no
+ * right of reply. The absence is a decision, not an omission.
  */
 export function Completion({ branding, sessionId }: { branding: BrandingConfig; sessionId?: string }) {
+  const reduce = useReducedMotion() ?? false
+
   return (
-    <CandidateSurface wide className="text-center">
-      <CandidateSignOff
-        companyName={brandName(branding)}
-        sessionId={sessionId}
-        accentColor={branding.accentColor}
-      />
-    </CandidateSurface>
+    <>
+    <motion.div
+      variants={pageVariants(reduce)}
+      initial="initial"
+      animate="animate"
+      className="overflow-hidden rounded-xl border border-rule bg-surface shadow-lg"
+    >
+      <div className="px-6 py-10 text-center sm:px-10 sm:py-12">
+        {/* The mark. Ink rather than the tenant's accent, because the accent is
+            an arbitrary hex and this is the one element on the page that must
+            read as resolved on every tenant's brand. */}
+        <motion.span
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-ink-inverse"
+          initial={reduce ? false : { scale: 0.86, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.08, duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <Check size={28} strokeWidth={2.75} aria-hidden="true" />
+        </motion.span>
+
+        <h1 className="mt-6 font-display text-[28px] font-bold tracking-[-0.03em] text-ink sm:text-3xl">
+          All done, thank you.
+        </h1>
+        <p className="measure mx-auto mt-3 text-balance leading-relaxed text-ink-muted">
+          Your answers have been submitted to the hiring team. There is
+          nothing else you need to do, and you can safely close this window.
+        </p>
+      </div>
+
+      <div className="grid gap-px border-t border-rule bg-rule sm:grid-cols-2">
+        <div className="bg-surface-sunk px-6 py-5">
+          <p className="section-label">What happens next</p>
+          <p className="mt-2 flex items-start gap-2.5 text-sm leading-relaxed text-ink-body">
+            <Mail size={15} strokeWidth={1.75} className="mt-0.5 flex-shrink-0 text-ink-muted" aria-hidden="true" />
+            <span>
+              The hiring team reviews your interview and
+              contacts you by email about next steps.
+            </span>
+          </p>
+        </div>
+        <div className="bg-surface-sunk px-6 py-5">
+          <p className="section-label">Your responses</p>
+          <p className="mt-2 flex items-start gap-2.5 text-sm leading-relaxed text-ink-body">
+            <ShieldCheck size={15} strokeWidth={1.75} className="mt-0.5 flex-shrink-0 text-ink-muted" aria-hidden="true" />
+            <span>
+              Visible only to the hiring team. Scores and evaluation
+              notes are not shown to candidates.
+            </span>
+          </p>
+        </div>
+      </div>
+    </motion.div>
+
+    {/* Feedback sits BELOW the completion card, never in front of it. The
+        interview is over and submitted; this is a request, not a gate. Because
+        every track now ends on this one component, adding it here gives all six
+        formats the same closing step. */}
+    {sessionId && <CandidateFeedback sessionId={sessionId} />}
+
+    {/* And then out of the product. The candidate arrived from an emailed link
+        straight into an interview, so without this the only exit is closing the
+        tab. The countdown defers to the feedback form above it: any interaction
+        cancels it, so nobody is dragged away mid-sentence. */}
+    <ReturnToSite />
+    </>
   )
 }

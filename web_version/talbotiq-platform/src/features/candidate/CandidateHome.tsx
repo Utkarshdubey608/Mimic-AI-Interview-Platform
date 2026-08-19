@@ -1,11 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { CalendarClock, CheckCircle2, LogOut, Inbox, AlertTriangle, RotateCw } from 'lucide-react'
-import { Button, Skeleton, ExhibitTab } from '@/components/ui'
+import { ArrowRight, CheckCircle2, LogOut, Inbox, RotateCw } from 'lucide-react'
+import {
+  Button, Skeleton, ExhibitTab, Card, EmptyState, ErrorState, Page,
+} from '@/components/ui'
+import { AmbientField } from '@/components/shell/AmbientField'
+import { MimicLockup } from '@/components/brand/MimicMark'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
 import type { CandidateAssignedSession } from '@shared/types'
 
+/**
+ * The candidate's home: everything they have been invited to.
+ *
+ * Deliberately a short, quiet page. A candidate is here for a few seconds
+ * before an interview and possibly never again, so it does exactly two things —
+ * shows what is waiting for them, and gets them into it.
+ *
+ * The exhibit tab on each row is the same format coding the recruiter sees in
+ * their sessions index, which is the one visual element shared by both halves
+ * of the product.
+ */
 export default function CandidateHome() {
   const { user, signOutUser } = useAuth()
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -13,76 +28,76 @@ export default function CandidateHome() {
     queryFn: sessionsApi.mine,
   })
 
+  const pending = data?.filter((s) => s.status !== 'completed' && s.status !== 'expired') ?? []
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-white">
-        <div className="mx-auto flex h-[60px] max-w-4xl items-center justify-between px-6">
-          <img src="/talbotiq-logo.png" alt="TalbotIQ" className="h-9 w-auto" />
+    <div className="relative min-h-screen bg-ground">
+      <AmbientField variant="record" />
+
+      <header className="relative z-sticky border-b border-rule bg-surface">
+        <div className="mx-auto flex h-[60px] max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
+          <MimicLockup />
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-neutral-500 sm:inline">{user?.email}</span>
-            <button
-              onClick={() => void signOutUser()}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50/60"
-            >
-              <LogOut size={15} /> Sign out
-            </button>
+            <span className="hidden text-sm text-ink-muted sm:inline">{user?.email}</span>
+            <Button variant="secondary" size="sm" onClick={() => void signOutUser()} icon={<LogOut size={14} />}>
+              Sign out
+            </Button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <h1 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">Your interviews</h1>
-        <p className="mt-1 text-sm text-neutral-500">Interviews assigned to {user?.email}.</p>
+      <main className="relative z-raised">
+        <Page width="reading">
+          <h1 className="font-display text-[28px] font-bold tracking-[-0.03em] text-ink">Your interviews</h1>
+          <p className="mt-1.5 text-sm text-ink-muted">
+            {/* States the count rather than only listing rows: a candidate wants
+                to know how many things are outstanding before they read any. */}
+            {isLoading
+              ? `Invitations for ${user?.email}.`
+              : pending.length === 0
+                ? `No interviews are waiting for ${user?.email}.`
+                : `${pending.length} interview${pending.length === 1 ? '' : 's'} waiting for ${user?.email}.`}
+          </p>
 
-        <div className="mt-6">
-          {isLoading ? (
-            <ul className="space-y-3" aria-hidden="true">
-              {[0, 1, 2].map((i) => (
-                <li key={i} className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-white p-4 shadow-xs">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <Skeleton className="h-4 w-48 max-w-full" />
-                    <Skeleton className="h-3 w-32 max-w-full" />
-                  </div>
-                  <Skeleton className="h-9 w-36 flex-shrink-0 rounded-full" />
-                </li>
-              ))}
-            </ul>
-          ) : isError ? (
-            <Card>
-              <div className="flex flex-col items-center py-6 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-md border border-danger-border bg-danger-bg text-danger">
-                  <AlertTriangle size={20} strokeWidth={1.75} />
-                </span>
-                <h2 className="mt-4 font-display text-base font-bold tracking-[-0.02em] text-neutral-900">
-                  Couldn’t load your interviews
-                </h2>
-                <p className="mt-1 max-w-sm text-sm leading-relaxed text-neutral-500">
-                  {(error as Error)?.message ?? 'Something went wrong while fetching your assigned interviews.'}
-                </p>
-                <Button variant="secondary" size="sm" className="mt-4" icon={<RotateCw size={13} />} onClick={() => void refetch()}>
-                  Try again
-                </Button>
-              </div>
-            </Card>
-          ) : (data && data.length > 0) ? (
-            <ul className="space-y-3">
-              {data.map((s) => <SessionRow key={s.id} s={s} />)}
-            </ul>
-          ) : (
-            <Card>
-              <div className="flex flex-col items-center py-10 text-center">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full border border-primary-100 bg-primary-50 text-primary-700">
-                  <Inbox size={24} strokeWidth={1.75} />
-                </span>
-                <h2 className="mt-4 font-display text-lg font-bold tracking-[-0.02em] text-neutral-900">No interviews assigned</h2>
-                <p className="mt-2 max-w-sm text-sm leading-relaxed text-neutral-500">
-                  There are no interviews assigned to this account. If you were expecting one, make sure you’re signed in
-                  with the email address your invite was sent to, or contact the recruiter.
-                </p>
-              </div>
-            </Card>
-          )}
-        </div>
+          <div className="mt-6">
+            {isLoading ? (
+              <ul className="space-y-3" aria-label="Loading your interviews" role="status">
+                {[0, 1, 2].map((i) => (
+                  <li key={i} className="flex items-center justify-between gap-4 rounded-lg border border-rule bg-surface p-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-48 max-w-full" />
+                      <Skeleton className="h-3 w-32 max-w-full" />
+                    </div>
+                    <Skeleton className="h-9 w-36 flex-shrink-0" />
+                  </li>
+                ))}
+              </ul>
+            ) : isError ? (
+              <Card>
+                <ErrorState
+                  title="Couldn’t load your interviews"
+                  detail={
+                    (error as Error)?.message ??
+                    'Something went wrong while fetching your assigned interviews. Your invitations are safe, this is a display problem.'
+                  }
+                  onRetry={() => void refetch()}
+                />
+              </Card>
+            ) : data && data.length > 0 ? (
+              <ul className="space-y-3">
+                {data.map((s) => <SessionRow key={s.id} s={s} />)}
+              </ul>
+            ) : (
+              <Card>
+                <EmptyState
+                  icon={<Inbox strokeWidth={1.75} />}
+                  title="No interviews assigned"
+                  description="If you were expecting one, check that you are signed in with the email address your invite was sent to, or reply to the invite email and the hiring team can resend it."
+                />
+              </Card>
+            )}
+          </div>
+        </Page>
       </main>
     </div>
   )
@@ -91,30 +106,28 @@ export default function CandidateHome() {
 function SessionRow({ s }: { s: CandidateAssignedSession }) {
   const done = s.status === 'completed' || s.status === 'expired'
   return (
-    <li className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-white p-4 shadow-xs transition-colors duration-150 hover:border-primary-200">
+    <li className="flex items-center justify-between gap-4 rounded-lg border border-rule bg-surface p-4 transition-colors duration-fast hover:border-rule-strong">
       <div className="min-w-0">
-        <p className="truncate font-semibold text-neutral-900">{s.templateName}</p>
-        <div className="mt-1 flex min-w-0 items-center gap-2">
-          {s.role ? <span className="truncate text-xs text-neutral-500">{s.role}</span> : null}
+        <p className="truncate font-semibold text-ink">{s.templateName}</p>
+        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
+          {s.role ? <span className="truncate text-xs text-ink-muted">{s.role}</span> : null}
           <ExhibitTab track={s.track} />
         </div>
       </div>
+
       {done ? (
-        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-3 py-1.5 text-sm font-semibold text-success">
-          <CheckCircle2 size={15} /> Completed
+        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-3 py-1.5 text-sm font-semibold text-ok">
+          <CheckCircle2 size={15} aria-hidden="true" /> Completed
         </span>
       ) : (
         <Link
           to={`/take/${s.id}`}
-          className="flex flex-shrink-0 items-center gap-1.5 rounded-md bg-primary-700 px-4 py-2 text-sm font-semibold text-white shadow-primary-sm transition-all duration-150 hover:bg-primary-800 hover:shadow-primary-md"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md bg-action px-4 py-2 text-sm font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          <CalendarClock size={15} /> {s.status === 'in_progress' ? 'Continue' : 'Start interview'}
+          {s.status === 'in_progress' ? 'Continue' : 'Start interview'}
+          <ArrowRight size={15} aria-hidden="true" />
         </Link>
       )}
     </li>
   )
-}
-
-function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">{children}</div>
 }

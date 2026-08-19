@@ -39,9 +39,21 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _rating_of(body: dict) -> int:
-    """1..5, or 400. A rating outside the scale makes the average meaningless."""
+def _rating_of(body: dict) -> int | None:
+    """1..5, or None when the candidate left no star rating.
+
+    The rating used to be REQUIRED, and a missing one was a 400. That was written
+    against a form where the stars were mandatory; the candidate feedback step now
+    lets someone submit a comment without picking a number, and rejecting that
+    would lose the most useful feedback there is — a candidate who took the time
+    to write a sentence about what went wrong.
+
+    A rating that is PRESENT but outside the scale is still a 400: that is a
+    client bug, and silently rounding it would corrupt the recruiter's average.
+    """
     raw = body.get("rating")
+    if raw is None:
+        return None
     if isinstance(raw, bool) or not isinstance(raw, int):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A rating from 1 to 5 is required")
     if not 1 <= raw <= 5:
@@ -60,6 +72,12 @@ async def leave_feedback(
 
     rating = _rating_of(body)
     comment = str(body.get("comment") or "").strip()[:MAX_COMMENT_CHARS]
+
+    # Nothing said, nothing stored. A row with no rating and no comment reads in
+    # the recruiter's listing as though the candidate answered and had no view,
+    # which is worse than the honest absence of a row.
+    if rating is None and not comment:
+        return {"ok": True, "ignored": True}
 
     record = {
         "sessionId": session_id,

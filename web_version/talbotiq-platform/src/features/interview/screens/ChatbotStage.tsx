@@ -1,14 +1,13 @@
-import { pressHandlers } from '../motion/press'
-import { AgentStatus } from '../components/AgentStatus'
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/components/ui'
 import type { BrandingConfig } from '@shared/types'
-import { MimicMark } from '@/components/MimicMark'
-import { brandInitial, brandName, isProductBranding } from '../branding'
 import { useChatbotSession } from '../useChatbotSession'
 import { CircularCountdown } from '../components/CircularCountdown'
+import { MimicMark } from '@/components/brand/MimicMark'
+import { InterviewStage, PhaseMark } from '../stage/InterviewStage'
+import { Completion } from './Completion'
 
 interface Props {
   sessionId: string
@@ -17,46 +16,68 @@ interface Props {
 }
 
 /**
- * Small brand mark that anchors every interviewer bubble to whoever is asking.
+ * The interviewer's avatar on every one of its turns.
  *
- * Three cases, in the order they settle: the recruiter's uploaded logo, the
- * product mark when no recruiter identity was ever set, and only then a letter.
- * The chip is white and the glyph takes `accent`, so the mark's `currentColor`
- * stroke lands as ink here — the inverse of the header, which is the same mark
- * on an ink chip.
+ * It was the tenant's first initial — a bare "T" in a box, repeated down the
+ * whole transcript. That is the weakest possible mark: it carries no meaning a
+ * candidate can use, it is indistinguishable between two customers whose names
+ * start with the same letter, and it made the interviewer look like a
+ * placeholder.
+ *
+ * It is now the Mimic mark, which is honest about who is asking: the questions
+ * come from the interviewer, and the interviewer is this product.
  */
-function InterviewerMark({ branding, accent }: { branding: BrandingConfig; accent: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex h-8 w-8 flex-shrink-0 select-none items-center justify-center overflow-hidden rounded-md border border-border bg-white text-[11px] font-bold leading-none shadow-xs"
-      style={{ color: accent }}
-    >
-      {branding.logoUrl
-        ? <img src={branding.logoUrl} alt="" className="h-full w-full object-contain" />
-        : isProductBranding(branding)
-          ? <MimicMark className="h-5 w-5" />
-          : brandInitial(branding)}
-    </span>
-  )
+function InterviewerMark() {
+  return <MimicMark size="md" className="shadow-xs" />
 }
 
 /**
- * The interviewer's status, on the message rail.
+ * The rotating mark that accompanies "Thinking…".
  *
- * Was a bubble of pulsing dots whose lifetime was padded to at least three
- * seconds by the session hook, so a fast reply still looked slow. Both are
- * gone: AgentStatus reports the real stage, and the floor was deleted.
+ * A six-spoke asterisk rather than a circular spinner. A spinner implies a job
+ * with a known duration; an interviewer deciding what to ask next has neither,
+ * and the asterisk reads as activity without making that promise. It rotates
+ * slowly and breathes, so it is legible as motion at 14px without drawing the
+ * eye the way a fast spinner does.
  *
- * It sits on the rail rather than in a bubble because a bubble is a message,
- * and "thinking" is not one. Reserving a bubble-sized box also made the
- * transcript jump when the real message replaced it.
+ * Under reduced motion it renders static — the word beside it already carries
+ * the meaning, which is why the word is not optional.
  */
-function ThinkingIndicator({ branding, accent }: { branding: BrandingConfig; accent: string }) {
+function ThinkingMark({ reduce }: { reduce: boolean | null }) {
+  return (
+    <motion.svg
+      viewBox="0 0 24 24"
+      className="h-[15px] w-[15px] flex-shrink-0 text-ink"
+      aria-hidden="true"
+      animate={reduce ? undefined : { rotate: 360 }}
+      transition={{ duration: 3.6, repeat: Infinity, ease: 'linear' }}
+    >
+      {[0, 60, 120].map((deg) => (
+        <line
+          key={deg}
+          x1="12" y1="3.5" x2="12" y2="20.5"
+          stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"
+          transform={`rotate(${deg} 12 12)`}
+        />
+      ))}
+    </motion.svg>
+  )
+}
+
+/** "Thinking…" — a mark and a word. Its ≥3s minimum lifetime is enforced by the
+ *  session hook, so it is never a flash. */
+function ThinkingIndicator({ reduce }: { reduce: boolean | null }) {
   return (
     <div className="flex items-end justify-start gap-2.5">
-      <InterviewerMark branding={branding} accent={accent} />
-      <AgentStatus stage="thinking" className="pb-1" />
+      <InterviewerMark />
+      <div
+        className="flex items-center gap-2 rounded-2xl rounded-bl-md border border-rule bg-surface px-4 py-3 shadow-xs"
+        role="status"
+        aria-live="polite"
+      >
+        <ThinkingMark reduce={reduce} />
+        <span className="text-sm font-medium text-ink-body">Thinking…</span>
+      </div>
     </div>
   )
 }
@@ -69,8 +90,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   const [breakStage, setBreakStage] = useState<'none' | 'choosing' | 'counting'>('none')
   const [breakRemaining, setBreakRemaining] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const accent = branding.accentColor || '#0E1420'
-  const accentVar = { '--accent': accent } as CSSProperties
+  const accent = branding.accentColor || '#1D3FA0'
   const s = chat.state
   const visibleTranscript = chat.visibleTranscript
   const turnId = s?.currentTurnId ?? null
@@ -152,145 +172,92 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   }
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, s) % 60).padStart(2, '0')}`
 
-  /* Shared control shapes — the accent is candidate-branded, so these carry it
-     through inline style rather than a static token class. */
-  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-md px-5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-sm'
-  const outlinePill = 'inline-flex items-center justify-center rounded-md border-[1.5px] bg-white font-semibold transition-colors duration-150 hover:bg-neutral-50'
+  /* Shared control shapes, on the system's own tokens. These used to carry
+     `branding.accentColor` through inline style — but the accent is arbitrary
+     tenant-supplied hex, so white-on-accent had no contrast guarantee, and this
+     is the interview's primary action. */
+  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-action px-5 text-sm font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40'
+  const outlinePill = 'inline-flex items-center justify-center rounded-md border bg-surface font-semibold transition-colors duration-fast hover:bg-surface-hover'
 
   if (s?.finished) {
+    // The shared completion screen, so a conversational interview ends exactly
+    // the way a timed one does. This used to be a bespoke card with its own
+    // wording, its own accent bar and its own tick plate.
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-white shadow-xl"
-        >
-          <div className="h-1.5 w-full" style={{ background: accent }} aria-hidden="true" />
-          <div className="p-10 text-center">
-            <span
-              className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl"
-              style={{ background: `${accent}14`, color: accent }}
-            >
-              <CheckCircle2 size={30} strokeWidth={1.75} />
-            </span>
-            <h1 className="mt-6 font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
-              All done, thank you!
-            </h1>
-            <p className="mt-3 text-sm leading-relaxed text-neutral-500">
-              Your responses were submitted to {brandName(branding)}. The hiring team will be in touch.
-            </p>
-            <div className="divider my-7" />
-            <p className="text-xs text-neutral-400">You can safely close this window.</p>
-          </div>
-        </motion.div>
-      </div>
+      <InterviewStage branding={branding} track="chatbot" ground="record">
+        <Completion branding={branding} sessionId={sessionId} />
+      </InterviewStage>
     )
   }
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[var(--ap-ground)]">
-      {/* header */}
-      <div className="ap-material ap-safe-top sticky top-0 z-20 border-b border-[var(--ap-separator)]">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-2.5">
-          <div className="flex min-w-0 items-center gap-2.5">
-            {branding.logoUrl ? (
-              <img src={branding.logoUrl} alt="" className="h-7 w-7 flex-shrink-0 rounded-lg object-contain" />
-            ) : (
-              <span
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
-                style={{ background: accent }}
-              >
-                {isProductBranding(branding) ? <MimicMark className="h-4.5 w-4.5" /> : brandInitial(branding)}
-              </span>
-            )}
-            <span className="truncate font-display text-sm font-bold tracking-[-0.01em] text-neutral-800">
-              {brandName(branding)}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {s && s.progress.total > 0 && s.progress.current > 0 && (
-              <span className="hidden text-xs font-semibold tabular-nums text-neutral-500 sm:inline">
-                Question {s.progress.current} <span className="text-neutral-400">of {s.progress.total}</span>
-              </span>
-            )}
-            {/* Countdown ring — shown ONLY while a timed question turn is armed
-                (never during greeting/readiness/thinking-indicator/wrap-up). */}
-            {s?.phase && (
-              <CircularCountdown
-                remaining={chat.remaining}
-                total={s.totalPhaseSeconds}
-                phase={s.phase === 'thinking' ? 'prep' : 'answer'}
-                warningThreshold={s.timing.warningThresholdSeconds}
-                accentColor={accent}
-                size={60}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
+    <InterviewStage
+      branding={branding}
+      track="chatbot"
+      layout="focus"
+      progress={s && s.progress.total > 0 && s.progress.current > 0 ? s.progress : undefined}
+      phase={s?.phase ? <PhaseMark phase={s.phase === 'thinking' ? 'prep' : 'answer'} /> : undefined}
+      /* The countdown ring is shown ONLY while a timed question turn is armed —
+         never during greeting, readiness, the thinking indicator or wrap-up. */
+      timer={
+        s?.phase ? (
+          <CircularCountdown
+            remaining={chat.remaining}
+            total={s.totalPhaseSeconds}
+            phase={s.phase === 'thinking' ? 'prep' : 'answer'}
+            warningThreshold={s.timing.warningThresholdSeconds}
+            accentColor={accent}
+            size={44}
+          />
+        ) : undefined
+      }
+    >
       {/* transcript */}
-      {/* pb-40 reserves the space the floating composer occupies, so the last
-          message can always be scrolled clear of it. ap-scroll-fade-bottom is
-          the scroll edge effect (§12): content dissolves into the chrome
-          instead of being cut by a 1px rule. */}
-      <div
-        ref={scrollRef}
-        className="ap-scroll-fade-bottom mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 pb-40 pt-7"
-      >
+      <div ref={scrollRef} className="mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 py-7">
         {visibleTranscript.map((t) => (
           <motion.div
             key={t.id}
-            // Anchored to where the message came FROM (§7): the candidate's own
-            // words grow out of the composer at bottom-right, the interviewer's
-            // out of its mark at bottom-left. A generic fade tells you a message
-            // appeared; this tells you where it came from.
-            initial={reduce ? false : { opacity: 0, scale: 0.94, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: 'spring', bounce: 0, duration: 0.38 }}
-            style={{ transformOrigin: t.role === 'candidate' ? 'bottom right' : 'bottom left' }}
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             className={cn('flex items-end gap-2.5', t.role === 'candidate' ? 'justify-end' : 'justify-start')}
           >
-            {t.role !== 'candidate' && <InterviewerMark branding={branding} accent={accent} />}
+            {t.role !== 'candidate' && <InterviewerMark />}
             <div
               className={
                 t.role === 'candidate'
-                  ? 'max-w-[76%] rounded-2xl rounded-br-md px-4 py-3 text-[15px] text-white shadow-sm'
-                  : 'max-w-[76%] rounded-2xl rounded-bl-md border border-border bg-white px-4 py-3 text-[15px] text-neutral-800 shadow-xs'
+                  ? 'max-w-[76%] rounded-2xl rounded-br-md bg-action px-4 py-3 text-[15px] text-action-ink shadow-sm'
+                  : 'max-w-[76%] rounded-2xl rounded-bl-md border border-rule bg-surface px-4 py-3 text-[15px] text-ink shadow-xs'
               }
-              style={t.role === 'candidate' ? { background: accent } : undefined}
             >
               <p className="whitespace-pre-wrap leading-[1.6]">{t.content}</p>
             </div>
           </motion.div>
         ))}
 
-        {/* Optimistic candidate bubble — keeps their answer on screen while the
+        {/* Optimistic candidate bubble, keeps their answer on screen while the
             interviewer "thinks" (the real turn replaces it on reveal). */}
         {chat.pendingAnswer && chat.pendingAnswer.trim() !== '' && (
           <div className="flex items-end justify-end gap-2.5">
-            <div className="max-w-[76%] rounded-2xl rounded-br-md px-4 py-3 text-[15px] text-white opacity-90 shadow-sm" style={{ background: accent }}>
+            <div className="max-w-[76%] rounded-2xl rounded-br-md bg-action px-4 py-3 text-[15px] text-action-ink opacity-90 shadow-sm">
               <p className="whitespace-pre-wrap leading-[1.6]">{chat.pendingAnswer}</p>
             </div>
           </div>
         )}
 
-        {interviewerThinking && <ThinkingIndicator branding={branding} accent={accent} />}
+        {interviewerThinking && <ThinkingIndicator reduce={reduce} />}
       </div>
 
-      {/* Floating translucent chrome, not an opaque strip. absolute rather than
-          sticky so the transcript genuinely passes underneath it; the bright
-          top edge is light catching the material, not a border (§12). */}
-      <div className="ap-material ap-edge-top ap-safe-bottom absolute inset-x-0 bottom-0 z-20">
+      {/* composer */}
+      <div className="sticky bottom-0 border-t border-rule bg-ground/95 backdrop-blur">
         <div className="mx-auto w-full max-w-3xl px-4 py-3.5">
           {inThinkingPhase && s && (
-            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-xs">
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-warning-border bg-warning-bg text-warning">
+            <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-rule bg-surface px-4 py-3 shadow-xs">
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-rule bg-surface-sunk text-ink-body">
                 <Lightbulb size={16} strokeWidth={1.75} />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-warning">Preparation time</p>
-                <p className="mt-0.5 text-[13px] leading-relaxed text-neutral-600">
+                <p className="section-label">Preparation time</p>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-ink-muted">
                   Read the question and structure your answer, situation, task, action, result.
                 </p>
               </div>
@@ -298,8 +265,8 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                 <button
                   type="button"
                   onClick={() => chat.skipThinking()}
-                  className={cn(outlinePill, 'h-9 flex-shrink-0 px-4 text-xs')}
-                  style={{ borderColor: accent, color: accent }}
+                  className={cn(outlinePill, 'h-9 flex-shrink-0 border-signal px-4 text-xs text-signal-ink')}
+
                 >
                   Start answering now
                 </button>
@@ -308,14 +275,14 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
           )}
           {isReadiness && breakStage === 'choosing' ? (
             /* Candidate isn't ready — offer a short break with auto-start. */
-            <div className="rounded-2xl border border-border bg-white p-5 text-center shadow-sm">
+            <div className="rounded-lg border border-rule bg-surface p-5 text-center shadow-sm">
               <span
-                className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl"
-                style={{ background: `${accent}14`, color: accent }}
+                className="mx-auto flex h-10 w-10 items-center justify-center rounded-md border border-rule bg-surface-sunk text-ink-body"
+                aria-hidden="true"
               >
                 <Clock size={19} strokeWidth={1.75} aria-hidden="true" />
               </span>
-              <p className="mt-3 text-sm font-medium text-neutral-700">
+              <p className="mt-3 text-sm font-medium text-ink-body">
                 No problem, take your time. I’ll begin automatically in:
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
@@ -324,8 +291,8 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                     key={sec}
                     type="button"
                     onClick={() => startBreak(sec)}
-                    className={cn(outlinePill, 'h-10 px-5 text-sm')}
-                    style={{ borderColor: accent, color: accent }}
+                    className={cn(outlinePill, 'h-10 border-signal px-5 text-sm text-signal-ink')}
+  
                   >
                     {sec === 60 ? '1 minute' : `${sec} seconds`}
                   </button>
@@ -334,16 +301,16 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               <button
                 type="button"
                 onClick={beginAfterBreak}
-                className="mt-4 text-xs font-medium text-neutral-500 underline underline-offset-2 transition-colors duration-150 hover:text-neutral-800"
+                className="mt-4 rounded-sm text-xs font-medium text-ink-muted underline underline-offset-2 transition-colors duration-fast hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Actually, I’m ready now
               </button>
             </div>
           ) : isReadiness && breakStage === 'counting' ? (
             /* Break countdown — auto-starts at zero; can start early. */
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
-              <span className="flex items-baseline gap-2 text-sm text-neutral-600" aria-live="polite">
-                <span className="font-display text-2xl font-extrabold tabular-nums tracking-[-0.02em]" style={{ color: accent }}>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-rule bg-surface p-4 shadow-sm">
+              <span className="flex items-baseline gap-2 text-sm text-ink-body" aria-live="polite">
+                <span className="font-mono text-2xl font-semibold nums tracking-[-0.02em] text-ink">
                   {mmss(breakRemaining)}
                 </span>
                 until we begin…
@@ -353,7 +320,6 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                 onClick={beginAfterBreak}
                 disabled={chat.sending}
                 className={accentPill}
-                style={{ background: accent }}
               >
                 {chat.sending
                   ? <Loader2 size={16} className="animate-spin" aria-hidden="true" />
@@ -363,15 +329,15 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
             </div>
           ) : isReadiness ? (
             /* Opening "are you ready?" turn: a simple Yes/No dropdown, not free text. */
-            <div className="rounded-2xl border border-border bg-white p-4 shadow-sm" style={accentVar}>
-              <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">Ready to begin?</p>
+            <div className="rounded-lg border border-rule bg-surface p-4 shadow-sm">
+              <p className="section-label mb-2.5">Ready to begin?</p>
               <div className="flex items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <select
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     disabled={chat.sending || !inProgress}
-                    className="h-11 w-full cursor-pointer appearance-none rounded-xl border-[1.5px] border-border bg-white pl-3.5 pr-9 text-sm text-neutral-800 outline-none transition-[border-color,box-shadow] duration-150 focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_12%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="input-base h-11 cursor-pointer appearance-none pr-9 disabled:cursor-not-allowed"
                     aria-label="Are you ready to begin?"
                     autoFocus
                   >
@@ -380,7 +346,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                     <option value="No, I need a moment.">No, not yet</option>
                   </select>
                   <svg
-                    className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400"
+                    className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
                     width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
                   >
@@ -392,7 +358,6 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                   onClick={submitReadiness}
                   disabled={!canSend}
                   className={cn(accentPill, 'h-11')}
-                  style={{ background: accent }}
                   aria-label="Send"
                 >
                   {chat.sending
@@ -405,8 +370,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
           ) : (
             <>
               <div
-                className="flex items-end gap-2 rounded-[26px] border border-border bg-white py-2 pl-4 pr-2 shadow-sm transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_12%,transparent)]"
-                style={accentVar}
+                className="flex items-end gap-2 rounded-lg border border-rule-input bg-surface py-2 pl-4 pr-2 shadow-sm transition-[border-color,box-shadow] duration-fast focus-within:border-signal focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--accent)_18%,transparent)]"
               >
                 <textarea
                   value={text}
@@ -423,7 +387,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                         : 'Type your answer…'
                   }
                   rows={2}
-                  className="max-h-40 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.6] text-neutral-800 outline-none placeholder:text-neutral-400 disabled:opacity-60"
+                  className="max-h-40 flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-[1.6] text-ink outline-none placeholder:text-ink-muted disabled:opacity-60"
                   aria-label="Your answer"
                   autoFocus
                 />
@@ -431,15 +395,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                   type="button"
                   onClick={submit}
                   disabled={!canSend}
-                  // Feedback on pointer-DOWN, and the haptic on the same frame
-                  // (§1, §13). Send is the one control in this screen that
-                  // earns a haptic: it commits the candidate's answer.
-                  {...pressHandlers({ haptic: true })}
-                  // No `transition-all`: a CSS transition cannot be grabbed and
-                  // reversed from its presentation value (§3). The press
-                  // transform is applied directly and cleared on release.
-                  className="ap-hit mb-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{ background: accent, transitionProperty: 'transform', transitionDuration: '100ms' }}
+                  className="mb-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-action text-action-ink shadow-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-sm"
                   aria-label="Send answer"
                 >
                   {chat.sending
@@ -447,17 +403,17 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                     : <Send size={18} aria-hidden="true" />}
                 </button>
               </div>
-              <p className="mt-1.5 pr-2 text-right text-[11px] font-medium text-neutral-400">
+              <p className="mt-1.5 pr-2 text-right text-[11px] font-medium text-ink-muted">
                 Enter to send · Shift + Enter for a new line
               </p>
             </>
           )}
           {chat.error && (
-            <div role="alert" className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-danger-border bg-danger-bg px-3.5 py-2.5">
-              <AlertTriangle size={14} strokeWidth={2} className="mt-0.5 flex-shrink-0 text-danger" aria-hidden="true" />
+            <div role="alert" className="mt-2.5 flex items-start gap-2.5 rounded-md border border-risk-rule bg-risk-bg px-3.5 py-2.5">
+              <AlertTriangle size={14} strokeWidth={2} className="mt-0.5 flex-shrink-0 text-risk" aria-hidden="true" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-danger">{chat.error}</p>
-                <p className="mt-0.5 text-xs font-medium leading-relaxed text-danger/85">
+                <p className="text-xs font-semibold text-risk">{chat.error}</p>
+                <p className="mt-0.5 text-xs font-medium leading-relaxed text-risk/85">
                   Check your connection and try again, your saved progress is kept.
                 </p>
               </div>
@@ -465,6 +421,6 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </InterviewStage>
   )
 }

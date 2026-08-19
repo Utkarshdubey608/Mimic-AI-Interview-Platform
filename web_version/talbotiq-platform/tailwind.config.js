@@ -1,111 +1,167 @@
 /** @type {import('tailwindcss').Config} */
 //
-// THE RECORD — token layer.
+// MIMIC — Tailwind binding for the token layer.
 //
-// The world is the legal evidence bundle: numbered transcript lines, exhibit
-// tabs, citations back to the record, a reasoned finding, and a human who
-// decides. It replaces the inherited Eightfold violet system wholesale.
+// The values live in `src/design/tokens.css`. This file only BINDS them to
+// utility names, and it does so through `var(--…)` wherever a value should
+// follow the ground.
 //
-// Two rules govern every value below:
-//   1. The reading surface is light and cool, because the scene is a recruiter
-//      at a desk in daylight reading transcripts for hours. The navigational
-//      spine is ink-dark, because a bundle has a cover and the pages do not.
-//   2. Colour is FUNCTIONAL. The exhibit ramp encodes the six interview
-//      formats; it is index-tab coding, not decoration. Nothing else is
-//      allowed to be colourful.
+// ── Why var() and not literals ────────────────────────────────────────────
+// The product has two grounds — the light record surface and the dark room —
+// and a subtree opts in with `data-ground="room"`. Because the semantic colours
+// below resolve through custom properties, that one attribute re-skins every
+// descendant: `bg-surface` becomes a lit panel, `text-ink` becomes near-white,
+// `border-rule` darkens. No component needs a dark: variant, no screen needs a
+// second set of classes, and the two worlds cannot drift apart.
 //
-// Legacy key names (primary/neutral/brand/hume/mint/magenta/accent) are kept so
-// every existing consumer re-skins without edits — the same technique the
-// previous system used. The names are historical; the values are The Record.
+// ── Why the legacy names survive ──────────────────────────────────────────
+// `primary`, `neutral`, `brand`, `mint`, `magenta`, `accent`, `hume` and the
+// exhibit ramp are consumed by ~39 files. They are kept, and re-pointed at the
+// new values, so the migration is incremental instead of a big bang. The names
+// are historical; the values are current. New code should prefer the semantic
+// tokens (`ink`, `surface`, `ground`, `rule`, `signal`, `intel`, `live`).
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Registrar ink — the authority colour. Primary actions, active spine
-        // item, focus ring, citation links.
-        primary: { DEFAULT: '#0E1420', 50: '#F5F5F7', 100: '#ECECEF', 200: '#DFDFE3', 300: '#C7C8CD', 400: '#8A8F98', 500: '#61666E', 600: '#3B4046', 700: '#0E1420', 800: '#23272E', 900: '#0E1420' },
-
-        // ── Exhibit tabs — the six interview formats ────────────────────
-        // Index-tab colour coding. Each is AA as ink on white and legible as a
-        // 3px tab edge. This is the only place saturation is permitted.
-        exhibit: {
-          chat:    '#B45309', // Timed Q&A
-          chatbot: '#0F766E', // Conversational
-          voice:   '#4338CA', // Live voice
-          avatar:  '#BE185D', // AI video avatar
-          video:   '#15803D', // Recorded video
-          twoway:  '#0369A1', // Live two-way
+        /* ── SEMANTIC — these follow the ground ──────────────────────────
+           Prefer these in all new code. On the record ground they resolve to
+           exactly the values the product ships today, so adopting them is not a
+           visual change; in a room they resolve to the dark palette. */
+        ground: {
+          DEFAULT: 'var(--ground)',
+          sunk: 'var(--ground-sunk)',
+        },
+        surface: {
+          DEFAULT: 'var(--surface)',
+          raised: 'var(--surface-raised)',
+          sunk: 'var(--surface-sunk)',
+          hover: 'var(--surface-hover)',
+        },
+        rule: {
+          DEFAULT: 'var(--rule)',
+          strong: 'var(--rule-strong)',
+          input: 'var(--rule-input)',
+        },
+        ink: {
+          DEFAULT: 'var(--ink)',
+          body: 'var(--ink-body)',
+          muted: 'var(--ink-muted)',
+          faint: 'var(--ink-faint)',
+          disabled: 'var(--ink-disabled)',
+          inverse: 'var(--ink-inverse)',
         },
 
-        // The seal. Reserved for the stamped mark: flagged integrity events,
-        // rejected outcomes, destructive confirmation. Never a surface fill.
-        seal: { DEFAULT: '#B3261E', bg: '#FCF0EF', border: '#F0CFCC' },
+        /* The primary action. INK, not a colour — this is the marketing site's
+           .btn-primary, and it inverts to near-white inside a dark room exactly
+           as that site's own dark sections do. */
+        action: {
+          DEFAULT: 'var(--action)',
+          hover: 'var(--action-hover)',
+          ink: 'var(--on-action)',
+        },
 
-        // Cool neutral ramp — paper under daylight, never warm, never lavender.
+        /* Registrar blue. Links, the focus ring, the progress rail. Never a
+           large fill — that is what `action` is for. */
+        signal: {
+          DEFAULT: 'var(--accent)',
+          hover: 'var(--accent-hover)',
+          soft: 'var(--accent-soft)',
+          ink: 'var(--accent-ink)',
+        },
+        /* Machine output. Deliberately neutral: the marketing site has no
+           violet, so AI provenance is carried by a glyph and a word instead of
+           by a hue that exists nowhere else in the brand. */
+        intel: {
+          DEFAULT: 'var(--intel-fg)',
+          bg: 'var(--intel-bg)',
+        },
+        live: {
+          DEFAULT: 'var(--live-fg)',
+          bg: 'var(--live-bg)',
+        },
+
+        /* Status. Every one of these has a glyph and a word alongside it in the
+           UI — see `status` in src/design/tokens.ts. Colour is never alone. */
+        ok:   { DEFAULT: 'var(--ok)',   bg: 'var(--ok-bg)',   rule: 'var(--ok-rule)' },
+        warn: { DEFAULT: 'var(--warn)', bg: 'var(--warn-bg)', rule: 'var(--warn-rule)' },
+        risk: { DEFAULT: 'var(--risk)', bg: 'var(--risk-bg)', rule: 'var(--risk-rule)' },
+
+        /* ── EXHIBIT RAMP — the six interview formats ────────────────────
+           Index-tab coding: the colour IS the format. The only place saturation
+           is permitted, and never decorative. Both grounds are contrast-verified
+           by scripts/contrast-audit.mjs. */
+        exhibit: {
+          chat:    '#B45309',  'chat-room':    '#E9A23B',
+          chatbot: '#0F766E',  'chatbot-room': '#45C7B8',
+          voice:   '#4338CA',  'voice-room':   '#9B8CFF',
+          avatar:  '#BE185D',  'avatar-room':  '#F97BB0',
+          video:   '#15803D',  'video-room':   '#5CC98A',
+          twoway:  '#0369A1',  'twoway-room':  '#5BB3E8',
+        },
+
+        /* ── LEGACY ALIASES ──────────────────────────────────────────────
+           Kept so existing consumers re-skin without edits. Do not use in new
+           code; the semantic tokens above say what they mean. */
+
+        // Registrar ink — primary actions, active nav, focus ring, links.
+        primary: { DEFAULT: '#1D3FA0', 50: '#F1F4FB', 100: '#E2E8F6', 200: '#C6D2ED', 300: '#9AAEDF', 400: '#6480C6', 500: '#3D5CB4', 600: '#2A4AAA', 700: '#1D3FA0', 800: '#152E76', 900: '#0F2154' },
+
+        // Cool neutral ramp — paper under daylight. Static by design: a fixed
+        // ramp is what a chart axis or a skeleton needs. Ground-following text
+        // should use `ink`/`ink-body`/`ink-muted` instead.
         //
-        // MEASURED, not asserted. An earlier revision of this comment claimed
-        // 400 and 500 both cleared 4.5:1; a contrast audit proved 400 did not
-        // (#6E7889 = 4.46:1 on white, 3.91:1 on the #EEF0F4 ground) across 173
-        // `text-neutral-400` usages. 400 is now #626B79 — 5.39:1 on white,
-        // 4.72:1 on the ground — so it clears AA as text on BOTH surfaces, which
-        // is the binding constraint since secondary text sits on each.
-        // 300 and below stay decorative (hairlines, tracks, skeletons) only.
-        neutral: { 50: '#F7F7F8', 100: '#F1F1F3', 200: '#E7E7EA', 300: '#D6D6DB', 400: '#63686F', 500: '#5B6067', 600: '#4A4F57', 700: '#3B4046', 800: '#24272C', 900: '#0E1420' },
+        // 400 is #626B79, not a lighter grey: an audit measured the previous
+        // #6E7889 at 4.46:1 on white and 3.91:1 on the page ground across 173
+        // `text-neutral-400` usages — below AA on both. 300 and below are
+        // decorative only (hairlines, tracks, skeletons), never text.
+        neutral: { 50: '#F8F9FB', 100: '#F1F3F7', 200: '#E3E6ED', 300: '#CBD1DC', 400: '#626B79', 500: '#5C6879', 600: '#4A5566', 700: '#3A4454', 800: '#232C3A', 900: '#0E1420' },
 
-        surface:    '#FFFFFF',   // the record page
-        background: '#F5F5F7',   // the desk the bundle sits on
-        border:     '#E7E7EA',   // hairline rules
+        background: 'var(--ground)',
+        border:     'var(--rule)',
 
         success: { DEFAULT: '#15803D', bg: '#EFF7F1', border: '#C9E5D2' },
-        warning: { DEFAULT: '#B45309', bg: '#FDF5EA', border: '#F0DBBC' },
+        warning: { DEFAULT: '#8A4308', bg: '#FDF5EA', border: '#F0DBBC' },
         danger:  { DEFAULT: '#B3261E', bg: '#FCF0EF', border: '#F0CFCC' },
+        seal:    { DEFAULT: '#B3261E', bg: '#FCF0EF', border: '#F0CFCC' },
 
-        // Legacy aliases, remapped so old consumers inherit the new world.
         magenta: { DEFAULT: '#BE185D', light: '#DB2777', bg: '#FCF0F5', border: '#F3CFE0' },
         mint:    { DEFAULT: '#0F766E', hover: '#0B5F58', ink: '#0F766E', bg: '#EDF6F5', border: '#C4E3E0' },
         accent:  { DEFAULT: '#B45309', light: '#FDF5EA', pale: '#FEFAF4' },
 
-        // ── The spine and the dark rooms (live call, avatar, guide) ─────
-        // A bundle's cover and slipcase. Key names are legacy.
+        // The dark room. `brand.*` names are legacy; the values are now the room
+        // ground from tokens.css, so every existing dark screen — the spine, the
+        // avatar room, the live call — deepens and unifies without an edit.
         brand: {
-          black:         '#0E1420', // spine ground
-          card:          '#1A1E24', // raised spine surface
-          border:        '#2C3036', // spine hairline
-          gold:          '#F2F3F5', // accent ON dark (near-white — ink cannot carry on ink)
-          'gold-light':  '#E8E8ED', // primary text on dark
-          gray:          '#9BA0A6', // secondary text on dark — ≥4.6:1 on #0E1420
-          green:         '#34A574',
-          'green-light': '#7FD4AE',
+          black:         '#0B0F18', // room ground
+          card:          '#131A27', // lit panel
+          border:        '#232D3F', // room hairline
+          gold:          '#8AA6F0', // accent on dark
+          'gold-light':  '#EDF1F8', // primary text on dark
+          gray:          '#93A0B4', // secondary text on dark — 6.6:1 on a panel
+          green:         '#0F766E',
+          'green-light': '#4FD1B0',
+          void:          '#070A11', // behind a video canvas
+          raised:        '#1A2333', // a panel above a panel
         },
 
-        // Analysis panels. Light, cool, and coded from the exhibit ramp.
+        // Analysis panels — light, cool, coded from the exhibit ramp.
         hume: {
-          base:    '#F5F5F7',
-          surface: '#FFFFFF',
-          card:    '#F8F9FB',
-          border:  '#E3E6ED',
-          gold:    '#B45309',
-          teal:    '#0F766E',
-          coral:   '#B3261E',
-          indigo:  '#4338CA',
-          amber:   '#B45309',
-          muted:   '#5C6879',
-          text:    '#0E1420',
-          live:    '#15803D',
+          base: '#EEF0F4', surface: '#FFFFFF', card: '#F8F9FB', border: '#E3E6ED',
+          gold: '#B45309', teal: '#0F766E', coral: '#B3261E', indigo: '#4338CA',
+          amber: '#B45309', muted: '#5C6879', text: '#0E1420', live: '#15803D',
         },
       },
 
       fontFamily: {
-        // Archivo — an institutional grotesque with real character, sourced and
-        // self-hostable. Not a system face, not a training-data default.
         // One family, two voices. The display voice is the SAME face with its
-        // width axis widened (see index.css) — not a second font.
+        // width axis widened (see index.css) — not a second font, so nothing
+        // extra is downloaded to get an editorial heading.
         sans:    ['Archivo', 'system-ui', 'sans-serif'],
         display: ['Archivo', 'system-ui', 'sans-serif'],
         head:    ['Archivo', 'system-ui', 'sans-serif'],
-        // Machine values only: line numbers, citations, scores, IDs, timers.
-        // Measurement, never a costume for "technical".
+        // Machine values only: scores, timers, IDs, timestamps, line numbers.
         mono:    ['Chivo Mono', 'ui-monospace', 'monospace'],
       },
 
@@ -123,59 +179,94 @@ export default {
         '6xl': ['4.25rem',   { lineHeight: '1.02',     letterSpacing: '-0.04em' }],
       },
 
-      spacing: { '4.5': '1.125rem', '13': '3.25rem', '15': '3.75rem', '18': '4.5rem', 'spine': '15rem' },
+      spacing: {
+        '4.5': '1.125rem', '13': '3.25rem', '15': '3.75rem', '18': '4.5rem',
+        spine: 'var(--spine-w)',
+        'spine-collapsed': 'var(--spine-w-collapsed)',
+        commandbar: 'var(--commandbar-h)',
+      },
 
-      // Documents and tabs, not pills. The pill grammar was the inherited
-      // brand's signature and leaves with it.
+      maxWidth: {
+        page: 'var(--page-max)',
+        reading: 'var(--page-max-reading)',
+      },
+
+      // Documents and tabs, not pills. The largest radius is 12px and belongs to
+      // the video canvas; `rounded-full` is legal ONLY on avatars, status dots
+      // and the voice orb.
       borderRadius: {
-        sm: '6px', DEFAULT: '8px', md: '10px', lg: '12px', xl: '16px', '2xl': '20px', '3xl': '24px',
+        sm: '2px', DEFAULT: '3px', md: '4px', lg: '6px', xl: '8px', '2xl': '10px', '3xl': '12px',
       },
 
       boxShadow: {
-        // Paper stacking on paper: real offset, soft blur, cool ink tone.
-        xs:   '0 1px 1px 0 rgb(14 20 32 / 0.04)',
-        sm:   '0 1px 2px 0 rgb(14 20 32 / 0.06), 0 1px 3px -1px rgb(14 20 32 / 0.05)',
-        DEFAULT: '0 2px 4px -1px rgb(14 20 32 / 0.07), 0 1px 2px -1px rgb(14 20 32 / 0.05)',
-        md:   '0 4px 10px -2px rgb(14 20 32 / 0.09), 0 2px 4px -2px rgb(14 20 32 / 0.05)',
-        lg:   '0 12px 32px -8px rgb(14 20 32 / 0.11), 0 4px 10px -4px rgb(14 20 32 / 0.05)',
-        xl:   '0 32px 64px -16px rgb(14 20 32 / 0.15), 0 12px 24px -12px rgb(14 20 32 / 0.07)',
-        inner:'inset 0 1px 2px 0 rgb(14 20 32 / 0.06)',
-        // The lift under a raised record while it is being read.
-        'record':    '0 1px 0 0 #E7E7EA, 0 6px 16px -6px rgb(14 20 32 / 0.08)',
-        'primary-sm':'0 2px 6px -2px rgb(14 20 32 / 0.22)',
-        'primary-md':'0 4px 12px -4px rgb(14 20 32 / 0.28)',
-        'mint-sm':   '0 2px 8px -2px rgb(14 20 32 / 0.22)',
+        // Elevation follows the ground: on paper it is an offset drop shadow, in
+        // a room it is a light-catching top hairline, because a drop shadow on
+        // near-black is invisible. Both are declared in tokens.css.
+        xs:   'var(--elev-1)',
+        sm:   'var(--elev-2)',
+        DEFAULT: 'var(--elev-2)',
+        md:   'var(--elev-3)',
+        lg:   'var(--elev-4)',
+        xl:   'var(--elev-5)',
+        record: 'var(--elev-3)',
+        accent: 'var(--elev-accent)',
+        inner: 'inset 0 1px 2px 0 rgb(14 20 32 / 0.06)',
+        'primary-sm': 'var(--elev-accent)',
+        'primary-md': 'var(--elev-accent-strong)',
+        'mint-sm':    '0 2px 8px -2px rgb(15 118 110 / 0.30)',
       },
 
       backgroundImage: {
-        // Fields, never text. The spine's slipcase and the ruled gutter.
-        'brand-field': 'linear-gradient(168deg,#0E1420 0%,#171B20 58%,#1E2328 100%)',
-        'brand-band':  'linear-gradient(90deg,#0E1420 0%,#23272E 50%,#3B4046 100%)',
-        'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,#E7E7EA 27px,#E7E7EA 28px)',
+        'brand-field': 'linear-gradient(168deg,#0B0F18 0%,#131A27 58%,#1B2842 100%)',
+        'brand-band':  'linear-gradient(90deg,#0E1420 0%,#1D3FA0 55%,#3D5CB4 100%)',
+        'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--rule) 27px,var(--rule) 28px)',
       },
 
-      ringColor: { primary: '#0E1420' },
-      zIndex: { '5': '5' },
+      ringColor:   { DEFAULT: 'var(--focus-ring)', primary: 'var(--focus-ring)' },
+      ringOffsetColor: { DEFAULT: 'var(--surface)' },
+      borderColor: { DEFAULT: 'var(--rule)' },
 
-      // Motion: one authored moment — the record turning to a cited line.
-      // Everything else is a state change, not a performance.
+      // A named scale. Nothing may write a bare z-index number.
+      zIndex: {
+        5: '5',
+        raised: 'var(--z-raised)', sticky: 'var(--z-sticky)', spine: 'var(--z-spine)',
+        overlay: 'var(--z-overlay)', modal: 'var(--z-modal)', drawer: 'var(--z-drawer)',
+        palette: 'var(--z-palette)', toast: 'var(--z-toast)', hud: 'var(--z-stage-hud)',
+      },
+
       transitionTimingFunction: {
-        'record': 'cubic-bezier(0.16, 1, 0.3, 1)',   // exponential ease-out
-        'turn':   'cubic-bezier(0.32, 0.72, 0, 1)',
+        record: 'var(--ease-out)',
+        out:    'var(--ease-out)',
+        turn:   'var(--ease-turn)',
+        'in-out': 'var(--ease-in-out)',
       },
+      transitionDuration: {
+        instant: 'var(--dur-instant)',
+        fast:    'var(--dur-fast)',
+        base:    'var(--dur-base)',
+        slow:    'var(--dur-slow)',
+      },
+
+      // Motion is a state change, not a performance. Every keyframe below is
+      // transform or opacity only, so none of them can trigger layout.
       animation: {
-        'fade-in':        'fadeIn 0.2s cubic-bezier(0.16,1,0.3,1)',
-        'slide-up':       'slideUp 0.28s cubic-bezier(0.16,1,0.3,1)',
-        'pulse-soft':     'pulse 3s ease-in-out infinite',
+        'fade-in':        'fadeIn var(--dur-base) var(--ease-out)',
+        'slide-up':       'slideUp var(--dur-base) var(--ease-out)',
+        'pulse-soft':     'pulse 3s var(--ease-in-out) infinite',
         'spin-slow':      'spin 2s linear infinite',
-        'pulse-live':     'pulseLive 1.6s ease-in-out infinite',
-        'radar-expand':   'radarExpand 0.5s cubic-bezier(0.16,1,0.3,1) forwards',
-        'count-up':       'countUp 0.35s cubic-bezier(0.16,1,0.3,1) forwards',
-        'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
-        'typing-dot':     'typingDot 1.4s ease-in-out infinite',
-        // The signature: a cited line is exposed, not faded in.
-        'cite-open':      'citeOpen 0.42s cubic-bezier(0.32,0.72,0,1) forwards',
-        'tab-seat':       'tabSeat 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
+        'pulse-live':     'pulseLive 1.6s var(--ease-in-out) infinite',
+        'radar-expand':   'radarExpand var(--dur-slow) var(--ease-out) forwards',
+        'count-up':       'countUp 0.35s var(--ease-out) forwards',
+        'slide-in-right': 'slideInRight var(--dur-base) var(--ease-out) forwards',
+        'typing-dot':     'typingDot 1.4s var(--ease-in-out) infinite',
+        // The signature: evidence is EXPOSED, not faded in.
+        'cite-open':      'citeOpen var(--dur-slow) var(--ease-turn) forwards',
+        'tab-seat':       'tabSeat var(--dur-base) var(--ease-out) forwards',
+        // Ambient. Slow enough to read as atmosphere rather than as animation.
+        'drift':          'drift 28s var(--ease-in-out) infinite',
+        'drift-slow':     'drift 44s var(--ease-in-out) infinite reverse',
+        'breathe':        'breathe 6s var(--ease-in-out) infinite',
+        'sheen':          'sheen 2.4s var(--ease-in-out) infinite',
       },
       keyframes: {
         fadeIn:       { from: { opacity: '0' }, to: { opacity: '1' } },
@@ -185,9 +276,21 @@ export default {
         countUp:      { from: { opacity: '0', transform: 'translateY(6px)' }, to: { opacity: '1', transform: 'translateY(0)' } },
         slideInRight: { from: { opacity: '0', transform: 'translateX(14px)' }, to: { opacity: '1', transform: 'translateX(0)' } },
         typingDot:    { '0%, 60%, 100%': { opacity: '0.3' }, '30%': { opacity: '1' } },
-        // clip-path, not height: the record opens to the cited line.
         citeOpen:     { from: { opacity: '0', clipPath: 'inset(0 0 100% 0)' }, to: { opacity: '1', clipPath: 'inset(0 0 0 0)' } },
         tabSeat:      { from: { transform: 'translateY(3px)' }, to: { transform: 'translateY(0)' } },
+        drift: {
+          '0%':   { transform: 'translate3d(0,0,0) scale(1)' },
+          '50%':  { transform: 'translate3d(2%,-3%,0) scale(1.06)' },
+          '100%': { transform: 'translate3d(0,0,0) scale(1)' },
+        },
+        breathe: {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.55' },
+          '50%':      { transform: 'scale(1.05)', opacity: '0.8' },
+        },
+        sheen: {
+          '0%':   { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
     },
   },

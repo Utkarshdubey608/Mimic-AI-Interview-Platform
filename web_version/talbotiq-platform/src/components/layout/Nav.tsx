@@ -7,6 +7,7 @@ import {
 import { cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { MimicMark } from '@/components/brand/MimicMark'
 
 /**
  * THE SPINE — the bundle's cover, carrying its sections.
@@ -122,7 +123,7 @@ export function Nav() {
             className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-md"
             aria-label="Mimic home"
           >
-            <Mark />
+            <MimicMark size="md" tone="plain" className="border border-brand-border bg-brand-card text-brand-gold-light" />
             <span className="font-display text-[19px] font-bold tracking-[-0.03em] text-white">Mimic</span>
           </button>
         </div>
@@ -203,7 +204,7 @@ export function Nav() {
             className="flex items-center gap-2.5 focus:outline-none"
             aria-label="Mimic home"
           >
-            <Mark />
+            <MimicMark size="md" tone="plain" className="border border-brand-border bg-brand-card text-brand-gold-light" />
             <span className="font-display text-[18px] font-bold tracking-[-0.03em] text-white">Mimic</span>
           </button>
           <div className="flex items-center gap-2">

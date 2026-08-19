@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, Send, FastForward, Loader2, Camera } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { CircularCountdown } from '../components/CircularCountdown'
 import { useAnswerRecorder } from '../useAnswerRecorder'
 import { sessionsApi } from '@/lib/api'
@@ -21,8 +22,8 @@ interface Props {
 /** Inline banner — one shape for the warning and error notices below the stage. */
 function Notice({ tone, children, alert }: { tone: 'danger' | 'warning'; children: ReactNode; alert?: boolean }) {
   const tones = {
-    danger: 'border-danger-border bg-danger-bg text-danger',
-    warning: 'border-warning-border bg-warning-bg text-warning',
+    danger: 'border-risk-rule bg-risk-bg text-risk',
+    warning: 'border-warn-rule bg-warn-bg text-warn',
   }
   return (
     <div
@@ -120,19 +121,19 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             {isAnswer ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-success-border bg-success-bg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-success">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-ok">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> Recording answer
               </span>
             ) : (
-              <span className="inline-flex items-center rounded-md border border-border bg-neutral-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+              <span className="inline-flex items-center rounded-md border border-rule bg-surface-hover px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                 Preparation
               </span>
             )}
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 tabular-nums">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted tabular-nums">
               Question {Math.min(state.progress.current, total)} of {total}
             </span>
           </div>
-          <h2 className="mt-3 font-display text-2xl font-extrabold leading-snug tracking-[-0.03em] text-neutral-900">{question.text}</h2>
+          <h2 className="mt-3 font-display text-2xl font-extrabold leading-snug tracking-[-0.03em] text-ink">{question.text}</h2>
         </div>
         <div className="flex-shrink-0">
           <CircularCountdown
@@ -146,10 +147,10 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
       </div>
 
       {/* Camera stage */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-brand-black shadow-lg">
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-rule bg-brand-black shadow-lg">
         <video ref={videoEl} autoPlay muted playsInline className="h-full w-full object-cover" />
 
-        {/* camera warming up — placeholder for the frame that's about to arrive */}
+        {/* camera warming up, placeholder for the frame that's about to arrive */}
         {!rec.ready && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-brand-card">
             <span className="flex h-14 w-14 items-center justify-center rounded-full border border-brand-border bg-white/5 text-brand-gray">
@@ -207,29 +208,30 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-xs leading-relaxed text-neutral-400">
+        <p className="text-xs leading-relaxed text-ink-muted">
           {isAnswer ? 'You can’t return to this question once you continue.' : 'Read the question and gather your thoughts.'}
         </p>
         <div className="flex gap-2.5">
           {!isAnswer && timing.allowSkipPrep && (
-            <button
+            <Button
+              variant="outline"
+              size="md"
               onClick={onSkipPrep}
               disabled={busy || !rec.ready}
-              className="inline-flex h-10 items-center gap-2 rounded-md border-[1.5px] px-5 text-sm font-semibold transition-all duration-150 hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
-              style={{ borderColor: accent, color: accent }}
+              icon={<FastForward size={16} />}
             >
-              <FastForward size={16} /> Start recording now
-            </button>
+              Start recording now
+            </Button>
           )}
           {isAnswer && timing.allowEarlySubmit && (
-            <button
+            <Button
+              size="md"
               onClick={() => void doSubmit()}
-              disabled={busy || uploading}
-              className="inline-flex h-10 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
-              style={{ background: accent }}
+              loading={busy || uploading}
+              icon={<Send size={16} />}
             >
-              <Send size={16} /> Submit &amp; continue
-            </button>
+              Submit &amp; continue
+            </Button>
           )}
         </div>
       </div>
