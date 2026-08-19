@@ -12,7 +12,7 @@ import type { VoicePhase } from '@shared/types'
  *
  * ── How the states read ───────────────────────────────────────────────────
  *   speaking   the interviewer is talking. Rings travel OUTWARD from the orb —
- *              sound leaving it. Signal blue.
+ *              sound leaving it. Ink: the product speaking, not an alert.
  *   listening  the candidate's turn. The orb opens into a ring and breathes
  *              slowly — an open aperture rather than a source. Mint, the
  *              product's live colour.
@@ -28,9 +28,11 @@ import type { VoicePhase } from '@shared/types'
  * ── Cost ──────────────────────────────────────────────────────────────────
  * SVG and CSS transforms, no canvas, no rAF loop, no audio analysis. A voice
  * interview is already carrying a WebSocket, an audio worklet and a decoder;
- * the orb must not be the thing that makes the call stutter. Under reduced
- * motion the rings are not rendered at all and the orb becomes a still ring
- * whose state is carried entirely by the label.
+ * the orb must not be the thing that makes the call stutter. Every animation
+ * here is on `transform`/`opacity` alone, so the compositor carries it without
+ * layout or paint. Under reduced motion neither the rings nor the gyroscope are
+ * rendered at all, and the orb becomes a still ring whose state is carried
+ * entirely by the label.
  */
 
 export function VoiceOrb({ phase, muted }: { phase: VoicePhase; muted?: boolean }) {
@@ -40,13 +42,66 @@ export function VoiceOrb({ phase, muted }: { phase: VoicePhase; muted?: boolean 
   const listening = phase === 'listening' && !muted
   const thinking = phase === 'thinking'
 
-  // Ground-following, so the orb is correct on paper and in a dark room without
-  // a second set of values. On the record surface these resolve to the ink-teal
-  // live colour and registrar blue; in a room, to their lifted counterparts.
-  const color = listening ? 'var(--live-fg)' : speaking ? 'var(--accent)' : 'var(--ink-faint)'
+  // Ground-following, so the orb is correct on paper and in a dark room without a
+  // second set of values.
+  //
+  // The interviewer's own state is `--action`, not `--accent`. It was the accent —
+  // signal blue — which made the single largest object on the screen the one loud
+  // colour in a palette whose whole rule is that the primary action is ink and colour
+  // is spent only on state. As ink it reads as the product speaking rather than as an
+  // alert, and it still inverts correctly: near-black on paper, near-white in a room.
+  // Listening keeps the live colour, because THAT is a state and is the one moment the
+  // candidate must recognise instantly.
+  const color = listening ? 'var(--live-fg)' : speaking ? 'var(--action)' : 'var(--ink-faint)'
+
+  // The gyroscope runs from the moment there is a conversation until it ends —
+  // through every phase, not just one — because its job is to say the session is
+  // alive. A still orb during a long "thinking" pause is the moment a candidate
+  // starts wondering whether the page has frozen.
+  const live = phase !== 'connecting' && phase !== 'ended' && phase !== 'error'
 
   return (
     <div className="relative flex h-56 w-56 items-center justify-center" aria-hidden="true">
+      {/* ── The gyroscope ────────────────────────────────────────────────────
+          Three rings on different axes, turning at different speeds and in
+          opposing directions. Each is a circle tipped away from the viewer by
+          `rotateX`, so it projects as an ellipse; spinning it about Z then reads
+          as an orbit rather than a wheel, and three of them at unequal tilts and
+          periods never resolve into a single repeating figure.
+
+          `transformPerspective` is what makes it depth rather than a squash: the
+          near edge of each ring is drawn larger than the far edge.
+
+          It is CSS transforms on three empty spans — no canvas, no rAF, no audio
+          analysis — because a voice interview is already carrying a WebSocket, an
+          audio worklet and a decoder, and the decoration must never be the thing
+          that makes the call stutter. Compositor-only properties, so this costs
+          no layout and no paint.
+
+          Colour follows the phase with the orb, and opacity stays low: this is
+          ambient life, and it must never compete with the state the orb itself
+          is carrying. */}
+      {!reduce && live && [
+        { size: 172, tilt: 72, spin: 16, dir: 1, width: 1, opacity: 0.22 },
+        { size: 208, tilt: 108, spin: 24, dir: -1, width: 1, opacity: 0.16 },
+        { size: 240, tilt: 84, spin: 33, dir: 1, width: 2, opacity: 0.1 },
+      ].map((ring, i) => (
+        <motion.span
+          key={`orbit${i}`}
+          className="absolute rounded-full"
+          style={{
+            width: ring.size,
+            height: ring.size,
+            border: `${ring.width}px solid ${color}`,
+            opacity: muted ? ring.opacity * 0.35 : ring.opacity,
+            transformPerspective: 620,
+            rotateX: ring.tilt,
+          }}
+          animate={{ rotateZ: 360 * ring.dir }}
+          transition={{ duration: ring.spin, repeat: Infinity, ease: 'linear' }}
+        />
+      ))}
+
       {/* Outward rings — the interviewer's voice leaving the orb. */}
       {!reduce && speaking && [0, 1, 2].map((i) => (
         <motion.span

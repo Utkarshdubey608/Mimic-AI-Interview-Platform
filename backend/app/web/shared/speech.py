@@ -64,11 +64,40 @@ def transcription_languages(language: str | None) -> list[str]:
 
     An English interview is hinted with every English variant, because a candidate's
     accent is not a different language. Anything else is passed through untouched.
+
+    NOTE: the Live API has no field that accepts a hint LIST — see the note on
+    `speech_language_code`, which is the mechanism that actually pins the language.
+    Kept because this shape is still correct for any recogniser that takes one.
     """
     value = (language or "").strip().lower()
     if not value or value.startswith("en") or value.startswith("english"):
         return list(ENGLISH_VARIANTS)
     return [language.strip()]
+
+
+def speech_language_code(language: str | None) -> str:
+    """The ONE BCP-47 code that `generationConfig.speechConfig.languageCode` takes.
+
+    This is the field that actually pins the language, and its absence is why a
+    candidate saying "EC2" got back the Spanish "mierda". Google's own guidance:
+    "Explicitly setting the language and voice code in your configuration is
+    recommended to maintain consistency; without this definition, Gemini might alter
+    the conversation language depending on the provided context." An interview dense
+    with acronyms and proper nouns is precisely the context that invites that drift.
+
+    Unlike `transcription_languages` this cannot be a list — the field is singular —
+    so an English interview pins to en-US rather than to every variant. That is a
+    statement about the LANGUAGE, not the accent: it does not stop the recogniser
+    understanding an Indian or Scottish speaker, it stops it deciding they were
+    speaking Spanish.
+    """
+    value = (language or "").strip()
+    if not value or value.lower().startswith("english"):
+        return "en-US"
+    # A bare "en" is not a region-qualified BCP-47 tag; give it one.
+    if value.lower() == "en":
+        return "en-US"
+    return value
 
 
 def adaptation_phrases(role: str | None, questions: list[str]) -> list[str]:

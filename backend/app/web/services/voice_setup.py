@@ -109,23 +109,24 @@ def questions_already_asked(session: dict) -> list[str]:
 def _input_transcription(session: dict, template: dict) -> dict:
     """Transcription config for the candidate's microphone.
 
-    `language` is already stored on the template by the recruiter's editor
-    (`store/defaults.py:179`) and until now was read by nothing.
-    """
-    voice = template.get("voice") or {}
-    config: dict = {
-        "languageHints": {
-            "languageCodes": speech.transcription_languages(voice.get("language"))
-        }
-    }
+    EMPTY, and deliberately so. This used to send `languageHints.languageCodes` and
+    `adaptationPhrases`, and neither did anything: the Live API's
+    `AudioTranscriptionConfig` is documented as "This type has no fields", so the socket
+    accepted both and discarded them.
 
-    phrases = speech.adaptation_phrases(
-        template.get("role"),
-        [question.get("text") or "" for question in session.get("questions") or []],
-    )
-    if phrases:
-        config["adaptationPhrases"] = phrases
-    return config
+    That inert config is why the protections it claimed never materialised — Devanagari
+    in an English interview, "Redis" heard as "reduce", "token reduction" as "token
+    addiction", "EC2" as the Spanish "mierda". The language is now pinned where the API
+    actually reads it: `generationConfig.speechConfig.languageCode`, in
+    `build_live_setup` below.
+
+    Vocabulary biasing has no equivalent — the Live API exposes no phrase-hint field at
+    all — so `speech.adaptation_phrases` is not called from here. It is kept because it
+    is correct and tested, and is what to wire up if Google adds the field. Sending it
+    into a void was worse than not sending it, because in the code it read as a solved
+    problem.
+    """
+    return {}
 
 
 def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
@@ -141,7 +142,17 @@ def build_live_setup(session: dict, template: dict, *, model: str) -> dict:
             "speechConfig": {
                 "voiceConfig": {
                     "prebuiltVoiceConfig": {"voiceName": resolve_voice(template)}
-                }
+                },
+                # THE field that pins the language, and the only one that does.
+                # Without it Gemini picks the language from context, and an answer
+                # dense with acronyms is enough context to send it elsewhere: a
+                # candidate saying "EC2" was transcribed as the Spanish "mierda".
+                # Supported on the non-native-audio Live models, which is what the web
+                # track runs (`settings.web_live_model_name`). Native-audio models
+                # choose their own language and ignore this.
+                "languageCode": speech.speech_language_code(
+                    (template.get("voice") or {}).get("language")
+                ),
             },
             # No thinking budget. An interviewer reads the next scripted question and
             # gives a one-line acknowledgment — there is nothing here worth deliberating
