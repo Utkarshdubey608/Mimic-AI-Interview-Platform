@@ -253,9 +253,9 @@ class TestSectionBreakdown:
 
     def _paper(self):
         questions = [
-            {"id": "t1", "section": "technical"},
-            {"id": "t2", "section": "technical"},
-            {"id": "n1", "section": "non_technical"},
+            {"id": "t1", "sectionId": "technical"},
+            {"id": "t2", "sectionId": "technical"},
+            {"id": "n1", "sectionId": "non_technical"},
         ]
         scored = [
             {"questionId": "t1", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
@@ -266,7 +266,7 @@ class TestSectionBreakdown:
 
     def test_each_section_is_totalled_separately(self):
         questions, scored = self._paper()
-        rows = {r["section"]: r for r in m.section_breakdown(questions, scored)}
+        rows = {r["sectionId"]: r for r in m.section_breakdown(questions, scored)}
         assert rows["technical"]["correct"] == 1
         assert rows["technical"]["count"] == 2
         assert rows["non_technical"]["correct"] == 1
@@ -281,7 +281,7 @@ class TestSectionBreakdown:
 
     def test_a_section_nobody_scored_still_appears(self):
         """The part everyone fails is the interesting part; omitting it misleads."""
-        questions = [{"id": "t1", "section": "technical"}, {"id": "n1", "section": "non_technical"}]
+        questions = [{"id": "t1", "sectionId": "technical"}, {"id": "n1", "sectionId": "non_technical"}]
         scored = [
             {"questionId": "t1", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
             {"questionId": "n1", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
@@ -290,13 +290,50 @@ class TestSectionBreakdown:
         assert len(rows) == 2
         assert all(r["correct"] == 0 for r in rows)
 
+    def test_rows_follow_the_papers_own_order_not_the_alphabet(self):
+        """A report listing section three before section one is harder to read
+        against the assessment the recruiter actually built."""
+        sections = [
+            {"id": "s1", "name": "Zebra aptitude"},
+            {"id": "s2", "name": "Alpha reasoning"},
+        ]
+        questions = [{"id": "q1", "sectionId": "s2"}, {"id": "q2", "sectionId": "s1"}]
+        scored = [
+            {"questionId": "q1", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+            {"questionId": "q2", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+        ]
+        rows = m.section_breakdown(questions, scored, sections=sections)
+        assert [r["name"] for r in rows] == ["Zebra aptitude", "Alpha reasoning"]
+
+    def test_a_section_deleted_after_the_paper_was_sat_still_appears(self):
+        """Otherwise a candidate's answers vanish from their own report."""
+        sections = [{"id": "s1", "name": "Aptitude"}]
+        questions = [{"id": "q1", "sectionId": "s1"}, {"id": "q2", "sectionId": "gone"}]
+        scored = [
+            {"questionId": "q1", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
+            {"questionId": "q2", "correct": False, "points": 0.0, "pointsAvailable": 1.0},
+        ]
+        rows = m.section_breakdown(questions, scored, sections=sections)
+        assert len(rows) == 2
+        assert rows[0]["name"] == "Aptitude"
+
+    def test_the_legacy_tag_is_read_as_a_section_id(self):
+        """`section: "technical"` predates first-class sections. It needs no special
+        case, because "technical" is an id in the prebuilt library."""
+        questions = [{"id": "q1", "section": "non_technical"}]
+        scored = [{"questionId": "q1", "correct": True, "points": 1.0, "pointsAvailable": 1.0}]
+        rows = m.section_breakdown(questions, scored)
+        assert rows[0]["sectionId"] == "non_technical"
+        # And it is labelled readably rather than shown raw.
+        assert rows[0]["name"] == "Non Technical"
+
     def test_topics_and_sections_agree_on_the_arithmetic(self):
         """Both breakdowns share one implementation, so a paper whose topic and
         section happen to partition it identically must total identically. If these
         ever diverge, the two grouping paths have drifted apart."""
         questions = [
-            {"id": "a", "topic": "Alpha", "section": "technical"},
-            {"id": "b", "topic": "Alpha", "section": "technical"},
+            {"id": "a", "topic": "Alpha", "sectionId": "technical"},
+            {"id": "b", "topic": "Alpha", "sectionId": "technical"},
         ]
         scored = [
             {"questionId": "a", "correct": True, "points": 1.0, "pointsAvailable": 1.0},
@@ -306,3 +343,142 @@ class TestSectionBreakdown:
         by_section = m.section_breakdown(questions, scored)[0]
         for field in ("correct", "count", "points", "pointsAvailable"):
             assert by_topic[field] == by_section[field]
+
+
+def _match_question(**over) -> dict:
+    q = {
+        "id": "mq1",
+        "type": "match",
+        "text": "Match the algorithm to its complexity.",
+        "prompts": [
+            {"id": "p1", "text": "Binary search"},
+            {"id": "p2", "text": "Bubble sort"},
+            {"id": "p3", "text": "Hash lookup"},
+        ],
+        "matches": [
+            {"id": "m9", "text": "O(log n)"},
+            {"id": "m4", "text": "O(n^2)"},
+            {"id": "m7", "text": "O(1)"},
+        ],
+        "correctPairs": {"p1": "m9", "p2": "m4", "p3": "m7"},
+    }
+    q.update(over)
+    return q
+
+
+class TestMatchTheFollowingScoring:
+    """Pairing questions, scored without a model like everything else here."""
+
+    def test_a_full_pairing_earns_full_marks(self):
+        r = m.score_question(_match_question(), {"p1": "m9", "p2": "m4", "p3": "m7"})
+        assert r["correct"] is True
+        assert r["points"] == 1.0
+
+    def test_partial_credit_is_the_default_and_the_asymmetry_is_deliberate(self):
+        """All-or-nothing is right for multi-select because a candidate can tick
+        every box. That attack does not exist here — each prompt takes exactly one
+        match — so partial credit needs no penalty to be defensible."""
+        r = m.score_question(_match_question(), {"p1": "m9", "p2": "m7", "p3": "m4"})
+        assert r["correct"] is False
+        assert r["matchedCount"] == 1
+        assert r["points"] == round(1 / 3, 4)
+
+    def test_all_or_nothing_is_available_when_asked_for(self):
+        r = m.score_question(
+            _match_question(), {"p1": "m9", "p2": "m4"}, match_rule=m.ALL_OR_NOTHING
+        )
+        assert r["points"] == 0.0
+
+    def test_a_pairing_naming_a_prompt_not_in_the_paper_is_ignored(self):
+        """Not credited, and not a crash: a stale client could send anything."""
+        r = m.score_question(_match_question(), {"p1": "m9", "ghost": "m4"})
+        assert r["matchedCount"] == 1
+        assert r["correct"] is False
+
+    def test_no_answer_scores_zero_rather_than_being_skipped(self):
+        r = m.score_question(_match_question(), None)
+        assert r["points"] == 0.0
+        assert r.get("unscored") is not True
+
+    def test_a_question_with_no_key_is_unscored_not_wrong(self):
+        """One malformed question must not skew a whole paper."""
+        r = m.score_question(_match_question(correctPairs={}), {"p1": "m9"})
+        assert r["unscored"] is True
+        assert r["pointsAvailable"] == 0.0
+
+    def test_a_mixed_paper_scores_every_type_in_one_pass(self):
+        single = {
+            "id": "s1", "type": "single",
+            "options": [{"id": "a", "text": "A"}, {"id": "b", "text": "B"}],
+            "correctOptionIds": ["a"],
+        }
+        result = m.score_submission(
+            [single, _match_question()],
+            {"s1": ["a"], "mq1": {"p1": "m9", "p2": "m4", "p3": "m7"}},
+        )
+        assert result["correctCount"] == 2
+        assert result["percent"] == 100.0
+
+
+class TestAMatchQuestionCannotLeakItsPairing:
+    """Two distinct leaks, and the second is the one that is easy to miss."""
+
+    def test_the_pairing_is_not_in_the_candidates_copy(self):
+        public = m.mcq_public_question(_match_question())
+        assert "correctPairs" not in public
+        assert "correctOptionIds" not in public
+        assert json.dumps(public).count("m9") == 1  # present as an option, not as a key
+
+    def test_column_B_never_arrives_in_the_answers_own_order(self):
+        """THE SUBTLE ONE, and it caught a real leak.
+
+        A match question is authored a row at a time, so the stored order of
+        column B IS the pairing. If it is published as authored, the candidate
+        pairs row one with row one and scores full marks — with no key ever
+        leaving the server.
+
+        Asserted with NO seed as well as with one, because the first version of
+        this test passed a seed and therefore could not see the bug: with option
+        shuffling switched off, both columns came back exactly as authored."""
+        for seed in (None, "sess-1", "sess-2", "sess-3"):
+            question = _match_question()
+            public = m.mcq_public_question(question, shuffle_seed=seed)
+            prompt_order = [p["id"] for p in public["prompts"]]
+            match_order = [x["id"] for x in public["matches"]]
+            paired_row_for_row = [question["correctPairs"][p] for p in prompt_order]
+            assert match_order != paired_row_for_row, f"row-for-row leak at seed={seed!r}"
+
+    def test_the_guarantee_holds_even_when_the_shuffle_lands_on_the_pairing(self):
+        """A hash order coincides with the paired arrangement one time in six for
+        three pairs. "Usually shuffled" is not a security property, so the
+        alignment is checked and broken rather than hoped about."""
+        question = _match_question()
+        pairs = question["correctPairs"]
+        for seed in [f"s{n}" for n in range(60)]:
+            public = m.mcq_public_question(question, shuffle_seed=seed)
+            prompt_order = [p["id"] for p in public["prompts"]]
+            assert [x["id"] for x in public["matches"]] != [pairs[p] for p in prompt_order]
+
+    def test_a_match_id_says_nothing_about_the_prompt_it_belongs_to(self):
+        """Ids are opaque. If they were "p1"/"m1" the pairing would be guessable
+        from the naming alone, whatever the order."""
+        question = _match_question()
+        for prompt_id, match_id in question["correctPairs"].items():
+            assert prompt_id.lstrip("p") != match_id.lstrip("m")
+
+    def test_the_order_is_stable_across_reloads_for_one_candidate(self):
+        """A paper that reshuffles under somebody mid-decision is its own bug."""
+        first = m.mcq_public_question(_match_question(), shuffle_seed="sess-1")
+        again = m.mcq_public_question(_match_question(), shuffle_seed="sess-1")
+        assert first == again
+
+    def test_a_code_snippet_is_published_because_the_question_needs_it(self):
+        """Code-reading questions are how coding and debugging are assessed here,
+        so the snippet is visible by necessity. It carries no key."""
+        public = m.mcq_public_question(
+            {"id": "q", "type": "single", "text": "What does this print?",
+             "code": "print(1 // 2)",
+             "options": [{"id": "a", "text": "0"}], "correctOptionIds": ["a"]}
+        )
+        assert public["code"] == "print(1 // 2)"
+        assert "correctOptionIds" not in public

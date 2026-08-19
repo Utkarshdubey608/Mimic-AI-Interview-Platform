@@ -37,6 +37,33 @@ import { Completion } from './Completion'
  * which makes the assessment measure composure rather than knowledge.
  */
 
+
+/**
+ * An answer is a LIST of option ids for single and multi, and a promptId→matchId
+ * MAPPING for a pairing. These two helpers are the only places that decide which
+ * is which, so nothing below has to hold a union in its head.
+ *
+ * Both are total: an unanswered question yields an empty list or an empty mapping
+ * rather than undefined, which is what lets the controls render uniformly.
+ */
+type Answer = string[] | Record<string, string>
+
+const picked = (answers: Record<string, Answer>, id: string): string[] => {
+  const value = answers[id]
+  return Array.isArray(value) ? value : []
+}
+
+const paired = (answers: Record<string, Answer>, id: string): Record<string, string> => {
+  const value = answers[id]
+  return value && !Array.isArray(value) ? value : {}
+}
+
+/** Has this question been answered at all? Counts either shape. */
+const isAnswered = (answers: Record<string, Answer>, id: string): boolean => {
+  const value = answers[id]
+  return Array.isArray(value) ? value.length > 0 : Object.keys(value ?? {}).length > 0
+}
+
 export function McqStage({
   sessionId, branding, onIntegrity,
 }: { sessionId: string; branding: BrandingConfig; onIntegrity?: (type: string) => void }) {
@@ -44,7 +71,7 @@ export function McqStage({
   const [state, setState] = useState<McqPaperState | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string[]>>({})
+  const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [submitting, setSubmitting] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
 
@@ -52,7 +79,7 @@ export function McqStage({
   useEffect(() => {
     let alive = true
     mcqSessionApi.paper(sessionId)
-      .then((s) => { if (!alive) return; setState(s); setAnswers(s.answers ?? {}) })
+      .then((s) => { if (!alive) return; setState(s); setAnswers((s.answers ?? {}) as Record<string, Answer>) })
       .catch((e: Error) => { if (alive) setError(e.message) })
     return () => { alive = false }
   }, [sessionId])
@@ -76,13 +103,13 @@ export function McqStage({
   const questions = state?.questions ?? []
   const current = questions[index]
   const answeredCount = useMemo(
-    () => questions.filter((q) => (answers[q.id] ?? []).length > 0).length,
+    () => questions.filter((q) => isAnswered(answers, q.id)).length,
     [questions, answers],
   )
 
   const toggle = useCallback((questionId: string, optionId: string, multi: boolean) => {
     setAnswers((prev) => {
-      const chosen = prev[questionId] ?? []
+      const chosen = picked(prev, questionId)
       if (multi) {
         return {
           ...prev,
@@ -94,6 +121,18 @@ export function McqStage({
       // Single answer: choosing replaces, and choosing the same option again
       // clears it — a candidate who picked by accident can unpick.
       return { ...prev, [questionId]: chosen[0] === optionId ? [] : [optionId] }
+    })
+  }, [])
+
+  /** Pair one prompt with one match, or clear it. */
+  const pair = useCallback((questionId: string, promptId: string, matchId: string) => {
+    setAnswers((prev) => {
+      const next = { ...paired(prev, questionId) }
+      if (matchId) next[promptId] = matchId
+      // An empty selection removes the row rather than storing "", so a cleared
+      // pairing is indistinguishable from one never made.
+      else delete next[promptId]
+      return { ...prev, [questionId]: next }
     })
   }, [])
 
@@ -151,8 +190,10 @@ export function McqStage({
     )
   }
 
-  const chosen = answers[current.id] ?? []
+  const chosen = picked(answers, current.id)
+  const pairing = paired(answers, current.id)
   const isMulti = current.type === 'multi'
+  const isMatch = current.type === 'match'
   const last = index === questions.length - 1
 
   return (
@@ -187,9 +228,57 @@ export function McqStage({
             {current.text}
           </h1>
           <p className="mt-2 text-xs text-ink-muted">
-            {isMulti ? 'Select all that apply.' : 'Select one answer.'}
+            {isMatch
+              ? 'Pair each item on the left with one on the right.'
+              : isMulti
+                ? 'Select all that apply.'
+                : 'Select one answer.'}
           </p>
 
+          {/* The snippet a code-reading question is about. Rendered monospace and
+              scrollable in its own right: a long line must not push the page
+              sideways on a phone, and a candidate being scored should never have
+              to fight the layout to read the code. */}
+          {current.code && (
+            <pre className="mt-4 max-h-80 overflow-auto rounded-xl border border-rule bg-surface-hover p-4 text-xs leading-relaxed text-ink">
+              <code>{current.code}</code>
+            </pre>
+          )}
+
+          {isMatch ? (
+            /* A SELECT PER ROW rather than drag-and-drop. Dragging is the obvious
+               design and the wrong one here: it is poor on a phone, hostile to
+               keyboards and screen readers, and this is a screen somebody is being
+               scored on. A native select is none of those things, and the spec
+               allows either. */
+            <div className="mt-5 space-y-2.5">
+              {(current.prompts ?? []).map((prompt, i) => (
+                <div
+                  key={prompt.id}
+                  className="flex flex-col gap-2 rounded-xl border border-rule bg-surface px-4 py-3 sm:flex-row sm:items-center sm:gap-3"
+                >
+                  <span className="flex-1 text-sm text-ink">{prompt.text}</span>
+                  <label className="sr-only" htmlFor={`pair-${prompt.id}`}>
+                    Match for {prompt.text}
+                  </label>
+                  <select
+                    id={`pair-${prompt.id}`}
+                    value={pairing[prompt.id] ?? ''}
+                    onChange={(e) => pair(current.id, prompt.id, e.target.value)}
+                    className="h-10 w-full rounded-lg border border-rule-input bg-surface px-3 text-sm text-ink sm:w-64"
+                  >
+                    <option value="">Choose…</option>
+                    {(current.matches ?? []).map((match) => (
+                      <option key={match.id} value={match.id}>
+                        {match.text}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="sr-only">Row {i + 1}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="mt-5 space-y-2.5" role={isMulti ? 'group' : 'radiogroup'}>
             {current.options.map((option, i) => {
               const on = chosen.includes(option.id)
@@ -226,6 +315,7 @@ export function McqStage({
               )
             })}
           </div>
+          )}
         </motion.div>
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-5">

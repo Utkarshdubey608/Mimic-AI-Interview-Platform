@@ -59,6 +59,69 @@ def _require_mcq(session: dict) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not an MCQ session.")
 
 
+def _clean_answer(question: dict, submitted: object) -> list | dict:
+    """One candidate answer, keeping only ids the question actually has.
+
+    Type-aware, and in ONE place deliberately. Autosave and submit both clean the
+    same payload, and they used to do it with two copies of the same four lines -
+    which is precisely how a submit-only bug hides behind a passing autosave test.
+    A new question type now has one place to teach rather than two to remember.
+
+    A client sending an unknown id is a bug, not an answer, and storing it would
+    make the result unexplainable to the recruiter reading the report.
+    """
+    if question.get("type") == mcq_scoring.MATCH:
+        # A pairing, not a list. Both halves are checked: a prompt the question
+        # does not ask about, or a match that is not on offer, is dropped.
+        if not isinstance(submitted, dict):
+            return {}
+        prompts = {str(p.get("id")) for p in question.get("prompts") or []}
+        matches = {str(m.get("id")) for m in question.get("matches") or []}
+        return {
+            str(prompt): str(match)
+            for prompt, match in submitted.items()
+            if str(prompt) in prompts and str(match) in matches
+        }
+
+    if not isinstance(submitted, (list, tuple, set)):
+        return []
+    options = {str(o.get("id")) for o in question.get("options") or []}
+    picks = [str(v) for v in submitted if str(v) in options]
+    return list(dict.fromkeys(picks))
+
+
+def _public_sections(session: dict) -> list[dict]:
+    """The paper's structure, as the candidate may see it.
+
+    Carries `questionIds` rather than putting a `sectionId` on every question. The
+    runtime needs the grouping either way; keeping it here means the structure has
+    one representation instead of two that can disagree, and the manifest is
+    already the thing that defines order.
+
+    Nothing in here is secret - a section name, its instructions and its reading
+    passage are all things the candidate is about to be shown anyway.
+    """
+    questions = session.get("questions") or []
+    manifest = []
+    for section in session.get("mcqSections") or []:
+        section_id = str(section.get("id") or "")
+        entry: dict = {
+            "id": section_id,
+            "name": str(section.get("name") or ""),
+            "questionIds": [
+                str(q.get("id"))
+                for q in questions
+                if mcq_scoring.section_id_of(q) == section_id
+            ],
+        }
+        if instructions := section.get("instructions"):
+            entry["instructions"] = str(instructions)
+        if passage := section.get("passage"):
+            entry["passage"] = str(passage)
+        manifest.append(entry)
+    return manifest
+
+
 def _public_paper(session: dict) -> list[dict]:
     """The questions as the candidate may see them.
 
@@ -67,9 +130,21 @@ def _public_paper(session: dict) -> list[dict]:
     """
     config = session.get("mcqConfig") or {}
     seed = session["id"] if config.get("shuffleOptions", True) else None
+
+    # Ordered by SECTION, so a candidate meets section one first. Questions
+    # belonging to no section sort last rather than being dropped: an unsectioned
+    # question is still a question somebody has to answer.
+    order = {
+        str(section.get("id")): index
+        for index, section in enumerate(session.get("mcqSections") or [])
+    }
+    questions = sorted(
+        session.get("questions") or [],
+        key=lambda q: order.get(mcq_scoring.section_id_of(q), len(order)),
+    )
     return [
         mcq_scoring.mcq_public_question(question, shuffle_seed=seed)
-        for question in session.get("questions") or []
+        for question in questions
     ]
 
 
@@ -116,6 +191,9 @@ def _state(session: dict) -> dict:
         "sessionId": session["id"],
         "status": session.get("status"),
         "questions": _public_paper(session),
+        # Absent for an unsectioned paper, so the runtime can ask "is this divided?"
+        # and get an answer rather than render an empty heading.
+        "sections": _public_sections(session) or None,
         # What they have answered so far, so a reload restores the paper as left.
         "answers": session.get("mcqAnswers") or {},
         "submittedAt": session.get("mcqSubmittedAt"),
@@ -168,17 +246,13 @@ async def save_answers(
     if not isinstance(incoming, dict):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "answers must be an object.")
 
-    # Keep only real questions and real option ids. A client sending an unknown id
-    # is a bug, not an answer, and storing it would make the result unexplainable.
     by_id = {str(q.get("id")): q for q in session.get("questions") or []}
-    cleaned: dict[str, list[str]] = {}
+    cleaned: dict[str, list | dict] = {}
     for question_id, selected in incoming.items():
         key = str(question_id)
         if key not in valid_ids:
             continue
-        options = {str(o.get("id")) for o in (by_id[key].get("options") or [])}
-        picks = [str(v) for v in (selected or []) if str(v) in options]
-        cleaned[key] = list(dict.fromkeys(picks))
+        cleaned[key] = _clean_answer(by_id[key], selected)
 
     session["mcqAnswers"] = cleaned
     session["mcqAnswersAt"] = _now()
@@ -213,16 +287,14 @@ async def submit(session_id: str, request: Request, body: dict = Body(default={}
             key = str(question_id)
             if key not in by_id:
                 continue
-            options = {str(o.get("id")) for o in (by_id[key].get("options") or [])}
-            answers[key] = list(
-                dict.fromkeys(str(v) for v in (selected or []) if str(v) in options)
-            )
+            answers[key] = _clean_answer(by_id[key], selected)
 
     config = session.get("mcqConfig") or {}
     result = mcq_scoring.score_submission(
         session.get("questions") or [],
         answers,
         multi_rule=config.get("multiRule") or mcq_scoring.ALL_OR_NOTHING,
+        match_rule=config.get("matchRule") or mcq_scoring.PARTIAL,
         pass_threshold=config.get("passThreshold"),
     )
     result["topics"] = mcq_scoring.topic_breakdown(
@@ -232,7 +304,9 @@ async def submit(session_id: str, request: Request, body: dict = Body(default={}
     # at all rather than an empty list, so the report can ask "was this paper
     # divided?" and get an answer, instead of rendering an empty heading.
     if sections := mcq_scoring.section_breakdown(
-        session.get("questions") or [], result["questions"]
+        session.get("questions") or [],
+        result["questions"],
+        sections=session.get("mcqSections") or [],
     ):
         result["sections"] = sections
 

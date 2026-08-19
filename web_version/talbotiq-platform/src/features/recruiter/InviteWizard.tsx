@@ -37,7 +37,7 @@ const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode 
   { value: 'voice',        label: 'Voice',        blurb: 'Live spoken AI interviewer (Gemini Live).', icon: <Mic size={20} /> },
   { value: 'video_avatar', label: 'Video Avatar', blurb: 'Conversational AI video avatar (Tavus).',   icon: <Video size={20} /> },
   { value: 'chat',         label: 'Timed Q&A',    blurb: '30s prep + timed answers (HireVue-style).', icon: <Clock size={20} /> },
-  { value: 'mcq',          label: 'MCQ Test',     blurb: 'Multiple choice, scored instantly.',       icon: <ListChecks size={20} /> },
+  { value: 'mcq',          label: 'Assessment',   blurb: 'Sections of closed questions, scored instantly.', icon: <ListChecks size={20} /> },
   { value: 'video',        label: 'Video Interview', blurb: 'Candidate records webcam answers per question.', icon: <Clapperboard size={20} /> },
   { value: 'two_way',      label: 'Two-way Interview', blurb: 'Live recruiter ↔ candidate video interview.', icon: <Users size={20} /> },
 ]

@@ -246,6 +246,7 @@ async def create_session(
 
     questions: list[dict] = []
     mcq_config: dict | None = None
+    mcq_sections: list[dict] = []
     if (body.get("track") or template.get("track")) == "mcq":
         # The MCQ paper. Resolved here, WITH its answer key, into the session
         # document — the key stays server-side for the whole interview and the
@@ -279,6 +280,11 @@ async def create_session(
             for question in mcq_set["questions"]
         ]
         mcq_config = {**(template.get("mcqConfig") or {})}
+        # The section manifest travels with the paper into the session, for the same
+        # reason the questions do: editing the assessment later must not reach back
+        # into an interview somebody has already sat. Section ids are kept as they
+        # are - the questions reference them, exactly as options keep their ids.
+        mcq_sections = [dict(section) for section in mcq_set.get("sections") or []]
     elif template.get("questionSource") == "fixed":
         question_set = await store.question_sets.get(
             str(template.get("fixedQuestionSetId") or "")
@@ -317,6 +323,8 @@ async def create_session(
     }
     if mcq_config is not None:
         session["mcqConfig"] = mcq_config
+    if mcq_sections:
+        session["mcqSections"] = mcq_sections
     await store.sessions.put(session)
     return {"id": session["id"]}
 
