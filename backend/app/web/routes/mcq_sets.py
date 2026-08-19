@@ -311,6 +311,12 @@ async def suggest_topics(
     try:
         topics = await mcq_gen.suggest_topics(settings, role=role)
     except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+        # LOGGED, because friendly_error's whole point is that the recruiter sees a
+        # message they can act on while the real cause stays available to us. The
+        # first version of this route omitted the log, so a bug that stopped the
+        # prompt reaching Gemini at all surfaced in production as the generic
+        # "Gemini request failed" with nothing behind it anywhere.
+        logger.exception("mcq generation failed")
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
         ) from exc
@@ -366,6 +372,12 @@ async def generate(
             allow_multi=bool(body.get("allowMulti")),
         )
     except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+        # LOGGED, because friendly_error's whole point is that the recruiter sees a
+        # message they can act on while the real cause stays available to us. The
+        # first version of this route omitted the log, so a bug that stopped the
+        # prompt reaching Gemini at all surfaced in production as the generic
+        # "Gemini request failed" with nothing behind it anywhere.
+        logger.exception("mcq generation failed")
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
         ) from exc

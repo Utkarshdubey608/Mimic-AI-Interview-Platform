@@ -251,9 +251,15 @@ async def generate_text(
 
     if status_code >= 400:
         detail = raw.decode("utf-8", "replace")[:500]
+        # The DETAIL travels with the exception, because a status code alone cannot
+        # tell a malformed key from a project Google has denied access to — both are
+        # 403, and the advice for one is the opposite of the advice for the other.
+        # `question_gen.friendly_error` reads this to decide which. Without it, a
+        # perfectly good key whose project had been blocked was reported as a typo,
+        # sending people to check the one thing that was fine.
         if is_auth_failure(status_code, detail):
-            raise GeminiAuthError(f"Gemini rejected the credential ({status_code}).")
-        raise GeminiUnavailable(f"Gemini returned {status_code}.")
+            raise GeminiAuthError(f"Gemini rejected the credential ({status_code}). {detail}")
+        raise GeminiUnavailable(f"Gemini returned {status_code}. {detail}")
 
     try:
         payload = _json.loads(raw)
