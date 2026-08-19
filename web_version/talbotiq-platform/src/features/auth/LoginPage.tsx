@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
-import { AlertCircle, Briefcase, Lock, Mail, ShieldCheck, User as UserIcon } from 'lucide-react'
+import { AlertCircle, Briefcase, Building2, Lock, Mail, ShieldCheck, User as UserIcon } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
 import { AmbientField } from '@/components/shell/AmbientField'
 import { MimicMark } from '@/components/brand/MimicMark'
@@ -67,6 +67,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('signin')
   const [roleIntent, setRoleIntent] = useState<UserRole>('candidate')
   const [name, setName] = useState('')
+  const [company, setCompany] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -84,7 +85,9 @@ export default function LoginPage() {
     setBusy(true); setErr(null)
     try {
       if (mode === 'signup') {
-        await signUpWithEmail(email.trim(), password, roleIntent, name.trim() || undefined)
+        await signUpWithEmail(
+          email.trim(), password, roleIntent, name.trim() || undefined, company.trim() || undefined,
+        )
       } else {
         await signInWithEmail(email.trim(), password)
       }
@@ -213,6 +216,20 @@ export default function LoginPage() {
                       autoComplete="name" value={name} onChange={setName}
                     />
                   )}
+                  {/* Recruiters only. A candidate arrives by invitation to one
+                      company's interview and has no company of their own here, so
+                      asking would be a question with no use for the answer.
+
+                      Capitalisation does not matter: "TalbotIQ", "talbotiq" and
+                      "taLbotiq" are stored as one company, so colleagues find each
+                      other's templates however they typed it. */}
+                  {mode === 'signup' && roleIntent === 'recruiter' && (
+                    <Field
+                      icon={<Building2 size={15} />} type="text" label="Company" required
+                      autoComplete="organization" value={company} onChange={setCompany}
+                      hint="Colleagues who sign up with the same company share templates and question sets. Capitalisation doesn't matter."
+                    />
+                  )}
                   <Field
                     icon={<Mail size={15} />} type="email" label="Email" required
                     autoComplete="email" value={email} onChange={setEmail}
@@ -254,14 +271,18 @@ export default function LoginPage() {
  * most likely to need it — and it fails every autofill heuristic.
  */
 function Field({
-  icon, label, value, onChange, ...rest
+  icon, label, value, onChange, hint, ...rest
 }: {
   icon: React.ReactNode
   label: string
   value: string
   onChange: (v: string) => void
+  /** A line under the field. Declared rather than spread — `...rest` lands on the
+   *  <input>, so an unknown prop would reach the DOM as an invalid attribute. */
+  hint?: string
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const id = `login-${label.toLowerCase().replace(/\W+/g, '-')}`
+  const hintId = hint ? `${id}-hint` : undefined
   return (
     <div>
       <label htmlFor={id} className="field-label">{label}</label>
@@ -274,9 +295,15 @@ function Field({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          // Tied by id, so a screen reader reads the hint as part of the field
+          // rather than as loose text that follows it.
+          aria-describedby={hintId}
           className="input-base pl-9"
         />
       </div>
+      {hint && (
+        <p id={hintId} className="mt-1.5 text-xs leading-relaxed text-ink-muted">{hint}</p>
+      )}
     </div>
   )
 }

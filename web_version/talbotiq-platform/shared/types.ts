@@ -43,6 +43,23 @@ export interface AppUser {
   uid: string
   email: string
   role: UserRole
+  /**
+   * The company this account belongs to, as the person typed it — for display.
+   * Recruiters from the same company share templates, question sets and
+   * configuration; recruiters from different companies do not.
+   */
+  company?: string
+  /**
+   * The normalised form of `company`, and the ONLY value ever compared or
+   * queried. "Talbotiq", "talbotiq" and "taLbotiq" all key to "talbotiq", so
+   * colleagues are recognised as colleagues however they typed it.
+   * See src/lib/companyKey.ts and backend/app/web/shared/company.py — the two
+   * must agree, and their test files mirror each other.
+   *
+   * Optional because accounts created before this field existed, and accounts
+   * created on the Flutter app, have no company recorded.
+   */
+  companyKey?: string
   admin?: boolean               // recruiter with elevated visibility (server overlay)
   displayName?: string
   emailVerified: boolean
