@@ -35,6 +35,7 @@ from app.security import AuthedUser
 from app.web.deps import RateLimitMediaWeb, WebUser, settings_of
 from app.web.services import interview_invite, invite_extract, storage, users
 from app.web.shared import invite_email
+from app.web.routes import mcq_sets as mcq_sets_routes
 from app.web.store import get_store
 
 logger = logging.getLogger("web.invites")
@@ -225,9 +226,11 @@ async def create_invites(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A valid interview mode is required")
     if not role:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A candidate role is required")
-    # A two-way interview is a live recruiter-led call: there is no scripted question
-    # source to choose, so it is the one mode that may omit `source`.
-    if mode != "two_way" and source not in ("tailor", "set"):
+    # Two modes have no question SOURCE to choose. A two-way interview is a live
+    # recruiter-led call with no scripted questions at all; an MCQ test references a
+    # pre-authored paper by id, because its options and answers cannot be generated
+    # per candidate and still have a key to score against.
+    if mode not in ("two_way", "mcq") and source not in ("tailor", "set"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'source must be "tailor" or "set"')
 
     candidates = clean_candidates(body.get("candidates"), role)
@@ -267,10 +270,20 @@ async def create_invites(
         if not mcq_set_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "An MCQ set must be selected")
         mcq_set = await store.mcq_sets.get(mcq_set_id)
-        if not mcq_set or not (mcq_set.get("questions") or []):
+        if not mcq_set:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "MCQ set not found")
         if str(mcq_set.get("recruiterId") or "") not in ("", user.uid):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "MCQ set not found")
+        # USING is where completeness is enforced, because saving is permissive: a
+        # paper is authored through incomplete states. Sending one out unfinished is
+        # the thing that must not happen -- a question with no correct answer scores
+        # every candidate zero. Named, so the recruiter knows which question to fix.
+        faults = mcq_sets_routes.set_faults(mcq_set)
+        if faults:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"That MCQ set is not ready to send. {faults[0]}",
+            )
 
     stored_template = None
     if body.get("emailTemplateId"):

@@ -189,6 +189,16 @@ export interface McqQuestionSet {
   kind: 'mcq'
   name: string
   questions: McqQuestion[]
+  /**
+   * Whether this paper can be USED in an interview. Computed by the server on
+   * read, never stored, so it cannot go stale against the questions it describes.
+   *
+   * Saving is permissive and using is strict: a paper is authored through
+   * incomplete states, so a draft saves freely and only sending it is refused.
+   */
+  ready?: boolean
+  /** What stands between this set and being usable, each naming its question. */
+  faults?: string[]
   createdAt: string
   updatedAt: string
 }

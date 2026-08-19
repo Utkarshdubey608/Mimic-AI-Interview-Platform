@@ -60,28 +60,43 @@ def _text(value: object, limit: int) -> str:
 
 
 def _clean_question(raw: object, index: int) -> dict:
-    """One authored MCQ, validated.
+    """One authored MCQ, cleaned. INCOMPLETE IS ALLOWED.
 
-    Rejects rather than repairs. A silently "fixed" question is worse than a
-    refused one: the recruiter believes they authored something they did not, and
-    only a candidate's score reveals the difference.
+    Saving is permissive; USING is strict. Nobody authors a forty-question paper
+    through a sequence of individually valid states: you type a question, then its
+    options, then mark the answer, and every moment in between is incomplete.
+
+    Refusing those states made this feature unusable from its very first click.
+    The editor creates a blank question so a new set is not empty, and the server
+    then rejected the blank question -- two rules of mine contradicting each other,
+    and the "New MCQ set" button answered 400 every time.
+
+    So an incomplete question is stored as a draft and `set_faults` reports what is
+    missing. Completeness is enforced where it actually matters: when a paper is
+    attached to an interview. A question with no correct answer scores every
+    candidate zero, and that must never reach a candidate -- but it is fine, and
+    necessary, halfway through being written.
+
+    Structurally impossible input is still refused. That is a client bug rather
+    than an authoring state, and storing it would make a result unexplainable.
     """
     where = f"Question {index + 1}"
     if not isinstance(raw, dict):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{where} is not a question.")
 
+    # May be empty while being written. `set_faults` reports it; save does not block.
     text = _text(raw.get("text"), MAX_TEXT)
-    if not text:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{where} has no text.")
 
     options: list[dict] = []
     seen_ids: set[str] = set()
     for opt in raw.get("options") or []:
         if not isinstance(opt, dict):
             continue
+        # An option with no text yet is a row being typed into, and it is KEPT.
+        # Dropping it meant a half-written question came back from the server with
+        # its option rows deleted — the recruiter's blank options vanishing from
+        # under them mid-edit. Readiness reports the emptiness; the row survives.
         opt_text = _text(opt.get("text"), MAX_OPTION_TEXT)
-        if not opt_text:
-            continue
         opt_id = _text(opt.get("id"), 64) or uuid.uuid4().hex[:8]
         if opt_id in seen_ids:
             # Duplicate ids would make the key ambiguous — two options could both
@@ -92,11 +107,6 @@ def _clean_question(raw: object, index: int) -> dict:
         seen_ids.add(opt_id)
         options.append({"id": opt_id, "text": opt_text})
 
-    if len(options) < 2:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"{where} needs at least two options — a single-option question asks nothing.",
-        )
     if len(options) > MAX_OPTIONS:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"{where} has more than {MAX_OPTIONS} options."
@@ -106,22 +116,8 @@ def _clean_question(raw: object, index: int) -> dict:
     # De-duplicate while keeping order, so a key of ["a","a"] cannot masquerade as
     # a two-answer question.
     key = list(dict.fromkeys(key))
-    if not key:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"{where} has no correct answer marked — every candidate would score zero.",
-        )
-    if len(key) == len(options):
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            f"{where} marks every option correct, so it cannot distinguish anyone.",
-        )
 
     answer_type = "multi" if raw.get("type") == "multi" or len(key) > 1 else "single"
-    if answer_type == "single" and len(key) > 1:  # pragma: no cover - defensive
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, f"{where} is single-answer but marks several correct."
-        )
 
     question: dict = {
         "id": _text(raw.get("id"), 64) or uuid.uuid4().hex,
@@ -149,9 +145,10 @@ def _clean_set(body: dict, *, recruiter_id: str, existing: dict | None = None) -
     if not name:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "The set needs a name.")
 
+    # An empty set is a draft, not an error: a set is created before it is written.
     raw_questions = body.get("questions")
-    if not isinstance(raw_questions, list) or not raw_questions:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The set needs at least one question.")
+    if not isinstance(raw_questions, list):
+        raw_questions = []
     if len(raw_questions) > MAX_QUESTIONS:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"A set holds at most {MAX_QUESTIONS} questions."
@@ -170,6 +167,47 @@ def _clean_set(body: dict, *, recruiter_id: str, existing: dict | None = None) -
     }
 
 
+
+def question_fault(question: dict, index: int) -> str | None:
+    """Why this question cannot be USED, or None.
+
+    The rules save no longer enforces. Each makes a paper unable to distinguish
+    candidates: no text asks nothing, one option asks nothing, no correct answer
+    scores everyone zero, and every option correct separates nobody.
+    """
+    where = f"Question {index + 1}"
+    if not (question.get("text") or "").strip():
+        return f"{where} has no text."
+    options = [o for o in question.get("options") or [] if (o.get("text") or "").strip()]
+    if len(options) < 2:
+        return f"{where} needs at least two options."
+    ids = {o["id"] for o in options}
+    key = [k for k in question.get("correctOptionIds") or [] if k in ids]
+    if not key:
+        return f"{where} has no correct answer marked."
+    if len(key) == len(options):
+        return f"{where} marks every option correct, so it cannot distinguish anyone."
+    return None
+
+
+def set_faults(doc: dict) -> list[str]:
+    """Everything between this set and being usable in an interview."""
+    questions = doc.get("questions") or []
+    if not questions:
+        return ["The set has no questions yet."]
+    return [f for f in (question_fault(q, i) for i, q in enumerate(questions)) if f]
+
+
+def with_readiness(doc: dict) -> dict:
+    """The set, plus whether it can be used. Computed on read, never stored.
+
+    Derived rather than persisted so it cannot go stale against the questions it
+    describes.
+    """
+    faults = set_faults(doc)
+    return {**doc, "ready": not faults, "faults": faults}
+
+
 async def _owned_or_404(store, set_id: str, recruiter_id: str) -> dict:
     """One set, or 404.
 
@@ -186,13 +224,14 @@ async def _owned_or_404(store, set_id: str, recruiter_id: str) -> dict:
 async def list_sets(request: Request, user: AuthedUser = WebUser) -> list[dict]:
     store = get_store(settings_of(request))
     sets_ = await store.mcq_sets.owned_by(user.uid)
-    return sorted(sets_, key=lambda s: str(s.get("name") or "").lower())
+    ordered = sorted(sets_, key=lambda s: str(s.get("name") or "").lower())
+    return [with_readiness(doc) for doc in ordered]
 
 
 @router.get("/{set_id}", summary="One MCQ set")
 async def get_set(set_id: str, request: Request, user: AuthedUser = WebUser) -> dict:
     store = get_store(settings_of(request))
-    return await _owned_or_404(store, set_id, user.uid)
+    return with_readiness(await _owned_or_404(store, set_id, user.uid))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Create an MCQ set")
@@ -203,7 +242,7 @@ async def create_set(
     doc = _clean_set(body, recruiter_id=user.uid)
     await store.mcq_sets.put(doc)
     logger.info("mcq set created id=%s questions=%d", doc["id"], len(doc["questions"]))
-    return doc
+    return with_readiness(doc)
 
 
 @router.put("/{set_id}", summary="Update an MCQ set")
@@ -215,7 +254,7 @@ async def update_set(
     doc = _clean_set(body, recruiter_id=user.uid, existing=existing)
     doc["id"] = set_id
     await store.mcq_sets.put(doc)
-    return doc
+    return with_readiness(doc)
 
 
 @router.post("/{set_id}/duplicate", summary="Duplicate an MCQ set")
@@ -233,7 +272,7 @@ async def duplicate_set(
         "updatedAt": _now(),
     }
     await store.mcq_sets.put(copy)
-    return copy
+    return with_readiness(copy)
 
 
 @router.delete("/{set_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete an MCQ set")

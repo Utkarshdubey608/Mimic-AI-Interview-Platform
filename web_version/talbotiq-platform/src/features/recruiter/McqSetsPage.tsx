@@ -403,6 +403,7 @@ export default function McqSetsPage() {
                     <span className="block truncate text-sm font-semibold text-neutral-900">{s.name}</span>
                     <span className="mt-0.5 block text-xs text-neutral-500">
                       {s.questions.length} question{s.questions.length === 1 ? '' : 's'}
+                      {s.ready === false && <span className="text-warn"> · unfinished</span>}
                     </span>
                   </button>
                 ))}
@@ -429,6 +430,15 @@ export default function McqSetsPage() {
                 />
                 <Badge>{draft.questions.length} question{draft.questions.length === 1 ? '' : 's'}</Badge>
                 <Badge>{totalPoints} point{totalPoints === 1 ? '' : 's'}</Badge>
+                {faults > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warn">
+                    <AlertTriangle size={13} /> {faults} to finish before sending
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
+                    <Check size={13} /> Ready to send
+                  </span>
+                )}
                 <div className="ml-auto flex items-center gap-2">
                   <Button size="sm" variant="outline" icon={<Copy size={14} />} loading={duplicate.isPending} onClick={() => duplicate.mutate(draft.id)}>
                     Duplicate
@@ -436,16 +446,19 @@ export default function McqSetsPage() {
                   <Button size="sm" variant="outline" icon={<Trash2 size={14} />} loading={remove.isPending} onClick={() => remove.mutate(draft.id)}>
                     Delete
                   </Button>
-                  {/* Disabled with a count rather than failing on submit: the
-                      recruiter is told what is wrong and how much of it. */}
+                  {/* ALWAYS enabled. A draft is a legitimate state — nobody
+                      authors a forty-question paper through a sequence of valid
+                      ones — and disabling Save until every question was finished
+                      meant a recruiter interrupted mid-paper lost the work. What
+                      is unfinished is reported below and refused at SEND, not
+                      here. */}
                   <Button
                     size="sm"
                     icon={<Save size={14} />}
                     loading={save.isPending}
-                    disabled={faults > 0 || draft.questions.length === 0}
                     onClick={() => save.mutate()}
                   >
-                    {faults > 0 ? `${faults} to fix` : 'Save'}
+                    Save
                   </Button>
                 </div>
               </div>
