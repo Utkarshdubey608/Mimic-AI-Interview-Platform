@@ -404,25 +404,142 @@ class TestSectionsSurviveTheHandOffs:
         assert r["sections"] == {"technical": 6, "non_technical": 4}
         assert r["delivered"] == {"technical": 7, "non_technical": 3}
 
-    def test_a_section_label_survives_being_saved(self):
+    def test_a_section_reference_survives_being_saved(self):
         """THE ONE THAT WAS BROKEN. A generated paper looked sectioned in review
-        and arrived unsectioned in the set, because the save cleaner named every
-        field it kept and nobody had added this one."""
+        and arrived unsectioned in the set, because the save cleaner names every
+        field it keeps and nobody had added this one."""
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={
+                "name": "Paper",
+                "sections": [{"id": "s1", "name": "Aptitude"}],
+                "questions": [_question(sectionId="s1")],
+            },
+        ).json()
+        assert created["questions"][0]["sectionId"] == "s1"
+        assert created["sections"][0]["name"] == "Aptitude"
+
+        # And on the way back out again, not just in the create response.
+        fetched = client.get(f"/api/web/mcq-sets/{created['id']}").json()
+        assert fetched["questions"][0]["sectionId"] == "s1"
+
+    def test_the_legacy_tag_is_accepted_and_stored_as_a_section_id(self):
+        """Papers authored when a section was a two-value tag keep working, with no
+        migration: "technical" is simply an id in the prebuilt library."""
         client = _client(RECRUITER)
         created = client.post(
             "/api/web/mcq-sets",
             json={"name": "Paper", "questions": [_question(section="non_technical")]},
         ).json()
-        assert created["questions"][0]["section"] == "non_technical"
+        assert created["questions"][0]["sectionId"] == "non_technical"
 
-        # And on the way back out again, not just in the create response.
-        fetched = client.get(f"/api/web/mcq-sets/{created['id']}").json()
-        assert fetched["questions"][0]["section"] == "non_technical"
-
-    def test_a_nonsense_section_is_dropped_rather_than_stored(self):
+    def test_a_question_cannot_claim_a_section_the_assessment_does_not_have(self):
+        """A dangling id would make the score breakdown invent a section that is
+        nowhere in the paper, with no way for the recruiter to find it."""
         client = _client(RECRUITER)
         created = client.post(
             "/api/web/mcq-sets",
-            json={"name": "Paper", "questions": [_question(section="marketing")]},
+            json={
+                "name": "Paper",
+                "sections": [{"id": "s1", "name": "Aptitude"}],
+                "questions": [_question(sectionId="ghost")],
+            },
         ).json()
-        assert "section" not in created["questions"][0]
+        assert "sectionId" not in created["questions"][0]
+
+    def test_a_section_with_nothing_in_it_is_not_ready_to_use(self):
+        """A candidate shown an empty section reads it as a loading failure."""
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={
+                "name": "Paper",
+                "sections": [{"id": "s1", "name": "Aptitude"}, {"id": "s2", "name": "Verbal"}],
+                "questions": [_question(sectionId="s1")],
+            },
+        ).json()
+        assert created["ready"] is False
+        assert any("Verbal" in f and "no questions" in f for f in created["faults"])
+
+
+class TestMatchTheFollowingAuthoring:
+    """A pairing question is authored as rows; the server splits it into two
+    independently-identified columns plus the key."""
+
+    def _match(self, **over) -> dict:
+        q = {
+            "type": "match",
+            "text": "Match the algorithm to its complexity.",
+            "pairs": [
+                {"left": "Binary search", "right": "O(log n)"},
+                {"left": "Bubble sort", "right": "O(n^2)"},
+            ],
+        }
+        q.update(over)
+        return q
+
+    def test_rows_become_two_columns_and_a_key(self):
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets", json={"name": "P", "questions": [self._match()]}
+        ).json()
+        q = created["questions"][0]
+        assert [p["text"] for p in q["prompts"]] == ["Binary search", "Bubble sort"]
+        assert [x["text"] for x in q["matches"]] == ["O(log n)", "O(n^2)"]
+        assert q["correctPairs"][q["prompts"][0]["id"]] == q["matches"][0]["id"]
+
+    def test_a_prompt_and_its_match_never_share_an_id(self):
+        """If they did, the pairing would be readable from the field names alone,
+        whatever order the columns arrived in."""
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets", json={"name": "P", "questions": [self._match()]}
+        ).json()
+        q = created["questions"][0]
+        assert {p["id"] for p in q["prompts"]}.isdisjoint({x["id"] for x in q["matches"]})
+
+    def test_one_pair_is_not_enough_to_ask_anything(self):
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={"name": "P", "questions": [self._match(pairs=[{"left": "A", "right": "1"}])]},
+        ).json()
+        assert created["ready"] is False
+        assert any("two complete pairs" in f for f in created["faults"])
+
+    def test_an_incomplete_pairing_still_saves_as_a_draft(self):
+        """Permissive save, strict use - the same rule as every other question."""
+        client = _client(RECRUITER)
+        r = client.post(
+            "/api/web/mcq-sets",
+            json={"name": "P", "questions": [self._match(pairs=[{"left": "A", "right": ""}])]},
+        )
+        assert r.status_code == 201
+        assert r.json()["ready"] is False
+
+    def test_a_match_question_is_not_judged_by_the_option_rules(self):
+        """It has no options at all, so the single/multi faults must not fire on it
+        and report that it needs two options."""
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets", json={"name": "P", "questions": [self._match()]}
+        ).json()
+        assert created["ready"] is True, created["faults"]
+
+
+class TestCodeReadingQuestions:
+    """How coding and debugging are assessed: a snippet plus a closed question, so
+    scoring stays a comparison rather than an execution."""
+
+    def test_a_snippet_survives_the_save_with_its_line_breaks(self):
+        code = "def f(n):\n    if n == 0:\n        return 1\n    return n"
+        client = _client(RECRUITER)
+        created = client.post(
+            "/api/web/mcq-sets",
+            json={"name": "P", "questions": [_question(code=code)]},
+        ).json()
+        stored = created["questions"][0]["code"]
+        assert stored == code
+        # The point of the separate cleaner: `_text` would have collapsed these.
+        assert stored.count("\n") == 3

@@ -52,7 +52,7 @@ const GROUPS: Group[] = [
     items: [
       { to: '/templates',     label: 'Templates',     icon: FileText },
       { to: '/question-sets', label: 'Question sets', icon: ListChecks },
-      { to: '/mcq-sets', label: 'MCQ sets', icon: ListTodo },
+      { to: '/mcq-sets', label: 'Assessments', icon: ListTodo },
     ],
   },
   {

@@ -138,15 +138,40 @@ export interface McqOption {
 }
 
 /** Single-answer or multi-select. Multi is inferred from a key of >1 either way. */
-export type McqAnswerType = 'single' | 'multi'
+export type McqAnswerType = 'single' | 'multi' | 'match'
 
 /** The AUTHORED question. Recruiter-side and server-side only. */
 /**
- * Which part of the paper a question belongs to. The same two the invite wizard,
- * the template editor and resume generation have always used, deliberately: a
- * recruiter who has met "Mix, 6 and 4" once has met it everywhere.
+ * One part of an assessment: a named group of questions with its own settings.
+ *
+ * ORDER IS THE ARRAY'S ORDER. There is deliberately no `position` field — two
+ * representations of the same thing drift, and a stored index that disagrees with
+ * the array is a bug with no obvious right answer.
  */
-export type McqSection = 'technical' | 'non_technical'
+export interface McqSection {
+  id: string
+  name: string
+  /** Shown on the section intro screen before its questions begin. */
+  instructions?: string
+  /**
+   * A reading passage the whole section is about.
+   *
+   * It lives HERE rather than on a question because comprehension is naturally one
+   * passage with several ordinary questions about it. Modelling it this way means
+   * passage-based assessment needs no new question type, and nothing in the scorer
+   * has to know passages exist. Two passages = two sections.
+   */
+  passage?: string
+}
+
+/** One row of a match-the-following question, as the recruiter authors it. */
+export interface McqPair {
+  /** Stable ids, so editing a row does not orphan the stored pairing. */
+  promptId: string
+  matchId: string
+  left: string
+  right: string
+}
 
 export interface McqQuestion {
   id: string
@@ -158,8 +183,23 @@ export interface McqQuestion {
   /** Defaults to 1. Lets a paper be weighted; percentages are over points. */
   points?: number
   topic?: string
-  /** Absent on papers written before sections existed, and on unlabelled ones. */
-  section?: McqSection
+  /** Which section this sits in. Absent on papers written before sections existed. */
+  sectionId?: string
+  /**
+   * A snippet the question is ABOUT — how coding and debugging are assessed here.
+   * The candidate reads code and answers a closed question about it, so scoring
+   * stays a comparison rather than an execution: no sandbox, no vendor, no
+   * per-run cost, and a result that is the same every time it is computed.
+   */
+  code?: string
+  /** Authoring shape of a match question. The server splits it into the two
+   *  columns below plus the key, which is what gets stored. */
+  pairs?: McqPair[]
+  /** Match, as stored and returned. `correctPairs` is the answer key and never
+   *  reaches a candidate; the two columns do, shuffled independently. */
+  prompts?: McqOption[]
+  matches?: McqOption[]
+  correctPairs?: Record<string, string>
   difficulty?: 'easy' | 'medium' | 'hard'
   /** Shown in the recruiter's report, and to the candidate only after scoring. */
   explanation?: string
@@ -170,7 +210,14 @@ export interface McqQuestionPublic {
   id: string
   text: string
   type: McqAnswerType
+  /** Empty for a pairing question, which uses the two columns instead. */
   options: McqOption[]
+  /** A code snippet the question is about. Visible by necessity; carries no key. */
+  code?: string
+  /** Match only. Shuffled independently of each other, and never in the order that
+   *  would let a candidate pair row-for-row without reading anything. */
+  prompts?: McqOption[]
+  matches?: McqOption[]
   points: number
 }
 
@@ -197,6 +244,8 @@ export interface McqQuestionSet {
   id: string
   kind: 'mcq'
   name: string
+  /** The assessment's sections, in the order a candidate meets them. */
+  sections?: McqSection[]
   questions: McqQuestion[]
   /**
    * Whether this paper can be USED in an interview. Computed by the server on
@@ -228,7 +277,9 @@ export interface McqQuestionResult {
 
 /** Per-section totals in a report. Absent entirely for an unsectioned paper. */
 export interface McqSectionResult {
-  section: McqSection
+  sectionId: string
+  /** Resolved from the manifest, so a report never shows a raw id. */
+  name: string
   correct: number
   count: number
   points: number
@@ -244,12 +295,36 @@ export interface McqTopicResult {
 }
 
 /** What the candidate's runtime receives. No answer key, by construction. */
+/** A section as the CANDIDATE receives it: structure and instructions, no keys. */
+export interface McqSectionPublic {
+  id: string
+  name: string
+  instructions?: string
+  passage?: string
+  /**
+   * Which questions belong to this section.
+   *
+   * The grouping lives here rather than as a `sectionId` on every question, so the
+   * structure has one representation instead of two that can disagree — and the
+   * manifest is already the thing that defines order.
+   */
+  questionIds: string[]
+}
+
 export interface McqPaperState {
   sessionId: string
   status: SessionStatus
   questions: McqQuestionPublic[]
-  /** questionId → selected option ids, so a reload restores the paper as left. */
-  answers: Record<string, string[]>
+  /** Null for an unsectioned paper, so the runtime can ask rather than guess. */
+  sections?: McqSectionPublic[] | null
+  /**
+   * What the candidate has answered so far, so a reload restores the paper as left.
+   *
+   * A LIST of option ids for single and multi; a promptId→matchId MAPPING for a
+   * pairing question. The shape follows the question type, which is why one
+   * normaliser on the server handles both rather than each route guessing.
+   */
+  answers: Record<string, string[] | Record<string, string>>
   submittedAt?: string | null
   totalSeconds?: number
   perQuestionSeconds?: number

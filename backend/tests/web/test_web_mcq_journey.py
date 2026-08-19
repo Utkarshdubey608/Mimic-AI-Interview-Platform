@@ -271,3 +271,214 @@ def test_the_score_a_candidate_would_actually_get(fake_store, answers, expected)
 
     candidate.post(f"/api/web/sessions/{session_id}/mcq/submit", json={"answers": remapped})
     assert _run(fake_store.sessions.get(session_id))["mcqResult"]["percent"] == expected
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A SECTIONED, MIXED-TYPE ASSESSMENT, walked the same way.
+#
+# The single-section MCQ journey above is not enough once a paper has structure.
+# Sections and question types add four new hand-offs, and every one of them is a
+# place the assessment can arrive at the candidate subtly wrong while every unit
+# test still passes:
+#
+#   · the section manifest has to survive set → session → candidate payload
+#   · a match answer is a MAPPING, not a list, through autosave and submit
+#   · the report has to break down by section, in the paper's own order
+#   · and the pairing must not be readable from the payload's ORDER
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _sectioned_assessment() -> dict:
+    """One aptitude question, one pairing question, in two named sections."""
+    return {
+        "name": "Graduate screen",
+        "sections": [
+            {"id": "apt", "name": "Aptitude", "instructions": "No calculator."},
+            {"id": "cs", "name": "Computer science"},
+        ],
+        "questions": [
+            {
+                "id": "q-apt",
+                "sectionId": "apt",
+                "type": "single",
+                "text": "What is 15% of 200?",
+                "options": [
+                    {"id": "a", "text": "30"},
+                    {"id": "b", "text": "3"},
+                    {"id": "c", "text": "300"},
+                ],
+                "correctOptionIds": ["a"],
+            },
+            {
+                "id": "q-match",
+                "sectionId": "cs",
+                "type": "match",
+                "text": "Match the algorithm to its complexity.",
+                "pairs": [
+                    {"left": "Binary search", "right": "O(log n)"},
+                    {"left": "Bubble sort", "right": "O(n^2)"},
+                    {"left": "Hash lookup", "right": "O(1)"},
+                ],
+            },
+        ],
+    }
+
+
+def _sat_assessment(fake_store):
+    """Author it, attach it, open it as the candidate. Returns (clients, ids, paper)."""
+    recruiter, candidate = _client(RECRUITER), _client(CANDIDATE)
+    created = recruiter.post("/api/web/mcq-sets", json=_sectioned_assessment()).json()
+    assert created["ready"] is True, created["faults"]
+
+    _run(
+        fake_store.templates.put(
+            {
+                "id": "t-sec",
+                "name": "s",
+                "role": "Graduate",
+                "track": "mcq",
+                "mcqSetId": created["id"],
+            }
+        )
+    )
+    session_id = recruiter.post(
+        "/api/web/sessions",
+        json={"templateId": "t-sec", "track": "mcq", "candidate": {"email": CANDIDATE.email}},
+    ).json()["id"]
+
+    paper = candidate.get(f"/api/web/sessions/{session_id}/mcq").json()
+    return recruiter, candidate, session_id, paper
+
+
+def test_the_structure_reaches_the_candidate(fake_store) -> None:
+    """The manifest has to cross two documents to get here."""
+    _r, _c, _sid, paper = _sat_assessment(fake_store)
+
+    assert [section["name"] for section in paper["sections"]] == [
+        "Aptitude",
+        "Computer science",
+    ]
+    assert paper["sections"][0]["instructions"] == "No calculator."
+    # Each section names its own questions, so the runtime can group them without a
+    # second copy of the mapping living on every question.
+    assert len(paper["sections"][0]["questionIds"]) == 1
+    assert len(paper["sections"][1]["questionIds"]) == 1
+    # And the paper arrives in section order, so section one is met first.
+    assert paper["questions"][0]["id"] == paper["sections"][0]["questionIds"][0]
+
+
+def test_no_answer_key_reaches_the_candidate(fake_store) -> None:
+    """Neither key, in the payload the candidate actually receives.
+
+    THE ORDER LEAK IS NOT ASSERTED HERE, on purpose. A match question is authored
+    a row at a time, so publishing column B as authored hands over the pairing
+    with no key in the payload at all - and the first version of this test did
+    check that here. But the published order depends on a random session id, so
+    the check only caught the leak about one run in six: it passed with the
+    guarantee deliberately removed. A test that flaky is worse than no test,
+    because it manufactures confidence.
+
+    The property is deterministic and belongs where it can be proven that way:
+    `TestAMatchQuestionCannotLeakItsPairing` in test_web_mcq_scoring.py asserts it
+    across sixty seeds plus the no-seed case, which is the arrangement that was
+    actually broken.
+    """
+    _r, candidate, session_id, _paper = _sat_assessment(fake_store)
+    raw = candidate.get(f"/api/web/sessions/{session_id}/mcq").text
+
+    assert "correctOptionIds" not in raw
+    assert "correctPairs" not in raw
+    # The pairing is not reconstructible from what did ship, either: prompt ids and
+    # match ids share nothing.
+    paper = candidate.get(f"/api/web/sessions/{session_id}/mcq").json()
+    match = next(q for q in paper["questions"] if q["type"] == "match")
+    assert {p["id"] for p in match["prompts"]}.isdisjoint({m["id"] for m in match["matches"]})
+
+
+def test_a_pairing_survives_autosave_a_reload_and_submit(fake_store) -> None:
+    """A match answer is a MAPPING. Every hop that assumed a list would drop it,
+    and the candidate would lose the question without being told."""
+    _r, candidate, session_id, paper = _sat_assessment(fake_store)
+    match = next(q for q in paper["questions"] if q["type"] == "match")
+
+    # Answer two of the three pairs correctly by TEXT, since ids are opaque.
+    right = {"Binary search": "O(log n)", "Bubble sort": "O(n^2)"}
+    match_by_text = {m["text"]: m["id"] for m in match["matches"]}
+    pairing = {
+        prompt["id"]: match_by_text[right[prompt["text"]]]
+        for prompt in match["prompts"]
+        if prompt["text"] in right
+    }
+
+    saved = candidate.post(
+        f"/api/web/sessions/{session_id}/mcq/answers", json={"answers": {match["id"]: pairing}}
+    )
+    assert saved.status_code == 200
+
+    # The reload a candidate would do. The pairing must come back intact.
+    reloaded = candidate.get(f"/api/web/sessions/{session_id}/mcq").json()
+    assert reloaded["answers"][match["id"]] == pairing
+
+    candidate.post(f"/api/web/sessions/{session_id}/mcq/submit", json={})
+    record = next(
+        r
+        for r in _run(fake_store.sessions.get(session_id))["mcqResult"]["questions"]
+        if r["questionId"] == match["id"]
+    )
+    # Two of three pairs, and partial credit is the default for pairings because
+    # there is no way to over-answer one.
+    assert record["matchedCount"] == 2
+    assert record["points"] == round(2 / 3, 4)
+    assert record["correct"] is False
+
+
+def test_the_report_breaks_the_score_down_by_section(fake_store) -> None:
+    """The whole point of dividing a paper. One blended percentage would discard
+    exactly the distinction the recruiter set up."""
+    _r, candidate, session_id, paper = _sat_assessment(fake_store)
+
+    # Get the aptitude question right; leave the pairing untouched.
+    aptitude = next(q for q in paper["questions"] if q["type"] == "single")
+    right = next(o["id"] for o in aptitude["options"] if o["text"] == "30")
+    candidate.post(
+        f"/api/web/sessions/{session_id}/mcq/submit", json={"answers": {aptitude["id"]: [right]}}
+    )
+
+    rows = _run(fake_store.sessions.get(session_id))["mcqResult"]["sections"]
+    # Paper order, not alphabetical: "Aptitude" happens to sort first anyway, so
+    # the order assertion is made by the scoring test above with a Z-before-A name.
+    assert [row["name"] for row in rows] == ["Aptitude", "Computer science"]
+    assert rows[0]["correct"] == 1
+    assert rows[1]["correct"] == 0
+
+
+def test_a_candidate_shown_their_score_still_gets_no_pairing(fake_store) -> None:
+    """`showScoreToCandidate` is the back door the paper route is careful about:
+    the stored per-question record holds the key, because that is what makes the
+    RECRUITER's report reviewable."""
+    recruiter, candidate = _client(RECRUITER), _client(CANDIDATE)
+    created = recruiter.post("/api/web/mcq-sets", json=_sectioned_assessment()).json()
+    _run(
+        fake_store.templates.put(
+            {
+                "id": "t-show",
+                "name": "s",
+                "role": "Graduate",
+                "track": "mcq",
+                "mcqSetId": created["id"],
+                "mcqConfig": {"showScoreToCandidate": True},
+            }
+        )
+    )
+    session_id = recruiter.post(
+        "/api/web/sessions",
+        json={"templateId": "t-show", "track": "mcq", "candidate": {"email": CANDIDATE.email}},
+    ).json()["id"]
+
+    candidate.get(f"/api/web/sessions/{session_id}/mcq")
+    candidate.post(f"/api/web/sessions/{session_id}/mcq/submit", json={})
+    after = candidate.get(f"/api/web/sessions/{session_id}/mcq")
+
+    assert after.json()["result"] is not None
+    assert "correctPairs" not in after.text
+    assert "correctOptionIds" not in after.text

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
@@ -10,11 +10,12 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle, Sparkles,
-  RefreshCw, Tag, Check, CircleDot, Lock,
+  RefreshCw, Tag, Check, CircleDot, Lock, Code,
 } from 'lucide-react'
 import { PageHeader, Card, Button, EmptyState, Skeleton, Badge, cn } from '@/components/ui'
 import { mcqSetsApi, describeFetchError } from '@/lib/api'
-import type { McqQuestionSet, McqQuestion, McqOption, McqSection } from '@shared/types'
+import type { McqQuestionSet, McqQuestion, McqOption, McqSection, McqPair } from '@shared/types'
+import { SectionsPanel } from './SectionsPanel'
 import { GenerateMcqModal } from './GenerateMcqModal'
 
 /**
@@ -106,6 +107,22 @@ function OptionRow({
 /** Why this question cannot be used, or null when it is fine. */
 function faultOf(q: McqQuestion): string | null {
   if (!q.text.trim()) return 'Needs a question.'
+
+  // TYPE-AWARE, and it has to be: a pairing has no options at all, so the option
+  // rules below reported "needs at least two options" on a question that was
+  // perfectly complete. The server had already learned this; the client had not,
+  // and the two disagreeing is worse than either being wrong — the recruiter sees
+  // a warning that saving then contradicts.
+  if (q.type === 'match') {
+    const rows = (q.pairs ?? []).filter((r) => r.left.trim() && r.right.trim())
+    if (rows.length < 2) return 'Needs at least two complete pairs.'
+    const answers = rows.map((r) => r.right.trim().toLowerCase())
+    if (new Set(answers).size !== answers.length) {
+      return 'Two rows match the same answer, so the pairing cannot be solved.'
+    }
+    return null
+  }
+
   const usable = q.options.filter((o) => o.text.trim())
   if (usable.length < 2) return 'Needs at least two options.'
   const key = q.correctOptionIds.filter((id) => usable.some((o) => o.id === id))
@@ -116,12 +133,59 @@ function faultOf(q: McqQuestion): string | null {
 
 /* ── One editable question ───────────────────────────────────────────────── */
 function SortableMcq({
-  q, index, onChange, onRemove,
-}: { q: McqQuestion; index: number; onChange: (p: Partial<McqQuestion>) => void; onRemove: () => void }) {
+  q, index, sections, onChange, onRemove,
+}: {
+  q: McqQuestion
+  index: number
+  sections: McqSection[]
+  onChange: (p: Partial<McqQuestion>) => void
+  onRemove: () => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 10 : undefined }
   const isMulti = q.type === 'multi'
+  const isMatch = q.type === 'match'
   const fault = faultOf(q)
+
+  /* Pairing rows. Ids are minted per SIDE and never shared: if a prompt and its
+     match had the same id, the answer would be readable from the field names
+     however the columns were ordered. */
+  const pairs = q.pairs ?? []
+  const setPair = (promptId: string, patch: Partial<McqPair>) =>
+    onChange({ pairs: pairs.map((r) => (r.promptId === promptId ? { ...r, ...patch } : r)) })
+  const addPair = () =>
+    onChange({
+      pairs: [
+        ...pairs,
+        {
+          promptId: crypto.randomUUID().slice(0, 8),
+          matchId: crypto.randomUUID().slice(0, 8),
+          left: '',
+          right: '',
+        },
+      ],
+    })
+  const removePair = (promptId: string) =>
+    onChange({ pairs: pairs.filter((r) => r.promptId !== promptId) })
+
+  /* Switching type is destructive in one direction, so it is done explicitly.
+     Going to a pairing seeds two empty rows (the minimum a pairing can ask) and
+     leaves the options alone, so switching back does not lose them. */
+  const setType = (next: McqQuestion['type']) => {
+    if (next === 'match' && pairs.length === 0) {
+      onChange({
+        type: next,
+        pairs: [0, 1].map(() => ({
+          promptId: crypto.randomUUID().slice(0, 8),
+          matchId: crypto.randomUUID().slice(0, 8),
+          left: '',
+          right: '',
+        })),
+      })
+      return
+    }
+    onChange({ type: next })
+  }
 
   const setOption = (id: string, text: string) =>
     onChange({ options: q.options.map((o) => (o.id === id ? { ...o, text } : o)) })
@@ -193,17 +257,24 @@ function SortableMcq({
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-border p-0.5">
-            {(['single', 'multi'] as const).map((t) => (
+            {([
+              { value: 'single', label: 'One answer' },
+              { value: 'multi', label: 'Several' },
+              { value: 'match', label: 'Match' },
+            ] as const).map((t) => (
               <button
-                key={t}
+                key={t.value}
                 type="button"
-                onClick={() => switchType(t)}
+                onClick={() => (t.value === 'match' ? setType('match') : switchType(t.value))}
+                aria-pressed={q.type === t.value || (t.value === 'single' && !q.type)}
                 className={cn(
                   'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-fast',
-                  (t === 'multi') === isMulti ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
+                  (q.type ?? 'single') === t.value
+                    ? 'bg-primary-700 text-white'
+                    : 'text-neutral-500 hover:text-neutral-900',
                 )}
               >
-                {t === 'single' ? 'One answer' : 'Several'}
+                {t.label}
               </button>
             ))}
           </div>
@@ -212,6 +283,79 @@ function SortableMcq({
           </span>
         </div>
 
+        {/* A snippet the question is ABOUT. This is how coding and debugging are
+            assessed: the candidate reads code and answers a closed question about
+            it, so scoring stays a comparison rather than an execution - no
+            sandbox, no per-run cost, and the same result every time. */}
+        {q.code === undefined ? (
+          <button
+            type="button"
+            onClick={() => onChange({ code: '' })}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
+          >
+            <Code size={12} /> Add a code snippet
+          </button>
+        ) : (
+          <div>
+            <label htmlFor={`code-${q.id}`} className="field-label">
+              Code snippet
+            </label>
+            <textarea
+              id={`code-${q.id}`}
+              value={q.code}
+              onChange={(e) => onChange({ code: e.target.value })}
+              onBlur={(e) => { if (!e.target.value.trim()) onChange({ code: undefined }) }}
+              rows={5}
+              spellCheck={false}
+              placeholder={'def total(items):\n    return sum(items)'}
+              className="input-base w-full resize-y py-2 font-mono text-xs leading-relaxed"
+            />
+          </div>
+        )}
+
+        {isMatch ? (
+          /* Authored a ROW at a time, which is how a person thinks about a pairing
+             - and the reason the server must never publish column B in this order:
+             row-for-row is the answer. It shuffles the two columns independently
+             and checks the result is not the pairing before sending it. */
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-neutral-400">
+              <span className="flex-1">Item</span>
+              <span className="flex-1">Matches with</span>
+              <span className="w-7" />
+            </div>
+            {pairs.map((row, i) => (
+              <div key={row.promptId} className="flex items-center gap-2">
+                <input
+                  value={row.left}
+                  onChange={(e) => setPair(row.promptId, { left: e.target.value })}
+                  placeholder="Binary search"
+                  aria-label={`Question ${index + 1} pair ${i + 1} item`}
+                  className="input-base h-9 flex-1 text-xs"
+                />
+                <input
+                  value={row.right}
+                  onChange={(e) => setPair(row.promptId, { right: e.target.value })}
+                  placeholder="O(log n)"
+                  aria-label={`Question ${index + 1} pair ${i + 1} match`}
+                  className="input-base h-9 flex-1 text-xs"
+                />
+                <button
+                  onClick={() => removePair(row.promptId)}
+                  disabled={pairs.length <= 2}
+                  aria-label={`Remove pair ${i + 1}`}
+                  title={pairs.length <= 2 ? 'A pairing needs at least two rows' : 'Remove row'}
+                  className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+            <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addPair} disabled={pairs.length >= 10}>
+              Add pair
+            </Button>
+          </div>
+        ) : (
         <div className="space-y-2">
           {q.options.map((o, i) => (
             <OptionRow
@@ -228,11 +372,15 @@ function SortableMcq({
             />
           ))}
         </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addOption} disabled={q.options.length >= 10}>
-            Add option
-          </Button>
+          {/* Adding an option is meaningless on a pairing, which has rows instead. */}
+          {!isMatch && (
+            <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addOption} disabled={q.options.length >= 10}>
+              Add option
+            </Button>
+          )}
           <div className="relative min-w-[9rem] flex-1">
             <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
@@ -243,19 +391,21 @@ function SortableMcq({
               className="input-base h-9 pl-8 text-xs"
             />
           </div>
-          {/* Editable, because a generated paper's section labels are the model's
-              guess and the recruiter is the one who has to defend the paper. "None"
-              is a real choice: a section is optional, and a paper with no labels
-              simply gets no section breakdown. */}
+          {/* Driven by the assessment's own sections, so the only sections on offer
+              are ones that exist. "No section" stays a real choice: a paper without
+              sections works exactly as it always did. */}
           <select
-            value={q.section ?? ''}
-            onChange={(e) => onChange({ section: (e.target.value || undefined) as McqSection | undefined })}
+            value={q.sectionId ?? ''}
+            onChange={(e) => onChange({ sectionId: e.target.value || undefined })}
             aria-label={`Question ${index + 1} section`}
-            className="input-base h-9 w-36 text-xs"
+            className="input-base h-9 w-40 text-xs"
           >
             <option value="">No section</option>
-            <option value="technical">Technical</option>
-            <option value="non_technical">Non-technical</option>
+            {sections.map((section) => (
+              <option key={section.id} value={section.id}>
+                {section.name || 'Untitled section'}
+              </option>
+            ))}
           </select>
           <input
             type="number"
@@ -333,8 +483,8 @@ export default function McqSetsPage() {
   })
 
   const create = useMutation({
-    mutationFn: () => mcqSetsApi.create({ name: 'New MCQ set', questions: [blankQuestion()] }),
-    onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Set created') },
+    mutationFn: () => mcqSetsApi.create({ name: 'New assessment', questions: [blankQuestion()] }),
+    onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Assessment created') },
     onError: (e: Error) => toast.error(e.message),
   })
   const duplicate = useMutation({
@@ -348,10 +498,25 @@ export default function McqSetsPage() {
     onError: (e: Error) => toast.error(e.message),
   })
   const save = useMutation({
-    mutationFn: () => mcqSetsApi.update(draft!.id, { name: draft!.name, questions: draft!.questions }),
-    onSuccess: () => { invalidate(); toast.success('Set saved') },
+    mutationFn: () =>
+      mcqSetsApi.update(draft!.id, {
+        name: draft!.name,
+        sections: draft!.sections ?? [],
+        questions: draft!.questions,
+      }),
+    onSuccess: () => { invalidate(); toast.success('Assessment saved') },
     onError: (e: Error) => toast.error(e.message),
   })
+
+  /* How many questions sit in each section, so removing one can say what it will
+     free rather than surprising the recruiter afterwards. */
+  const sectionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const q of draft?.questions ?? []) {
+      if (q.sectionId) counts[q.sectionId] = (counts[q.sectionId] ?? 0) + 1
+    }
+    return counts
+  }, [draft])
 
   const onDragEnd = (e: DragEndEvent) => {
     if (!draft || !e.over || e.active.id === e.over.id) return
@@ -373,8 +538,8 @@ export default function McqSetsPage() {
 
       <PageHeader
         kicker="AI Interview"
-        title="MCQ Sets"
-        description="Multiple-choice papers, scored the instant a candidate submits — no model, no waiting. Drag to reorder. The answer key stays on the server and never reaches a candidate's browser."
+        title="Assessments"
+        description="Sections of closed questions — multiple choice, several answers, or matching — scored the instant a candidate submits. No model, no waiting. The answer key stays on the server and never reaches a candidate's browser."
       />
 
       {sets.isLoading ? (
@@ -397,8 +562,8 @@ export default function McqSetsPage() {
         <Card className="p-0">
           <EmptyState
             icon={<AlertTriangle strokeWidth={1.75} />}
-            title="Couldn't load MCQ sets"
-            description={describeFetchError(sets.error, "The request for your MCQ sets didn't come back. Check your connection, then try again — nothing you've saved is lost.")}
+            title="Couldn't load your assessments"
+            description={describeFetchError(sets.error, "The request for your assessments didn't come back. Check your connection, then try again — nothing you've saved is lost.")}
             action={<Button size="sm" icon={<RefreshCw size={14} />} onClick={() => sets.refetch()}>Try again</Button>}
           />
         </Card>
@@ -407,7 +572,7 @@ export default function McqSetsPage() {
           <aside className="lg:sticky lg:top-[88px] lg:self-start">
             <div className="space-y-2">
               <Button className="w-full" icon={<Plus size={15} />} loading={create.isPending} onClick={() => create.mutate()}>
-                New MCQ set
+                New assessment
               </Button>
               {/* Mode A. Generation writes a DRAFT and opens it here: the answer
                   key it produced is exactly the thing that must be read by a
@@ -424,13 +589,13 @@ export default function McqSetsPage() {
             </div>
 
             <div className="mt-7 flex items-baseline justify-between px-1">
-              <span className="section-label">Your sets</span>
+              <span className="section-label">Your assessments</span>
               <span className="text-xs font-semibold tabular-nums text-neutral-400">{(sets.data ?? []).length}</span>
             </div>
 
             {(sets.data ?? []).length === 0 ? (
               <p className="mt-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-5 text-center text-xs leading-relaxed text-neutral-500">
-                No MCQ sets yet. Create one above — these are yours alone, because they hold the answers.
+                No assessments yet. Create one above — these are yours alone, because they hold the answers.
               </p>
             ) : (
               <div className="-mx-1 mt-3 space-y-1.5 px-1 lg:max-h-[calc(100vh-17rem)] lg:overflow-y-auto">
@@ -509,6 +674,14 @@ export default function McqSetsPage() {
               </div>
 
               <div className="mt-4">
+                <SectionsPanel
+                  sections={draft.sections ?? []}
+                  questionCounts={sectionCounts}
+                  onChange={(sections) => setDraft({ ...draft, sections })}
+                />
+              </div>
+
+              <div className="mt-4">
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                   <SortableContext items={draft.questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-2">
@@ -517,6 +690,7 @@ export default function McqSetsPage() {
                           key={q.id}
                           q={q}
                           index={i}
+                          sections={draft.sections ?? []}
                           onChange={(patch) =>
                             setDraft({
                               ...draft,

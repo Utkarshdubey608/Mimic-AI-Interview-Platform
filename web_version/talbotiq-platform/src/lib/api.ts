@@ -126,14 +126,16 @@ export const templatesApi = {
 export const mcqSessionApi = {
   /** The paper plus whatever has been answered so far. Opening it starts the clock. */
   paper: (id: string) => http<McqPaperState>(`/sessions/${id}/mcq`),
-  /** Auto-save. A refresh must not cost a candidate the answers they chose. */
-  save: (id: string, answers: Record<string, string[]>) =>
+  /** Auto-save. A refresh must not cost a candidate the answers they chose.
+   *  A value is a list of option ids, or a promptId to matchId mapping for a
+   *  pairing question - the shape follows the question type. */
+  save: (id: string, answers: McqPaperState['answers']) =>
     http<{ ok: boolean; saved: number }>(`/sessions/${id}/mcq/answers`, {
       method: 'POST',
       body: JSON.stringify({ answers }),
     }),
   /** Score and finish. Answers sent here count even if nothing was auto-saved. */
-  submit: (id: string, answers?: Record<string, string[]>) =>
+  submit: (id: string, answers?: McqPaperState['answers']) =>
     http<McqPaperState>(`/sessions/${id}/mcq/submit`, {
       method: 'POST',
       body: JSON.stringify(answers ? { answers } : {}),
@@ -153,9 +155,9 @@ export const mcqSessionApi = {
 export const mcqSetsApi = {
   list: () => http<McqQuestionSet[]>('/mcq-sets'),
   get: (id: string) => http<McqQuestionSet>(`/mcq-sets/${id}`),
-  create: (body: { name: string; questions: McqQuestion[] }) =>
+  create: (body: { name: string; sections?: McqSection[]; questions: McqQuestion[] }) =>
     http<McqQuestionSet>('/mcq-sets', { method: 'POST', body: JSON.stringify(body) }),
-  update: (id: string, body: { name: string; questions: McqQuestion[] }) =>
+  update: (id: string, body: { name: string; sections?: McqSection[]; questions: McqQuestion[] }) =>
     http<McqQuestionSet>(`/mcq-sets/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   duplicate: (id: string) =>
     http<McqQuestionSet>(`/mcq-sets/${id}/duplicate`, { method: 'POST' }),
@@ -197,8 +199,8 @@ export const mcqSetsApi = {
       /** The split asked for, and the one that actually arrived. Reported apart
        *  for the same reason as `dropped`: a model told "6 and 4" can return 7
        *  and 3, and that is the recruiter's business before they save. */
-      sections: Partial<Record<McqSection, number>>
-      delivered: Partial<Record<McqSection, number>>
+      sections: Record<string, number>
+      delivered: Record<string, number>
     }>('/mcq-sets/generate', { method: 'POST', body: JSON.stringify(body) }),
 }
 

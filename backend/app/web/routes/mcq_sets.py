@@ -37,7 +37,7 @@ from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 
 from app.security import AuthedUser
 from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
-from app.web.services import mcq_gen, question_gen
+from app.web.services import mcq_gen, mcq_scoring, question_gen
 from app.web.store import get_store
 
 logger = logging.getLogger("web.mcq_sets")
@@ -51,6 +51,11 @@ MAX_OPTIONS = 10
 MAX_QUESTIONS = 200
 DIFFICULTIES = ("easy", "medium", "hard")
 
+MAX_SECTIONS = 20
+MAX_PAIRS = 10
+MAX_PASSAGE = 8000
+MAX_CODE = 4000
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -60,11 +65,85 @@ def _text(value: object, limit: int) -> str:
     return str(value or "").strip()[:limit]
 
 
+def _text_keeping_newlines(value: object, limit: int) -> str:
+    """Like `_text`, but line breaks survive.
+
+    A code snippet is unreadable as one line, and `_text` is used everywhere else
+    precisely because a question's text should not carry them.
+    """
+    return str(value or "").strip()[:limit]
+
+
 def _int(value: object, fallback: int) -> int:
     """A whole number from a JSON body. `bool` is excluded deliberately: it is an
     `int` in Python, and `True` arriving as a question count would silently mean 1.
     """
     return value if isinstance(value, int) and not isinstance(value, bool) else fallback
+
+
+def _clean_section(raw: object, index: int) -> dict:
+    """One section of an assessment.
+
+    ORDER IS THE ARRAY'S ORDER. There is no `position` field, deliberately: two
+    representations of the same thing drift, and a stored index that disagrees with
+    the array is a bug with no obvious right answer. Reordering rewrites the list.
+
+    A section may be empty and unnamed while it is being built, for the same reason
+    a question may be incomplete — saving is permissive, using is strict.
+    """
+    where = f"Section {index + 1}"
+    if not isinstance(raw, dict):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{where} is not a section.")
+
+    section: dict = {
+        "id": _text(raw.get("id"), 64) or uuid.uuid4().hex,
+        "name": _text(raw.get("name"), MAX_NAME),
+    }
+    if instructions := _text(raw.get("instructions"), MAX_TEXT):
+        section["instructions"] = instructions
+    # The reading passage lives on the SECTION, not on a question. English
+    # comprehension is naturally one passage with several ordinary questions about
+    # it, so modelling it here means passage-based assessment needs no new question
+    # type at all - and nothing in the scorer has to know passages exist. A
+    # recruiter who wants two passages adds two sections.
+    if passage := _text(raw.get("passage"), MAX_PASSAGE):
+        section["passage"] = passage
+    return section
+
+
+def _clean_pairs(raw: dict, where: str) -> dict:
+    """The two columns and the pairing of a match-the-following question.
+
+    Ids are minted per SIDE and never shared between them. If a prompt and its
+    match had the same id, the pairing would be guessable from the naming alone
+    however the columns were ordered - the answer key would be in the field names.
+    """
+    prompts: list[dict] = []
+    matches: list[dict] = []
+    pairs: dict[str, str] = {}
+
+    for row in raw.get("pairs") or []:
+        if not isinstance(row, dict):
+            continue
+        left = _text(row.get("left"), MAX_OPTION_TEXT)
+        right = _text(row.get("right"), MAX_OPTION_TEXT)
+        # A blank row is one being typed into and is KEPT, exactly as a blank
+        # option row is: deleting it under the recruiter mid-edit is worse.
+        prompt_id = _text(row.get("promptId"), 64) or uuid.uuid4().hex[:8]
+        match_id = _text(row.get("matchId"), 64) or uuid.uuid4().hex[:8]
+        if prompt_id in pairs or match_id in pairs.values():
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"{where} has two rows with the same id."
+            )
+        prompts.append({"id": prompt_id, "text": left})
+        matches.append({"id": match_id, "text": right})
+        pairs[prompt_id] = match_id
+
+    if len(prompts) > MAX_PAIRS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"{where} has more than {MAX_PAIRS} pairs."
+        )
+    return {"prompts": prompts, "matches": matches, "correctPairs": pairs}
 
 
 def _clean_question(raw: object, index: int) -> dict:
@@ -94,6 +173,17 @@ def _clean_question(raw: object, index: int) -> dict:
 
     # May be empty while being written. `set_faults` reports it; save does not block.
     text = _text(raw.get("text"), MAX_TEXT)
+
+    requested_type = _text(raw.get("type"), 20).lower()
+
+    if requested_type == mcq_scoring.MATCH:
+        question = {
+            "id": _text(raw.get("id"), 64) or uuid.uuid4().hex,
+            "text": text,
+            "type": mcq_scoring.MATCH,
+            **_clean_pairs(raw, where),
+        }
+        return _with_question_extras(question, raw)
 
     options: list[dict] = []
     seen_ids: set[str] = set()
@@ -135,17 +225,34 @@ def _clean_question(raw: object, index: int) -> dict:
         "type": answer_type,
     }
 
+    return _with_question_extras(question, raw)
+
+
+def _with_question_extras(question: dict, raw: dict) -> dict:
+    """The fields every question type carries, whatever its answer looks like.
+
+    Shared by both branches of `_clean_question` on purpose. The cleaner is an
+    ALLOW-LIST, so anything not named here is dropped on save — which is the
+    property that keeps a stray client field out of the stored document, and also
+    the reason a new field has to be added here deliberately. Sections were
+    silently discarded on save until this list learned about them.
+    """
     points = raw.get("points")
     if isinstance(points, (int, float)) and not isinstance(points, bool) and points >= 0:
         question["points"] = float(points)
     if topic := _text(raw.get("topic") or raw.get("category"), 120):
         question["topic"] = topic
-    # KEPT ON SAVE, and this line is the whole reason sections work at all. The
-    # cleaner above is an allow-list, so a generated paper's section labels would
-    # be silently discarded the first time the recruiter pressed Save — the paper
-    # would look sectioned in the review step and arrive unsectioned in the set.
-    if (section := _text(raw.get("section"), 20).lower()) in mcq_gen.SECTIONS:
-        question["section"] = section
+    # Which section this question sits in. `section` is the legacy spelling, from
+    # when a section was a two-value tag rather than a first-class object; it is
+    # read as an id because "technical" and "non_technical" are ids in the prebuilt
+    # library, so no migration and no special case is needed.
+    if section_id := _text(raw.get("sectionId") or raw.get("section"), 64):
+        question["sectionId"] = section_id
+    # The snippet a code-reading question is about. This is how coding and
+    # debugging are assessed here: the candidate reads code and answers a closed
+    # question about it, so scoring stays a comparison rather than an execution.
+    if code := _text_keeping_newlines(raw.get("code"), MAX_CODE):
+        question["code"] = code
     if (difficulty := _text(raw.get("difficulty"), 12).lower()) in DIFFICULTIES:
         question["difficulty"] = difficulty
     if explanation := _text(raw.get("explanation"), MAX_TEXT):
@@ -168,6 +275,30 @@ def _clean_set(body: dict, *, recruiter_id: str, existing: dict | None = None) -
             status.HTTP_400_BAD_REQUEST, f"A set holds at most {MAX_QUESTIONS} questions."
         )
 
+    raw_sections = body.get("sections")
+    if not isinstance(raw_sections, list):
+        raw_sections = []
+    if len(raw_sections) > MAX_SECTIONS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"An assessment holds at most {MAX_SECTIONS} sections."
+        )
+    sections = [_clean_section(sec, i) for i, sec in enumerate(raw_sections)]
+    questions = [_clean_question(q, i) for i, q in enumerate(raw_questions)]
+
+    # A question may only claim a section the assessment actually has. A dangling
+    # id would make the score breakdown invent a section that is nowhere in the
+    # paper, and the recruiter would have no way to find or fix it.
+    #
+    # Enforced ONLY when there is a manifest to check against. A paper from before
+    # sections were first-class carries a bare `technical` tag and no `sections`
+    # list, and stripping that would silently downgrade an assessment that is
+    # working perfectly well.
+    if sections:
+        known = {sec["id"] for sec in sections}
+        for question in questions:
+            if question.get("sectionId") not in known:
+                question.pop("sectionId", None)
+
     return {
         "id": (existing or {}).get("id") or uuid.uuid4().hex,
         "kind": "mcq",
@@ -175,7 +306,8 @@ def _clean_set(body: dict, *, recruiter_id: str, existing: dict | None = None) -
         # Stamped from the token. Never from the body — a client that could set
         # this could write into another recruiter's sets.
         "recruiterId": recruiter_id,
-        "questions": [_clean_question(q, i) for i, q in enumerate(raw_questions)],
+        "sections": sections,
+        "questions": questions,
         "createdAt": (existing or {}).get("createdAt") or _now(),
         "updatedAt": _now(),
     }
@@ -192,6 +324,27 @@ def question_fault(question: dict, index: int) -> str | None:
     where = f"Question {index + 1}"
     if not (question.get("text") or "").strip():
         return f"{where} has no text."
+
+    if question.get("type") == mcq_scoring.MATCH:
+        prompts = [p for p in question.get("prompts") or [] if (p.get("text") or "").strip()]
+        matches = [x for x in question.get("matches") or [] if (x.get("text") or "").strip()]
+        # Two pairs is the floor, and not arbitrarily: with one pair there is
+        # nothing to choose between, and `_unaligned` cannot keep the single match
+        # out of its answering position either.
+        if len(prompts) < 2 or len(matches) < 2:
+            return f"{where} needs at least two complete pairs."
+        pairs = question.get("correctPairs") or {}
+        prompt_ids = {p["id"] for p in prompts}
+        match_ids = {x["id"] for x in matches}
+        unpaired = [p for p in prompt_ids if pairs.get(p) not in match_ids]
+        if unpaired:
+            return f"{where} has a row with nothing to match it to."
+        # Two prompts pointing at one match would make the pairing unsolvable.
+        targets = [pairs[p] for p in prompt_ids]
+        if len(set(targets)) != len(targets):
+            return f"{where} matches two rows to the same answer."
+        return None
+
     options = [o for o in question.get("options") or [] if (o.get("text") or "").strip()]
     if len(options) < 2:
         return f"{where} needs at least two options."
@@ -205,11 +358,26 @@ def question_fault(question: dict, index: int) -> str | None:
 
 
 def set_faults(doc: dict) -> list[str]:
-    """Everything between this set and being usable in an interview."""
+    """Everything between this assessment and being usable in an interview."""
     questions = doc.get("questions") or []
     if not questions:
-        return ["The set has no questions yet."]
-    return [f for f in (question_fault(q, i) for i, q in enumerate(questions)) if f]
+        return ["The assessment has no questions yet."]
+
+    faults = [f for f in (question_fault(q, i) for i, q in enumerate(questions)) if f]
+
+    # A section a candidate would be shown and then given nothing to answer. Worth
+    # refusing rather than rendering: an empty section reads as a loading failure.
+    sections = doc.get("sections") or []
+    if sections:
+        used = {mcq_scoring.section_id_of(q) for q in questions}
+        for index, section in enumerate(sections):
+            label = (section.get("name") or "").strip() or f"Section {index + 1}"
+            if not (section.get("name") or "").strip():
+                faults.append(f"Section {index + 1} has no name.")
+            if section["id"] not in used:
+                faults.append(f"“{label}” has no questions in it.")
+
+    return faults
 
 
 def with_readiness(doc: dict) -> dict:
