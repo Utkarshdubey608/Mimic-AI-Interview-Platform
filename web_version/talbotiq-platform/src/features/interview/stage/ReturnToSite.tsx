@@ -11,12 +11,21 @@ import { Button } from '@/components/ui'
  * only exit from the product is closing the tab, and there is nowhere to find
  * out what the thing that just interviewed them actually is.
  *
- * ── Why the countdown yields ─────────────────────────────────────────────
+ * ── Why the countdown yields, and when it stops yielding ─────────────────
  * The feedback form sits on this same screen. A timer that fires while someone
  * is halfway through typing a comment would destroy what they wrote and read as
- * a malfunction, so the countdown is cancelled permanently by ANY interaction
- * anywhere on the completion screen: a keystroke, a click, a focus. Someone who
- * is engaged does not get moved; someone who has finished reading does.
+ * a malfunction, so while that form is open the countdown is cancelled
+ * permanently by ANY interaction on the screen: a keystroke, a click, a focus.
+ * Someone who is engaged does not get moved; someone who has finished reading
+ * does.
+ *
+ * Once the form is answered — sent OR declined — the caller remounts this with
+ * `cancellable={false}` and a short count. Yielding past that point was the
+ * bug: the click that answered the form was itself an interaction, so it
+ * cancelled the countdown it should have started, and every candidate who
+ * engaged with feedback was left on a screen whose only exit was closing the
+ * tab. Deferring to interaction is right up to the moment there is nothing left
+ * to interrupt.
  *
  * ── Why it is visible and cancellable ────────────────────────────────────
  * An unannounced redirect after an assessment is alarming. It looks like the
@@ -27,10 +36,24 @@ import { Button } from '@/components/ui'
 export function ReturnToSite({
   seconds = 20,
   to = '/',
+  cancellable = true,
 }: {
   seconds?: number
   /** The marketing site. Same router, so this works in dev and in production. */
   to?: string
+  /**
+   * Whether interaction stops the clock.
+   *
+   * True while the feedback form above is still open — a timer that fires
+   * mid-sentence destroys what someone wrote and reads as a malfunction.
+   *
+   * False once that step has been answered, and that case is the reason this
+   * prop exists. At that point nothing is left on the page to interrupt, and the
+   * only interaction still arriving is the click that finished the step — which
+   * under the cancelling rule would instantly stop the very countdown it should
+   * have started, leaving the candidate parked on a dead-end screen.
+   */
+  cancellable?: boolean
 }) {
   const navigate = useNavigate()
   const [left, setLeft] = useState(seconds)
@@ -48,11 +71,11 @@ export function ReturnToSite({
      cancellation is permanent: a candidate who came back to read should not have
      the timer silently restart on them. */
   useEffect(() => {
-    if (cancelled) return
+    if (cancelled || !cancellable) return
     const events: (keyof DocumentEventMap)[] = ['keydown', 'pointerdown', 'focusin']
     events.forEach((e) => document.addEventListener(e, cancel, { capture: true, once: true }))
     return () => events.forEach((e) => document.removeEventListener(e, cancel, { capture: true }))
-  }, [cancel, cancelled])
+  }, [cancel, cancelled, cancellable])
 
   useEffect(() => {
     if (cancelled) return

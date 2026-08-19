@@ -95,9 +95,12 @@ export function CameraRecorder({ active, accentColor }: Props) {
 
       {!active && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3.5 bg-brand-black/70 px-6 text-center backdrop-blur-[2px]">
+          {/* Tinted from `--accent`, not from `accentColor`. This badge sits on
+              a dimmed video feed, and the recruiter's brand colour defaults to
+              ink — so its 40%-alpha border and 14%-alpha fill were black on
+              near-black, leaving the icon floating with no disc behind it. */}
           <span
-            className="flex h-12 w-12 items-center justify-center rounded-full border"
-            style={{ borderColor: `${accentColor}66`, background: `${accentColor}24`, color: '#E8E8ED' }}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_14%,transparent)] text-ink"
           >
             <Video size={20} strokeWidth={1.75} aria-hidden="true" />
           </span>
