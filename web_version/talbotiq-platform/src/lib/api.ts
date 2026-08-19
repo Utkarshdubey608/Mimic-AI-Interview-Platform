@@ -1,6 +1,8 @@
 import type {
   InterviewTemplate,
   QuestionSet,
+  McqQuestionSet,
+  McqQuestion,
   CandidateSessionState,
   CreateSessionRequest,
   SubmitAnswerRequest,
@@ -110,6 +112,28 @@ export const templatesApi = {
   update: (id: string, body: Partial<InterviewTemplate>) =>
     http<InterviewTemplate>(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id: string) => http<void>(`/templates/${id}`, { method: 'DELETE' }),
+}
+
+/* ─── MCQ sets (closed-ended papers, owner-scoped) ──────────────────────── */
+/**
+ * MCQ sets — the closed-ended papers.
+ *
+ * A separate surface from `questionSetsApi`, not a flag on it, because the two
+ * have different ownership: question sets are shared across every recruiter on
+ * the deployment, while an MCQ set holds the ANSWER KEY and is scoped to the
+ * recruiter who wrote it. Another recruiter's set answers 404 here, including on
+ * `duplicate` — which would otherwise be a way to read their key.
+ */
+export const mcqSetsApi = {
+  list: () => http<McqQuestionSet[]>('/mcq-sets'),
+  get: (id: string) => http<McqQuestionSet>(`/mcq-sets/${id}`),
+  create: (body: { name: string; questions: McqQuestion[] }) =>
+    http<McqQuestionSet>('/mcq-sets', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: { name: string; questions: McqQuestion[] }) =>
+    http<McqQuestionSet>(`/mcq-sets/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  duplicate: (id: string) =>
+    http<McqQuestionSet>(`/mcq-sets/${id}/duplicate`, { method: 'POST' }),
+  remove: (id: string) => http<void>(`/mcq-sets/${id}`, { method: 'DELETE' }),
 }
 
 /* ─── Question Sets ─────────────────────────────────────────────────────── */

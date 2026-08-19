@@ -32,6 +32,7 @@ const SettingsPage       = lazy(() => import('@/pages/SettingsPage'))
 const TemplatesPage      = lazy(() => import('@/features/recruiter/TemplatesPage'))
 const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEditorPage'))
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
+const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
 const SessionsPage       = lazy(() => import('@/features/recruiter/SessionsPage'))
 const PipelinesPage      = lazy(() => import('@/features/recruiter/PipelinesPage'))
 const PipelineBoardPage  = lazy(() => import('@/features/recruiter/PipelineBoardPage'))
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="/templates" element={<TemplatesPage />} />
                 <Route path="/templates/:id" element={<TemplateEditorPage />} />
                 <Route path="/question-sets" element={<QuestionSetsPage />} />
+                <Route path="/mcq-sets" element={<McqSetsPage />} />
                 <Route path="/sessions" element={<SessionsPage />} />
                 <Route path="/sessions/new" element={<InviteWizard />} />
                 <Route path="/sessions/:id/report" element={<ReportPage />} />

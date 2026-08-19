@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LogOut, Menu, X, Files, GitBranch, FileText, ListChecks,
+  LogOut, Menu, X, Files, GitBranch, FileText, ListChecks, ListTodo,
   BarChart3, UserSquare2, Settings as SettingsIcon, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
@@ -52,6 +52,7 @@ const GROUPS: Group[] = [
     items: [
       { to: '/templates',     label: 'Templates',     icon: FileText },
       { to: '/question-sets', label: 'Question sets', icon: ListChecks },
+      { to: '/mcq-sets', label: 'MCQ sets', icon: ListTodo },
     ],
   },
   {
