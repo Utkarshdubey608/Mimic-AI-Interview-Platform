@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { PageHeader, Card, Button, EmptyState, Skeleton, Badge, cn } from '@/components/ui'
 import { mcqSetsApi, describeFetchError } from '@/lib/api'
-import type { McqQuestionSet, McqQuestion, McqOption } from '@shared/types'
+import type { McqQuestionSet, McqQuestion, McqOption, McqSection } from '@shared/types'
 import { GenerateMcqModal } from './GenerateMcqModal'
 
 /**
@@ -243,6 +243,20 @@ function SortableMcq({
               className="input-base h-9 pl-8 text-xs"
             />
           </div>
+          {/* Editable, because a generated paper's section labels are the model's
+              guess and the recruiter is the one who has to defend the paper. "None"
+              is a real choice: a section is optional, and a paper with no labels
+              simply gets no section breakdown. */}
+          <select
+            value={q.section ?? ''}
+            onChange={(e) => onChange({ section: (e.target.value || undefined) as McqSection | undefined })}
+            aria-label={`Question ${index + 1} section`}
+            className="input-base h-9 w-36 text-xs"
+          >
+            <option value="">No section</option>
+            <option value="technical">Technical</option>
+            <option value="non_technical">Non-technical</option>
+          </select>
           <input
             type="number"
             min={0}

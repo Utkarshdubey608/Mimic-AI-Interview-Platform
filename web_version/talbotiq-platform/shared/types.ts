@@ -141,6 +141,13 @@ export interface McqOption {
 export type McqAnswerType = 'single' | 'multi'
 
 /** The AUTHORED question. Recruiter-side and server-side only. */
+/**
+ * Which part of the paper a question belongs to. The same two the invite wizard,
+ * the template editor and resume generation have always used, deliberately: a
+ * recruiter who has met "Mix, 6 and 4" once has met it everywhere.
+ */
+export type McqSection = 'technical' | 'non_technical'
+
 export interface McqQuestion {
   id: string
   text: string
@@ -151,6 +158,8 @@ export interface McqQuestion {
   /** Defaults to 1. Lets a paper be weighted; percentages are over points. */
   points?: number
   topic?: string
+  /** Absent on papers written before sections existed, and on unlabelled ones. */
+  section?: McqSection
   difficulty?: 'easy' | 'medium' | 'hard'
   /** Shown in the recruiter's report, and to the candidate only after scoring. */
   explanation?: string
@@ -213,6 +222,15 @@ export interface McqQuestionResult {
   correct: boolean
   /** A question with no key cannot be scored; it counts for neither side. */
   unscored?: boolean
+  points: number
+  pointsAvailable: number
+}
+
+/** Per-section totals in a report. Absent entirely for an unsectioned paper. */
+export interface McqSectionResult {
+  section: McqSection
+  correct: number
+  count: number
   points: number
   pointsAvailable: number
 }

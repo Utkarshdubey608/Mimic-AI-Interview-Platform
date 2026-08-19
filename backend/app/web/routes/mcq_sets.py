@@ -60,6 +60,13 @@ def _text(value: object, limit: int) -> str:
     return str(value or "").strip()[:limit]
 
 
+def _int(value: object, fallback: int) -> int:
+    """A whole number from a JSON body. `bool` is excluded deliberately: it is an
+    `int` in Python, and `True` arriving as a question count would silently mean 1.
+    """
+    return value if isinstance(value, int) and not isinstance(value, bool) else fallback
+
+
 def _clean_question(raw: object, index: int) -> dict:
     """One authored MCQ, cleaned. INCOMPLETE IS ALLOWED.
 
@@ -133,6 +140,12 @@ def _clean_question(raw: object, index: int) -> dict:
         question["points"] = float(points)
     if topic := _text(raw.get("topic") or raw.get("category"), 120):
         question["topic"] = topic
+    # KEPT ON SAVE, and this line is the whole reason sections work at all. The
+    # cleaner above is an allow-list, so a generated paper's section labels would
+    # be silently discarded the first time the recruiter pressed Save — the paper
+    # would look sectioned in the review step and arrive unsectioned in the set.
+    if (section := _text(raw.get("section"), 20).lower()) in mcq_gen.SECTIONS:
+        question["section"] = section
     if (difficulty := _text(raw.get("difficulty"), 12).lower()) in DIFFICULTIES:
         question["difficulty"] = difficulty
     if explanation := _text(raw.get("explanation"), MAX_TEXT):
@@ -353,9 +366,20 @@ async def generate(
             "Pick at least one topic — questions spread across nothing is not a paper.",
         )
 
-    raw_count = body.get("count")
-    count = raw_count if isinstance(raw_count, int) and not isinstance(raw_count, bool) else 10
-    count = max(1, min(mcq_gen.MAX_QUESTIONS, count))
+    # The SHAPE of the paper. Same vocabulary the invite wizard, the template
+    # editor and resume generation already use — `style` plus a count per section —
+    # so a recruiter who has met "Mix, 6 and 4" once has met it everywhere.
+    #
+    # `count` is still honoured as the fallback for both counts, which keeps every
+    # caller written before sections existed producing exactly the paper it always
+    # did: no style means a single technical section of `count` questions.
+    fallback = max(1, min(mcq_gen.MAX_QUESTIONS, _int(body.get("count"), 10)))
+    split = mcq_gen.normalise_split(
+        _text(body.get("style"), 20).lower() or "technical",
+        _int(body.get("technicalCount"), fallback),
+        _int(body.get("nonTechnicalCount"), fallback),
+    )
+    count = sum(split.values())
 
     difficulty = _text(body.get("difficulty"), 12).lower()
     if difficulty not in mcq_gen.DIFFICULTIES:
@@ -367,7 +391,7 @@ async def generate(
             settings,
             role=role,
             topics=topics,
-            count=count,
+            split=split,
             difficulty=difficulty,
             allow_multi=bool(body.get("allowMulti")),
         )
@@ -399,4 +423,10 @@ async def generate(
         "questions": questions,
         "requested": count,
         "dropped": max(0, count - len(questions)),
+        # The split asked for and the split that arrived, separately, for the same
+        # reason `dropped` is here: a model told "6 technical and 4 non-technical"
+        # can return 7 and 3, and the recruiter about to screen people on this
+        # paper should be told that rather than have to count the questions.
+        "sections": split,
+        "delivered": mcq_gen.section_counts(questions),
     }

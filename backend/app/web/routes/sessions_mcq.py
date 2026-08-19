@@ -228,6 +228,13 @@ async def submit(session_id: str, request: Request, body: dict = Body(default={}
     result["topics"] = mcq_scoring.topic_breakdown(
         session.get("questions") or [], result["questions"]
     )
+    # Only present for a paper that HAS sections. An unsectioned paper gets no key
+    # at all rather than an empty list, so the report can ask "was this paper
+    # divided?" and get an answer, instead of rendering an empty heading.
+    if sections := mcq_scoring.section_breakdown(
+        session.get("questions") or [], result["questions"]
+    ):
+        result["sections"] = sections
 
     now = _now()
     session["mcqAnswers"] = answers

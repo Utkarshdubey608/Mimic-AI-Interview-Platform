@@ -27,6 +27,53 @@ import type { McqQuestion } from '@shared/types'
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'mixed'] as const
 type Difficulty = (typeof DIFFICULTIES)[number]
 
+/**
+ * How the paper is divided. Same vocabulary as the invite wizard, the template
+ * editor and resume generation — a recruiter who has met "Mix, 6 and 4" once has
+ * met it everywhere, rather than learning a private dialect per screen.
+ */
+const STYLES = [
+  { value: 'technical', label: 'Technical' },
+  { value: 'non_technical', label: 'Non-technical' },
+  { value: 'mix', label: 'Mix' },
+] as const
+type Style = (typeof STYLES)[number]['value']
+
+const SECTION_LABEL: Record<string, string> = {
+  technical: 'technical',
+  non_technical: 'non-technical',
+}
+
+const summarise = (split: Partial<Record<string, number>>) =>
+  Object.entries(split)
+    .map(([section, n]) => `${n} ${SECTION_LABEL[section] ?? section}`)
+    .join(' and ')
+
+/** A labelled whole-number input. Three of these now, so it stops being repetition. */
+function NumberField({
+  id, label, value, onChange,
+}: {
+  id: string
+  label: string
+  value: number
+  onChange: (n: number) => void
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="field-label">{label}</label>
+      <input
+        id={id}
+        type="number"
+        min={0}
+        max={40}
+        value={value}
+        onChange={(e) => onChange(Math.max(0, Math.min(40, Number(e.target.value) || 0)))}
+        className="input-base h-9 text-sm tabular-nums"
+      />
+    </div>
+  )
+}
+
 export function GenerateMcqModal({
   open, onClose, onGenerated,
 }: {
@@ -38,12 +85,22 @@ export function GenerateMcqModal({
   const [role, setRole] = useState('')
   const [topics, setTopics] = useState<string[] | null>(null)
   const [newTopic, setNewTopic] = useState('')
-  const [count, setCount] = useState(10)
+  // Defaults to a single technical section, which is exactly the paper Mode A
+  // produced before sections existed. Nobody's habit changes; Mix is now offered.
+  const [style, setStyle] = useState<Style>('technical')
+  const [techCount, setTechCount] = useState(10)
+  const [nonTechCount, setNonTechCount] = useState(4)
   const [difficulty, setDifficulty] = useState<Difficulty>('mixed')
   const [allowMulti, setAllowMulti] = useState(false)
 
+  // What will actually be asked for. Mirrors the server's `normalise_split`: only
+  // `mix` spends both counts, so the button and the request cannot disagree about
+  // how many questions are coming.
+  const total = style === 'mix' ? techCount + nonTechCount : style === 'technical' ? techCount : nonTechCount
+
   const reset = () => {
-    setRole(''); setTopics(null); setNewTopic(''); setCount(10)
+    setRole(''); setTopics(null); setNewTopic('')
+    setStyle('technical'); setTechCount(10); setNonTechCount(4)
     setDifficulty('mixed'); setAllowMulti(false)
   }
   const close = () => { reset(); onClose() }
@@ -57,12 +114,27 @@ export function GenerateMcqModal({
   const generate = useMutation({
     mutationFn: () =>
       mcqSetsApi.generate({
-        role: role.trim(), topics: topics ?? [], count, difficulty, allowMulti,
+        role: role.trim(),
+        topics: topics ?? [],
+        style,
+        technicalCount: techCount,
+        nonTechnicalCount: nonTechCount,
+        difficulty,
+        allowMulti,
       }),
     onSuccess: (r) => {
       // Reported, not hidden: asking for 20 and receiving 17 deserves the reason.
       if (r.dropped > 0) {
         toast(`${r.dropped} generated question${r.dropped === 1 ? '' : 's'} were unusable and dropped.`)
+      }
+      // Same principle as `dropped`: a model told "6 technical and 4
+      // non-technical" can return 7 and 3. Told here, before the recruiter saves,
+      // rather than left for them to work out by counting the questions.
+      const asked = r.sections ?? {}
+      const arrived = r.delivered ?? {}
+      const skewed = Object.keys(asked).some((k) => (arrived as Record<string, number>)[k] !== (asked as Record<string, number>)[k])
+      if (Object.keys(asked).length > 1 && skewed) {
+        toast(`Sections came back ${summarise(arrived)} — you asked for ${summarise(asked)}.`)
       }
       onGenerated(`${r.role} — MCQ`, r.questions)
       reset()
@@ -165,36 +237,78 @@ export function GenerateMcqModal({
               </div>
             </div>
 
-            {/* ── Step 3: the shape of the paper ──────────────────────────── */}
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="gen-count" className="field-label">Number of questions</label>
-                <input
-                  id="gen-count"
-                  type="number"
-                  min={1}
-                  max={40}
-                  value={count}
-                  onChange={(e) => setCount(Math.max(1, Math.min(40, Number(e.target.value) || 1)))}
-                  className="input-base h-9 text-sm tabular-nums"
-                />
+            {/* ── Step 3: the sections, and how many questions each gets ── */}
+            <div className="mt-5">
+              <span className="field-label">Sections</span>
+              <p className="mb-2 text-xs leading-relaxed text-neutral-500">
+                How the paper is divided. Technical questions come from the topics above;
+                non-technical ones test judgement on the job — prioritising under pressure,
+                handling an ambiguous requirement, explaining a trade-off to someone without
+                the background.
+              </p>
+              <div className="inline-flex rounded-lg border border-border p-0.5">
+                {STYLES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setStyle(s.value)}
+                    aria-pressed={style === s.value}
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
+                      style === s.value ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
               </div>
-              <div>
-                <span className="field-label">Difficulty</span>
-                <div className="inline-flex rounded-lg border border-border p-0.5">
-                  {DIFFICULTIES.map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setDifficulty(d)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1 text-xs font-semibold capitalize transition-colors',
-                        difficulty === d ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
-                      )}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {style === 'mix' ? (
+                <>
+                  <NumberField id="gen-tech" label="# Technical" value={techCount} onChange={setTechCount} />
+                  <NumberField id="gen-nontech" label="# Non-technical" value={nonTechCount} onChange={setNonTechCount} />
+                </>
+              ) : (
+                <NumberField
+                  id="gen-count"
+                  label="Number of questions"
+                  value={style === 'technical' ? techCount : nonTechCount}
+                  onChange={style === 'technical' ? setTechCount : setNonTechCount}
+                />
+              )}
+            </div>
+
+            {style === 'mix' && total >= 1 && total <= 40 && (
+              <p className="mt-2 text-xs tabular-nums text-neutral-500">
+                {total} question{total === 1 ? '' : 's'} in total.
+              </p>
+            )}
+            {total < 1 && (
+              <p className="mt-2 text-xs text-warn">A paper needs at least one question.</p>
+            )}
+            {total > 40 && (
+              <p className="mt-2 text-xs text-warn">
+                40 questions is the most a paper holds — trim one of the sections.
+              </p>
+            )}
+
+            <div className="mt-4">
+              <span className="field-label">Difficulty</span>
+              <div className="inline-flex rounded-lg border border-border p-0.5">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    onClick={() => setDifficulty(d)}
+                    className={cn(
+                      'rounded-md px-2.5 py-1 text-xs font-semibold capitalize transition-colors',
+                      difficulty === d ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
+                    )}
+                  >
+                    {d}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -216,10 +330,10 @@ export function GenerateMcqModal({
                 <Button variant="ghost" onClick={close}>Cancel</Button>
                 <Button
                   icon={generate.isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-                  disabled={topics.length === 0 || busy}
+                  disabled={topics.length === 0 || total < 1 || total > 40 || busy}
                   onClick={() => generate.mutate()}
                 >
-                  {generate.isPending ? 'Writing the paper…' : `Generate ${count} questions`}
+                  {generate.isPending ? 'Writing the paper…' : `Generate ${total} question${total === 1 ? '' : 's'}`}
                 </Button>
               </div>
             </div>

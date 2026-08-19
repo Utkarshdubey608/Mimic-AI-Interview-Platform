@@ -3,6 +3,7 @@ import type {
   QuestionSet,
   McqQuestionSet,
   McqQuestion,
+  McqSection,
   McqPaperState,
   CandidateSessionState,
   CreateSessionRequest,
@@ -180,7 +181,10 @@ export const mcqSetsApi = {
   generate: (body: {
     role: string
     topics: string[]
-    count: number
+    /** How the paper is divided. `mix` is the only style that uses both counts. */
+    style: 'technical' | 'non_technical' | 'mix'
+    technicalCount: number
+    nonTechnicalCount: number
     difficulty: 'easy' | 'medium' | 'hard' | 'mixed'
     allowMulti: boolean
   }) =>
@@ -190,6 +194,11 @@ export const mcqSetsApi = {
       questions: McqQuestion[]
       requested: number
       dropped: number
+      /** The split asked for, and the one that actually arrived. Reported apart
+       *  for the same reason as `dropped`: a model told "6 and 4" can return 7
+       *  and 3, and that is the recruiter's business before they save. */
+      sections: Partial<Record<McqSection, number>>
+      delivered: Partial<Record<McqSection, number>>
     }>('/mcq-sets/generate', { method: 'POST', body: JSON.stringify(body) }),
 }
 

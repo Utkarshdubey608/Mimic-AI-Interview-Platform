@@ -131,13 +131,13 @@ class TestThePromptSaysTheThingsThatMatter:
 
     def test_it_asks_for_plausible_wrong_answers(self):
         prompt = mcq_gen.build_paper_prompt(
-            role="Backend Engineer", topics=["Caching"], count=5, difficulty="mixed", allow_multi=False
+            role="Backend Engineer", topics=["Caching"], split={"technical": 5}, difficulty="mixed", allow_multi=False
         )
         assert "partial or outdated understanding" in prompt
 
     def test_it_forbids_the_usual_giveaways(self):
         prompt = mcq_gen.build_paper_prompt(
-            role="Backend Engineer", topics=["Caching"], count=5, difficulty="mixed", allow_multi=False
+            role="Backend Engineer", topics=["Caching"], split={"technical": 5}, difficulty="mixed", allow_multi=False
         )
         assert "all of the above" in prompt.lower()
         # The length tell: a candidate who spots it passes without knowing anything.
@@ -145,13 +145,13 @@ class TestThePromptSaysTheThingsThatMatter:
 
     def test_single_answer_is_stated_when_multi_is_off(self):
         prompt = mcq_gen.build_paper_prompt(
-            role="X", topics=["Y"], count=3, difficulty="easy", allow_multi=False
+            role="X", topics=["Y"], split={"technical": 3}, difficulty="easy", allow_multi=False
         )
         assert "exactly ONE correct option" in prompt
 
     def test_the_topics_and_count_reach_the_prompt(self):
         prompt = mcq_gen.build_paper_prompt(
-            role="Data Engineer", topics=["Kafka", "Partitioning"], count=12,
+            role="Data Engineer", topics=["Kafka", "Partitioning"], split={"technical": 12},
             difficulty="hard", allow_multi=True,
         )
         assert "12 multiple-choice questions" in prompt
@@ -190,7 +190,7 @@ class TestThePromptActuallyReachesTheModel:
         from app.web.services import gemini
 
         prompt = mcq_gen.build_paper_prompt(
-            role="Backend Engineer", topics=["Caching"], count=5,
+            role="Backend Engineer", topics=["Caching"], split={"technical": 5},
             difficulty="mixed", allow_multi=False,
         )
         contents = gemini.to_contents([{"role": "user", "content": prompt}])
@@ -258,3 +258,97 @@ class TestTheMistakeHasNowhereToLive:
         source = Path("app/web/services/mcq_gen.py").read_text(encoding="utf-8")
         assert source.count("gemini.user_turn(") == 2
         assert "to_contents(" not in source
+
+
+class TestSectionsDivideThePaper:
+    """The paper is divided into named parts with their own counts.
+
+    A recruiter who splits ten questions into six technical and four
+    judgement-based did it to see those two results separately. Every step below
+    is one place that intent could quietly evaporate between the modal and the
+    report.
+    """
+
+    def test_a_mix_keeps_both_sections_and_their_counts(self):
+        assert mcq_gen.normalise_split("mix", 6, 4) == {"technical": 6, "non_technical": 4}
+
+    def test_a_single_style_ignores_the_other_count(self):
+        assert mcq_gen.normalise_split("technical", 10, 7) == {"technical": 10}
+        assert mcq_gen.normalise_split("non_technical", 10, 7) == {"non_technical": 7}
+
+    def test_a_section_asked_for_nothing_is_dropped_not_kept_empty(self):
+        """Otherwise the model is told to write a section of zero questions."""
+        assert mcq_gen.normalise_split("mix", 6, 0) == {"technical": 6}
+
+    def test_the_paper_is_bounded_as_a_whole_not_per_section(self):
+        """Two sections of the maximum is not twice the maximum."""
+        split = mcq_gen.normalise_split("mix", mcq_gen.MAX_QUESTIONS, mcq_gen.MAX_QUESTIONS)
+        assert sum(split.values()) == mcq_gen.MAX_QUESTIONS
+        assert all(n > 0 for n in split.values())
+
+    def test_an_unknown_style_does_not_produce_an_empty_paper(self):
+        assert sum(mcq_gen.normalise_split("nonsense", 0, 0).values()) >= 1
+
+    def test_the_prompt_states_the_split_and_asks_for_the_tag(self):
+        prompt = mcq_gen.build_paper_prompt(
+            role="Backend Engineer",
+            topics=["Caching"],
+            split={"technical": 6, "non_technical": 4},
+            difficulty="mixed",
+            allow_multi=False,
+        )
+        assert "Technical: 6 questions" in prompt
+        assert "Non-technical: 4 questions" in prompt
+        # Without the tag instruction nothing that comes back can be attributed to
+        # a section, and the whole division is decorative.
+        assert "non_technical" in prompt
+        assert "Write 10 multiple-choice questions" in prompt
+
+    def test_the_non_technical_brief_appears_only_when_that_section_is_asked_for(self):
+        """A model with no brief writes personality quizzes or trivia."""
+        technical_only = mcq_gen.build_paper_prompt(
+            role="X", topics=["Y"], split={"technical": 5}, difficulty="easy", allow_multi=False
+        )
+        assert "NON-TECHNICAL" not in technical_only
+
+        mixed = mcq_gen.build_paper_prompt(
+            role="X", topics=["Y"], split={"technical": 3, "non_technical": 2},
+            difficulty="easy", allow_multi=False,
+        )
+        assert "NON-TECHNICAL" in mixed
+        assert "judgement on the job" in mixed
+
+    def test_a_single_section_paper_labels_by_construction(self):
+        """The recruiter asked for a technical paper, so every question in it is
+        technical whatever the model chose to call it."""
+        payload = {"questions": [_question(section="non_technical")]}
+        questions = mcq_gen.normalise_generated(payload, sections=("technical",))
+        assert [q["section"] for q in questions] == ["technical"]
+
+    def test_a_mixed_paper_trusts_the_models_label(self):
+        payload = {"questions": [_question(section="non_technical"), _question(section="technical")]}
+        questions = mcq_gen.normalise_generated(payload, sections=("technical", "non_technical"))
+        assert [q["section"] for q in questions] == ["non_technical", "technical"]
+
+    def test_an_unrecognised_label_is_left_blank_rather_than_guessed(self):
+        """An invented section would make the delivered split report a balance the
+        model never actually struck - which is the one thing that report is for."""
+        payload = {"questions": [_question(section="vibes"), _question()]}
+        questions = mcq_gen.normalise_generated(payload, sections=("technical", "non_technical"))
+        assert all("section" not in q for q in questions)
+
+    def test_labels_survive_normalisation_in_a_tolerant_form(self):
+        """Models return "Non-Technical" and "non technical" as readily as the
+        exact string they were given."""
+        payload = {"questions": [_question(section="Non-Technical"), _question(section="non technical")]}
+        questions = mcq_gen.normalise_generated(payload, sections=("technical", "non_technical"))
+        assert [q["section"] for q in questions] == ["non_technical", "non_technical"]
+
+    def test_the_delivered_split_counts_what_actually_arrived(self):
+        questions = [{"section": "technical"}, {"section": "technical"}, {"section": "non_technical"}, {}]
+        assert mcq_gen.section_counts(questions) == {"technical": 2, "non_technical": 1}
+
+    def test_nothing_is_labelled_when_no_sections_were_requested(self):
+        """Papers generated before sections existed stay exactly as they were."""
+        questions = mcq_gen.normalise_generated({"questions": [_question()]}, sections=())
+        assert "section" not in questions[0]
