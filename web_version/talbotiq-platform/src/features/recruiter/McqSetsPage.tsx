@@ -9,12 +9,13 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle,
+  Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle, Sparkles,
   RefreshCw, Tag, Check, CircleDot, Lock,
 } from 'lucide-react'
 import { PageHeader, Card, Button, EmptyState, Skeleton, Badge, cn } from '@/components/ui'
 import { mcqSetsApi, describeFetchError } from '@/lib/api'
 import type { McqQuestionSet, McqQuestion, McqOption } from '@shared/types'
+import { GenerateMcqModal } from './GenerateMcqModal'
 
 /**
  * MCQ authoring — the manual path.
@@ -288,6 +289,7 @@ export default function McqSetsPage() {
   const sets = useQuery({ queryKey: ['mcq-sets'], queryFn: mcqSetsApi.list })
   const [activeId, setActiveId] = useState<string | null>(null)
   const [draft, setDraft] = useState<McqQuestionSet | null>(null)
+  const [genOpen, setGenOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -307,6 +309,15 @@ export default function McqSetsPage() {
   /* A new set starts with one blank question rather than none: the server
      refuses an empty set, so an empty new set would be unsaveable the moment it
      appeared. */
+  const createGenerated = useMutation({
+    mutationFn: (paper: { name: string; questions: McqQuestion[] }) => mcqSetsApi.create(paper),
+    onSuccess: (s) => {
+      invalidate(); setActiveId(s.id); setGenOpen(false)
+      toast.success('Paper generated — review every answer before sending it')
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   const create = useMutation({
     mutationFn: () => mcqSetsApi.create({ name: 'New MCQ set', questions: [blankQuestion()] }),
     onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Set created') },
@@ -340,6 +351,12 @@ export default function McqSetsPage() {
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 py-8">
+      <GenerateMcqModal
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        onGenerated={(name, questions) => createGenerated.mutate({ name, questions })}
+      />
+
       <PageHeader
         kicker="AI Interview"
         title="MCQ Sets"
@@ -374,9 +391,23 @@ export default function McqSetsPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)]">
           <aside className="lg:sticky lg:top-[88px] lg:self-start">
-            <Button className="w-full" icon={<Plus size={15} />} loading={create.isPending} onClick={() => create.mutate()}>
-              New MCQ set
-            </Button>
+            <div className="space-y-2">
+              <Button className="w-full" icon={<Plus size={15} />} loading={create.isPending} onClick={() => create.mutate()}>
+                New MCQ set
+              </Button>
+              {/* Mode A. Generation writes a DRAFT and opens it here: the answer
+                  key it produced is exactly the thing that must be read by a
+                  person before anyone is scored against it. */}
+              <Button
+                className="w-full"
+                variant="outline"
+                icon={<Sparkles size={15} />}
+                loading={createGenerated.isPending}
+                onClick={() => setGenOpen(true)}
+              >
+                Generate with AI
+              </Button>
+            </div>
 
             <div className="mt-7 flex items-baseline justify-between px-1">
               <span className="section-label">Your sets</span>

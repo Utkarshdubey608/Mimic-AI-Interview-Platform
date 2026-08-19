@@ -159,6 +159,38 @@ export const mcqSetsApi = {
   duplicate: (id: string) =>
     http<McqQuestionSet>(`/mcq-sets/${id}/duplicate`, { method: 'POST' }),
   remove: (id: string) => http<void>(`/mcq-sets/${id}`, { method: 'DELETE' }),
+
+  /* ── Mode A: role → topics → generated paper ──────────────────────────────
+     Both are one-time, at authoring. Neither runs per candidate, which is why
+     MCQ costs almost nothing to operate next to the open-ended modes. */
+
+  /** Skill areas worth testing for a role, as add/removable suggestions. */
+  suggestTopics: (role: string) =>
+    http<{ role: string; topics: string[] }>('/mcq-sets/suggest-topics', {
+      method: 'POST',
+      body: JSON.stringify({ role }),
+    }),
+
+  /**
+   * Questions for REVIEW — deliberately not saved. A model call costs something,
+   * and a recruiter who dislikes the result should not have to delete a set they
+   * never wanted. `dropped` reports how many came back unusable and were binned,
+   * because asking for 20 and getting 17 deserves an explanation.
+   */
+  generate: (body: {
+    role: string
+    topics: string[]
+    count: number
+    difficulty: 'easy' | 'medium' | 'hard' | 'mixed'
+    allowMulti: boolean
+  }) =>
+    http<{
+      role: string
+      topics: string[]
+      questions: McqQuestion[]
+      requested: number
+      dropped: number
+    }>('/mcq-sets/generate', { method: 'POST', body: JSON.stringify(body) }),
 }
 
 /* ─── Question Sets ─────────────────────────────────────────────────────── */
