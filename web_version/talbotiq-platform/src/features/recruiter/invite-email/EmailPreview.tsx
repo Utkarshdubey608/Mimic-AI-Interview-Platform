@@ -50,7 +50,7 @@ export function EmailPreview({
   const [full, setFull] = useState(false)
 
   const sampleLink = `${origin || 'https://app.talbotiq.com'}/take/sample-link-${'x'.repeat(10)}`
-  let html = '<p style="padding:16px;color:#dc2626">Preview unavailable</p>'
+  let html = '<p style="padding:16px;color:#B3261E">Preview unavailable</p>'
   try {
     html = renderInviteEmail(draft, vars, { interviewLink: sampleLink, candidateEmail }).html
   } catch { /* keep fallback */ }

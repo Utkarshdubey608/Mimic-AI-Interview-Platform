@@ -213,7 +213,14 @@ export const sessionsApi = {
    * candidate's assessment of the process, it reaches no scoring path, and the server
    * ignores an empty submission rather than storing a hollow record.
    */
-  candidateFeedback: (id: string, body: { rating?: number; comment?: string }) =>
+  candidateFeedback: (
+    id: string,
+    // `hadTechnicalIssues` rides along because the recruiter's listing counts it
+    // separately from the rating: "the interview was fine but the camera kept
+    // dropping" is a different problem from "the interview was poor", and
+    // collapsing the two loses the one that is actually fixable.
+    body: { rating?: number; comment?: string; hadTechnicalIssues?: boolean },
+  ) =>
     http<{ ok: boolean; ignored?: boolean }>(`/sessions/${id}/feedback`, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -419,4 +426,32 @@ export function downloadCsv(filename: string, header: string[], rows: (string | 
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Feedback across this recruiter's interviews. Tenant-scoped server-side.
+ *
+ * `rating` is optional because the candidate feedback step accepts a comment
+ * without a star rating — a candidate who writes a sentence about what went
+ * wrong is the most useful feedback there is, and requiring a number would have
+ * thrown it away. The recruiter's average simply skips the rows without one.
+ */
+export interface FeedbackItem {
+  sessionId: string
+  track?: string
+  role?: string
+  candidateName?: string
+  rating?: number | null
+  comment?: string
+  hadTechnicalIssues?: boolean
+  createdAt: string
+}
+export interface FeedbackSummary {
+  items: FeedbackItem[]
+  count: number
+  averageRating: number | null
+  technicalIssueCount: number
+}
+export const feedbackApi = {
+  list: () => http<FeedbackSummary>('/feedback'),
 }

@@ -154,7 +154,7 @@ def humanize_punctuation(text: str) -> str:
     questions are read aloud. Ordinary hyphens inside words (follow-up, real-time) are
     left alone.
     """
-    value = re.sub(r"\s*[—–]\s*", ", ", text or "")
+    value = re.sub(r"\s*[—–]\s*|\s+-\s+", ", ", text or "")
     value = re.sub(r",\s*,", ",", value)
     value = re.sub(r",\s*([.!?])", r"\1", value)
     return re.sub(r"\s{2,}", " ", value).strip()

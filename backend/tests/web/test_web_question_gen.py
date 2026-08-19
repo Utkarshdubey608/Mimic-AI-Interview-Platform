@@ -196,3 +196,44 @@ def test_anything_else_is_generic_and_never_leaks_the_raw_error() -> None:
 
 def test_the_question_cap_is_sane() -> None:
     assert MAX_QUESTIONS == 25
+
+
+# ── latency on the candidate's path ───────────────────────────────────────────
+
+
+async def _fixed_model(_settings) -> str:
+    return "gemini-2.5-flash"
+
+
+@pytest.mark.asyncio
+async def test_resume_questions_are_generated_without_thinking(monkeypatch) -> None:
+    """A candidate is waiting on this call, so it must not pay for reasoning tokens.
+
+    Measured over five runs of this exact prompt: default (dynamic) thinking
+    averaged 11.1s, `thinkingBudget: 0` averaged 3.6s, for output of the same
+    length. The assertion is on the request body because that is the contract with
+    the API — anything softer would pass while the flag silently regressed.
+    """
+    import json as _json
+
+    from app.web.services import question_gen
+
+    sent: dict = {}
+
+    async def _capture(settings, *, model: str, request_body: dict):
+        sent.update(request_body)
+        questions = _json.dumps(
+            {"questions": [{"text": "Tell me about Kafka.", "category": "Experience", "idealAnswerNotes": "n"}]}
+        )
+        payload = {"candidates": [{"content": {"parts": [{"text": questions}]}}]}
+        return 200, _json.dumps(payload).encode(), "application/json"
+
+    monkeypatch.setattr(gemini, "generate_content_raw", _capture)
+    monkeypatch.setattr(gemini, "resolve_model", _fixed_model)
+
+    questions = await question_gen.generate_from_resume_text(
+        None, resume_text="Ada Lovelace. Kafka, Python.", role="Backend", count=1
+    )
+
+    assert questions, "the stubbed reply should still parse into questions"
+    assert sent["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}

@@ -31,6 +31,7 @@ import './mimicSite.css'
 import { MarketingLayout } from './MarketingLayout'
 import { Magnetic, Parallax, Reveal, useInView } from './motion'
 import { PinnedStage, SplitText } from './scroll'
+import { Field } from './Field'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
 import { Ico } from './icons'
@@ -336,7 +337,7 @@ export default function MimicSite() {
       <main id="top">
 
         {/* ── HERO ── */}
-        <section className="hero" aria-labelledby="hero-h1">
+        <section className="hero centered" aria-labelledby="hero-h1">
           {/* A WebGL card field was built for this hero and never mounted. It was
               removed rather than left shelved: the composition had no negative
               space for it, and three passes at art direction could not fix what
@@ -388,7 +389,13 @@ export default function MimicSite() {
                 widest measure here rather than being sized to the paragraph
                 above it. Same primitive the sections below use, so the frame,
                 caption measure and controls behave identically throughout. */}
+            {/* Reveal inside Parallax, not instead of it. Parallax owns the
+                transform on its own element; Reveal owns the entrance on a
+                nested one, and the desk under the frame settles from .988 via
+                `.reveal .shots` — so the hero's evidence is SET DOWN rather than
+                simply appearing. Two elements, two transforms, no conflict. */}
             <Parallax strength={22}>
+              <Reveal>
               <div className="shots">
                 <DemoVideo
                   priority
@@ -401,6 +408,7 @@ export default function MimicSite() {
                   contentAspect={DEMO_COPY.video_avatar.contentAspect}
                 />
               </div>
+              </Reveal>
             </Parallax>
           </div>
         </section>
@@ -597,7 +605,32 @@ export default function MimicSite() {
 
             Under reduced motion and below 1081px nothing pins and the buttons
             behave exactly as they did before. */}
-        <PinnedStage steps={STEPS.length} onStep={setStep} id="process" className="process" labelledBy="pr-h">
+        {/* `on-dark` turns this into a full-bleed ink field, and it is the page's
+            structural turn: paper → ink → paper → ink, an act structure rather
+            than a stack of bands. Every child colour rule the modifier needs
+            already existed in mimicSite.css, and this section's own label was
+            already written `eyebrow on-dark` — it was built for this and never
+            switched on.
+
+            It earns the ink rather than borrowing it: this is the audit trail,
+            and the audit trail is the cover of the bundle, not a page inside it.
+
+            Deliberately NOT also `section`. That class carries vertical padding,
+            and padding inside a pinned host shortens the distance the sticky box
+            actually travels without shortening the travel PinnedStage computes
+            from the host's own height — so the fifth step would be "reached"
+            after the stage had already scrolled away. The ink ground and the
+            unpinned section rhythm are supplied directly instead; see the
+            `.process.on-dark` block in mimicSite.css.
+
+            The ambient field goes through `backdrop`, not `children` — the note
+            on that prop explains why the difference decides whether this section
+            can pin at all. */}
+        <PinnedStage
+          steps={STEPS.length} onStep={setStep} id="process"
+          className="process on-dark" labelledBy="pr-h"
+          backdrop={<Field seed={0} />}
+        >
           {({ goToStep }) => (
           <div className="wrap">
             <div className="sec-head">
@@ -669,6 +702,7 @@ export default function MimicSite() {
             </ul>
             <a className="btn btn-primary" href="#demo" style={{ marginTop: 30 }}>See the workspace in a demo</a>
 
+            <Reveal>
             <div className="shots">
               <DemoVideo
                 src="/mimic-shots/demo.webm"
@@ -679,6 +713,7 @@ export default function MimicSite() {
                 alt="A recording of Mimic in use: the Sessions list showing eight candidates across every interview format, then a candidate report scoring 92 with a Strong Yes recommendation and a score for each criterion, then the pipeline across several rounds."
               />
             </div>
+            </Reveal>
           </div>
         </section>
 
@@ -732,7 +767,7 @@ export default function MimicSite() {
                 <h2>Understand the scoring</h2>
                 <ul>
                   <li><Link to="/trust/how-mimic-scores">How Mimic scores<Ico n="arrow" /></Link></li>
-                  <li><Link to="/trust/human in the loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
+                  <li><Link to="/trust/human-in-the-loop">Human-in-the-loop review<Ico n="arrow" /></Link></li>
                   <li><Link to="/platform/rubrics-scoring">Rubrics &amp; scoring<Ico n="arrow" /></Link></li>
                 </ul>
               </div>
@@ -771,6 +806,10 @@ export default function MimicSite() {
 
         {/* ── CTA ── */}
         <section className="cta" id="demo" aria-labelledby="cta-h">
+          {/* A different seed from the process stage, so the two ink fields are
+              two surfaces catching the same light rather than one mechanism
+              driving both in lockstep. */}
+          <Field seed={11} />
           <div className="wrap cta-in">
             <div>
               <h2 id="cta-h">Give the first round back to your recruiters.</h2>

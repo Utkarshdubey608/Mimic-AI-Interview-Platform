@@ -48,7 +48,7 @@ export function stripForSpeech(text: string): string {
       // leftover markdown noise
       .replace(/[*_#`~|]/g, ' ')
       // em/en dashes read poorly on some engines — a comma phrases naturally
-      .replace(/\s*[—–]\s*/g, ', ')
+      .replace(/\s*[—–]\s*|\s+-\s+/g, ', ')
       .replace(/\s+/g, ' ')
       .trim()
   )

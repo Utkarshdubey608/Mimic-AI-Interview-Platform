@@ -7,6 +7,7 @@ import {
 } from 'recharts'
 import { AlertTriangle, BarChart3, Inbox, Info, LineChart as LineChartIcon, RotateCcw } from 'lucide-react'
 import { Button, Card, PageHeader, Select, Skeleton, EmptyState, SectionTitle, cn } from '@/components/ui'
+import { FeedbackPanel } from '@/features/recruiter/FeedbackPanel'
 import { analyticsApi, templatesApi } from '@/lib/api'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { matchOption, normalizeTrack } from '@/features/guide/autopilot/filterMatch'
@@ -16,7 +17,7 @@ import type { AnalyticsFilters, AnalyticsSummary, InterviewTemplate, TrackType }
 const TOOLTIP = { background: '#fff', border: '1px solid #E3E6ED', borderRadius: 10, color: '#0E1420', fontSize: 12, padding: '8px 10px', boxShadow: '0 4px 12px -2px rgba(27,11,59,0.10)' }
 const TOOLTIP_LABEL = { color: '#0E1420', fontWeight: 600, marginBottom: 2 }
 const TOOLTIP_ITEM = { color: '#3A4454' }
-const ACCENT = '#1D3FA0'
+const ACCENT = '#0E1420'
 const GRID = '#E3E6ED'
 const AXIS_TICK = { fill: '#5C6879', fontSize: 11 }
 
@@ -27,19 +28,19 @@ const REC_LABEL: Record<string, string> = {
   strong_yes: 'Strong Yes', yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unscored',
 }
 const REC_COLOR: Record<string, string> = {
-  strong_yes: '#1D3FA0', yes: '#15803D', maybe: '#B45309', no: '#dc2626', unknown: '#626B79',
+  strong_yes: '#0E1420', yes: '#15803D', maybe: '#B45309', no: '#B3261E', unknown: '#626B79',
 }
 
 /* ── Score bands — the single colour language for every score on the page,
       aligned to the five distribution buckets the API returns. ───────────── */
-const bucketColor = (b: string) => (b === '81-100' ? '#1D3FA0' : b === '61-80' ? '#15803D' : b === '41-60' ? '#B45309' : '#dc2626')
-const scoreColor = (n: number) => (n >= 81 ? '#1D3FA0' : n >= 61 ? '#15803D' : n >= 41 ? '#B45309' : '#dc2626')
+const bucketColor = (b: string) => (b === '81-100' ? '#0E1420' : b === '61-80' ? '#15803D' : b === '41-60' ? '#B45309' : '#B3261E')
+const scoreColor = (n: number) => (n >= 81 ? '#0E1420' : n >= 61 ? '#15803D' : n >= 41 ? '#B45309' : '#B3261E')
 const scoreInk = (n: number) => (n >= 81 ? 'text-primary-700' : n >= 61 ? 'text-success' : n >= 41 ? 'text-warning' : 'text-danger')
 const BAND_LEGEND = [
-  { label: '0–40', hex: '#dc2626' },
+  { label: '0–40', hex: '#B3261E' },
   { label: '41–60', hex: '#B45309' },
   { label: '61–80', hex: '#15803D' },
-  { label: '81–100', hex: '#1D3FA0' },
+  { label: '81–100', hex: '#0E1420' },
 ]
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -612,6 +613,11 @@ export default function AnalyticsPage() {
             )}
           </Card>
           )}
+
+          {/* Candidates' view of the experience. Sits below the scored analytics
+              because it answers a different question: those charts measure the
+              candidates, this measures us. */}
+          <FeedbackPanel />
 
           <p className="text-center text-[11px] text-neutral-400">Aggregated {new Date(a.generatedAt).toLocaleString()} · scored interviews only</p>
         </div>

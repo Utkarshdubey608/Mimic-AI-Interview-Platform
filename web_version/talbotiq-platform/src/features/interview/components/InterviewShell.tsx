@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import type { BrandingConfig } from '@shared/types'
+import { MimicMark } from '@/components/MimicMark'
+import { brandInitial, brandName, isProductBranding } from '../branding'
 
 interface Props {
   branding: BrandingConfig
@@ -16,7 +18,7 @@ export function InterviewShell({ branding, progress, live, children }: Props) {
     : null
 
   return (
-    <div className="min-h-screen bg-background font-sans flex flex-col">
+    <div data-surface="candidate" className="min-h-screen bg-background font-sans flex flex-col">
       <header className="sticky top-0 z-10 border-b border-border bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-4 px-5">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -27,11 +29,11 @@ export function InterviewShell({ branding, progress, live, children }: Props) {
                 className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-extrabold uppercase text-white shadow-xs"
                 style={{ background: branding.accentColor }}
               >
-                {branding.companyName.charAt(0)}
+                {isProductBranding(branding) ? <MimicMark className="h-4.5 w-4.5" /> : brandInitial(branding)}
               </span>
             )}
             <span className="truncate font-display text-sm font-bold tracking-[-0.01em] text-neutral-800">
-              {branding.companyName}
+              {brandName(branding)}
             </span>
           </div>
           <div className="flex flex-shrink-0 items-center gap-2.5">

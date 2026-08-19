@@ -136,6 +136,7 @@ class FakeStore:
         self.reports = FakeCollection(f"{prefix}reports", key_field="sessionId")
         self.pipelines = FakeCollection(f"{prefix}pipelines")
         self.pipeline_candidates = FakeCollection(f"{prefix}pipeline_candidates")
+        self.feedback = FakeCollection(f"{prefix}feedback", key_field="sessionId")
         self.leads = FakeCollection(f"{prefix}leads")
         self.voice_jobs = FakeCollection(f"{prefix}voice_jobs")
         self.settings = FakeSingleton(f"{prefix}settings")

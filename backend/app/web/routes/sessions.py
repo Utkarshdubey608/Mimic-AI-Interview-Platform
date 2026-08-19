@@ -485,6 +485,28 @@ async def upload_resume(
     if fullName.strip():
         session.setdefault("candidate", {})["name"] = fullName.strip()[:120]
 
+    # Generate the question plan HERE, not at /begin.
+    #
+    # This is the only moment before the interview where the candidate already
+    # expects to wait — they have just handed over a file and the screen says so.
+    # Generating at /begin instead put a multi-second model call behind a button
+    # press that looks instantaneous: one production session sat on a dead "Begin"
+    # button for 26.5s on a warm instance.
+    #
+    # Done inside the request rather than as a background task on purpose. A
+    # fire-and-forget task belongs to one replica's event loop, so it is lost when
+    # that instance is recycled and invisible to the instance that serves the next
+    # request. Everything here is persisted before the response, which is what lets
+    # any replica serve /begin — the property that matters under autoscaling.
+    #
+    # Never fatal: _generate_adaptive_questions falls back to a generic set rather
+    # than raising, and /begin still generates if this somehow left none. A résumé
+    # that uploaded fine must not fail because a model call did.
+    if template.get("questionSource") == "adaptive" and not (session.get("questions") or []):
+        session["questions"] = await _generate_adaptive_questions(
+            settings, session, template
+        )
+
     await session_store.save(settings, session)
     return _state(session, template)
 
@@ -508,6 +530,10 @@ async def begin(session_id: str, request: Request, user: AuthedUser = WebUser) -
     if session.get("status") in ("completed", "expired"):
         raise HTTPException(status.HTTP_409_CONFLICT, "Interview already finished")
 
+    # Fallback only. The question plan is normally built when the résumé is uploaded
+    # (see upload_resume) precisely so this path does not make the candidate wait on
+    # a model call after pressing Begin. This still covers a session whose résumé
+    # predates that change, or whose generation was interrupted.
     if not (session.get("questions") or []) and template.get("questionSource") == "adaptive":
         if not session.get("resumeText"):
             raise HTTPException(
@@ -708,20 +734,31 @@ async def complete(session_id: str, request: Request, user: AuthedUser = WebUser
         return conversation.compute_chatbot_state(session, template)
 
     await session_store.settle(settings, session, template)
-
-    if session.get("status") == "in_progress":
-        question = _current_question(session)
-        if question is not None and not question.get("submittedAt"):
-            if question.get("answerText") is None:
-                question["answerText"] = question.get("draft") or ""
-            question["submittedAt"] = _now()
-            question["autoSubmitted"] = True
-        session["status"] = "completed"
-        session["completedAt"] = _now()
-        await session_store.save(settings, session)
-
-    await session_store.maybe_score(settings, session, template)
+    await _force_complete(settings, session, template)
     return _state(session, template)
+
+
+async def _force_complete(settings, session: dict, template: dict) -> None:
+    """End a running interview, keeping whatever the candidate had written.
+
+    Shared by /complete and the tab-switch limit. A candidate cut off mid-answer
+    has still answered, and the two paths discarding drafts differently would be
+    a bug nobody notices until someone's work disappears.
+    """
+    if session.get("status") != "in_progress":
+        return
+
+    question = _current_question(session)
+    if question is not None and not question.get("submittedAt"):
+        if question.get("answerText") is None:
+            question["answerText"] = question.get("draft") or ""
+        question["submittedAt"] = _now()
+        question["autoSubmitted"] = True
+
+    session["status"] = "completed"
+    session["completedAt"] = _now()
+    await session_store.save(settings, session)
+    await session_store.maybe_score(settings, session, template)
 
 
 def _finish_conversation(session: dict) -> None:
@@ -749,55 +786,6 @@ def _finish_conversation(session: dict) -> None:
     session["completedAt"] = now
 
 
-# ── candidate feedback ────────────────────────────────────────────────────────
-
-
-@router.post("/{session_id}/feedback", summary="Candidate feedback on the interview experience")
-async def candidate_feedback(
-    session_id: str, request: Request, body: dict = Body(...), user: AuthedUser = WebUser
-) -> dict:
-    """The CANDIDATE's view of the interview, captured after they finish.
-
-    Deliberately distinct from every other "feedback" in this codebase, all of which is
-    the recruiter-facing per-answer scoring feedback. This is the opposite direction:
-    the person who was assessed telling us how the assessment went.
-
-    It is stored on the session rather than in a separate collection because it is only
-    ever meaningful next to the interview it describes, and because a candidate must be
-    able to leave it exactly once, from a session they own. `session_store.load` already
-    enforces that ownership, so a candidate cannot rate somebody else's interview.
-
-    Nothing here reaches scoring. A candidate who says the interview was poor must not
-    be able to change their own result by saying so, and one who flatters it must not
-    gain either, so this is written to a key the scorer never reads.
-    """
-    settings = settings_of(request)
-    session, _template = await session_store.load(settings, session_id, user)
-
-    rating = body.get("rating")
-    try:
-        rating_int = int(rating) if rating is not None else None
-    except (TypeError, ValueError):
-        rating_int = None
-    if rating_int is not None and not 1 <= rating_int <= 5:
-        rating_int = None
-
-    comment = str(body.get("comment") or "")[:2000].strip()
-
-    # Ignore an empty submission rather than storing a hollow record: a row that says
-    # nothing is worse than no row, because it looks like the candidate answered.
-    if rating_int is None and not comment:
-        return {"ok": True, "ignored": True}
-
-    session["candidateFeedback"] = {
-        "rating": rating_int,
-        "comment": comment,
-        "at": _now(),
-    }
-    await session_store.save(settings, session)
-    return {"ok": True}
-
-
 # ── integrity and facial analysis ─────────────────────────────────────────────
 
 
@@ -823,10 +811,47 @@ async def integrity_event(
         session["tabSwitchCount"] = (session.get("tabSwitchCount") or 0) + 1
 
     await session_store.save(settings, session)
+
+    count = session.get("tabSwitchCount") or 0
+    maximum = integrity.get("maxTabSwitchWarnings")
+    terminated = False
+
+    # Enforce the recruiter's limit. This used to only count: a candidate could
+    # sit on "Recorded 4 of 3 allowed" and keep going, which made the limit a
+    # decoration. It is enforced HERE rather than in the browser because a check
+    # the client owns is bypassable by exactly the candidate it exists to stop.
+    #
+    # Two guard rails, both deliberate:
+    #   * an unset or zero maximum means "count, do not enforce" — the previous
+    #     behaviour, and the safe reading of a mis-saved template. Treating 0 as
+    #     "terminate immediately" would end every interview on the first blur.
+    #   * only tab-switch events count toward it. A blocked paste is logged, not
+    #     punished under a limit that is not about pasting.
+    if (
+        isinstance(maximum, int)
+        and maximum > 0
+        and event_type in ("tab_switch", "window_blur")
+        and count > maximum
+        and session.get("status") == "in_progress"
+    ):
+        if session.get("track") in ("chatbot", "video_avatar"):
+            _finish_conversation(session)
+            await session_store.save(settings, session)
+            await session_store.maybe_score(settings, session, template)
+        else:
+            await _force_complete(settings, session, template)
+        terminated = True
+        logger.warning(
+            "session %s ended: %s tab switches against a limit of %s", session_id, count, maximum
+        )
+
     return {
         "ok": True,
-        "tabSwitchWarnings": session.get("tabSwitchCount") or 0,
-        "maxTabSwitchWarnings": integrity.get("maxTabSwitchWarnings"),
+        "tabSwitchWarnings": count,
+        "maxTabSwitchWarnings": maximum,
+        # The client needs to know so it can say the interview has ended rather
+        # than inviting the candidate back into one that is over.
+        "terminated": terminated,
     }
 
 

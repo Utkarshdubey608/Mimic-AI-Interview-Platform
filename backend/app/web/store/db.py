@@ -67,6 +67,11 @@ class WebStore:
         self.pipelines = Collection(client, f"{PREFIX}pipelines")
         self.pipeline_candidates = Collection(client, f"{PREFIX}pipeline_candidates")
 
+        # ── candidate feedback on the interview experience ───────────────────
+        # Keyed by sessionId like reports: one interview, one verdict, and a
+        # resubmission replaces rather than duplicates.
+        self.feedback = Collection(client, f"{PREFIX}feedback", key_field="sessionId")
+
         # ── public marketing lead capture (append-only, no lookups) ──────────
         self.leads = Collection(client, f"{PREFIX}leads")
 

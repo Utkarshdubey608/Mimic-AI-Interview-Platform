@@ -1,3 +1,4 @@
+import { recorderOptions } from '@/lib/recorderCodec'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DailyIframe from '@daily-co/daily-js'
 import type { DailyCall, DailyParticipant } from '@daily-co/daily-js'
@@ -317,7 +318,7 @@ export function useDailyCall() {
     try {
       const stream = new MediaStream(tracks)
       recordedChunksRef.current = []
-      const rec = new MediaRecorder(stream, { mimeType: 'video/webm' })
+      const rec = new MediaRecorder(stream, recorderOptions('video'))
       rec.ondataavailable = (e) => { if (e.data.size) recordedChunksRef.current.push(e.data) }
       rec.start()
       recorderRef.current = rec

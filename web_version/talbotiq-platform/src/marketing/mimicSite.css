@@ -23,25 +23,39 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 .mimic-site{
-  /* ── Ink and paper ─────────────────────────────────────────────────── */
+  /* ── Ink and paper ───────────────────────────────────────────────────
+     The neutrals are NEUTRAL now — the blue cast left with the registrar
+     system. Near-black ink on white, one warm-gray band, and a single green
+     accent used sparingly: color is spent only where it means something. */
   --mm-ink:#0E1420;          /* headings, body ink, the cover ground */
-  --mm-ink-2:#3A4454;        /* body */
-  --mm-muted:#5C6879;        /* labels, meta — 5.66:1 on white */
-  --mm-faint:#626B79;        /* the quietest text that is still text — 5.39:1 */
+  --mm-ink-2:#3B4046;        /* body */
+  --mm-muted:#5B6067;        /* labels, meta — ≥5.6:1 on white */
+  --mm-faint:#63686F;        /* the quietest text that is still text */
   --mm-bg:#FFFFFF;           /* the record page */
-  --mm-bg-alt:#F4F6F9;       /* alternating band — cool, never lavender */
-  --mm-desk:#EEF0F4;         /* the desk the record sits on */
-  --mm-line:#E3E6ED;         /* hairline rule */
-  --mm-line-2:#CBD1DC;       /* stronger rule, input stroke on tint */
-  --mm-stroke:#848FA1;       /* field stroke — 3.27:1, a real boundary */
+  --mm-bg-alt:#F5F5F7;       /* alternating band — the quiet gray */
+  --mm-desk:#F0F0F2;         /* the desk the record sits on */
+  --mm-line:#E7E7EA;         /* hairline rule */
+  --mm-line-2:#D6D6DB;       /* stronger rule, input stroke on tint */
+  --mm-stroke:#8A8F98;       /* field stroke — a real boundary */
 
-  /* ── Registrar ink: authority, links, the primary action ──────────── */
-  --mm-reg:#1D3FA0;
-  --mm-reg-h:#152E76;
-  --mm-reg-d:#0F2154;
-  --mm-reg-tint:#E2E8F6;
-  --mm-reg-wash:#F1F4FB;
-  --mm-reg-line:#C6D2ED;
+  /* ── The accent: brand green, demoted to STATE ───────────────────────
+     Links, focus, progress, evidence — the jobs color does better than
+     weight. Never a large surface fill; the primary action stays ink,
+     because on a page this restrained ink already wins.
+     Every legacy `--mm-reg-*` reference resolves here by alias, so the
+     whole stylesheet changed accent in one place. */
+  --mm-acc:#0B7A45;          /* 4.9:1 on white — link-safe */
+  --mm-acc-h:#085F36;
+  --mm-acc-d:#064428;
+  --mm-acc-tint:#E1F3E9;
+  --mm-acc-wash:#F2FAF5;
+  --mm-acc-line:#C2E5D1;
+  --mm-reg:var(--mm-acc);
+  --mm-reg-h:var(--mm-acc-h);
+  --mm-reg-d:var(--mm-acc-d);
+  --mm-reg-tint:var(--mm-acc-tint);
+  --mm-reg-wash:var(--mm-acc-wash);
+  --mm-reg-line:var(--mm-acc-line);
 
   /* ── The seal: a terminal mark. Never a surface fill. ──────────────── */
   --mm-seal:#B3261E;
@@ -57,19 +71,29 @@
   --mm-ex-video:#15803D;
   --mm-ex-twoway:#0369A1;
 
-  /* On the ink field */
-  --mm-on-ink:#D7E0F5;
-  --mm-on-ink-2:#93A0B4;     /* 6.96:1 on #0E1420 */
-  --mm-on-ink-line:#2A3446;
-  --mm-on-ink-card:#1A2231;
-  --mm-on-ink-accent:#8AA6F0; /* 7.72:1 — the accent that works on dark */
+  /* On the ink field — neutral grays, not blue-tinted ones */
+  --mm-on-ink:#E8E8ED;
+  --mm-on-ink-2:#9BA0A6;     /* ≥6.9:1 on #0E1420 */
+  --mm-on-ink-line:#2C3036;
+  --mm-on-ink-card:#1A1E24;
+  --mm-on-ink-accent:#7FDCA8; /* the accent that works on dark */
+  /* The field's LIGHT — deliberately NOT the accent above.
+     The accent marks single elements: a link, a tick, a focus ring. The ambient
+     field lights a whole surface, and spending the green there tinted every ink
+     band green — it read as a change of palette rather than as light falling on
+     one. This is the blue the field was designed and tuned against, kept at the
+     accent's own saturation and lightness so the two carry equal weight. */
+  --mm-field-light:#8AA6F0;
 
-  --mm-r-ctl:4px;            /* squared. The pill grammar left with the violet. */
-  --mm-r-card:8px;
-  --mm-r-lg:10px;
-  --mm-shadow:0 1px 1px 0 rgb(14 20 32 / .04);
-  --mm-shadow-md:0 4px 10px -2px rgb(14 20 32 / .09), 0 2px 4px -2px rgb(14 20 32 / .05);
-  --mm-shadow-lg:0 20px 44px -12px rgb(14 20 32 / .18), 0 8px 16px -8px rgb(14 20 32 / .08);
+  /* Soft geometry. Controls are gently rounded; buttons are true pills
+     (set on .btn — a pill radius on inputs and menu rows reads as costume). */
+  --mm-r-ctl:10px;
+  --mm-r-card:16px;
+  --mm-r-lg:22px;
+  /* Shadows are LOWER and SOFTER: elevation you sense, not read. */
+  --mm-shadow:0 1px 2px 0 rgb(14 20 32 / .05);
+  --mm-shadow-md:0 8px 24px -8px rgb(14 20 32 / .10), 0 2px 6px -2px rgb(14 20 32 / .05);
+  --mm-shadow-lg:0 32px 64px -16px rgb(14 20 32 / .15), 0 12px 24px -12px rgb(14 20 32 / .07);
 
   /* ── Space — one rhythm, in rem ───────────────────────────────────────
      Every gap on this surface comes from this scale, and it is rem rather
@@ -87,8 +111,8 @@
   --mm-s-5:2rem;
   --mm-s-6:3rem;
   --mm-s-7:4.5rem;
-  --mm-s-8:6.5rem;
-  --mm-sec-y:clamp(4.5rem,8.5vw,8.5rem);   /* vertical air per section */
+  --mm-s-8:7rem;
+  --mm-sec-y:clamp(5rem,9.5vw,9.75rem);    /* vertical air per section */
   --mm-gutter:clamp(1.25rem,4vw,2.5rem);   /* page gutter, mobile-first */
   --mm-measure:66ch;                        /* the reading measure, everywhere */
 
@@ -229,16 +253,20 @@
 .mimic-site .detail,.mimic-site .l,.mimic-site .t{min-width:0}
 
 /* ── Controls ─────────────────────────────────────────────────────────
-   Squared, ink-first. The primary action is near-black rather than registrar
-   blue: on a page this restrained, ink is already the strongest thing on the
-   sheet, so the button needs no colour to win. Registrar blue is demoted to
+   Pills, ink-first. The primary action is near-black rather than the accent:
+   on a page this restrained, ink is already the strongest thing on the
+   sheet, so the button needs no colour to win. The green is demoted to
    STATE — links, focus, status, progress — which is the one job colour does
-   better than weight. Two roles, never mixed. */
+   better than weight. Two roles, never mixed.
+
+   The secondary is a QUIET FILL, not an outline: a hairline ring reads as a
+   form control, a soft gray pill reads as an action that simply is not the
+   main one. */
 .mimic-site .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
-  min-height:2.75rem;padding:0 1.15rem;border:1px solid transparent;
+  min-height:2.8rem;padding:0 1.3rem;border:1px solid transparent;
   border-radius:var(--mm-r-ctl);
-  font-family:inherit;font-size:.9rem;font-weight:650;letter-spacing:-.004em;
+  font-family:inherit;font-size:.9rem;font-weight:600;letter-spacing:-.004em;
   cursor:pointer;text-decoration:none;white-space:nowrap;
   /* transform is in the list so the press below composites rather than
      relayouts. Colour and shadow settle on the same curve as everything else. */
@@ -248,15 +276,19 @@
              box-shadow var(--mm-dur-1) var(--mm-ease),
              transform var(--mm-dur-1) var(--mm-ease);
 }
-.mimic-site .btn-lg{min-height:3.25rem;padding:0 1.6rem;font-size:1rem}
+.mimic-site .btn-lg{min-height:3.3rem;padding:0 1.85rem;font-size:1rem}
 /* Feedback belongs on the press, not the release. Waiting for click to
    acknowledge a tap is the single latency a reader feels most, and it is what
    separates a control that responds from one that merely works. */
-.mimic-site .btn:active{transform:scale(.976);transition-duration:.08s}
-.mimic-site .btn-primary{background:var(--mm-ink);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .16)}
-.mimic-site .btn-primary:hover{background:#1B2436;box-shadow:0 6px 16px -6px rgb(14 20 32 / .34)}
-.mimic-site .btn-ghost{background:var(--mm-bg);color:var(--mm-ink);border-color:var(--mm-line-2)}
-.mimic-site .btn-ghost:hover{border-color:var(--mm-stroke);background:var(--mm-bg-alt)}
+.mimic-site .btn:active{transform:scale(.97);transition-duration:.08s}
+.mimic-site .btn-primary{background:var(--mm-ink);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .14)}
+.mimic-site .btn-primary:hover{
+  background:#23272E;transform:translateY(-1px);
+  box-shadow:0 10px 24px -8px rgb(14 20 32 / .32)
+}
+.mimic-site .btn-primary:active{transform:scale(.97)}
+.mimic-site .btn-ghost{background:var(--mm-bg-alt);color:var(--mm-ink)}
+.mimic-site .btn-ghost:hover{background:#ECECEF}
 .mimic-site .btn-light{background:#fff;color:var(--mm-ink)}
 .mimic-site .btn-light:hover{background:var(--mm-bg-alt)}
 .mimic-site .btn .chev,.mimic-site .btn .caret{transition:transform .16s var(--mm-ease)}
@@ -270,12 +302,14 @@
 }
 
 /* ── Announcement band + nav ──────────────────────────────────────────── */
+/* A quiet note above the chrome, not a black slab that opens every page by
+   shouting. It scrolls away; the nav is what stays. */
 .mimic-site .banner{
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-bg-alt);color:var(--mm-ink-2);
   font-size:13px;text-align:center;padding:9px 20px;
-  border-bottom:1px solid var(--mm-on-ink-line)
+  border-bottom:1px solid var(--mm-line)
 }
-.mimic-site .banner a{color:#fff;text-decoration:underline;text-decoration-color:rgb(255 255 255 / .45)}
+.mimic-site .banner a{color:var(--mm-ink);text-decoration:underline;text-decoration-color:var(--mm-line-2)}
 /* The nav is a floating MATERIAL, not an opaque strip that owns 62px of the
    page. Content passes underneath and stays faintly readable through it, which
    is what tells you the page continues rather than ends at the chrome.
@@ -306,8 +340,8 @@
 }
 .mimic-site .navlinks{display:flex;align-items:center;gap:4px;margin-left:8px}
 .mimic-site .navlinks>*{
-  display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:var(--mm-r-ctl);
-  font-size:14.5px;font-weight:600;color:var(--mm-ink-2);text-decoration:none;background:none;
+  display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:980px;
+  font-size:14.5px;font-weight:500;color:var(--mm-ink-2);text-decoration:none;background:none;
   border:0;cursor:pointer;font-family:inherit;
   transition:background-color .15s var(--mm-ease),color .15s var(--mm-ease)
 }
@@ -316,8 +350,8 @@
 .mimic-site .signin{font-size:14.5px;font-weight:600;color:var(--mm-ink-2);text-decoration:none}
 .mimic-site .signin:hover{color:var(--mm-ink)}
 .mimic-site .navtoggle{
-  display:none;width:42px;height:42px;border:1px solid var(--mm-line-2);
-  border-radius:var(--mm-r-ctl);background:#fff;cursor:pointer;color:var(--mm-ink)
+  display:none;width:42px;height:42px;border:0;
+  border-radius:var(--mm-r-ctl);background:var(--mm-bg-alt);cursor:pointer;color:var(--mm-ink)
 }
 .mimic-site .caret,.mimic-site .chev{flex-shrink:0}
 
@@ -375,12 +409,21 @@
    refuses to shrink below its longest link and pushes the grid past the
    viewport. Every multi-column grid on this page uses the explicit zero floor
    for that reason. */
-.mimic-site .hub-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}
-.mimic-site .hub-col h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--mm-muted);margin-bottom:12px}
-.mimic-site .hub-col a{display:block;padding:6px 0;font-size:14.5px;color:var(--mm-ink-2);
-  text-decoration:none;font-weight:550}
-.mimic-site .hub-col a:hover{color:var(--mm-reg)}
+.mimic-site .hub-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px;margin-top:var(--mm-s-6)}
+/* The markup renders <h2> (right for the outline); the STYLE is a quiet label.
+   Three display-scale headings under a display hero is three headlines
+   shouting at once — the links are the content here, the heading only names
+   the pile. This rule out-specifies the global display h2 on purpose. */
+.mimic-site .hub-col h2,.mimic-site .hub-col h4{
+  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-stretch:100%;line-height:1.4;
+  color:var(--mm-muted);margin:0 0 14px}
+.mimic-site .hub-col ul{list-style:none;margin:0;padding:0}
+.mimic-site .hub-col a{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:15.5px;color:var(--mm-ink);
+  text-decoration:none;font-weight:550;letter-spacing:-.01em}
+.mimic-site .hub-col a svg{color:var(--mm-muted);transition:transform var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .hub-col a:hover{color:var(--mm-acc)}
+.mimic-site .hub-col a:hover svg{transform:translateX(3px);color:var(--mm-acc)}
 .mimic-site .mmenu{border-top:1px solid var(--mm-line);background:#fff;padding:14px 0 22px}
 .mimic-site .mmenu a,.mimic-site .mmenu button{
   display:block;width:100%;text-align:left;padding:12px 0;font-size:16px;font-weight:600;
@@ -473,7 +516,23 @@
 /* The frame below is parallaxed upward, and with only 16px of clearance it rode
    over this line. The clearance now exceeds the parallax travel (22px). */
 .mimic-site .hero-note{margin-top:var(--mm-s-4);margin-bottom:var(--mm-s-6);display:flex;align-items:flex-start;gap:.45rem}
-.mimic-site .hero-note svg{margin-top:.28em;color:var(--mm-ex-video)}
+
+/* The home hero is CENTERED: one statement, straight at the reader, with the
+   product frame beneath it. Sub-pages keep the left-aligned reading register —
+   they are documents; the cover is a poster. */
+.mimic-site .hero.centered .hero-in{display:flex;flex-direction:column;align-items:center;text-align:center}
+.mimic-site .hero.centered h1{max-width:19ch}
+/* BOTH copy classes, and margin-inline auto is load-bearing: the copy sits in a
+   content-width wrapper stretched by the h1, and a max-width paragraph without
+   auto margins hugs that wrapper's left edge — centered text in a left-anchored
+   box, which reads as misalignment against the centered CTAs below it. */
+.mimic-site .hero.centered .lede,.mimic-site .hero.centered .sub{margin-left:auto;margin-right:auto}
+.mimic-site .hero.centered .hero-cta{justify-content:center}
+.mimic-site .hero.centered .hero-note{justify-content:center;text-align:left}
+
+/* The global ::selection is registrar blue; on this surface selection is green. */
+.mimic-site ::selection{background:var(--mm-acc-tint)}
+.mimic-site .hero-note svg{margin-top:.28em;color:var(--mm-acc)}
 
 /* ── Product frame — the real screenshot, seated like a filed page ───── */
 /* `.app-mock` and its `.am-*` parts are gone with the hand-built workspace
@@ -533,7 +592,7 @@
 .mimic-site .mech-points li{list-style:none;padding-left:0}
 .mimic-site .rec{
   display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:2px;
-  border:1.5px solid var(--mm-ex-video);color:var(--mm-ex-video);
+  border:1.5px solid var(--mm-acc);color:var(--mm-acc);
   font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase
 }
 
@@ -547,11 +606,19 @@
 .mimic-site .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch}
 .mimic-site .track{
   display:flex;flex-direction:column;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);
-  background:#fff;padding:22px;position:relative;
+  background:#fff;padding:26px;position:relative;
   box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted));
-  transition:box-shadow .18s var(--mm-ease),border-color .18s var(--mm-ease)
+  transition:box-shadow .22s var(--mm-ease),border-color .22s var(--mm-ease),
+             transform .22s var(--mm-ease)
 }
-.mimic-site .track:hover{border-color:var(--mm-line-2);box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted)),var(--mm-shadow-md)}
+/* The lift is FELT, not watched: 2px and a softer, deeper shadow. */
+.mimic-site .track:hover{
+  border-color:var(--mm-line-2);transform:translateY(-2px);
+  box-shadow:inset 0 -3px 0 0 var(--track-seat,var(--mm-muted)),var(--mm-shadow-md)
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .track:hover{transform:none}
+}
 /* Closes the second row when the format count leaves a remainder of two.
    MimicSite applies it to the last card; the class is inert until it does. */
 .mimic-site .track.wide{grid-column:span 2}
@@ -967,8 +1034,8 @@
 .mimic-site .cta .lede,.mimic-site .on-dark .lede,.mimic-site .on-dark p{color:var(--mm-on-ink)}
 .mimic-site .cta .meta,.mimic-site .on-dark .meta,.mimic-site .on-dark .kn{color:var(--mm-on-ink-2)}
 .mimic-site .on-dark a{color:var(--mm-on-ink-accent)}
-.mimic-site .on-dark .btn-ghost{background:transparent;color:#fff;border-color:rgb(255 255 255 / .34)}
-.mimic-site .on-dark .btn-ghost:hover{background:rgb(255 255 255 / .08);border-color:rgb(255 255 255 / .6)}
+.mimic-site .on-dark .btn-ghost{background:rgb(255 255 255 / .12);color:#fff;border-color:transparent}
+.mimic-site .on-dark .btn-ghost:hover{background:rgb(255 255 255 / .2);border-color:transparent}
 
 /* ── Form: the demo request ───────────────────────────────────────────── */
 .mimic-site .demo,.mimic-site .roi{
@@ -989,6 +1056,26 @@
   border-color:var(--mm-reg);box-shadow:0 0 0 3px rgb(29 63 160 / .13)
 }
 .mimic-site .submit{width:100%;margin-top:6px}
+/* The demo form's submit is a bare <button> in the markup, so it must be fully
+   dressed here: inside the dark CTA band it inherited white text over a
+   transparent fill and disappeared into the white card. It is the primary
+   action of the page's final ask — the one control that must never be subtle. */
+.mimic-site .submit>button{
+  display:inline-flex;align-items:center;justify-content:center;width:100%;
+  min-height:3.1rem;padding:0 1.6rem;border:1px solid transparent;border-radius:var(--mm-r-ctl);
+  background:var(--mm-ink);color:#fff;font-family:inherit;font-size:.95rem;
+  font-weight:600;letter-spacing:-.004em;cursor:pointer;
+  box-shadow:0 1px 2px 0 rgb(14 20 32 / .14);
+  transition:background-color var(--mm-dur-1) var(--mm-ease),
+             box-shadow var(--mm-dur-1) var(--mm-ease),
+             transform var(--mm-dur-1) var(--mm-ease)
+}
+.mimic-site .submit>button:hover{background:#23272E;transform:translateY(-1px);box-shadow:0 10px 24px -8px rgb(14 20 32 / .32)}
+.mimic-site .submit>button:active{transform:scale(.97);transition-duration:.08s}
+.mimic-site .submit>button:disabled{opacity:.55;cursor:default;transform:none}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .submit>button:hover,.mimic-site .submit>button:active{transform:none}
+}
 .mimic-site .err{
   display:flex;align-items:flex-start;gap:6px;font-size:12.5px;color:var(--mm-seal);margin-top:2px
 }
@@ -1010,8 +1097,54 @@
   border-color:var(--mm-seal);box-shadow:0 0 0 3px rgb(179 38 30 / .14)
 }
 .mimic-site .thanks{
-  border:1px solid #C9E5D2;background:#EFF7F1;border-radius:var(--mm-r-card);padding:22px;
+  border:1px solid var(--mm-acc-line);background:var(--mm-acc-wash);border-radius:var(--mm-r-card);padding:22px;
   color:var(--mm-ink)
+}
+
+/* ── ROI calculator ───────────────────────────────────────────────────────
+   The results are the argument, so they read like one: big tabular numbers
+   with quiet labels, not a bare list. The sliders get this surface's skin —
+   without these rules they inherit the APP's global input[type=range] rule
+   from index.css, which is registrar blue and square-thumbed: the one place
+   the workspace's palette was leaking into the marketing world. */
+.mimic-site .roi{display:grid;grid-template-columns:1.1fr .9fr;gap:var(--mm-s-6);align-items:start}
+.mimic-site .roi .controls{display:block}
+.mimic-site .roi .ctl{
+  height:auto;padding:0;border:0;box-shadow:none;background:none;
+  display:grid;gap:.5rem;margin-bottom:var(--mm-s-4)
+}
+.mimic-site .roi .ctl label{font-size:.9rem;font-weight:550;color:var(--mm-ink-2)}
+.mimic-site .roi .ctl label b{color:var(--mm-ink);font-weight:700;font-variant-numeric:tabular-nums}
+.mimic-site .roi input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:20px;
+  background:none;margin:0;cursor:pointer
+}
+.mimic-site .roi input[type=range]::-webkit-slider-runnable-track{
+  height:4px;border-radius:999px;background:var(--mm-line)
+}
+.mimic-site .roi input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;
+  background:#fff;border:1px solid var(--mm-line-2);box-shadow:var(--mm-shadow-md);
+  margin-top:-9px
+}
+.mimic-site .roi input[type=range]::-moz-range-track{height:4px;border-radius:999px;background:var(--mm-line)}
+.mimic-site .roi input[type=range]::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;background:#fff;
+  border:1px solid var(--mm-line-2);box-shadow:var(--mm-shadow-md)
+}
+.mimic-site .results{display:grid;gap:var(--mm-s-4);align-content:start}
+.mimic-site .res{
+  padding:var(--mm-s-4) var(--mm-s-5);border-radius:var(--mm-r-card);
+  background:var(--mm-bg-alt)
+}
+.mimic-site .res .n{
+  font-family:'Chivo Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  font-size:clamp(1.75rem,2.6vw,2.375rem);font-weight:600;color:var(--mm-ink);
+  letter-spacing:-.02em;line-height:1.1
+}
+.mimic-site .res .l{margin-top:.35rem;font-size:.875rem;color:var(--mm-muted)}
+@media (max-width:1040px){
+  .mimic-site .roi{grid-template-columns:minmax(0,1fr)}
 }
 
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
@@ -1043,10 +1176,23 @@
   content:"";position:absolute;left:2px;top:.62em;
   width:6px;height:6px;border-radius:1px;background:var(--mm-reg)
 }
-.mimic-site .tick{color:var(--mm-ex-video);margin-top:3px}
+.mimic-site .tick{color:var(--mm-acc);margin-top:3px}
 
-/* ── Footer ───────────────────────────────────────────────────────────── */
-.mimic-site .foot{background:var(--mm-ink);color:var(--mm-on-ink);padding:64px 0 30px}
+/* ── Footer ───────────────────────────────────────────────────────────────
+   An INK surface, because it hosts an ink field.
+
+   This was briefly a light colophon (`--mm-bg-alt` behind `--mm-ink-2` text).
+   That is a perfectly good footer, but it is not one an ambient field can sit
+   in: the field's canvas is created with `alpha:false`, so once it lights it
+   paints the ink ground over the whole element and the dark text on top of it
+   goes to roughly 1.3:1. There is no halfway position available — the surface
+   is either light with no field, or ink with on-ink text. Every colour below is
+   the on-ink set, so the words stay white whether the canvas lights or the CSS
+   fallback is all the visitor gets. */
+.mimic-site .foot{
+  background:var(--mm-ink);color:var(--mm-on-ink);
+  border-top:1px solid var(--mm-on-ink-line);padding:64px 0 30px
+}
 .mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px}
 .mimic-site .foot-brand .kn{color:var(--mm-on-ink-2);max-width:38ch;margin-top:12px}
 .mimic-site .foot h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
@@ -1059,19 +1205,20 @@
   font-size:12.5px;color:var(--mm-on-ink-2)
 }
 .mimic-site .foot .brand{color:#fff}
-.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{background:var(--mm-on-ink-card);border:1px solid var(--mm-on-ink-line)}
+.mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{
+  background:var(--mm-on-ink-card);border:1px solid var(--mm-on-ink-line)
+}
 
 /* ── Sub-pages (mk-*) — the reading register ──────────────────────────── */
 .mimic-site .mkpage{padding-bottom:0}
 /* These few rules render all 72 inner pages, so the rhythm here IS the site's
-   rhythm. The hairline between sections stays — ruled separation is this
-   surface's identity — but it now sits in far more space, so it reads as a
-   considered break rather than a ledger line. Rules divide; space is what
-   makes the division feel deliberate. */
-.mimic-site .mk-hero{padding:var(--mm-s-7) 0 var(--mm-s-5);border-bottom:1px solid var(--mm-line)}
-.mimic-site .mk-hero h1{font-size:clamp(2.25rem,4.6vw,3.75rem);line-height:1.04;letter-spacing:-.04em}
-.mimic-site .mk-sec{padding:var(--mm-s-7) 0;border-bottom:1px solid var(--mm-line)}
-.mimic-site .mk-sec:last-child{border-bottom:0}
+   rhythm. The ledger hairlines are gone: space alone carries the breaks now,
+   and it is generous enough to do it. A rule between sections tells the reader
+   where a section ends; enough air lets them feel it instead. */
+.mimic-site .mk-hero{padding:var(--mm-s-8) 0 var(--mm-s-6)}
+.mimic-site .mk-hero h1{font-size:clamp(2.375rem,4.8vw,4rem);line-height:1.04;letter-spacing:-.04em}
+.mimic-site .mk-sec{padding:var(--mm-s-7) 0}
+.mimic-site .mk-sec:last-child{padding-bottom:var(--mm-s-8)}
 /* 66ch, not 74. Past roughly 75 characters the eye loses the line return, and
    this site's pages are read top to bottom rather than skimmed. */
 .mimic-site .mk-body,.mimic-site .mk{max-width:var(--mm-measure)}
@@ -1143,11 +1290,17 @@
 .mimic-site .mk-spec td{padding:11px 12px;border-bottom:1px solid var(--mm-line);color:var(--mm-ink-2)}
 .mimic-site .mk-related{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
 .mimic-site .mk-related a{
-  display:block;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);padding:18px;
+  display:block;border:1px solid var(--mm-line);border-radius:var(--mm-r-card);padding:22px;
   text-decoration:none;color:var(--mm-ink);background:#fff;
-  transition:border-color .18s var(--mm-ease),box-shadow .18s var(--mm-ease)
+  transition:border-color .22s var(--mm-ease),box-shadow .22s var(--mm-ease),
+             transform .22s var(--mm-ease)
 }
-.mimic-site .mk-related a:hover{border-color:var(--mm-line-2);box-shadow:var(--mm-shadow-md)}
+.mimic-site .mk-related a:hover{
+  border-color:var(--mm-line-2);transform:translateY(-2px);box-shadow:var(--mm-shadow-md)
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .mk-related a:hover{transform:none}
+}
 .mimic-site .results,.mimic-site .res{display:grid;gap:14px}
 .mimic-site .macc{border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;overflow:hidden}
 .mimic-site .macc>button{
@@ -1251,4 +1404,517 @@
   .mimic-site *,.mimic-site *::before,.mimic-site *::after{
     animation-duration:.01ms!important;transition-duration:.01ms!important
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE RAKING LIGHT — the art-direction layer.
+
+   One motif, and everything below is a consequence of it: a low, slow light
+   passing across a dark filed page. The lamp on the desk of someone reading the
+   record at night.
+
+   WHERE it is visible is the whole design decision. On PAPER the light is only a
+   calibrated ground wash and a margin rule — the texture of a filed sheet. On
+   the INK fields it becomes the subject, because those are the only regions on
+   this site with the negative space to hold a scene. That is not a preference: a
+   WebGL field was built for the hero once and deleted, and the note left behind
+   in MimicSite.tsx recorded the reason — decide WHERE a scene goes before
+   deciding what it looks like. The hero has no empty region. The ink fields are
+   nothing but empty region.
+
+   INVENTS NO COLOUR. Every value below is an existing --mm-* token, or a
+   color-mix() of one with transparent. The palette is unchanged deliberately:
+   the only honest evidence this site has is real product footage, and a new hue
+   around a screenshot makes the screenshot look pasted on.
+
+   Motion obeys the two curves and three durations declared at the top of this
+   file. Nothing here animates a property that costs a layout pass.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.mimic-site{
+  /* The lamp, at three strengths. Named once so the ambient field, the seams and
+     the ink-field edges cannot drift apart. */
+  --mm-lamp:color-mix(in srgb, var(--mm-field-light) 15%, transparent);
+  --mm-lamp-soft:color-mix(in srgb, var(--mm-field-light) 8%, transparent);
+  --mm-lamp-edge:color-mix(in srgb, var(--mm-field-light) 32%, transparent);
+  /* The shadow one sheet casts on the sheet beneath it. */
+  --mm-seam:color-mix(in srgb, var(--mm-ink) 5%, transparent);
+}
+
+/* ── 1. The ambient field ───────────────────────────────────────────────────
+   THE CSS HERE IS THE FINISHED DESIGN, not a placeholder. Two lamps and a
+   falloff, mixed from the ink tokens. The WebGL canvas that Field.tsx may fade
+   in on top renders the same image in motion — so a visitor on a software
+   renderer, a low-core machine, a failed chunk, or reduced motion is not looking
+   at a blank rectangle. They are looking at the still frame of it.
+
+   z-index 0, with the section's own content lifted to 1: the field is lighting,
+   and lighting goes behind everything. */
+.mimic-site .mm-field{
+  position:absolute;inset:0;z-index:0;
+  pointer-events:none;overflow:hidden;
+  background:
+    radial-gradient(115% 85% at 26% 106%, var(--mm-lamp), transparent 64%),
+    radial-gradient(75% 65% at 86% -14%, var(--mm-lamp-soft), transparent 58%);
+}
+/* Opaque — the context is created with alpha:false — so once lit it owns the
+   field entirely and the gradients above are only what came before it. The fade
+   is long on purpose: a light coming up, not a layer switching on. */
+.mimic-site .mm-field-gl{
+  position:absolute;inset:0;display:block;width:100%;height:100%;
+  opacity:0;transition:opacity .9s var(--mm-ease)
+}
+.mimic-site .mm-field-gl.is-lit{opacity:1}
+
+/* Every ink field hosts one. isolation keeps the field's stacking contained, so
+   it can never interleave with the sticky nav (z-index 100) or the reading rail
+   (110). */
+.mimic-site .cta,
+.mimic-site .foot,
+.mimic-site .section.on-dark{
+  position:relative;isolation:isolate;overflow:hidden
+}
+/* Descendant, not child: the pinned process stage wraps its content in the
+   sticky box, so the wrap is a grandchild there and a child everywhere else. */
+.mimic-site .cta .wrap,
+.mimic-site .cta-in,
+.mimic-site .foot .wrap,
+.mimic-site .section.on-dark .wrap{position:relative;z-index:1}
+
+/* ── 2. Paper: the calibrated ground ───────────────────────────────────────
+   A single directional wash, top-left, falling to the page white. No grain, no
+   pattern, no repeating gradient: at this contrast a texture is either invisible
+   or it is moire, and the ink fields already carry the grain (the shader dithers
+   its own gradient). What paper gets is LIGHT, and that is all. */
+.mimic-site .hero::before,
+.mimic-site .mk-hero::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(80% 55% at 8% -12%, color-mix(in srgb, var(--mm-reg) 7%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--mm-bg-alt), var(--mm-bg) 62%)
+}
+.mimic-site .mk-hero{position:relative;isolation:isolate}
+.mimic-site .mk-hero > *{position:relative;z-index:1}
+
+/* The hero's supporting line is `.sub`, but the rule that gives it air names
+   `.lede` — so on the one screen where it matters most it had none, and the
+   sentence sat hard against a 5rem headline. The stylesheet's own comment beside
+   that rule states the reason it should not: "Display type needs air beneath it
+   or the sub-line reads as a fourth line of the headline rather than an answer
+   to it." Same value, applied to the element that is actually rendered. */
+.mimic-site .hero .sub{margin-top:var(--mm-s-4)}
+
+/* The margin rule: the ledger line a filed page is written against, drawn once
+   down the left edge of the content column. The audit trail as a mark on the
+   page — the quietest possible statement of this site's own subject.
+
+   Desktop only. Below 1081px the gutter is too narrow for a rule to read as a
+   margin rather than as an accident. */
+@media (min-width:1081px){
+  .mimic-site .hero::after{
+    content:"";position:absolute;top:0;bottom:0;
+    left:calc(50% - 38rem + var(--mm-gutter) - 1.25rem);
+    width:1px;z-index:0;pointer-events:none;
+    background:linear-gradient(180deg, transparent, var(--mm-line) 18%, var(--mm-line) 72%, transparent);
+  }
+}
+
+/* ── 3. Seams: the page turn ───────────────────────────────────────────────
+   A band change is a new sheet laid over the last one, not a colour switch. The
+   mechanism is the one already proven on the nav's trailing gradient: a hairline
+   plus a short gradient falling away from it. Applied by SELECTOR rather than by
+   a class in the markup, so every existing and future band gets it with no
+   call-site work.
+
+   The alternating band gets it; the showcase panel does not — a seam inside a
+   frame reads as a crack in it. */
+.mimic-site .section.tinted::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1.5rem;
+  z-index:0;pointer-events:none;
+  border-top:1px solid var(--mm-line);
+  background:linear-gradient(to bottom, var(--mm-seam), transparent)
+}
+.mimic-site .section.tinted > .wrap{position:relative;z-index:1}
+
+/* The ink fields get the opposite treatment: not a shadow falling onto them but
+   a bright edge — light catching the leading edge of a darker material as it
+   comes forward. Same reasoning as the nav's inset highlight. Above the field
+   (z-index 2) because it is the field's own edge. */
+.mimic-site .cta::before,
+.mimic-site .foot::before,
+.mimic-site .section.on-dark::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;z-index:2;
+  pointer-events:none;
+  background:linear-gradient(90deg, transparent, var(--mm-lamp-edge) 28%, var(--mm-lamp) 72%, transparent)
+}
+
+/* Section heads arrive as a ruled line drawn left to right, then the type. The
+   line is a pseudo-element scaled on X — no layout, no measurement. Driven by a
+   class on the SECTION, so one observer entry lights every head inside it. */
+.mimic-site .sec-head{position:relative;padding-top:var(--mm-s-3)}
+.mimic-site .sec-head::before{
+  content:"";position:absolute;top:0;left:0;width:100%;height:1px;
+  background:var(--mm-line-2);
+  transform-origin:0 50%;
+  transition:transform .9s var(--mm-ease-out)
+}
+.mimic-site .on-dark .sec-head::before{background:var(--mm-on-ink-line)}
+/* The rule is DRAWN by default, and only collapses once JS has taken charge of
+   it — `mm-cued` is added to the site root by useSectionCues on mount. So if the
+   observer never runs (no JS, an old engine, a thrown chunk) the line is simply
+   there, rather than permanently invisible. Same promise the reveal block above
+   makes: the page is complete without the motion layer. */
+.mimic-site.mm-cued .sec-head::before{transform:scaleX(0)}
+.mimic-site.mm-cued .is-near .sec-head::before{transform:scaleX(1)}
+
+/* ── 4. The process stage as an ink field ──────────────────────────────────
+   The page now reads paper -> ink -> paper -> ink: an act structure rather than a
+   stack of bands. This section earns the ink because its subject IS the bundle
+   cover — the audit trail the product keeps.
+
+   The on-dark modifier and its colour rules already existed (see the full-bleed
+   ink field block above) and the markup already carried an on-dark label; the
+   section was built for this and never switched on. What follows is only the
+   parts that hard-coded white and therefore could not inherit. */
+.mimic-site .on-dark .step:hover{background:color-mix(in srgb, var(--mm-on-ink-card) 72%, transparent)}
+.mimic-site .on-dark .step.on{
+  background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);box-shadow:none
+}
+/* The step's own paragraph rule is (0,2,1) and beats a bare on-dark p, so the
+   on-dark body colour has to be stated at equal weight or the step copy stays
+   mid-grey on ink at roughly 2:1. */
+.mimic-site .on-dark .step h3,
+.mimic-site .on-dark .step h4{color:#fff}
+.mimic-site .on-dark .step p{color:var(--mm-on-ink-2)}
+.mimic-site .on-dark .step .num,
+.mimic-site .on-dark .step .n{
+  background:transparent;border-color:var(--mm-on-ink-line);color:var(--mm-on-ink-2)
+}
+/* The selected step's number inverts to the accent rather than to white: white
+   on the near-white card would lose the badge shape, and the accent is the one
+   token documented as legible on this ground (7.72:1). */
+.mimic-site .on-dark .step.on .num,
+.mimic-site .on-dark .step.on .n{
+  background:var(--mm-on-ink-accent);border-color:var(--mm-on-ink-accent);color:var(--mm-ink)
+}
+.mimic-site .on-dark .proc-panel{
+  background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);box-shadow:none
+}
+.mimic-site .on-dark .where{color:var(--mm-on-ink-2)}
+.mimic-site .on-dark .detail svg{color:var(--mm-on-ink-accent)}
+.mimic-site .on-dark .detail > div{color:var(--mm-on-ink)}
+/* Registrar blue is a ~1.9:1 outline on the ink ground — invisible exactly when
+   it matters most. Focus on dark uses the accent, which is what it is for. */
+.mimic-site .on-dark a:focus-visible,
+.mimic-site .on-dark button:focus-visible,
+.mimic-site .on-dark input:focus-visible,
+.mimic-site .on-dark .btn:focus-visible{outline-color:var(--mm-on-ink-accent)}
+
+/* The process stage is an ink field but is deliberately NOT a `.section` — see
+   the note at its call site in MimicSite.tsx. It cannot take that class, because
+   `.section` adds vertical padding and padding inside a pinned host shortens the
+   distance the sticky box travels without shortening the travel PinnedStage
+   computes from the host's height; the last step would then be reached after the
+   stage had scrolled away. So it takes the ink ground directly here, and the
+   section rhythm only in the states where it is NOT pinned (mobile, short
+   viewports, reduced motion) — where it previously had no vertical padding at
+   all and butted against its neighbours. */
+/* NO `overflow:hidden` here, and it must never come back. An ancestor with a
+   clipped overflow becomes a scroll container, and `position:sticky` sticks to
+   its nearest scrolling ancestor — so clipping this section silently stops the
+   stage pinning at all: the sticky box scrolls away with the page and the reader
+   gets a tall empty ink field where the five steps should be. Measured, not
+   theorised; it is exactly what the first pass here did.
+   Nothing needs the clip anyway: the ambient field lives inside the sticky box,
+   which already hides its own overflow, and when the stage is not pinned the
+   field is inset:0 on this box and has nothing to spill. */
+.mimic-site .process.on-dark{
+  background:var(--mm-ink);color:var(--mm-on-ink);
+  position:relative;isolation:isolate
+}
+/* Belt and braces for every future stage: whatever modifiers a pinned section
+   picks up, it may not be given a clipped overflow. */
+.mimic-site .mm-stage{overflow:visible}
+.mimic-site .process:not(.mm-stage){padding:var(--mm-sec-y) 0}
+.mimic-site .process.on-dark::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:1px;z-index:2;
+  pointer-events:none;
+  background:linear-gradient(90deg, transparent, var(--mm-lamp-edge) 28%, var(--mm-lamp) 72%, transparent)
+}
+.mimic-site .process.on-dark .wrap{position:relative;z-index:1}
+
+/* ── 5. Evidence, staged ───────────────────────────────────────────────────
+   The footage and the screenshots are the only proof this site is allowed to
+   show, so they get a ground to sit on instead of floating on the page white. A
+   desk, not a device shot: a tonal panel and a little padding, with the frame's
+   own hairline and shadow — already declared on the shot image and video — doing
+   the rest.
+
+   No border on the desk. The showcase section is itself a bordered panel, and a
+   bordered desk inside a bordered section is two frames arguing.
+
+   Nothing is laid OVER the picture: no gradient, no filter, no chrome. The
+   DemoVideo component is untouched, and its controls, caption and disclosure sit
+   exactly where they always did. */
+.mimic-site .shots{
+  position:relative;
+  padding:clamp(.625rem,1.4vw,1.25rem);
+  border-radius:calc(var(--mm-r-lg) + 6px);
+  background:radial-gradient(130% 100% at 50% 0%, var(--mm-bg-alt), var(--mm-desk))
+}
+/* The settle. Nested inside the reveal, so it rides the entrance that block
+   already has instead of adding a second, competing trigger. Origin at the
+   bottom edge: a filed page is set down onto the desk, not zoomed at. */
+.mimic-site .reveal .shots{
+  transform:scale(.988);transform-origin:50% 100%;
+  transition:transform .9s var(--mm-ease)
+}
+.mimic-site .reveal.in .shots{transform:none}
+
+/* ── 6. FAQ disclosure — previously UNSTYLED ───────────────────────────────
+   The summary element had no rule anywhere in this file. Every accordion on the
+   homepage and on all 72 inner pages therefore rendered at the browser default:
+   a black triangle marker, default size and weight, no hit target, no hover, no
+   focus treatment — and the chevron icon the markup has always rendered never
+   moved, so the one affordance that said "this opens" was decoration.
+
+   Nothing catches this: audit tooling finds classes with no rule, not elements
+   with no rule. */
+.mimic-site .faq summary,
+.mimic-site .mk-faq summary{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:var(--mm-s-4);
+  min-height:2.75rem;cursor:pointer;list-style:none;
+  font-size:1.0625rem;font-weight:650;line-height:1.34;letter-spacing:-.018em;
+  color:var(--mm-ink);
+  transition:color var(--mm-dur-1) var(--mm-ease)
+}
+/* Both spellings. WebKit needs the pseudo-element; other engines take the
+   list-style above, and ::marker covers anything that takes neither. */
+.mimic-site .faq summary::-webkit-details-marker,
+.mimic-site .mk-faq summary::-webkit-details-marker{display:none}
+.mimic-site .faq summary::marker,
+.mimic-site .mk-faq summary::marker{content:""}
+.mimic-site .faq summary:hover,
+.mimic-site .mk-faq summary:hover{color:var(--mm-reg)}
+.mimic-site .faq summary:focus-visible,
+.mimic-site .mk-faq summary:focus-visible{outline:2px solid var(--mm-reg);outline-offset:3px}
+.mimic-site .faq summary .chev,
+.mimic-site .mk-faq summary .chev{
+  flex:none;margin-top:.24em;color:var(--mm-muted);
+  transition:transform var(--mm-dur-2) var(--mm-ease),color var(--mm-dur-1) var(--mm-ease)
+}
+.mimic-site .faq details[open] > summary .chev,
+.mimic-site .mk-faq details[open] > summary .chev{transform:rotate(180deg);color:var(--mm-reg)}
+.mimic-site .faq details > p,
+.mimic-site .mk-faq details > p{
+  margin-top:var(--mm-s-2);max-width:var(--mm-measure);
+  color:var(--mm-ink-2);line-height:1.68
+}
+/* An animation rather than a transition: the paragraph does not exist until the
+   disclosure opens, so there is no "from" state for a transition to leave. */
+.mimic-site .faq details[open] > p,
+.mimic-site .mk-faq details[open] > p{animation:mm-disclose var(--mm-dur-3) var(--mm-ease-out) both}
+@keyframes mm-disclose{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ── 7. The related-pages grid was on the wrong element ────────────────────
+   repeat(3,1fr) sat on the section, whose children are the "Keep reading"
+   heading and the div holding the cards. So the heading took column one, every
+   card stacked in column two, and column three was empty — on every inner page
+   that declares related links. The grid belongs on the div that actually
+   contains the cards. */
+.mimic-site .mk-related{display:block;margin-top:var(--mm-s-7)}
+.mimic-site .mk-related > h2{
+  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--mm-muted);margin:0 0 var(--mm-s-3)
+}
+.mimic-site .mk-related > div{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px
+}
+.mimic-site .mk-related a{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--mm-s-3);
+  font-weight:600;letter-spacing:-.012em
+}
+.mimic-site .mk-related a svg{color:var(--mm-reg);transition:transform var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .mk-related a:hover svg{transform:translateX(3px)}
+
+/* ── 8. The demo form — the submit button had NO rule ──────────────────────
+   The submit class styles the wrapping div, not the button inside it, so this
+   site's primary conversion action rendered as a default grey browser button.
+
+   The two-column grid is a RESTORATION, not a new opinion. The markup has always
+   carried a "full" modifier on the email and volume fields, and MimicSite.tsx
+   sets gridColumn 1 / -1 inline on the form-level error — both statements about
+   a grid that was never written. Single column below 560px, where two columns
+   cannot hold a label and a 42px input. */
+.mimic-site .demo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 var(--mm-s-3)}
+.mimic-site .demo > h3,
+.mimic-site .demo > .fnote,
+.mimic-site .demo > .field.full,
+.mimic-site .demo > .submit,
+.mimic-site .demo > .form-note,
+.mimic-site .demo > .err{grid-column:1 / -1}
+.mimic-site .demo > h3{margin-bottom:var(--mm-s-1)}
+.mimic-site .demo > .fnote{margin-bottom:var(--mm-s-4)}
+.mimic-site .submit button{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5rem;width:100%;
+  min-height:3rem;padding:0 1.35rem;
+  border:1px solid transparent;border-radius:var(--mm-r-ctl);
+  background:var(--mm-ink);color:#fff;
+  font-family:inherit;font-size:.95rem;font-weight:650;letter-spacing:-.004em;
+  cursor:pointer;
+  box-shadow:0 1px 2px 0 rgb(14 20 32 / .16);
+  transition:background-color var(--mm-dur-1) var(--mm-ease),
+             box-shadow var(--mm-dur-1) var(--mm-ease),
+             transform var(--mm-dur-1) var(--mm-ease)
+}
+.mimic-site .submit button:hover{background:#1B2436;box-shadow:0 6px 16px -6px rgb(14 20 32 / .34)}
+.mimic-site .submit button:active{transform:scale(.976);transition-duration:.08s}
+/* A disabled primary must not still look pressable. */
+.mimic-site .submit button:disabled{
+  background:var(--mm-muted);box-shadow:none;cursor:progress;transform:none
+}
+.mimic-site .form-note{margin-top:var(--mm-s-2);text-align:center}
+@media (max-width:560px){
+  .mimic-site .demo{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ── 9. The CTA as two columns ─────────────────────────────────────────────
+   cta-in was never display:grid, so the copy and the form stacked, and the
+   inline gridTemplateColumns MarketingPage.tsx sets on its own CTA was inert.
+   Both call sites were written against a grid that did not exist. */
+@media (min-width:1000px){
+  .mimic-site .cta-in{
+    display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);
+    gap:var(--mm-s-7);align-items:center
+  }
+}
+.mimic-site .cta-in > div{min-width:0}
+/* `.cta` is an ink field but is not `.on-dark`, so the on-ink colour rules never
+   reached it — and the existing ones name `.lede`, while this section's
+   supporting line is `.sub`. It therefore kept `--mm-muted` (#5C6879) on the ink
+   ground: roughly 2.5:1, which made the CTA's own supporting sentence the least
+   readable text on the page. */
+.mimic-site .cta .sub,
+.mimic-site .on-dark .sub{color:var(--mm-on-ink)}
+
+/* ── 10. Micro-interactions ────────────────────────────────────────────────
+   All of it on the file's own two curves and three durations. Transform and
+   opacity first; nothing new animates a property that relayouts. */
+/* The format card lifts by a hair and its exhibit seat thickens. The seat is the
+   card's identity, so the hover strengthens what is already there rather than
+   adding a new decoration. */
+.mimic-site .track{
+  transition:box-shadow .18s var(--mm-ease),border-color .18s var(--mm-ease),
+             transform .18s var(--mm-ease)
+}
+.mimic-site .track:hover{
+  transform:translateY(-2px);
+  box-shadow:inset 0 -4px 0 0 var(--track-seat,var(--mm-muted)),var(--mm-shadow-md)
+}
+/* A playing card must not also lift: the footage fills the frame, and moving the
+   frame while video runs inside it reads as a glitch. */
+.mimic-site .track.is-playing:hover{transform:none}
+.mimic-site .track.statement:hover{transform:none;box-shadow:inset 0 -3px 0 0 var(--mm-ink)}
+
+/* The step's number badge leads the selection — it is the element the eye is
+   already on when the step changes. */
+.mimic-site .step .num,.mimic-site .step .n{
+  transition:background-color var(--mm-dur-2) var(--mm-ease),
+             border-color var(--mm-dur-2) var(--mm-ease),
+             color var(--mm-dur-2) var(--mm-ease)
+}
+.mimic-site .hub-col a,.mimic-site .foot a{transition:color var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .hub-col a svg{transition:transform var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .hub-col a:hover svg{transform:translateX(3px)}
+.mimic-site .macc > button{transition:background-color var(--mm-dur-1) var(--mm-ease)}
+.mimic-site .shot-toggle:active{transform:scale(.94);transition-duration:.08s}
+.mimic-site .logo-slot{
+  transition:opacity var(--mm-dur-2) var(--mm-ease),filter var(--mm-dur-2) var(--mm-ease)
+}
+
+/* ── 11. Preferences ───────────────────────────────────────────────────────
+   Reduced motion keeps every FEEDBACK state and removes every TRAVEL, which is
+   the distinction the block at the top of this file already draws. The ambient
+   canvas is never even requested — Field.tsx gates the import — so this is only
+   the CSS half of that promise. */
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .mm-field-gl{display:none}
+  /* Matched to `.mimic-site.mm-cued .sec-head::before` (0,2,1), not the bare
+     descendant, or the collapsed state would win here and the rule would never
+     be drawn. useSectionCues also declines to add the class under this
+     preference; this is the belt to that braces. */
+  .mimic-site.mm-cued .sec-head::before{transform:scaleX(1);transition:none}
+  .mimic-site .reveal .shots,.mimic-site .reveal.in .shots{transform:none;transition:none}
+  .mimic-site .track:hover{transform:none}
+  .mimic-site .faq details[open] > p,.mimic-site .mk-faq details[open] > p{animation:none}
+  .mimic-site .faq details[open] > summary .chev,
+  .mimic-site .mk-faq details[open] > summary .chev{transform:rotate(180deg)}
+  .mimic-site .submit button:active{transform:none;background:#1B2436}
+  .mimic-site .shot-toggle:active{transform:none}
+}
+/* The field is a light source rendered as translucent layers, which is exactly
+   what this preference asks to be spared. The ink ground stays; the lighting
+   goes, rather than being half-applied. */
+@media (prefers-reduced-transparency:reduce){
+  .mimic-site .mm-field{background:none}
+  .mimic-site .mm-field-gl{display:none}
+  .mimic-site .hero::before,.mimic-site .mk-hero::before{background:none}
+}
+/* More contrast wants edges, not atmosphere. The seams become real rules and the
+   lighting is dropped, so nothing sits between the ink and the type on it. */
+@media (prefers-contrast:more){
+  .mimic-site .mm-field,.mimic-site .mm-field-gl{display:none}
+  .mimic-site .hero::before,.mimic-site .mk-hero::before,.mimic-site .hero::after{background:none}
+  .mimic-site .section.tinted::before{background:none;border-top-color:var(--mm-stroke)}
+  .mimic-site .cta::before,.mimic-site .foot::before,
+  .mimic-site .section.on-dark::before{background:var(--mm-on-ink-2)}
+  .mimic-site .on-dark .step p{color:var(--mm-on-ink)}
+}
+
+/* ── 11b. The nav collapsed too late, and overflowed the page ──────────────
+   Measured, not guessed: at 778px the header's right-hand cluster ended at
+   908px against a 778px viewport, so the document scrolled sideways — on a
+   plain iPad-width visit to the homepage.
+
+   The primary links only hid at 760px, but the row needs roughly 860px to hold
+   the brand, four nav groups, "Sign in" and the demo button plus gutters. Every
+   width in between rendered a nav that did not fit, and horizontal overflow on a
+   sticky header drags the WHOLE page with it.
+
+   Only the primary links move to the drawer here — `.signin` keeps its own,
+   later breakpoint, because once the links are gone there is ample room for it
+   and it is one fewer thing buried behind a hamburger. */
+@media (max-width:900px){
+  .mimic-site .navlinks{display:none}
+  .mimic-site .navtoggle{display:grid;place-items:center}
+}
+/* The blanket `width:100%` given to buttons below 760px is meant for in-page
+   calls to action, but it also caught the one in the header — so "Book a demo"
+   stretched across the row and pushed the hamburger past the edge, giving 6px of
+   horizontal page scroll at 320px. Scoped to `.nav-in` rather than `.nav`, which
+   would also catch the drawer's own full-width button one level down. */
+@media (max-width:760px){
+  .mimic-site .nav-in .btn,.mimic-site .nav-in .btn-lg{width:auto}
+}
+/* At the narrowest supported width the header is the tightest row on the site:
+   wordmark, action and menu toggle. It fits, but only once the row stops
+   spending 28px on a gap it no longer needs. */
+@media (max-width:400px){
+  .mimic-site .nav-in{gap:.75rem}
+  .mimic-site .nav-in .btn{padding:0 .85rem;font-size:.85rem}
+}
+
+/* ── 12. Responsive corrections for the rules above ────────────────────────
+   The pre-existing breakpoints target the related-pages SECTION, which is no
+   longer the grid, so its columns are restated here against the element that
+   is. */
+@media (max-width:1040px){
+  .mimic-site .mk-related > div{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .mimic-site .mk-related > div{grid-template-columns:minmax(0,1fr)}
+  /* The desk keeps a little ground but stops eating the frame's width on a
+     phone, where the frame is already at the gutter. */
+  .mimic-site .shots{padding:.5rem;border-radius:var(--mm-r-lg)}
+  .mimic-site .sec-head{padding-top:var(--mm-s-2)}
 }

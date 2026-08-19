@@ -11,12 +11,12 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  positive_high: '#00c9a7',
-  positive_calm: '#7c83fd',
-  cognitive: '#e8b84b',
-  social: '#00c9a7',
-  negative: '#ff6b6b',
-  disengagement: '#4a6080',
+  positive_high: '#0F766E',
+  positive_calm: '#4338CA',
+  cognitive: '#BE185D',
+  social: '#15803D',
+  negative: '#B45309',
+  disengagement: '#5B6067',
 }
 
 export function LiveEmotionBar() {
@@ -25,9 +25,9 @@ export function LiveEmotionBar() {
   if (!humeStreamActive || liveEmotions.length === 0) {
     // Jitter fallback
     const bars = [
-      { label: 'Confidence', value: metrics.confidence, color: '#00c9a7' },
-      { label: 'Stress', value: metrics.anxiety, color: '#ff6b6b' },
-      { label: 'Engagement', value: metrics.engagement, color: '#7c83fd' },
+      { label: 'Confidence', value: metrics.confidence, color: '#0F766E' },
+      { label: 'Stress', value: metrics.anxiety, color: '#B45309' },
+      { label: 'Engagement', value: metrics.engagement, color: '#4338CA' },
     ]
     return (
       <div className="space-y-2">
@@ -65,7 +65,7 @@ export function LiveEmotionBar() {
               className="h-full rounded-full transition-all duration-500"
               style={{
                 width: `${Math.round(score * 100)}%`,
-                background: CATEGORY_COLORS[cat] ?? '#7c83fd',
+                background: CATEGORY_COLORS[cat] ?? '#4338CA',
               }}
             />
           </div>

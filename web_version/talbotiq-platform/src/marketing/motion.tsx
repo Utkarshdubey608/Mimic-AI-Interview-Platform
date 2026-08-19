@@ -163,6 +163,59 @@ export function useSmoothScroll() {
   }, [])
 }
 
+/**
+ * Section cues — one observer for the whole page.
+ *
+ * Marks each section `is-near` the first time it comes into view, which is what
+ * draws the rule above its heading (see `.sec-head::before` in mimicSite.css).
+ * A single observer over every section, not one per section: this runs on all 73
+ * marketing routes and a per-block observer would mean dozens of live callbacks
+ * on the longer inner pages for an effect that fires once each.
+ *
+ * PROGRESSIVE, in the direction that fails safe. The rule is drawn by default in
+ * CSS; this hook adds `mm-cued` to the site root to say "JS is in charge now",
+ * which is what allows the collapsed starting state to exist at all. If the hook
+ * never runs, every rule is simply already drawn.
+ *
+ * Targets are unobserved as they fire, so the observer empties itself out as the
+ * reader descends rather than staying subscribed to the whole document.
+ */
+export function useSectionCues(routeKey: string) {
+  useEffect(() => {
+    const root = document.querySelector<HTMLElement>('.mimic-site')
+    if (!root) return
+    // Reduced motion never opts in: without `mm-cued` the CSS leaves every rule
+    // drawn, which is the finished state rather than a missing animation.
+    if (prefersReduced() || typeof IntersectionObserver === 'undefined') return
+
+    const targets = Array.from(root.querySelectorAll<HTMLElement>('main section, main .mk-hero'))
+    if (!targets.length) return
+
+    root.classList.add('mm-cued')
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return
+        e.target.classList.add('is-near')
+        io.unobserve(e.target)
+      })
+    }, {
+      // Fires a little before the section's edge, so the rule is being drawn as
+      // the heading arrives rather than after the reader has already read it.
+      rootMargin: '0px 0px -8% 0px',
+      threshold: 0.01,
+    })
+    targets.forEach((t) => io.observe(t))
+
+    return () => {
+      io.disconnect()
+      root.classList.remove('mm-cued')
+      // The next route mounts its own sections; leaving stale marks on shared
+      // chrome would start the new page mid-animation.
+      targets.forEach((t) => t.classList.remove('is-near'))
+    }
+  }, [routeKey])
+}
+
 /** Reading-progress rail across the top of the page. Brand gradient, 2px. */
 export function ScrollProgress() {
   const ref = useRef<HTMLDivElement | null>(null)

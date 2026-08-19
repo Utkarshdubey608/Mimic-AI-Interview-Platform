@@ -34,6 +34,9 @@ logger = logging.getLogger("web.chat_engine")
 # How much résumé rides in the prompt. Enough to characterise a candidate; the tail is
 # usually education and references.
 MAX_RESUME_CHARS = 14_000
+# Enough to personalise a hello. The full document rides in later turns,
+# where the interviewer is actually reasoning about their experience.
+GREETING_RESUME_CHARS = 1_500
 
 TURN_SCHEMA = {
     "type": "object",
@@ -348,13 +351,18 @@ def build_contents(session: dict, *, phase: str) -> list[dict]:
     resume = (session.get("resumeText") or "")[:MAX_RESUME_CHARS]
 
     if phase == "greeting":
+        # A greeting says hello, uses their name, and asks if they are ready. It
+        # does not need the whole document, and this is the call a candidate
+        # waits on with NOTHING on screen yet — the worst place in the product to
+        # spend input tokens. The avatar path already uses ~1500 characters of
+        # background for the same "sound informed" job.
         return [
             {
                 "role": "user",
                 "parts": [
                     {
-                        "text": f'CANDIDATE RÉSUMÉ:\n"""{resume}"""\n\nGreet the candidate '
-                        "and ask if they're ready to begin."
+                        "text": f'CANDIDATE RÉSUMÉ (brief context):\n"""{resume[:GREETING_RESUME_CHARS]}"""'
+                        "\n\nGreet the candidate and ask if they're ready to begin."
                     }
                 ],
             }
@@ -423,6 +431,16 @@ async def generate_turn(settings: Settings, session: dict, template: dict) -> di
             system_instruction=f"{instruction}\n{extra}" if extra else instruction,
             response_mime_type="application/json",
             response_schema=TURN_SCHEMA,
+            # The candidate is watching this one happen. Question generation was
+            # given the same treatment; this call was missed, and it runs on
+            # EVERY turn.
+            #
+            # The tail matters more than the mean: a measured chat/begin took
+            # 19.5s while the same shape of call averages ~1.5s. Gemini's latency
+            # is variable and thinking widens the spread — on the résumé prompt,
+            # default thinking ran 7.5-12.9s against 2.9-4.4s at budget zero.
+            # Cutting the tail is what stops a candidate staring at a dead screen.
+            thinking_budget=0,
         )
         return normalise_decision(json.loads(text or "{}"))
 

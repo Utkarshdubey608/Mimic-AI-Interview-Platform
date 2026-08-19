@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { NAV, type NavGroup } from './content'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { Ico } from './icons'
-import { ScrollProgress, useSmoothScroll } from './motion'
+import { ScrollProgress, useSectionCues, useSmoothScroll } from './motion'
+import { Field } from './Field'
 import './mimicSite.css'
 
 const Mark = () => (
@@ -67,6 +68,10 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
     canon.href = `https://mimic.talbotiq.com${loc.pathname}`
     return () => { document.title = prev; added.forEach((e) => e.remove()) }
   }, [seo, loc.pathname])
+
+  // Section cues, re-armed per route. Defined here rather than per page so all
+  // 73 marketing routes get the same treatment from one observer — see the hook.
+  useSectionCues(loc.pathname)
 
   // Close menus on route change.
   useEffect(() => { setOpen(null); setMobileOpen(false); setMobileGroup(null) }, [loc.pathname, loc.hash])
@@ -178,6 +183,10 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
       {children}
 
       <footer className="foot">
+        {/* The last ink field on every page, and the one the reader leaves on.
+            Its own seed again, so the three fields on the homepage read as three
+            surfaces rather than one repeated loop. */}
+        <Field seed={23} />
         <div className="wrap">
           <div className="foot-grid">
             <div className="foot-brand">
@@ -193,7 +202,8 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
           </div>
           <div className="foot-bottom">
             <span>© 2026 TalbotIQ. Mimic is a product of TalbotIQ.</span>
-            <span><Link to="/company/legal" style={{ color: 'rgba(255,255,255,.6)' }}>Legal &amp; privacy</Link></span>
+            {/* Inherits the light footer's muted ink — the footer is no longer a dark field. */}
+            <span><Link to="/company/legal" style={{ color: 'inherit' }}>Legal &amp; privacy</Link></span>
           </div>
         </div>
       </footer>
