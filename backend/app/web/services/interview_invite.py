@@ -38,6 +38,7 @@ MODE_LABELS = {
     "chat": "Timed Q&A",
     "video": "Video Interview",
     "two_way": "Two-way Interview",
+    "mcq": "MCQ Test",
 }
 
 # Which of Flutter's two buckets each track maps onto.

@@ -60,6 +60,7 @@ from app.web.services import (
     voice_setup,
 )
 from app.web.shared import speech
+from app.web.routes import mcq_sets as mcq_sets_routes
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions")
@@ -250,10 +251,17 @@ async def create_session(
         # document — the key stays server-side for the whole interview and the
         # candidate's view is built by an allow-list (see routes/sessions_mcq.py).
         mcq_set = await store.mcq_sets.get(str(template.get("mcqSetId") or ""))
-        if not mcq_set or not (mcq_set.get("questions") or []):
+        if not mcq_set:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Template references an empty or missing MCQ set",
+                "Template references a missing MCQ set",
+            )
+        # Completeness enforced at USE, not at save. See routes/mcq_sets.py.
+        mcq_faults = mcq_sets_routes.set_faults(mcq_set)
+        if mcq_faults:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"That MCQ set is not ready. {mcq_faults[0]}",
             )
         # The set belongs to one recruiter, so a template may only point at a set
         # its own recruiter owns. Without this, a template id plus somebody else's

@@ -50,6 +50,12 @@ def _question(text="What does EC2 stand for?", key=("a",), options=None, **extra
     return q
 
 
+def _run(coro):
+    import asyncio
+
+    return asyncio.new_event_loop().run_until_complete(coro)
+
+
 _DEFAULT = object()
 
 
@@ -152,35 +158,49 @@ class TestOwnerIsolation:
         )
 
 
-class TestValidationRefusesRatherThanRepairs:
-    def test_a_question_needs_two_options(self, fake_store) -> None:
-        one = _question(options=[{"id": "a", "text": "Only"}])
-        r = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[one]))
-        assert r.status_code == 400
-        assert "two options" in r.json()["detail"]
+class TestSavingIsPermissiveBecauseAuthoringIsIncremental:
+    """The rule that replaced the one that made this unusable.
 
-    def test_a_question_needs_a_correct_answer_marked(self, fake_store) -> None:
-        r = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[_question(key=())]))
-        assert r.status_code == 400
-        assert "score zero" in r.json()["detail"]
+    The original contract refused any incomplete question at save. Combined with
+    "a set needs at least one question", the editor could not create a set at all:
+    it seeded a blank question so the set was not empty, and the server rejected
+    the blank question. Every click of "New MCQ set" answered 400.
 
-    def test_a_key_naming_an_option_that_does_not_exist_is_refused(self, fake_store) -> None:
-        """Otherwise the key silently matches nothing and everyone scores zero."""
-        r = _client(RECRUITER).post(
+    Nobody authors a paper through a sequence of individually valid states, so
+    saving now accepts drafts and `ready`/`faults` report what is missing.
+    """
+
+    def test_a_brand_new_blank_set_can_be_created(self, fake_store) -> None:
+        """Exactly what the New MCQ set button sends."""
+        blank = {
+            "text": "",
+            "options": [{"id": "o1", "text": ""}, {"id": "o2", "text": ""}],
+            "correctOptionIds": [],
+        }
+        r = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[blank]))
+        assert r.status_code == 201
+
+    def test_an_empty_set_is_a_draft_not_an_error(self, fake_store) -> None:
+        r = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[]))
+        assert r.status_code == 201
+        assert r.json()["ready"] is False
+
+    def test_blank_option_rows_survive_a_save(self, fake_store) -> None:
+        """They were being dropped, so a half-written question came back with its
+        option rows deleted — vanishing from under the recruiter mid-edit."""
+        half = {"text": "What is EC2?", "options": [{"id": "o1", "text": ""}, {"id": "o2", "text": ""}], "correctOptionIds": []}
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[half])).json()
+        assert len(created["questions"][0]["options"]) == 2
+
+    def test_a_key_naming_an_option_that_does_not_exist_is_dropped(self, fake_store) -> None:
+        """Transient while editing — the option may be about to be typed."""
+        created = _client(RECRUITER).post(
             "/api/web/mcq-sets", json=_body(questions=[_question(key=("zzz",))])
-        )
-        assert r.status_code == 400
+        ).json()
+        assert created["questions"][0]["correctOptionIds"] == []
 
-    def test_marking_every_option_correct_is_refused(self, fake_store) -> None:
-        """It cannot distinguish anyone, so it is not an assessment question."""
-        r = _client(RECRUITER).post(
-            "/api/web/mcq-sets", json=_body(questions=[_question(key=("a", "b", "c"))])
-        )
-        assert r.status_code == 400
-        assert "distinguish" in r.json()["detail"]
-
-    def test_duplicate_option_ids_are_refused(self, fake_store) -> None:
-        """Two options could both claim to be the right one."""
+    def test_duplicate_option_ids_are_still_refused(self, fake_store) -> None:
+        """Not an authoring state — a client bug that makes the key ambiguous."""
         dupes = _question(
             options=[{"id": "a", "text": "One"}, {"id": "a", "text": "Two"}, {"id": "b", "text": "Three"}]
         )
@@ -188,24 +208,54 @@ class TestValidationRefusesRatherThanRepairs:
         assert r.status_code == 400
         assert "same id" in r.json()["detail"]
 
-    def test_an_empty_set_is_refused(self, fake_store) -> None:
-        assert _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[])).status_code == 400
-
-    def test_a_nameless_set_is_refused(self, fake_store) -> None:
+    def test_a_nameless_set_is_still_refused(self, fake_store) -> None:
         assert _client(RECRUITER).post("/api/web/mcq-sets", json=_body(name="  ")).status_code == 400
 
-    def test_the_failing_question_is_named_so_it_can_be_found(self, fake_store) -> None:
-        """"Question 3", not "a question" — a 40-item paper is not worth hunting through."""
-        questions = [_question(), _question(), _question(key=())]
-        r = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=questions))
-        assert "Question 3" in r.json()["detail"]
 
-    def test_a_repeated_key_id_does_not_become_a_multi_answer(self, fake_store) -> None:
+class TestReadinessIsReportedNotEnforced:
+    """`ready` and `faults` are what the editor and the wizard read."""
+
+    def test_a_complete_set_is_ready(self, fake_store) -> None:
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body()).json()
+        assert created["ready"] is True
+        assert created["faults"] == []
+
+    def test_a_question_with_no_text_is_reported(self, fake_store) -> None:
         created = _client(RECRUITER).post(
-            "/api/web/mcq-sets", json=_body(questions=[_question(key=("a", "a"))])
+            "/api/web/mcq-sets", json=_body(questions=[_question(text="  ")])
         ).json()
-        assert created["questions"][0]["correctOptionIds"] == ["a"]
-        assert created["questions"][0]["type"] == "single"
+        assert created["ready"] is False
+        assert "no text" in created["faults"][0]
+
+    def test_a_question_with_one_option_is_reported(self, fake_store) -> None:
+        one = _question(options=[{"id": "a", "text": "Only"}])
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[one])).json()
+        assert "two options" in created["faults"][0]
+
+    def test_a_question_with_no_correct_answer_is_reported(self, fake_store) -> None:
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_body(questions=[_question(key=())])
+        ).json()
+        assert "no correct answer" in created["faults"][0]
+
+    def test_marking_every_option_correct_is_reported(self, fake_store) -> None:
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_body(questions=[_question(key=("a", "b", "c"))])
+        ).json()
+        assert "distinguish" in created["faults"][0]
+
+    def test_the_faulty_question_is_named_so_it_can_be_found(self, fake_store) -> None:
+        """"Question 3", not "a question" — a 40-item paper is not worth hunting."""
+        questions = [_question(), _question(), _question(key=())]
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=questions)).json()
+        assert "Question 3" in created["faults"][0]
+
+    def test_readiness_is_computed_not_stored(self, fake_store) -> None:
+        """So it cannot go stale against the questions it describes."""
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[])).json()
+        stored = _run(fake_store.mcq_sets.get(created["id"]))
+        assert "ready" not in stored
+        assert _client(RECRUITER).get(f"/api/web/mcq-sets/{created['id']}").json()["ready"] is False
 
 
 class TestOptionalFields:
@@ -234,3 +284,46 @@ class TestOptionalFields:
         q = _question(points=points)
         created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[q])).json()
         assert "points" not in created["questions"][0]
+
+
+class TestUsingIsStrictEvenThoughSavingIsNot:
+    """The other half of the split, and the half that protects candidates.
+
+    A draft may be saved in any state. It may NOT be sent to a candidate: a
+    question with no correct answer scores everyone zero, and a paper with no
+    questions is not an assessment.
+    """
+
+    def test_an_unready_paper_cannot_be_sent(self, fake_store) -> None:
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_body(questions=[_question(key=())])
+        ).json()
+        response = _client(RECRUITER).post(
+            "/api/web/invites",
+            json={
+                "mode": "mcq",
+                "role": "Cloud",
+                "mcqSetId": created["id"],
+                "candidates": [{"email": "ada@example.test", "role": "Cloud"}],
+                "origin": "https://example.test",
+            },
+        )
+        assert response.status_code == 400
+        assert "not ready to send" in response.json()["detail"]
+        # And it names which question, so it can be fixed.
+        assert "Question 1" in response.json()["detail"]
+
+    def test_an_empty_paper_cannot_be_sent(self, fake_store) -> None:
+        created = _client(RECRUITER).post("/api/web/mcq-sets", json=_body(questions=[])).json()
+        response = _client(RECRUITER).post(
+            "/api/web/invites",
+            json={
+                "mode": "mcq",
+                "role": "Cloud",
+                "mcqSetId": created["id"],
+                "candidates": [{"email": "ada@example.test", "role": "Cloud"}],
+                "origin": "https://example.test",
+            },
+        )
+        assert response.status_code == 400
+        assert "no questions yet" in response.json()["detail"]
