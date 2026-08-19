@@ -217,11 +217,7 @@ async def suggest_topics(settings: Settings, *, role: str) -> list[str]:
     """Topics worth testing for a role. One call, at authoring time."""
     text = await gemini.generate_text(
         settings,
-        # `content`, not `text`. `to_contents` reads `content` and DROPS any
-        # message without it, so a `text` key produced an empty conversation
-        # and Gemini was never called — the request failed before it left the
-        # server, reported only as "Gemini request failed".
-        contents=gemini.to_contents([{"role": "user", "content": build_topic_prompt(role)}]),
+        contents=gemini.user_turn(build_topic_prompt(role)),
         response_schema=_TOPIC_SCHEMA,
         response_mime_type="application/json",
         # A recruiter is watching this one, and it is a list of nouns rather than
@@ -253,7 +249,7 @@ async def generate_paper(
     )
     text = await gemini.generate_text(
         settings,
-        contents=gemini.to_contents([{"role": "user", "content": prompt}]),
+        contents=gemini.user_turn(prompt),
         response_schema=_PAPER_SCHEMA,
         response_mime_type="application/json",
         # Thinking left ON here, unlike the topic call: writing distractors that
