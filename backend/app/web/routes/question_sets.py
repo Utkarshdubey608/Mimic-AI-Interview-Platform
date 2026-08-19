@@ -185,6 +185,12 @@ async def create_set(body: dict, request: Request, user: AuthedUser = WebUser) -
         "id": str(uuid.uuid4()),
         "name": str((body or {}).get("name") or "").strip() or "Untitled set",
         "questions": normalise_questions((body or {}).get("questions")),
+        # Records the author WITHOUT restricting anyone: these are still listed to
+        # every recruiter exactly as before. The uid was already known here and
+        # discarded, leaving every set unattributable — which is what makes the
+        # "should a company's sets be private to it" decision impossible to take
+        # later. See the ⚠️ in routes/templates.py.
+        "recruiterId": user.uid,
         "createdAt": now,
         "updatedAt": now,
     }
@@ -244,6 +250,9 @@ async def duplicate_set(
             {**question, "id": str(uuid.uuid4())}
             for question in source.get("questions") or []
         ],
+        # The copy is a new set, so its author is whoever copied it — not the
+        # author of the original.
+        "recruiterId": user.uid,
         "createdAt": now,
         "updatedAt": now,
     }
