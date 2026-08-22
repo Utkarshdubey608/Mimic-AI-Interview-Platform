@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { PlugZap, Server, SlidersHorizontal, Video, Webhook, XCircle } from 'lucide-react'
+import { PlugZap, XCircle } from 'lucide-react'
+import { pageVariants } from '@/design/motion'
 import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { tavus } from '@/services/tavus'
@@ -39,19 +41,21 @@ type StatusMap = { deepgram: boolean; hume: boolean; gemini: boolean; rekognitio
  * other. The ruled head is the world's own device and does the job the plate was
  * pretending to do.
  *
- * `icon` is retained and deliberately NOT rendered, so the four call sites keep
- * typechecking; drop it as they are touched. Do not reinstate the plate.
+ * Head and note are ONE child of the card on purpose. The card divides its
+ * children with `divide-y`, and `.record-head` already draws its own hairline
+ * below, so returning a fragment stacked two 1px rules into a 2px one under
+ * every head on the page.
  */
-function PanelHead({ title, children }: { icon?: ReactNode; title: string; children: ReactNode }) {
+function PanelHead({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <>
+    <div>
       <div className="record-head px-5 py-2.5">
         <h2 className="font-display text-[14px] font-bold text-ink">{title}</h2>
       </div>
-      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
+      <p className="px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
         {children}
       </p>
-    </>
+    </div>
   )
 }
 
@@ -64,6 +68,7 @@ function ConnChip({ state }: { state: 'idle' | 'testing' | 'ok' | 'fail' }) {
 }
 
 export default function SettingsPage() {
+  const reduce = useReducedMotion() ?? false
   const store = useAppStore()
   const [tavusKey, setTavusKeyLocal] = useState('')
   const [showTavus, setShowTavus] = useState(false)
@@ -118,18 +123,22 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
+    <motion.div
+      variants={pageVariants(reduce)}
+      initial="initial"
+      animate="animate"
+      className="max-w-2xl mx-auto px-6 py-8"
+    >
       <PageHeader
-        kicker="Platform Config"
         title="Settings"
         description="Manage API credentials, webhook endpoints, and platform behaviour."
         action={<Button onClick={() => void save()} loading={saving}>Save settings</Button>}
       />
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Tavus (runtime key) */}
-        <Card className="divide-y divide-border">
-          <PanelHead icon={<Video size={17} />} title="Tavus — Avatar">
+        <Card className="divide-y divide-rule overflow-hidden">
+          <PanelHead title="Tavus — Avatar">
             The single source of truth for your Tavus key — saving applies it everywhere at once (this browser,
             candidate interviews, and any applied avatar config). Never compiled into the app bundle.
           </PanelHead>
@@ -152,7 +161,7 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setShowTavus(s => !s)}
                   aria-label={showTavus ? 'Hide the Tavus API key' : 'Show the Tavus API key'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition-colors duration-fast ease-out hover:bg-surface-hover hover:text-ink"
                 >
                   {showTavus ? 'Hide' : 'Show'}
                 </button>
@@ -165,7 +174,7 @@ export default function SettingsPage() {
                 Test connection
               </Button>
               {connState === 'fail' && (
-                <p className="text-xs text-danger">Tavus rejected the key or was unreachable — check the key, then test again.</p>
+                <p className="text-xs text-risk">Tavus rejected the key or was unreachable — check the key, then test again.</p>
               )}
               {connState === 'ok' && (
                 <p className="text-xs text-ink-muted">Key verified. Save settings to apply it everywhere.</p>
@@ -178,12 +187,12 @@ export default function SettingsPage() {
         <GeminiKeyCard />
 
         {/* Server-managed analysis providers (hybrid — keys live in server env) */}
-        <Card className="divide-y divide-border">
-          <PanelHead icon={<Server size={17} />} title="Analysis providers — server-side">
+        <Card className="divide-y divide-rule overflow-hidden">
+          <PanelHead title="Analysis providers — server-side">
             These keys stay on the server (set in its environment) and are proxied via{' '}
             <span className="font-mono text-ink-body">/api/avatar/*</span> — never exposed to the browser.
           </PanelHead>
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-rule">
             {SERVER_KEYS.map(f => {
               const configured = !!status?.[f.key as keyof StatusMap]
               return (
@@ -198,7 +207,7 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <span className={cn('badge flex-shrink-0', configured ? 'badge-success' : 'badge-neutral', status === null && 'animate-pulse')}>
-                    <span className={cn('h-1.5 w-1.5 rounded-full', configured ? 'bg-success' : 'bg-ink-disabled')} aria-hidden />
+                    <span className={cn('h-1.5 w-1.5 rounded-full', configured ? 'bg-ok' : 'bg-ink-disabled')} aria-hidden />
                     {status === null ? 'Checking…' : configured ? 'Configured' : 'Not set'}
                   </span>
                 </li>
@@ -208,8 +217,8 @@ export default function SettingsPage() {
         </Card>
 
         {/* Webhook */}
-        <Card className="divide-y divide-border">
-          <PanelHead icon={<Webhook size={17} />} title="Webhook delivery">
+        <Card className="divide-y divide-rule overflow-hidden">
+          <PanelHead title="Webhook delivery">
             Receives real-time conversation events from Tavus.
           </PanelHead>
           <div className="px-6 py-5">
@@ -225,11 +234,11 @@ export default function SettingsPage() {
         </Card>
 
         {/* Multi-tenant */}
-        <Card className="divide-y divide-border">
-          <PanelHead icon={<SlidersHorizontal size={17} />} title="Platform behaviour">
+        <Card className="divide-y divide-rule overflow-hidden">
+          <PanelHead title="Platform behaviour">
             Multi-tenant and compliance configuration.
           </PanelHead>
-          <div className="divide-y divide-border px-6 py-2">
+          <div className="divide-y divide-rule px-6 py-2">
             <Toggle checked={whiteLabelMode} onChange={setWhiteLabelMode} label="White-label mode" description="Remove TalbotIQ branding from candidate-facing screens" />
             <Toggle checked={gdprAuto} onChange={setGdprAuto} label="GDPR auto-purge" description="Automatically delete video and biometric data after 30 days" />
             <Toggle checked={multiLang} onChange={setMultiLang} label="Multi-language avatar" description="Enable multilingual question delivery via Tavus" />
@@ -237,13 +246,13 @@ export default function SettingsPage() {
         </Card>
       </div>
 
-      <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-border pt-6">
+      <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-rule pt-6">
         <Button onClick={save} loading={saving}>Save settings</Button>
         <Button variant="secondary" onClick={() => { if (confirm('Reset Tavus key and local preferences?')) { localStorage.removeItem('talbotiq-store'); location.reload() } }}>
           Reset to defaults
         </Button>
         <p className="ml-auto hidden text-xs text-ink-faint sm:block">Saving syncs the Tavus key to the server.</p>
       </div>
-    </div>
+    </motion.div>
   )
 }

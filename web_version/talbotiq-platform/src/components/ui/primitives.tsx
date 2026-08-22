@@ -94,12 +94,22 @@ export function Button({
         'inline-flex items-center justify-center font-semibold rounded-md select-none whitespace-nowrap',
         'transition-[background-color,border-color,box-shadow,color,transform] duration-fast ease-out',
         // Press feedback: transform only, faster down than up, so the button
-        // reads as depressed the instant the pointer commits.
-        'active:scale-[0.985] active:duration-75',
+        // reads as depressed the instant the pointer commits. Gated on
+        // `motion-safe` because under the reduced-motion policy `transform` is
+        // dropped from the transition list — the scale would still happen, just
+        // uncushioned, which is a jump rather than feedback.
+        'motion-safe:active:scale-[0.985] active:duration-75',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
+        // Disabled is flat: no ink weight, no lift. A greyed button that still
+        // casts a shadow reads as pressable.
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none',
         BTN_VARIANTS[variant],
         iconOnly ? BTN_ICON_SIZES[size] : BTN_SIZES[size],
+        // Busy is NOT disabled, even though it is implemented with the disabled
+        // attribute. It is still the live control the person just pressed, so it
+        // keeps its full ink; the spinner and `aria-busy` carry the state
+        // instead. Without this a loading button and a dead button look the same.
+        loading && 'disabled:opacity-100',
         block && 'w-full',
         className,
       )}
@@ -170,19 +180,53 @@ function describedBy(id: string, hint?: string, error?: string) {
   return parts.length ? parts.join(' ') : undefined
 }
 
+/* ═══ Field validity ═══════════════════════════════════════════════════════
+   Rest, hover, focus and disabled all come from `.input-base` — they are not
+   duplicated here, so a change to the field language happens in one file.
+
+   What the base class cannot know is validity, so the two verdict states are
+   composed on top of it. Both are drawn the same way (border + focus ring in the
+   verdict's tone) and both are paired with a glyph, because the field's own
+   colour is the one thing a monochrome export, a projector or a red-green
+   colour deficit will not carry. The tones resolve through `color-mix` over the
+   semantic token rather than a literal rgb() so the ring is correct in the room
+   as well as on the record — `--risk` is a deep red on paper and a lifted coral
+   on near-black, and a hard-coded value would only ever be right on one. */
+const FIELD_INVALID =
+  'border-risk focus:border-risk focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--risk)_22%,transparent)]'
+const FIELD_VALID =
+  'border-ok focus:border-ok focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--ok)_20%,transparent)]'
+
+/** Which verdict a field is showing. `error` always wins: it is the correction. */
+function verdict(error?: string, valid?: boolean) {
+  if (error) return 'invalid' as const
+  if (valid) return 'valid' as const
+  return null
+}
+
 /* ═══ Input ════════════════════════════════════════════════════════════════ */
 
 interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label?: string; hint?: string; error?: string
+  /**
+   * Marks a field as satisfied — a checked availability, a validated code. The
+   * sibling of `error`, and ignored while `error` is set. Optional and
+   * defaulting to off, so no existing call site changes.
+   */
+  valid?: boolean
   suffix?: React.ReactNode; prefix?: React.ReactNode
   /** Wrapper class. `className` goes to the input itself. */
   fieldClassName?: string
 }
 
 export function Input({
-  label, hint, error, suffix, prefix, className, fieldClassName, id, ...p
+  label, hint, error, valid, suffix, prefix, className, fieldClassName, id, ...p
 }: InputProps) {
   const iid = useFieldId(id, label)
+  const v = verdict(error, valid)
+  // The check occupies the suffix slot, so it never renders over a caller's own.
+  const showCheck = v === 'valid' && !suffix
+
   return (
     <FieldShell id={iid} label={label} hint={hint} error={error} className={fieldClassName}>
       <div className="relative">
@@ -198,14 +242,21 @@ export function Input({
           className={cn(
             'input-base',
             prefix && 'pl-9',
-            suffix && 'pr-9',
-            error && 'border-risk focus:border-risk focus:shadow-[0_0_0_3px_rgb(179_38_30_/_0.15)]',
+            (suffix || showCheck) && 'pr-9',
+            v === 'invalid' && FIELD_INVALID,
+            v === 'valid' && FIELD_VALID,
             className,
           )}
           {...p}
         />
         {suffix && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted">{suffix}</span>
+        )}
+        {showCheck && (
+          <Check
+            size={14} strokeWidth={2.75} aria-hidden="true"
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 animate-fade-in text-ok"
+          />
         )}
       </div>
     </FieldShell>
@@ -216,16 +267,20 @@ export function Input({
 
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string; hint?: string; error?: string; charLimit?: number
+  /** Sibling of `error`. See `Input.valid`. */
+  valid?: boolean
   fieldClassName?: string
 }
 
 export function Textarea({
-  label, hint, error, charLimit, className, fieldClassName, value, id, ...p
+  label, hint, error, valid, charLimit, className, fieldClassName, value, id, ...p
 }: TextareaProps) {
   const iid = useFieldId(id, label)
   const len = typeof value === 'string' ? value.length : 0
   const near = charLimit != null && len > charLimit * 0.9
   const over = charLimit != null && len > charLimit
+  // Over the limit is an error the caller did not have to declare.
+  const v = verdict(error || (over ? 'over' : undefined), valid)
 
   return (
     <FieldShell
@@ -235,15 +290,24 @@ export function Textarea({
       error={error}
       className={fieldClassName}
       aside={
-        charLimit != null && (
-          <span
-            className={cn('font-mono text-xs nums', over ? 'text-risk' : near ? 'text-warn' : 'text-ink-muted')}
-            // Announced politely rather than assertively: a counter that
-            // interrupts on every keystroke makes a textarea unusable with a
-            // screen reader.
-            aria-live="polite"
-          >
-            {len.toLocaleString()}/{charLimit.toLocaleString()}
+        (v === 'valid' || charLimit != null) && (
+          <span className="flex items-center gap-2">
+            {/* The mark sits beside the counter rather than inside the field:
+                a textarea's bottom-right corner belongs to the resize grip. */}
+            {v === 'valid' && (
+              <Check size={13} strokeWidth={2.75} aria-hidden="true" className="animate-fade-in text-ok" />
+            )}
+            {charLimit != null && (
+              <span
+                className={cn('font-mono text-xs nums', over ? 'text-risk' : near ? 'text-warn' : 'text-ink-muted')}
+                // Announced politely rather than assertively: a counter that
+                // interrupts on every keystroke makes a textarea unusable with a
+                // screen reader.
+                aria-live="polite"
+              >
+                {len.toLocaleString()}/{charLimit.toLocaleString()}
+              </span>
+            )}
           </span>
         )
       }
@@ -253,7 +317,16 @@ export function Textarea({
         value={value}
         aria-invalid={error || over ? true : undefined}
         aria-describedby={describedBy(iid, hint, error)}
-        className={cn('textarea-base', (error || over) && 'border-risk', className)}
+        className={cn(
+          'textarea-base',
+          // `.textarea-base` has no disabled rule of its own (`.input-base`
+          // does), so a disabled textarea was indistinguishable from an empty
+          // editable one on both grounds. Tokens, so it is correct in a room too.
+          'disabled:cursor-not-allowed disabled:bg-surface-sunk disabled:text-ink-disabled',
+          v === 'invalid' && FIELD_INVALID,
+          v === 'valid' && FIELD_VALID,
+          className,
+        )}
         {...p}
       />
     </FieldShell>
@@ -268,6 +341,8 @@ export function Textarea({
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string; hint?: string; error?: string
+  /** Sibling of `error`. See `Input.valid`. */
+  valid?: boolean
   options: { value: string; label: string; disabled?: boolean }[]
   /** Leading placeholder option, rendered disabled. */
   placeholder?: string
@@ -275,9 +350,10 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function Select({
-  label, hint, error, options, placeholder, className, fieldClassName, id, ...p
+  label, hint, error, valid, options, placeholder, className, fieldClassName, id, ...p
 }: SelectProps) {
   const iid = useFieldId(id, label)
+  const v = verdict(error, valid)
   return (
     <FieldShell id={iid} label={label} hint={hint} error={error} className={fieldClassName}>
       <div className="relative">
@@ -285,7 +361,16 @@ export function Select({
           id={iid}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(iid, hint, error)}
-          className={cn('input-base cursor-pointer appearance-none pr-8', error && 'border-risk', className)}
+          className={cn(
+            'input-base cursor-pointer appearance-none pr-8',
+            'disabled:cursor-not-allowed',
+            // The check seats to the left of the chevron, so the value needs a
+            // second glyph's worth of room rather than overprinting it.
+            v === 'valid' && 'pr-[3.25rem]',
+            v === 'invalid' && FIELD_INVALID,
+            v === 'valid' && FIELD_VALID,
+            className,
+          )}
           {...p}
         >
           {placeholder && <option value="" disabled>{placeholder}</option>}
@@ -293,6 +378,12 @@ export function Select({
             <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
           ))}
         </select>
+        {v === 'valid' && (
+          <Check
+            size={14} strokeWidth={2.75} aria-hidden="true"
+            className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 animate-fade-in text-ok"
+          />
+        )}
         <ChevronDown
           size={14} strokeWidth={2.25} aria-hidden="true"
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -326,18 +417,32 @@ export function Checkbox({ label, description, error, className, id, ...p }: Che
             aria-describedby={description ? `${iid}-desc` : undefined}
             className={cn(
               'peer h-[18px] w-[18px] cursor-pointer appearance-none rounded-sm border bg-surface',
-              'transition-colors duration-fast',
+              'transition-[background-color,border-color,transform] duration-fast ease-out',
               'checked:border-ink checked:bg-ink',
-              'hover:border-ink-faint',
+              // `enabled:` — a disabled box that still lights up under the
+              // pointer is telling the person it will accept a click.
+              'enabled:hover:border-ink-faint',
+              // The box compresses under the pointer, so the hit is felt before
+              // the mark appears.
+              'motion-safe:enabled:active:scale-90',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
               'disabled:cursor-not-allowed disabled:opacity-50',
               error ? 'border-risk' : 'border-rule-input',
             )}
             {...p}
           />
+          {/* The mark seats into the box rather than switching on: it scales up
+              from 75% as it fades, over the same 150ms the fill takes, so the
+              two read as one event. Reduced motion keeps the fade and drops the
+              travel — the global policy removes `transform` from the transition
+              list, so the mark simply arrives at full size. */}
           <Check
             size={13} strokeWidth={3} aria-hidden="true"
-            className="pointer-events-none absolute text-ink-inverse opacity-0 transition-opacity duration-fast peer-checked:opacity-100"
+            className={cn(
+              'pointer-events-none absolute scale-75 text-ink-inverse opacity-0',
+              'transition-[opacity,transform] duration-fast ease-out',
+              'peer-checked:scale-100 peer-checked:opacity-100',
+            )}
           />
         </span>
         {label && (
@@ -385,7 +490,11 @@ export function Toggle({ checked, onChange, label, description, disabled, inline
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative h-[22px] w-10 flex-shrink-0 rounded-full transition-colors duration-base ease-out',
+        'group relative h-[22px] w-10 flex-shrink-0 rounded-full',
+        // 150ms, not 240: a switch that takes a quarter of a second to throw
+        // feels like it is deciding. The track and the thumb are given the same
+        // duration and the same curve so they arrive together.
+        'transition-colors duration-fast ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
         'disabled:cursor-not-allowed disabled:opacity-50',
         checked ? 'bg-ink' : 'bg-rule-strong',
@@ -395,8 +504,12 @@ export function Toggle({ checked, onChange, label, description, disabled, inline
         className={cn(
           'absolute top-[3px] h-4 w-4 rounded-full bg-surface shadow-sm',
           // transform, not `left`: animating `left` is a layout property and
-          // would invalidate on every frame.
-          'transition-transform duration-base ease-out',
+          // would invalidate on every frame. The press scale composes into the
+          // same transform as the travel, so the thumb compresses wherever it
+          // happens to be rather than snapping back to an origin.
+          'transition-transform duration-fast ease-out',
+          // No `enabled:` guard needed — a disabled button never matches :active.
+          'motion-safe:group-active:scale-90',
           checked ? 'translate-x-[21px]' : 'translate-x-[3px]',
         )}
       />
@@ -456,7 +569,17 @@ export function Slider({
         aria-describedby={hint ? `${id}-hint` : undefined}
         aria-valuetext={text}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-[3px] w-full cursor-pointer appearance-none rounded-sm disabled:cursor-not-allowed disabled:opacity-50"
+        className={cn(
+          'h-[3px] w-full cursor-pointer appearance-none rounded-sm disabled:cursor-not-allowed disabled:opacity-50',
+          // The thumb is the moving part, and it lives in a pseudo-element that
+          // index.css draws — so its physics are declared here rather than
+          // duplicating the shape. It grows under the pointer and compresses on
+          // the grab, which is what makes a drag feel held rather than watched.
+          // Transform only; the halo on hover is already index.css's job.
+          '[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-fast [&::-webkit-slider-thumb]:ease-out',
+          'motion-safe:enabled:hover:[&::-webkit-slider-thumb]:scale-110',
+          'motion-safe:enabled:active:[&::-webkit-slider-thumb]:scale-95',
+        )}
         // The filled portion is painted as a gradient stop rather than as a
         // second element, so the track cannot desynchronise from the thumb.
         style={{

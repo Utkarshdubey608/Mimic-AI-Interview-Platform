@@ -2094,3 +2094,78 @@
   .mimic-site .airail-sweep{opacity:0}
   .mimic-site .airail-bar{transition:none}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. THE PROBLEM — noise resolving into structure.
+
+   The page's opening argument, drawn rather than asserted. Ragged rows on the
+   left (five interviewers, five interviews), even rows on the right (one
+   rubric). The right side only settles when the section is revealed, so the
+   reader watches the resolution happen — which IS the argument.
+
+   No interface is depicted, so nothing here can be mistaken for a screenshot.
+   Everything animated is transform on a already-composited element.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .noise{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  gap:clamp(18px,3vw,40px);align-items:center;
+  margin-top:var(--mm-s-6);
+}
+.mimic-site .noise-side{
+  display:flex;flex-direction:column;gap:14px;min-width:0;
+  padding:clamp(20px,2.4vw,28px);
+  border:1px solid var(--mm-line);border-radius:var(--mm-r-card);
+  background:var(--mm-bg-alt);
+}
+/* The ordered side is the resolved state, so it reads as the page's own
+   surface: white, lifted, with the registrar edge that marks a real record. */
+.mimic-site .noise-side.is-ordered{
+  background:#fff;box-shadow:var(--mm-shadow-md);
+  border-color:var(--mm-line-2);
+  box-shadow:inset 0 2px 0 0 var(--mm-ink), var(--mm-shadow-md);
+}
+.mimic-site .noise-label{
+  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--mm-muted);
+}
+.mimic-site .noise-side.is-ordered .noise-label{color:var(--mm-ink)}
+.mimic-site .noise-rows{display:flex;flex-direction:column;gap:9px}
+.mimic-site .noise-row{
+  display:block;height:7px;border-radius:2px;
+  background:var(--mm-line-2);
+  width:var(--w,100%);
+  transform-origin:left;
+  transition:width .8s var(--mm-ease-out), background-color .8s var(--mm-ease);
+  transition-delay:calc(var(--i) * 55ms);
+}
+/* The ordered rows start ragged too, and only square up when the section is
+   revealed — so the visitor sees noise BECOME structure rather than being
+   shown two static states side by side. */
+.mimic-site .noise-side.is-ordered .noise-row{
+  width:62%;background:var(--mm-line-2);
+}
+.mimic-site .reveal.in .noise-side.is-ordered .noise-row{
+  width:100%;background:var(--mm-reg);
+}
+.mimic-site .noise-foot{
+  font-size:.8125rem;line-height:1.5;color:var(--mm-muted);
+}
+.mimic-site .noise-side.is-ordered .noise-foot{color:var(--mm-ink-2)}
+.mimic-site .noise-arrow{
+  display:grid;place-items:center;flex:none;
+  width:34px;height:34px;border-radius:999px;
+  border:1px solid var(--mm-line-2);background:#fff;color:var(--mm-muted);
+}
+.mimic-site .noise-arrow svg{width:16px;height:16px}
+
+@media (max-width:820px){
+  .mimic-site .noise{grid-template-columns:minmax(0,1fr);gap:14px}
+  /* Pointing down, not right, once the two sides stack. */
+  .mimic-site .noise-arrow{transform:rotate(90deg);justify-self:center}
+}
+@media (prefers-reduced-motion:reduce){
+  /* The resolved state is the finished design; without travel it simply
+     renders that way from the start. */
+  .mimic-site .noise-side.is-ordered .noise-row{width:100%;background:var(--mm-reg);transition:none}
+  .mimic-site .noise-row{transition:none}
+}

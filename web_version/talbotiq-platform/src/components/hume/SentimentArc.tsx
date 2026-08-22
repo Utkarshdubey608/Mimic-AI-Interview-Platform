@@ -1,25 +1,33 @@
+import { palette } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
+
 interface Props {
   score: number // 0-100
   label?: string
   size?: number
 }
 
-// Brand score bands — green for strong, amber for mid, red for low.
-// Mirrors the dimension bands used on the Results page so one score reads the
-// same wherever it appears.
-const TRACK = '#E7E7EA'
-function bandColor(score: number) {
-  if (score >= 70) return '#15803D'
-  if (score >= 45) return '#B45309'
-  return '#B3261E'
+type Pal = ReturnType<typeof palette>
+
+// Score bands — pass / review / flagged. The same three status tokens the
+// dimension bars on the Results page use, so one score reads the same wherever
+// it appears, on either ground.
+function bandColor(score: number, pal: Pal) {
+  if (score >= 70) return pal.ok
+  if (score >= 45) return pal.warn
+  return pal.risk
 }
 
 export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: Props) {
+  // An SVG stroke can't read a CSS variable, so the arc resolves its colours
+  // from the typed token mirror for the current workspace ground.
+  const pal = palette(useWorkspaceGround())
+
   const radius = size / 2 - 14
   const circumference = Math.PI * radius // semicircle
   const offset = circumference * (1 - score / 100)
 
-  const color = bandColor(score)
+  const color = bandColor(score, pal)
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -34,11 +42,14 @@ export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: P
         <path
           d={`M ${14} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - 14} ${size / 2}`}
           fill="none"
-          stroke={TRACK}
+          stroke={pal.rule}
           strokeWidth={10}
           strokeLinecap="round"
         />
-        {/* Progress */}
+        {/* Progress. 700ms matches the score bars on the scorecard — this is a
+            value settling, not an interaction, and the global reduced-motion
+            policy drops stroke-dashoffset from the allowed transition set, so
+            it lands instantly for anyone who asked for that. */}
         <path
           d={`M ${14} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - 14} ${size / 2}`}
           fill="none"
@@ -47,7 +58,7 @@ export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: P
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 1s ease, stroke 0.5s ease' }}
+          style={{ transition: 'stroke-dashoffset 700ms var(--ease-out), stroke var(--dur-base) ease' }}
         />
         {/* Score text */}
         <text
@@ -67,7 +78,7 @@ export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: P
           x={size / 2}
           y={size / 2 + 14}
           textAnchor="middle"
-          fill="#61666E"
+          fill={pal.inkMuted}
           fontSize={11}
           fontWeight="600"
           fontFamily="Archivo, system-ui, sans-serif"
@@ -75,7 +86,7 @@ export function SentimentArc({ score, label = 'Sentiment Score', size = 140 }: P
           / 100
         </text>
       </svg>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
     </div>
   )
 }

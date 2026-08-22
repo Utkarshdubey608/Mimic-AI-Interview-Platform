@@ -115,8 +115,12 @@ export function Modal({ open, onClose, title, description, children, width = 'ma
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4 sm:p-6">
+          {/* The one place glass is earned: the dialog genuinely floats above a
+              page that is still there, and a 4px blur is what says the page is
+              behind it rather than switched off. On the scrim only — never on
+              the surface, which has to stay a legible sheet of paper. */}
           <motion.div
-            className="absolute inset-0 bg-[var(--scrim)]"
+            className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-sm"
             variants={scrimVariants()}
             initial="initial" animate="animate" exit="exit"
             onClick={onClose}
@@ -188,7 +192,7 @@ export function Drawer({
       {open && (
         <div className="fixed inset-0 z-drawer flex">
           <motion.div
-            className="absolute inset-0 bg-[var(--scrim)]"
+            className="absolute inset-0 bg-[var(--scrim)] backdrop-blur-sm"
             variants={scrimVariants()}
             initial="initial" animate="animate" exit="exit"
             onClick={onClose}

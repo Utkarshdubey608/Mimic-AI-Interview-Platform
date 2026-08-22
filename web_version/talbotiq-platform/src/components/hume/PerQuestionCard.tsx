@@ -1,12 +1,24 @@
+import { series, type Ground } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
 import type { QuestionEmotionSummary } from '@/types/hume.types'
 import { EmotionRadar } from './EmotionRadar'
 
-// Dominant-emotion accent, kept inside the brand spectrum: teal for energised,
-// indigo for calm, amber for stress. Anything unmapped falls back to teal.
-const DOMINANT_COLOR: Record<string, string> = {
-  Energy: '#0F766E', Excitement: '#0F766E', Enthusiasm: '#0F766E',
-  Calm: '#4338CA', Serenity: '#4338CA', Contentment: '#4338CA',
-  Anxiety: '#B45309', Stress: '#B45309', Confusion: '#B45309',
+/* Dominant-emotion accent. Three signals — energised, calm, stressed — taken
+   from the categorical `series` ramp at the same indices the emotion charts
+   use, so a card's accent matches its own radar on either ground. Anything
+   unmapped falls back to the "energised" seat. */
+const ENERGISED = 2
+const CALM = 4
+const STRESSED = 1
+
+const DOMINANT_SERIES: Record<string, number> = {
+  Energy: ENERGISED, Excitement: ENERGISED, Enthusiasm: ENERGISED,
+  Calm: CALM, Serenity: CALM, Contentment: CALM,
+  Anxiety: STRESSED, Stress: STRESSED, Confusion: STRESSED,
+}
+
+function dominantColor(dominant: string, ground: Ground): string {
+  return series[ground][DOMINANT_SERIES[dominant] ?? ENERGISED]
 }
 
 interface Props {
@@ -15,36 +27,37 @@ interface Props {
 }
 
 export function PerQuestionCard({ summary, index }: Props) {
-  const dominantColor = DOMINANT_COLOR[summary.dominant] ?? '#0F766E'
+  const ground = useWorkspaceGround()
+  const accent = dominantColor(summary.dominant, ground)
 
   return (
-    <div className="rounded-2xl bg-hume-card border border-hume-border p-5 space-y-4">
+    <div className="rounded-2xl bg-surface-sunk border border-rule p-5 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-1.5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-1.5">
             Question {index + 1}
           </p>
-          <p className="text-sm text-neutral-800 leading-relaxed line-clamp-2">
+          <p className="text-sm text-ink leading-relaxed line-clamp-2">
             {summary.questionText}
           </p>
         </div>
         <span
           className="shrink-0 px-2.5 py-1 rounded-full text-2xs font-bold uppercase tracking-wide border"
-          style={{ background: `${dominantColor}14`, color: dominantColor, borderColor: `${dominantColor}33` }}
+          style={{ background: `${accent}14`, color: accent, borderColor: `${accent}33` }}
         >
           {summary.dominant}
         </span>
       </div>
 
-      <EmotionRadar categoryScores={summary.avgCategoryScores} color={dominantColor} />
+      <EmotionRadar categoryScores={summary.avgCategoryScores} color={accent} />
 
       <div className="flex flex-wrap gap-1.5">
         {summary.topEmotions.slice(0, 4).map(e => (
           <span
             key={e.name}
-            className="px-2.5 py-0.5 rounded-full text-2xs font-medium bg-white border border-border text-neutral-700"
+            className="px-2.5 py-0.5 rounded-full text-2xs font-medium bg-surface border border-rule text-ink-body"
           >
-            {e.name} <span className="tabular-nums text-neutral-500">{Math.round(e.score * 100)}%</span>
+            {e.name} <span className="tabular-nums text-ink-muted">{Math.round(e.score * 100)}%</span>
           </span>
         ))}
       </div>

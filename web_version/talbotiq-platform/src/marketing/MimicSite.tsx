@@ -442,6 +442,64 @@ export default function MimicSite() {
           </div>
         </section>
 
+        {/* ── THE PROBLEM ──
+            The narrative beat the page was missing. It went straight from "here
+            are our customers" to "here is how our scoring works", which answers
+            a question the reader has not been given a reason to ask yet.
+
+            The composition is deliberately NOT three cards. It is the argument
+            itself, drawn: on the left, the same role screened five times by
+            five people — ragged, each line a different length, each asking
+            something different. On the right, the same five candidates against
+            one set of criteria. Nothing here depicts a product interface, so it
+            cannot be mistaken for one; it is a diagram of the difference. */}
+        <section className="section problem" id="problem" aria-labelledby="problem-h">
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">The problem</span>
+              <h2 className="h2" id="problem-h">Five interviewers, five interviews.</h2>
+              <p className="lede">
+                Screening at volume means different people asking different questions on different
+                days, writing notes in their own shorthand. The scores that come out the other end
+                were never measuring the same thing, so comparing them is guesswork with a number
+                attached.
+              </p>
+            </div>
+
+            <Reveal>
+              <div className="noise" aria-hidden="true">
+                <div className="noise-side">
+                  <span className="noise-label">Unstructured screening</span>
+                  <div className="noise-rows">
+                    {[92, 46, 74, 58, 84, 38, 66, 51].map((w, i) => (
+                      <span
+                        key={i}
+                        className="noise-row"
+                        style={{ '--w': `${w}%`, '--i': i } as React.CSSProperties}
+                      />
+                    ))}
+                  </div>
+                  <span className="noise-foot">No two candidates asked the same thing</span>
+                </div>
+
+                <span className="noise-arrow">
+                  <Ico n="arrow" />
+                </span>
+
+                <div className="noise-side is-ordered">
+                  <span className="noise-label">One rubric, applied identically</span>
+                  <div className="noise-rows">
+                    {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                      <span key={i} className="noise-row" style={{ '--i': i } as React.CSSProperties} />
+                    ))}
+                  </div>
+                  <span className="noise-foot">Every answer measured against the same criteria</span>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
         {/* ── THE MECHANISM — proof by demonstration, not by borrowed statistic ── */}
         <section className="section" id="scoring" aria-labelledby="mech-h">
           <div className="wrap">

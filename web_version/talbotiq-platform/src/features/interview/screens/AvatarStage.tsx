@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
 import DailyIframe from '@daily-co/daily-js'
-import { Loader2, AlertTriangle, CheckCircle2, PhoneOff, UserRound, RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui'
+import { AISignal } from '@/components/ai/AISignal'
 import { InterviewStage, PhaseMark } from '../stage/InterviewStage'
 import { Transport } from '../stage/Transport'
 import { Completion } from './Completion'
@@ -39,7 +40,8 @@ type Stage = 'connecting' | 'live' | 'ending' | 'ended' | 'error'
  * isn't available the call still works; transcripts are best-effort.
  */
 export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
-  const reduce = useReducedMotion()
+  // Still needed by the face-fit pre-flight, which draws the tenant's accent on
+  // its own canvas overlay. Nothing else in this room uses it.
   const accent = branding.accentColor || '#8AA6F0'
 
   const [stage, setStage] = useState<Stage>('connecting')
@@ -175,25 +177,32 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
     )
   }
 
-  /* ── error (couldn't start) ── */
+  /* ── error (couldn't start) ──
+     On the room ground, like every other moment in this journey, so a failure
+     is not also a jarring change of world. The action is the system's own
+     button rather than a hand-rolled one tinted with the tenant accent — that
+     accent is an arbitrary hex with no contrast guarantee, and it was carrying
+     white text here. */
   if (stage === 'error') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ground px-4 py-12">
-        <div className="w-full max-w-md rounded-3xl border border-rule bg-surface p-10 text-center shadow-lg">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-risk-rule bg-risk-bg text-risk">
-            <AlertTriangle size={28} />
+      <div data-ground="room" className="relative flex min-h-screen items-center justify-center bg-ground px-4 py-12">
+        <div className="keylight-accent pointer-events-none absolute inset-0" aria-hidden="true" />
+        <div className="relative w-full max-w-md rounded-xl border border-rule bg-surface p-10 text-center shadow-lg">
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-risk-rule bg-risk-bg text-risk">
+            <AlertTriangle size={26} />
           </span>
           <h1 className="mt-5 font-display text-xl font-extrabold tracking-[-0.03em] text-ink">
             We couldn’t start your interview
           </h1>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-muted">{error}</p>
-          <button
+          <Button
             onClick={() => { setError(null); setAttempt((a) => a + 1) }}
-            className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
-            style={{ background: accent }}
+            size="lg"
+            className="mt-6"
+            icon={<RefreshCw size={15} />}
           >
-            <RefreshCw size={15} /> Try again
-          </button>
+            Try again
+          </Button>
           <p className="mt-4 text-xs text-ink-muted">If this keeps happening, contact your recruiter.</p>
         </div>
       </div>
@@ -251,42 +260,29 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
             title="AI Interviewer"
           />
         ) : (
-          // The room's frame, held open while Tavus spins it up.
-          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
-            <div className="flex h-full w-full max-w-4xl flex-col items-center justify-center gap-6 rounded-3xl border border-brand-border bg-brand-card/60 px-6 text-center">
-              <div className="relative flex h-28 w-28 items-center justify-center">
-                {!reduce && [0, 1].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="absolute h-24 w-24 rounded-full"
-                    style={{ background: `${accent}2E` }}
-                    animate={{ scale: [1, 1.7], opacity: [0.5, 0] }}
-                    transition={{ duration: 2.2, repeat: Infinity, delay: i * 1.1, ease: 'easeOut' }}
-                  />
-                ))}
-                <span className="relative flex h-20 w-20 items-center justify-center rounded-full border border-brand-border bg-brand-card text-brand-gold">
-                  <UserRound size={32} />
-                </span>
-              </div>
+          /* The room, held open while Tavus spins it up.
 
-              <div className="flex flex-col items-center gap-2">
-                <span className="flex items-center gap-1.5 rounded-md border border-brand-border bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-brand-gold-light">
-                  <Loader2 size={11} className="animate-spin" />
-                  {stage === 'ending' ? 'Finishing' : 'Preparing'}
-                </span>
-                <p className="font-display text-lg font-bold tracking-[-0.02em] text-white" aria-live="polite">
-                  {stage === 'ending' ? 'Wrapping up your interview' : 'Connecting your interviewer'}
+             This was a spinner, the word "Preparing", and two pulsing grey
+             bars — the generic loading state the design brief specifically
+             rules out. What replaces it is the product's own signal in its
+             THINKING state: the machine is assembling this candidate's
+             questions, and the visualisation says so. Same information, and it
+             is the first thing a candidate ever sees of the interviewer. */
+          <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+            {/* One key light behind the presence. Localised, never a page wash. */}
+            <div className="keylight-ai pointer-events-none absolute inset-0" aria-hidden="true" />
+            <div className="relative flex flex-col items-center gap-7 px-6 text-center">
+              <AISignal state="thinking" size={132} />
+
+              <div className="flex flex-col items-center gap-2.5">
+                <p className="font-display text-xl font-bold tracking-[-0.02em] text-ink" aria-live="polite">
+                  {stage === 'ending' ? 'Wrapping up your interview' : 'Preparing your interviewer'}
                 </p>
-                <p className="max-w-sm text-sm leading-relaxed text-brand-gray">
+                <p className="max-w-sm text-sm leading-relaxed text-ink-muted">
                   {stage === 'ending'
                     ? 'Saving your session, this only takes a moment.'
                     : 'Setting up the room and your questions. This usually takes just a few seconds.'}
                 </p>
-              </div>
-
-              <div className="flex w-full max-w-[220px] flex-col items-center gap-2">
-                <span className="h-1.5 w-full animate-pulse rounded-full bg-white/10" />
-                <span className="h-1.5 w-2/3 animate-pulse rounded-full bg-white/5" />
               </div>
             </div>
           </div>

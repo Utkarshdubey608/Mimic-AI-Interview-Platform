@@ -88,15 +88,40 @@ export function StatusMark({
 /* ═══ Skeleton ═════════════════════════════════════════════════════════════
    Shaped like the content it replaces, never a spinner, and never taller or
    shorter than the real thing — a skeleton whose height differs from the loaded
-   content makes the page jump, which is worse than no skeleton at all. */
+   content makes the page jump, which is worse than no skeleton at all.
+
+   The block was a whole-element opacity pulse. A pulse says "this is switched
+   off"; a sweep says "this is arriving", which is the actual fact. The sweep is
+   a single translated gradient — transform only, so a table of forty of them
+   costs one composited layer each and nothing on the main thread.
+
+   The sweep colour is INK at 8%, not a lighter grey. That is what lets one
+   declaration be right on both grounds: on paper the ink darkens the block as it
+   passes, in a room the ink is near-white so the same rule lightens it. A
+   hard-coded highlight would be a white smear on near-black. */
+
+/* Kept out of the class string deliberately: an arbitrary Tailwind value
+   containing a nested `color-mix()` is exactly the kind of string that survives
+   review and then silently fails to generate. */
+const SKELETON_SWEEP: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--ink) 8%, transparent) 50%, transparent 100%)',
+}
 
 export function Skeleton({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       aria-hidden="true"
       style={style}
-      className={cn('animate-pulse rounded-sm bg-surface-hover', className)}
-    />
+      className={cn('relative overflow-hidden rounded-sm bg-surface-hover', className)}
+    >
+      {/* Under `prefers-reduced-motion` the global policy in index.css collapses
+          every animation to 0.01ms with a single iteration, so the sweep runs
+          off the right edge once and is never seen again — the block resolves to
+          its static ground. Nothing here needs a second reduced-motion branch,
+          because the whole effect is carried by `animation`. */}
+      <span className="absolute inset-0 animate-sheen" style={SKELETON_SWEEP} />
+    </div>
   )
 }
 
@@ -142,6 +167,65 @@ export function RecordCards({ cards = 6, className }: { cards?: number; classNam
   )
 }
 
+/* ═══ Vacant-state composition ═════════════════════════════════════════════
+   Three states share one composition, because they are the same object seen
+   three ways: a region that has nothing in it and a reason why.
+
+   What makes the arrangement read as composed rather than as a centred stack of
+   leftovers is the key light. A vacant region is the one place on a page with no
+   subject, so the light is what supplies one: a single soft pool behind the
+   plate, drawn from the halo token, which exists at 8–11% alpha and therefore
+   can never carry meaning or need a contrast gate. One light, one region — the
+   same rule the sign-in card and the AI presence follow.
+
+   The plate itself is a filed object: squared, ruled, sunk below the surface it
+   sits on, with the ground's own elevation on it (an offset shadow on paper, a
+   light-catching top hairline in a room). */
+
+function StateKeylight() {
+  return (
+    <span
+      aria-hidden="true"
+      // -z-10 inside the state's own stacking context (`isolate` on the root),
+      // so the wash sits under the plate and the type without escaping behind
+      // whatever the state is rendered into.
+      className="keylight-accent pointer-events-none absolute inset-0 -z-10"
+      style={{ '--key-y': '30%' } as React.CSSProperties}
+    />
+  )
+}
+
+function StatePlate({ tone = 'neutral', children }: { tone?: 'neutral' | 'risk'; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md border shadow-xs',
+        // The glyph is normalised here rather than at each call site, so the
+        // three states cannot drift to three different icon sizes.
+        '[&_svg]:h-5 [&_svg]:w-5',
+        tone === 'risk'
+          ? 'border-risk-rule bg-risk-bg text-risk'
+          : 'border-rule bg-surface-sunk text-ink-muted',
+      )}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Title and description set to one rhythm across all three states. */
+function StateCopy({ title, children }: { title: string; children?: React.ReactNode }) {
+  return (
+    <div className="max-w-md">
+      <p className="font-display text-base font-bold tracking-[-0.012em] text-ink">{title}</p>
+      {children && (
+        <p className="mx-auto mt-2 text-sm leading-relaxed text-pretty text-ink-muted">{children}</p>
+      )}
+    </div>
+  )
+}
+
 /* ═══ EmptyState ═══════════════════════════════════════════════════════════ */
 
 export function EmptyState({
@@ -156,21 +240,12 @@ export function EmptyState({
 }) {
   return (
     // An empty section of the bundle: the tab is there, the pages are not.
-    <div className={cn('flex flex-col items-center justify-center gap-4 px-6 py-16 text-center', className)}>
-      <div
-        className="flex h-11 w-11 items-center justify-center rounded-md border border-rule bg-surface-hover text-ink-muted [&_svg]:h-5 [&_svg]:w-5"
-        aria-hidden="true"
-      >
-        {icon ?? <Inbox strokeWidth={1.75} />}
-      </div>
-      <div>
-        <p className="font-display text-base font-bold text-ink">{title}</p>
-        {description && (
-          <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-ink-muted">{description}</p>
-        )}
-      </div>
+    <div className={cn('relative isolate flex flex-col items-center justify-center gap-5 px-6 py-16 text-center', className)}>
+      <StateKeylight />
+      <StatePlate>{icon ?? <Inbox strokeWidth={1.75} />}</StatePlate>
+      <StateCopy title={title}>{description}</StateCopy>
       {(action || secondaryAction) && (
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           {action}
           {secondaryAction}
         </div>
@@ -188,18 +263,14 @@ export function EmptyState({
  */
 export function NoResultsState({ query, onClear, className }: { query?: string; onClear?: () => void; className?: string }) {
   return (
-    <div className={cn('flex flex-col items-center justify-center gap-4 px-6 py-14 text-center', className)}>
-      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-rule bg-surface-hover text-ink-muted" aria-hidden="true">
-        <Inbox size={20} strokeWidth={1.75} />
-      </div>
-      <div>
-        <p className="font-display text-base font-bold text-ink">No matches</p>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-ink-muted">
-          {query
-            ? <>Nothing matches <span className="font-medium text-ink-body">“{query}”</span> with the current filters.</>
-            : 'Nothing matches the current filters.'}
-        </p>
-      </div>
+    <div className={cn('relative isolate flex flex-col items-center justify-center gap-5 px-6 py-14 text-center', className)}>
+      <StateKeylight />
+      <StatePlate><Inbox strokeWidth={1.75} /></StatePlate>
+      <StateCopy title="No matches">
+        {query
+          ? <>Nothing matches <span className="font-medium text-ink-body">“{query}”</span> with the current filters.</>
+          : 'Nothing matches the current filters.'}
+      </StateCopy>
       {onClear && (
         <Button variant="secondary" size="sm" onClick={onClear}>Clear filters</Button>
       )}
@@ -222,19 +293,15 @@ export function ErrorState({
     // screen otherwise learns nothing happened only by the absence of content.
     <div
       role="alert"
-      className={cn('flex flex-col items-center justify-center gap-4 px-6 py-16 text-center', className)}
+      className={cn('flex flex-col items-center justify-center gap-5 px-6 py-16 text-center', className)}
     >
-      <div className="flex h-11 w-11 items-center justify-center rounded-md border border-risk-rule bg-risk-bg text-risk" aria-hidden="true">
-        <AlertTriangle size={20} strokeWidth={1.75} />
-      </div>
-      <div>
-        <p className="font-display text-base font-bold text-ink">{title}</p>
-        {detail && (
-          <p className="mx-auto mt-1.5 max-w-md text-sm leading-relaxed text-ink-muted">{detail}</p>
-        )}
-      </div>
+      {/* Deliberately no key light here. The halo is drawn from the accent, and
+          a soft registrar-blue pool behind a failure reads as ornament on bad
+          news. The seal-toned plate is the only mark this state needs. */}
+      <StatePlate tone="risk"><AlertTriangle strokeWidth={1.75} /></StatePlate>
+      <StateCopy title={title}>{detail}</StateCopy>
       {onRetry && (
-        <Button variant="secondary" size="sm" onClick={onRetry} className="mt-1">Try again</Button>
+        <Button variant="secondary" size="sm" onClick={onRetry}>Try again</Button>
       )}
     </div>
   )

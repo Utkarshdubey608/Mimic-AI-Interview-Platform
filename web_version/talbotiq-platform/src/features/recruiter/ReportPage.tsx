@@ -11,6 +11,7 @@ import {
   Sparkles, Star, Target, Video, Zap,
 } from 'lucide-react'
 import { Card, Button, Textarea, Badge, Skeleton, cn } from '@/components/ui'
+import { AIInsight, AIObservation } from '@/components/ai/AIInsight'
 import { palette } from '@/design/tokens'
 import { useWorkspaceGround } from '@/lib/workspaceGround'
 import { sessionsApi } from '@/lib/api'
@@ -495,23 +496,30 @@ export default function ReportPage() {
             </TrustNote>
           )}
 
-          {/* AI summary — strengths / areas to improve */}
-          <Card className="p-5 md:p-6">
-            <PanelHead icon={<Sparkles size={14} strokeWidth={2} />} title="AI summary" />
-            <p className="mt-4 text-[15px] leading-relaxed text-ink-body">{report.summary}</p>
+          {/* AI summary — strengths / areas to improve.
+
+              This was a plain Card with a Sparkles icon, which made the one
+              piece of MODEL-WRITTEN prose on the page look exactly like the
+              measured panels around it. It is now the product's insight
+              surface: signal mark, signal edge, tinted ground, and the source
+              stated in words underneath. A recruiter can tell at a glance which
+              claims on this page are inferences. */}
+          <AIInsight
+            provenance={
+              report.degraded
+                ? 'Written from transcript heuristics — no scoring model was configured for this interview.'
+                : 'Written by the scoring model from this interview’s transcript. The overall score is calculated by the platform from your rubric weights, not by the model.'
+            }
+          >
+            <p>{report.summary}</p>
             {(report.strengths?.length || report.improvements?.length) ? (
-              <div className="mt-6 grid gap-x-10 gap-y-6 border-t border-border pt-5 sm:grid-cols-2">
+              <div className="mt-5 grid gap-x-10 gap-y-5 border-t border-ai-rule pt-4 sm:grid-cols-2">
                 {report.strengths?.length ? (
                   <div>
                     <MicroLabel className="text-ok">Strengths</MicroLabel>
-                    <ul className="mt-3 space-y-2.5">
+                    <ul className="mt-2.5 space-y-2">
                       {report.strengths.map((str, i) => (
-                        <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-ink-body">
-                          <span className="mt-0.5 flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full border border-ok-rule bg-ok-bg text-ok" aria-hidden="true">
-                            <Check size={11} strokeWidth={3} />
-                          </span>
-                          <span>{str}</span>
-                        </li>
+                        <AIObservation key={i} tone="strength">{str}</AIObservation>
                       ))}
                     </ul>
                   </div>
@@ -519,21 +527,16 @@ export default function ReportPage() {
                 {report.improvements?.length ? (
                   <div>
                     <MicroLabel className="text-warn">Areas to improve</MicroLabel>
-                    <ul className="mt-3 space-y-2.5">
+                    <ul className="mt-2.5 space-y-2">
                       {report.improvements.map((str, i) => (
-                        <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-ink-body">
-                          <span className="mt-0.5 flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-full border border-warn-rule bg-warn-bg text-warn" aria-hidden="true">
-                            <ArrowRight size={11} strokeWidth={2.5} />
-                          </span>
-                          <span>{str}</span>
-                        </li>
+                        <AIObservation key={i} tone="concern">{str}</AIObservation>
                       ))}
                     </ul>
                   </div>
                 ) : null}
               </div>
             ) : null}
-          </Card>
+          </AIInsight>
 
           {/* radar + bars */}
           <div className="grid gap-6 md:grid-cols-2">

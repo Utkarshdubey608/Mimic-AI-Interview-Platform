@@ -10,7 +10,7 @@ import { useAppStore } from '@/store/useAppStore'
 import type { Draft } from '@/store/useAppStore'
 import { pageVariants } from '@/design/motion'
 import { Button, Card, Input, Textarea, Select, Toggle, Slider, JsonPreview, Modal, PageHeader, Skeleton } from '@/components/ui'
-import { AlertCircle, Archive, Bot, Check, Database, Info, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { AlertCircle, Check, Info, Trash2, X } from 'lucide-react'
 import { ReplicaPicker } from '@/components/tavus/ReplicaPicker'
 import { formatDistanceToNow } from 'date-fns'
 import type { CreateConversationInput, SupportedLanguage, PipelineMode } from '@/types/tavus.types'
@@ -34,28 +34,32 @@ const PIPELINES: { value: PipelineMode; label: string }[] = [
   { value: 'no_audio', label: 'No audio' }, { value: 'video_only', label: 'Video only' },
 ]
 
-/* ── Shared card header — icon plate, title, optional note + aside ──────────── */
-function CardHead({ icon, title, description, aside, accent }: {
-  icon: ReactNode; title: string; description?: string; aside?: ReactNode; accent?: boolean
+/* ── Shared card header — ruled cover head, title, optional note + aside ────── */
+function CardHead({ title, description, aside }: {
+  title: string; description?: string; aside?: ReactNode
 }) {
   return (
-    // The ruled cover head, not an icon plate. `icon` and `accent` are retained
-    // for the call sites and deliberately not rendered: the plate carried no
-    // information the title did not already carry, and a page of identical
-    // icon+heading+text blocks gives the eye no structure to scan. `aside` moves
-    // INTO the head, where status belongs — right of the label, where the eye
-    // lands after reading it.
-    <>
+    // The ruled cover head, not an icon plate: the plate carried no information
+    // the title did not already carry, and a page of identical icon+heading+text
+    // blocks gives the eye no structure to scan. `aside` sits INSIDE the head,
+    // where status belongs — right of the label, where the eye lands after
+    // reading it.
+    //
+    // Head and note are ONE child of the card on purpose. The card divides its
+    // children with `divide-y`, and `.record-head` already draws its own
+    // hairline below, so a fragment here stacked two 1px rules into a 2px one at
+    // every head on the page.
+    <div>
       <div className="record-head flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-5 py-2.5">
         <h3 className="font-display text-[14px] font-bold text-ink">{title}</h3>
         {aside && <span className="flex flex-shrink-0 items-center gap-2">{aside}</span>}
       </div>
       {description && (
-        <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
+        <p className="px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
           {description}
         </p>
       )}
-    </>
+    </div>
   )
 }
 
@@ -77,6 +81,7 @@ const DEF: F = {
 }
 
 export default function SetupPage() {
+  const reduce = useReducedMotion() ?? false
   const navigate = useNavigate()
   const location = useLocation()
   const qc = useQueryClient()
@@ -256,84 +261,90 @@ export default function SetupPage() {
     })
   }
 
+  /* The applied-avatar state, set at badge scale so it reads as a qualifier of
+     the page title rather than as a second banner. Every branch keeps its word
+     as well as its colour, and the same box shape, so the row does not resize
+     as the query settles. */
+  const appliedMeta = avatarApplied.data?.configured ? (
+    <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-ok-rule bg-ok-bg px-2.5 py-1">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ok">
+        <span className="live-dot" />
+        Live for candidate interviews
+      </span>
+      {avatarApplied.data.replicaId ? (
+        <>
+          <span className="h-3 w-px bg-ok-rule" aria-hidden="true" />
+          <span className="font-mono text-[11px] text-ink-body">{avatarApplied.data.replicaId}</span>
+        </>
+      ) : null}
+      {avatarApplied.data.updatedAt ? (
+        <>
+          <span className="h-3 w-px bg-ok-rule" aria-hidden="true" />
+          <span className="text-[11px] text-ink-muted">
+            updated {formatDistanceToNow(new Date(avatarApplied.data.updatedAt), { addSuffix: true })}
+          </span>
+        </>
+      ) : null}
+    </span>
+  ) : avatarApplied.isSuccess ? (
+    <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-warn-rule bg-warn-bg px-2.5 py-1">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-warn">
+        <AlertCircle size={12} strokeWidth={2.25} aria-hidden="true" />
+        No avatar applied yet
+      </span>
+      <span className="h-3 w-px bg-warn-rule" aria-hidden="true" />
+      <span className="text-[11px] text-ink-body">Conversational AI interviews can’t start until you apply one.</span>
+    </span>
+  ) : avatarApplied.isError ? (
+    <span className="inline-flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border border-rule bg-surface-hover px-2.5 py-1">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-body">
+        <AlertCircle size={12} strokeWidth={2.25} aria-hidden="true" />
+        Couldn’t read the applied-avatar status
+      </span>
+      <span className="h-3 w-px bg-rule-strong" aria-hidden="true" />
+      <span className="text-[11px] text-ink-muted">Applying still saves your configuration.</span>
+    </span>
+  ) : (
+    <Skeleton className="h-[26px] w-72 rounded-md" />
+  )
+
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8">
-      {/* ── Hero — two-line display treatment ───────────────────────────────── */}
-      <header className="mb-10">
-        <span className="pill inline-flex">AI Avatar Screening</span>
-
-        <h1 className="mt-4 font-display font-extrabold tracking-[-0.03em] leading-[0.95]">
-          <span className="block text-[26px] text-ink-faint sm:text-4xl">Configure your{' '}</span>
-          <span className="mt-1 block text-[38px] text-ink sm:text-5xl">Interview Session</span>
-        </h1>
-
-        <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted">
-          Set up the avatar, its voice, and the call properties — then
-          <span className="font-semibold text-ink-body"> apply it to candidate interviews</span>.
-          Every candidate who takes a Conversational AI interview meets this avatar: it greets
-          them by name and asks their session’s questions.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Button onClick={applyToCandidates} loading={applying}>
-            Apply to Candidate Interviews
-          </Button>
-          <Button variant="secondary" onClick={() => setModal(true)} loading={create.isPending}>
-            Launch Test Session
-          </Button>
-          <Button variant="ghost" onClick={() => { setDraftName(''); setDraftModal(true) }}>Save Draft</Button>
-        </div>
-
-        {/* Applied-status chip row */}
-        {avatarApplied.data?.configured ? (
-          <div className="mt-5 inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-full border border-success-border bg-success-bg px-4 py-2">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold text-success">
-              <span className="live-dot" />
-              Live for candidate interviews
-            </span>
-            {avatarApplied.data.replicaId ? (
-              <>
-                <span className="h-3.5 w-px bg-success-border" aria-hidden="true" />
-                <span className="font-mono text-[11px] text-ink-body">{avatarApplied.data.replicaId}</span>
-              </>
-            ) : null}
-            {avatarApplied.data.updatedAt ? (
-              <>
-                <span className="h-3.5 w-px bg-success-border" aria-hidden="true" />
-                <span className="text-[11px] text-ink-muted">
-                  updated {formatDistanceToNow(new Date(avatarApplied.data.updatedAt), { addSuffix: true })}
-                </span>
-              </>
-            ) : null}
-          </div>
-        ) : avatarApplied.isSuccess ? (
-          <div className="mt-5 inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-full border border-warning-border bg-warning-bg px-4 py-2">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold text-warning">
-              <AlertCircle size={13} strokeWidth={2.25} aria-hidden="true" />
-              No avatar applied yet
-            </span>
-            <span className="h-3.5 w-px bg-warning-border" aria-hidden="true" />
-            <span className="text-[11px] text-ink-body">Conversational AI interviews can’t start until you apply one.</span>
-          </div>
-        ) : avatarApplied.isError ? (
-          <div className="mt-5 inline-flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-full border border-border bg-surface-hover px-4 py-2">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold text-ink-body">
-              <AlertCircle size={13} strokeWidth={2.25} aria-hidden="true" />
-              Couldn’t read the applied-avatar status
-            </span>
-            <span className="h-3.5 w-px bg-rule-strong" aria-hidden="true" />
-            <span className="text-[11px] text-ink-muted">Applying still saves your configuration.</span>
-          </div>
-        ) : (
-          <Skeleton className="mt-5 h-9 w-72 rounded-full" />
-        )}
-      </header>
+    <motion.div
+      variants={pageVariants(reduce)}
+      initial="initial"
+      animate="animate"
+      className="max-w-[1440px] mx-auto px-6 py-8"
+    >
+      {/* One page head, the same one every workspace screen opens with. The
+          previous two-tone split headline set "Configure your" in faint ink
+          above "Interview Session" in full ink, which reads as two ranks of
+          heading and puts the weaker half first. */}
+      <PageHeader
+        title="Configure your Interview Session"
+        description="Set up the avatar, its voice, and the call properties — then apply it to candidate interviews. Every candidate who takes a Conversational AI interview meets this avatar: it greets them by name and asks their session’s questions."
+        meta={
+          <>
+            <span className="pill">AI Avatar Screening</span>
+            {appliedMeta}
+          </>
+        }
+        action={
+          <>
+            <Button onClick={applyToCandidates} loading={applying}>
+              Apply to Candidate Interviews
+            </Button>
+            <Button variant="secondary" onClick={() => setModal(true)} loading={create.isPending}>
+              Launch Test Session
+            </Button>
+            <Button variant="ghost" onClick={() => { setDraftName(''); setDraftModal(true) }}>Save Draft</Button>
+          </>
+        }
+      />
 
       {/* ── Saved drafts ─────────────────────────────────────────────────────── */}
       {store.drafts.length > 0 && (
-        <Card className="mb-6 divide-y divide-border">
+        <Card className="mb-6 divide-y divide-rule overflow-hidden">
           <CardHead
-            icon={<Archive size={15} strokeWidth={2} aria-hidden="true" />}
             title="Saved drafts"
             description="Load a saved configuration back into the form below."
             aside={<span className="badge badge-neutral tabular-nums">{store.drafts.length}</span>}
@@ -344,7 +355,7 @@ export default function SetupPage() {
                 <button
                   type="button"
                   onClick={() => { setF({ ...DEF, ...d.form }); store.setQuestions(d.questions); toast.success(`Loaded "${d.name}"`) }}
-                  className="w-full rounded-xl border border-border bg-surface p-3.5 pr-11 text-left transition-colors duration-150 hover:border-rule-strong hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
+                  className="card card-hover w-full cursor-pointer p-3.5 pr-11 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
                 >
                   <p className="truncate text-sm font-semibold text-ink">{d.name}</p>
                   <p className="mt-1 text-xs text-ink-faint">
@@ -355,7 +366,7 @@ export default function SetupPage() {
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); store.deleteDraft(d.id); toast('Draft deleted') }}
-                  className="absolute right-2 top-2 rounded-full p-1.5 text-ink-faint opacity-0 transition-all duration-150 hover:bg-danger-bg hover:text-danger focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40 group-hover:opacity-100"
+                  className="absolute right-2 top-2 rounded-md p-1.5 text-ink-faint opacity-0 transition-[opacity,background-color,color] duration-fast ease-out hover:bg-risk-bg hover:text-risk focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group-hover:opacity-100"
                   title="Delete draft"
                   aria-label={`Delete draft ${d.name}`}
                 >
@@ -369,13 +380,11 @@ export default function SetupPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
         {/* ── Left: form ── */}
-        <div className="space-y-5">
+        <div className="space-y-6">
 
           {/* Tavus config */}
-          <Card className="divide-y divide-border">
+          <Card className="divide-y divide-rule overflow-hidden">
             <CardHead
-              accent
-              icon={<Bot size={15} strokeWidth={2} aria-hidden="true" />}
               title="Avatar & persona"
               description="The face, voice identity, and opening words candidates meet."
             />
@@ -393,9 +402,9 @@ export default function SetupPage() {
                 />
 
                 <div className="flex items-center gap-2.5 pt-0.5">
-                  <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                  <span className="h-px flex-1 bg-rule" aria-hidden="true" />
                   <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-ink-faint">or paste an ID</span>
-                  <span className="h-px flex-1 bg-border" aria-hidden="true" />
+                  <span className="h-px flex-1 bg-rule" aria-hidden="true" />
                 </div>
 
                 <div className="relative">
@@ -411,7 +420,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => set('replica_id', '')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink-body"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-faint transition-colors duration-fast ease-out hover:bg-surface-hover hover:text-ink-body"
                       title="Clear replica ID"
                       aria-label="Clear replica ID"
                     ><X size={14} strokeWidth={2.25} aria-hidden="true" /></button>
@@ -455,9 +464,8 @@ export default function SetupPage() {
           </Card>
 
           {/* Session properties */}
-          <Card className="divide-y divide-border">
+          <Card className="divide-y divide-rule overflow-hidden">
             <CardHead
-              icon={<SlidersHorizontal size={15} strokeWidth={2} aria-hidden="true" />}
               title="Session properties"
               description="Every value here maps to the Tavus conversation properties object."
             />
@@ -472,7 +480,7 @@ export default function SetupPage() {
                 <Input label="Absent Timeout (s)" type="number" value={f.participant_absent_timeout} onChange={e => set('participant_absent_timeout', Number(e.target.value))} hint="Wait this long for a candidate who never joins." />
               </div>
             </div>
-            <div className="divide-y divide-border px-6">
+            <div className="divide-y divide-rule px-6">
               <Toggle checked={f.enable_transcription} onChange={v => set('enable_transcription', v)} label="Enable Transcription" description="Real-time transcription of candidate speech via Tavus" />
               <Toggle checked={f.enable_recording} onChange={v => set('enable_recording', v)} label="Enable Recording" description="Save the full session video to storage" />
               <Toggle checked={f.apply_conversation_override} onChange={v => set('apply_conversation_override', v)} label="Conversation Override" description="Allow real-time text injection during the call" />
@@ -487,9 +495,8 @@ export default function SetupPage() {
 
           {/* S3 Storage — revealed when recording is on */}
           {f.enable_recording && (
-            <Card className="divide-y divide-border animate-slide-up">
+            <Card className="divide-y divide-rule overflow-hidden animate-slide-up">
               <CardHead
-                icon={<Database size={15} strokeWidth={2} aria-hidden="true" />}
                 title="S3 recording storage"
                 description="Where finished session recordings are written."
                 aside={<span className="badge badge-info">Recording on</span>}
@@ -506,7 +513,7 @@ export default function SetupPage() {
         </div>
 
         {/* ── Right: live request preview ── */}
-        <aside className="sticky top-20 hidden h-fit flex-col gap-5 xl:flex">
+        <aside className="sticky top-20 hidden h-fit flex-col gap-6 xl:flex">
           <JsonPreview data={payload} title="Request Preview" method="POST" endpoint="/v2/conversations" />
           <Card className="p-5">
             <p className="section-label">Field glossary</p>
@@ -556,7 +563,7 @@ export default function SetupPage() {
       {/* ── Tavus error — demo mode stays the hero recovery ──────────────────── */}
       <Modal open={errorModal.open} onClose={() => setErrorModal({ open: false, message: '' })} width="max-w-md">
         <div className="mb-5 flex items-start gap-4">
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-danger-border bg-danger-bg text-danger">
+          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-risk-rule bg-risk-bg text-risk">
             <AlertCircle size={18} strokeWidth={2.25} aria-hidden="true" />
           </span>
           <div>
@@ -565,14 +572,14 @@ export default function SetupPage() {
           </div>
         </div>
 
-        <div className="mb-5 rounded-xl border border-danger-border bg-danger-bg px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-danger/70">What Tavus returned</p>
-          <p className="mt-1 text-sm font-medium text-danger">{errorModal.message}</p>
+        <div className="mb-5 rounded-lg border border-risk-rule bg-risk-bg px-4 py-3">
+          <p className="section-label text-risk">What Tavus returned</p>
+          <p className="mt-1 text-sm font-medium text-risk">{errorModal.message}</p>
         </div>
 
         {/credit/i.test(errorModal.message) && (
-          <div className="mb-5 space-y-1 rounded-xl border border-warning-border bg-warning-bg px-4 py-3 text-sm">
-            <p className="font-semibold text-warning">Your Tavus account is out of conversational credits.</p>
+          <div className="mb-5 space-y-1 rounded-lg border border-warn-rule bg-warn-bg px-4 py-3 text-sm">
+            <p className="font-semibold text-warn">Your Tavus account is out of conversational credits.</p>
             <p className="text-ink-body">To resume live avatar interviews, buy more credits at <span className="font-mono text-xs">tavus.io → Billing</span>.</p>
           </div>
         )}
@@ -592,6 +599,6 @@ export default function SetupPage() {
           </div>
         </div>
       </Modal>
-    </div>
+    </motion.div>
   )
 }
