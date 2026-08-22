@@ -15,6 +15,9 @@ built website is loaded and run as-is.
   rules the website already ships with), and watches in-app navigation for
   the two candidate-only routes (`/candidate`, `/take/:id`) to redirect to
   the website's own existing `/access-denied` screen.
+- `preload.js` — hands the renderer one non-secret configuration value (see
+  below) via `contextBridge`. Nothing else; no Node/Electron API is exposed
+  to the page.
 - `electron-builder.yml`, `build/entitlements.mac.plist` — packaging config
   for the Windows/macOS installers (Phase 05). Not exercised by Phase 00.
 - Nothing else. There is deliberately no renderer code, no UI components,
@@ -55,6 +58,29 @@ npm install
 # 3. Launch.
 npm start
 ```
+
+## Configuration: `TALBOTIQ_PUBLIC_WEB_ORIGIN`
+
+This app serves the website from a custom `app://desktop` scheme so it can
+run offline (see above) — but a candidate invite link (or "copy link")
+built from that scheme is meaningless outside this app, since no candidate
+has it installed. `main.js` defaults this to the real production origin,
+**`https://app.talbotiq.com`**, so a packaged build needs no setup at all.
+It is **not** a secret — it's the same URL a recruiter's browser is already
+reachable at.
+
+The environment variable of the same name overrides that default without
+rebuilding — useful for pointing a dev/staging run at a different
+deployment:
+
+```bash
+TALBOTIQ_PUBLIC_WEB_ORIGIN=https://staging.talbotiq.com npm start
+```
+
+See `web_version/talbotiq-platform/src/lib/candidateOrigin.ts` for exactly
+how the website consumes this (falls back to `window.location.origin` —
+its normal, unchanged behavior in a real browser — whenever the injected
+value isn't present, which is always true outside this Electron shell).
 
 ## Packaging (Phase 05, not yet exercised)
 

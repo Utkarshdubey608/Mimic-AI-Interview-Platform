@@ -12,6 +12,7 @@ import {
   History as HistoryIcon, Undo2, XCircle,
 } from 'lucide-react'
 import { pipelinesApi, downloadCsv } from '@/lib/api'
+import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { Card, Button, Badge, PageHeader, Skeleton, Select, EmptyState, cn } from '@/components/ui'
 import { AdvanceModal, type AdvanceModalKind } from './AdvanceModal'
@@ -359,7 +360,7 @@ export default function PipelineBoardPage() {
 
   const apAdvance = useCallback(async (candidateIds: string[], target: number, basis: string) => {
     if (candidateIds.length === 0) { toast.error('No matching candidates to advance'); return }
-    await pipelinesApi.advance(apRef.current.id, { candidateIds, targetRoundIndex: target, origin: window.location.origin, basis })
+    await pipelinesApi.advance(apRef.current.id, { candidateIds, targetRoundIndex: target, origin: getCandidateLinkOrigin(), basis })
     toast.success(`Advanced ${candidateIds.length} candidate${candidateIds.length === 1 ? '' : 's'}`)
     apRef.current.refetch()
   }, [])
