@@ -161,17 +161,60 @@ def test_first_validation_message_falls_back_when_there_are_no_errors() -> None:
 # ── store ─────────────────────────────────────────────────────────────────────
 
 
-def test_every_collection_is_web_prefixed() -> None:
-    """The prefix is what guarantees no clash with the mobile app's data."""
+# Collections the web store reaches that are deliberately SHARED with the mobile app,
+# and therefore deliberately not `web_`-prefixed.
+#
+# This list is the whole point of the test below: every entry is a decision to expose
+# data to the other client, so adding one is a visible diff that has to be argued for,
+# not a prefix somebody quietly dropped.
+SHARED_COLLECTIONS = {
+    # A report IS the result of one interview, and both clients display reports. See
+    # app/reports.py.
+    "reports",
+    # Invite and notification email templates. This was `web_invite_email_templates`,
+    # so a recruiter's saved email was invisible on the other client — while the
+    # RENDERING was already unified against a golden fixture. See
+    # app/templates_store.py.
+    "email_templates",
+    # What a candidate thought of the interview. `web_feedback` meant the prompt
+    # existed only in the browser. See app/feedback.py.
+    "feedback",
+    # MCQ papers. Still OWNER-scoped — by a `recruiterId` filter on every query and by
+    # `firestore.rules`, which is where it was always enforced. The prefix only stopped
+    # the other client from reaching a paper at all. See app/mcq.py.
+    "mcq_sets",
+}
+
+
+def test_every_collection_is_web_prefixed_unless_deliberately_shared() -> None:
+    """The prefix is what guarantees no clash with the mobile app's data.
+
+    The exceptions are enumerated rather than pattern-matched: a shared collection is a
+    decision about what the other client can read, and it should cost a line here.
+    """
     store = WebStore(client=object())
-    named = [
-        value
-        for value in vars(store).values()
-        if hasattr(value, "name")
-    ]
+    named = [value for value in vars(store).values() if hasattr(value, "name")]
     assert named, "WebStore exposed no collections"
     for collection in named:
-        assert collection.name.startswith(PREFIX), collection.name
+        if collection.name in SHARED_COLLECTIONS:
+            continue
+        assert collection.name.startswith(PREFIX), (
+            f"{collection.name} is neither web-prefixed nor listed as shared. If it is "
+            "meant to be shared with the mobile app, add it to SHARED_COLLECTIONS with "
+            "the reason; otherwise it needs the prefix."
+        )
+
+
+def test_the_report_collection_is_the_shared_one() -> None:
+    """It used to be `web_reports`, which the mobile app could not see by construction.
+
+    The symptom was a recruiter opening a report on their phone for an interview taken
+    in a browser and getting nothing — and the web sessions list showing no score for
+    an interview taken on a phone.
+    """
+    store = WebStore(client=object())
+    assert store.reports.name == "reports"
+    assert not store.reports.name.startswith(PREFIX)
 
 
 def test_reports_are_keyed_by_session_id() -> None:
@@ -254,3 +297,53 @@ def test_every_web_module_is_mounted_once() -> None:
     from app import web
 
     assert len(web._MODULES) == len(set(web._MODULES))
+
+
+def test_the_email_template_collection_is_the_shared_one() -> None:
+    """One store for invite emails, not two.
+
+    Mobile reads `email_templates` through `/api/templates`; this surface used to keep
+    its own `web_invite_email_templates`, so a template saved on one client did not
+    exist on the other.
+    """
+    from app import templates_store
+
+    store = WebStore(client=object())
+    assert store.invite_email_templates.name == templates_store.TEMPLATES_COLLECTION
+    assert not store.invite_email_templates.name.startswith(PREFIX)
+
+
+# ── one bad row must not empty a list ─────────────────────────────────────────
+
+
+def test_a_single_unreadable_document_does_not_empty_the_list(caplog) -> None:
+    """Adopted from the Flutter client, where `_parseDocs` has always worked this way.
+
+    A list comprehension over `stream()` meant one malformed document — hand-edited in
+    the console, written by an older build, or half-written by a failed batch — could
+    raise and empty a recruiter's ENTIRE templates list. The symptom reads as "you have
+    nothing", which is indistinguishable from a real empty state and sends somebody
+    hunting for deleted data.
+    """
+    from app.web.store.collections import _parse_all
+
+    class _Good:
+        id = "good"
+
+        @staticmethod
+        def to_dict():
+            return {"name": "fine"}
+
+    class _Bad:
+        id = "bad"
+
+        @staticmethod
+        def to_dict():
+            raise ValueError("corrupt document")
+
+    with caplog.at_level("WARNING"):
+        parsed = _parse_all([_Good(), _Bad(), _Good()], "id", "web_templates")
+
+    assert len(parsed) == 2, "the readable rows must survive"
+    # And the bad one is findable, not merely absent.
+    assert any("bad" in record.message for record in caplog.records)

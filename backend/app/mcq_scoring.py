@@ -21,6 +21,18 @@ want partial credit opt into it explicitly and get a penalty applied.
 The candidate's client. The key lives in the session document and is compared
 here, server-side, on submit. See `mcq_public_question` for the allow-list that
 decides what a candidate is actually shown.
+
+
+── Why this is in the kernel ─────────────────────────────────────────────────
+MCQ is the only track whose QUESTIONS CONTAIN THE ANSWERS. Every other track stores
+questions as plain strings, so putting one on a second client is a matter of pointing
+it at a shared record. Here the paper carries `correctOptionIds`, and the property that
+keeps it safe — `mcq_public_question` being an ALLOW-LIST rather than a strip — has to
+be inherited by every client rather than reimplemented per client.
+
+Moved from `app/web/services/`, unchanged. It was always pure: nothing in this file
+imports anything but the standard library, which is why the move cost nothing and why
+one scorer can serve both surfaces.
 """
 
 from __future__ import annotations

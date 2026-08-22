@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import {
-  onAuthStateChanged, signInWithEmailAndPassword,
+  onAuthStateChanged, signInWithEmailAndPassword, sendPasswordResetEmail,
   createUserWithEmailAndPassword, signOut, updateProfile,
   type User,
 } from 'firebase/auth'
@@ -30,7 +30,18 @@ interface AuthContextValue {
   user: AppUser | null           // synthesized from the Firebase user + role doc
   role: UserRole | null
   error: string | null
+  /** The company on `users/{uid}`, live. `null` means genuinely absent — an account
+   *  created before either client collected one. RecruiterShell prompts on it. */
+  accountCompanyKey: string | null
+  accountCompany: string | null
+  /** Record a company on an existing account. Writes both forms, in the same shape
+   *  sign-up does, so a backfilled account is indistinguishable from a new one. */
+  recordCompany: (name: string) => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
+  /** Send a reset link. Mirrors the Flutter app's `AuthService.sendPasswordReset`,
+   *  which was the ONLY place in the product a password could be recovered — a web
+   *  user's only route back was to install the app. */
+  sendPasswordReset: (email: string) => Promise<void>
   signUpWithEmail: (email: string, password: string, role: UserRole, displayName?: string, company?: string) => Promise<void>
   signOutUser: () => Promise<void>
 }
@@ -75,6 +86,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
   const [name, setName] = useState<string | null>(null)
+  /* The company this account belongs to, read LIVE from the same doc as the role.
+     `null` means the field is genuinely absent — every account created on the Flutter
+     app before it collected one, and every account that predates the field. That is
+     what the prompt in RecruiterShell keys off. */
+  const [accountCompanyKey, setAccountCompanyKey] = useState<string | null>(null)
+  const [accountCompany, setAccountCompany] = useState<string | null>(null)
   const [loading, setLoading] = useState(firebaseConfigured)
   const [error, setError] = useState<string | null>(null)
   const roleUnsub = useRef<null | (() => void)>(null)
@@ -88,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roleUnsub.current?.(); roleUnsub.current = null
       setFirebaseUser(u)
       setError(null)
-      if (!u) { setRole(null); setName(null); setLoading(false); return }
+      if (!u) { setRole(null); setName(null); setAccountCompanyKey(null); setAccountCompany(null); setLoading(false); return }
 
       setLoading(true)
       // Live role stream from users/{uid} — the same doc the Flutter app writes.
@@ -100,10 +117,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = snap.data()
           setRole(data?.role === 'recruiter' ? 'recruiter' : 'candidate')
           setName(typeof data?.name === 'string' && data.name.trim() ? data.name.trim() : null)
+          const storedKey = typeof data?.companyKey === 'string' ? data.companyKey.trim() : ''
+          setAccountCompanyKey(storedKey || null)
+          setAccountCompany(typeof data?.company === 'string' && data.company.trim() ? data.company.trim() : null)
           setLoading(false)
         },
         (err) => {
           setRole('candidate')   // fail safe to least privilege
+          // Cleared rather than left stale: a failed read must not leave the previous
+          // account's company in place for the next one.
+          setAccountCompanyKey(null)
+          setAccountCompany(null)
           setError(err instanceof Error ? err.message : 'Could not read your account role')
           setLoading(false)
         },
@@ -115,6 +139,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     await signInWithEmailAndPassword(firebaseAuth(), email.trim(), password)
+  }, [])
+
+  const recordCompany = useCallback(async (name: string) => {
+    const user = firebaseAuth().currentUser
+    if (!user) throw new Error('You are signed out.')
+    const key = companyKey(name)
+    // Refused rather than written blank. An empty key stored as a VALUE becomes the
+    // bucket every company-less account falls into, which is the leak the whole
+    // scoping exists to prevent — see src/lib/companyKey.ts.
+    if (!key) throw new Error('Enter your company name.')
+    await setDoc(
+      doc(firestore(), 'users', user.uid),
+      { company: companyDisplay(name), companyKey: key, updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+    // No local setState: the onSnapshot above is live, so the prompt closes when the
+    // write lands rather than when this resolves. One source of truth for the value.
+  }, [])
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    await sendPasswordResetEmail(firebaseAuth(), email.trim())
   }, [])
 
   const signUpWithEmail = useCallback(
@@ -168,7 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     role,
     error,
+    accountCompanyKey,
+    accountCompany,
+    recordCompany,
     signInWithEmail,
+    sendPasswordReset,
     signUpWithEmail,
     signOutUser,
   }

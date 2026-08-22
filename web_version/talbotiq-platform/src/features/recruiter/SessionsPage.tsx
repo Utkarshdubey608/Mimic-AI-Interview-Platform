@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles } from 'lucide-react'
+import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles, Trophy, RotateCw, CalendarClock } from 'lucide-react'
 import {
   PageHeader, Card, Button, Input, Select, Badge, EmptyState, ErrorState, RecordRows,
   ExhibitTab, Citation, Modal, Toggle, cn,
 } from '@/components/ui'
 import { templatesApi, sessionsApi, settingsApi, describeFetchError } from '@/lib/api'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
+import { DecideRoundModal } from './DecideRoundModal'
+import { RecoverScoringModal } from './RecoverScoringModal'
+import { TimelinePanel } from './TimelinePanel'
 import type { SessionListItem, TrackType } from '@shared/types'
 
 const statusVariant: Record<string, 'success' | 'warning' | 'neutral' | 'info' | 'danger'> = {
@@ -36,6 +39,9 @@ export default function SessionsPage() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [genOpen, setGenOpen] = useState(false)
+  const [decideOpen, setDecideOpen] = useState(false)
+  const [recoverOpen, setRecoverOpen] = useState(false)
+  const [timelineTestId, setTimelineTestId] = useState<string | null>(null)
   const [createdLink, setCreatedLink] = useState<string | null>(null)
 
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: sessionsApi.list })
@@ -102,6 +108,30 @@ export default function SessionsPage() {
     setOpen(true)
   }
 
+  /* How many interviews could actually be ranked. Absent scores are excluded, not
+     treated as 0 — an unscored interview has no rank. See DecideRoundModal. */
+  const scored = (sessions.data ?? []).filter(
+    (s) => s.status === 'completed' && typeof s.overallScore === 'number',
+  ).length
+
+  /* Completed but unscored. The button below is offered on this rather than on the
+     server's retryable list so the page needs no extra request — the modal does the
+     precise filtering (answers kept, not a live interview) when it opens. */
+  /* The distinct BATCHES on this page, newest first — the web's first notion of a
+     test. Rows with no `testId` predate the shared assignment record and simply do not
+     belong to one; they are left out rather than pooled into a fake batch. */
+  const tests = Array.from(
+    new Map(
+      (sessions.data ?? [])
+        .filter((s) => !!s.testId)
+        .map((s) => [s.testId as string, s.templateName]),
+    ).entries(),
+  )
+
+  const unscored = (sessions.data ?? []).filter(
+    (s) => s.status === 'completed' && typeof s.overallScore !== 'number',
+  ).length
+
   return (
     // overflow-x-clip enforces the system's binding rule at the page level: a
     // wide child scrolls in its own container, and the body never scrolls
@@ -112,6 +142,28 @@ export default function SessionsPage() {
         description="Every interview on the record. Each row is one candidate, tabbed by the format they were interviewed in, scored against its template's rubric."
         action={
           <div className="flex items-center gap-2">
+            {/* Only offered once there is something to decide. A round with no scored
+                interview in it has no ranking to make, and a button that opens an
+                empty modal is a button that teaches people to distrust it. */}
+            {tests.length > 0 ? (
+              <Button
+                variant="secondary"
+                onClick={() => setTimelineTestId(tests[0][0])}
+                icon={<CalendarClock size={15} />}
+              >
+                Timeline
+              </Button>
+            ) : null}
+            {unscored > 0 ? (
+              <Button variant="secondary" onClick={() => setRecoverOpen(true)} icon={<RotateCw size={15} />}>
+                {unscored} not scored
+              </Button>
+            ) : null}
+            {scored > 0 ? (
+              <Button variant="secondary" onClick={() => setDecideOpen(true)} icon={<Trophy size={15} />}>
+                Decide round
+              </Button>
+            ) : null}
             <Button variant="secondary" onClick={openCreate}>Single link</Button>
             <Button variant="mint" onClick={() => navigate('/sessions/new')}>Invite candidates</Button>
           </div>
@@ -439,6 +491,40 @@ export default function SessionsPage() {
           </div>
         )}
       </Modal>
+
+      {/* Deciding a round acts on the SHARED interview records, not on web
+          sessions — so a decision made here shows up in the Flutter app, and one
+          made there shows up in this list. */}
+      {/* The shared rounds model. Additive: the existing pipeline board still runs on
+          `web_pipelines`, and the two models run in parallel until that one retires. */}
+      <Modal
+        open={!!timelineTestId}
+        onClose={() => setTimelineTestId(null)}
+        title="Timeline"
+        width="max-w-2xl"
+      >
+        {timelineTestId ? (
+          <div className="space-y-4">
+            {tests.length > 1 ? (
+              <Select
+                label="Batch"
+                value={timelineTestId}
+                onChange={(e) => setTimelineTestId(e.target.value)}
+                options={tests.map(([id, name]) => ({ value: id, label: name }))}
+              />
+            ) : null}
+            <TimelinePanel testId={timelineTestId} />
+          </div>
+        ) : null}
+      </Modal>
+
+      <RecoverScoringModal open={recoverOpen} onClose={() => setRecoverOpen(false)} />
+
+      <DecideRoundModal
+        open={decideOpen}
+        onClose={() => setDecideOpen(false)}
+        sessions={sessions.data ?? []}
+      />
 
       <GenerateFromResumeModal
         open={genOpen}

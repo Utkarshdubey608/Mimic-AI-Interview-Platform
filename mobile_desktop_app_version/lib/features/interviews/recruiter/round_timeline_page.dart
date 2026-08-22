@@ -34,6 +34,7 @@ import 'package:talbotiq/features/interviews/recruiter/round_leaderboard_page.da
 import 'package:talbotiq/features/interviews/recruiter/round_notify_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/widgets/round_step_tile.dart';
 import 'package:talbotiq/features/interviews/recruiter/test_candidates_page.dart';
+import 'package:talbotiq/features/interviews/recruiter/test_conclusion_page.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 
@@ -200,8 +201,18 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
         builder: (ctx) => AlertDialog(
           title: Text('Add candidates to "${round.title}"?'),
           content: Text(
-            '${candidates.length} candidate(s) are in this test. Anyone already '
-            'in this round is skipped, so their answers and scores are kept.',
+            [
+              '${candidates.length} candidate(s) are in this test. Anyone '
+                  'already in this round is skipped, so their answers and '
+                  'scores are kept.',
+              // Said out loud because it publishes something to candidates.
+              // Being put in a later round IS being told you got through the
+              // earlier ones, and leaving those rounds reading "Under review"
+              // for ever was the bug this closes.
+              if (round.order > 0)
+                'Their earlier rounds will show as cleared, unless you have '
+                    'already decided them otherwise.',
+            ].join('\n\n'),
           ),
           actions: [
             TextButton(
@@ -438,8 +449,12 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
     // fixed once candidates are in it.
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      itemCount: rounds.length,
+      // One extra row: the end of the pipeline is a step too, and the only one
+      // that used not to exist — a recruiter who closed the last round had
+      // nowhere in the app to tell anybody the process was over.
+      itemCount: rounds.length + 1,
       itemBuilder: (context, i) {
+        if (i == rounds.length) return _finalStep(theme);
         final r = rounds[i];
         final closed = r.stateAt(now) == RoundState.closed;
         return Padding(
@@ -521,6 +536,57 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
       },
     );
   }
+
+  /// The last step of the timeline: release the final result.
+  ///
+  /// Placed here rather than only in the candidate list's action bar because
+  /// this is where a recruiter runs the pipeline, and "what happens after the
+  /// last round" is a question the timeline should answer where it ends.
+  Widget _finalStep(ThemeData theme) => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => TestConclusionPage(test: widget.test),
+          )),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.flag_outlined,
+                    size: 22, color: theme.colorScheme.primary),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Final result',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tell the candidates who have finished how it ended, in '
+                        'your own words.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right,
+                    size: 20, color: theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _emptyState(ThemeData theme) => Center(
         child: ConstrainedBox(

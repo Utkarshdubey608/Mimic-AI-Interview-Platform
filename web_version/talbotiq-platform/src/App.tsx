@@ -41,6 +41,7 @@ const InviteWizard       = lazy(() => import('@/features/recruiter/InviteWizard'
 const ReportPage         = lazy(() => import('@/features/recruiter/ReportPage'))
 const LiveInterviewPage  = lazy(() => import('@/features/recruiter/LiveInterviewPage'))
 const TakeInterviewPage  = lazy(() => import('@/features/interview/TakeInterviewPage'))
+const ResumeRoundPage    = lazy(() => import('@/features/candidate/ResumeRoundPage'))
 
 /**
  * The auth boundary. Everything below reaches Firebase — the guards and Nav via
@@ -128,6 +129,12 @@ export default function App() {
             <Route element={<RequireCandidate />}>
               <Route path="/candidate" element={<CandidateHome />} />
               <Route path="/take/:sessionId" element={<TakeInterviewPage />} />
+              {/* A résumé round is a SUBMISSION, not a session — no questions, no
+                  clock, nothing to join. Routed through the interview engine a
+                  candidate lands in a chat with zero questions and no way to tell
+                  that from a broken page. CandidateHome sends them here instead,
+                  keyed on the round's kind. */}
+              <Route path="/submit-resume/:sessionId" element={<ResumeRoundPage />} />
             </Route>
 
             {/* Recruiter-only — the full recruiter app */}

@@ -147,7 +147,10 @@ def test_the_shared_preview_token_route_is_reachable() -> None:
 
 def test_status_reports_configured_services(authed_client: TestClient) -> None:
     body = authed_client.get("/api/web/avatar/status").json()
-    assert set(body) == {"deepgram", "hume", "gemini", "rekognition"}
+    # `tavus` joined when the Tavus key stopped being something a recruiter typed into
+    # the browser: the client used to gate its avatar UI on the key it held locally,
+    # so the page could report "configured" for a credential the server had never seen.
+    assert set(body) == {"deepgram", "hume", "gemini", "rekognition", "tavus"}
     assert all(isinstance(value, bool) for value in body.values())
 
 

@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from app import feedback, mcq, reports, templates_store
 from app.config import Settings
 from app.firebase import FirestoreUnavailable, get_db
 from app.web.store.collections import Collection, SingletonDocument
@@ -52,8 +53,18 @@ class WebStore:
         # ── recruiter-authored configuration ─────────────────────────────────
         self.templates = Collection(client, f"{PREFIX}templates")
         self.question_sets = Collection(client, f"{PREFIX}question_sets")
+        # SHARED, deliberately not `web_`-prefixed — see app/templates_store.py.
+        #
+        # This was `web_invite_email_templates`, so a recruiter's saved invite email
+        # was invisible on the other client. The irony was that the RENDERING was
+        # already unified against a golden fixture (contracts/invite_email.fixtures.json)
+        # while the storage was not.
+        #
+        # The two clients store different shapes for the same thing, so the routes
+        # write a few compatibility fields alongside their own — see
+        # `templates_store.compatibility_fields`.
         self.invite_email_templates = Collection(
-            client, f"{PREFIX}invite_email_templates"
+            client, templates_store.TEMPLATES_COLLECTION
         )
         # MCQ question sets — OWNER-SCOPED, unlike `question_sets` above.
         #
@@ -74,23 +85,42 @@ class WebStore:
         #
         # `recruiterId` is stamped server-side from the auth token and never taken
         # from the client, matching pipelines and feedback.
-        self.mcq_sets = Collection(client, f"{PREFIX}mcq_sets")
+        #
+        # SHARED, and deliberately not `web_`-prefixed — see app/mcq.py. Dropping the
+        # prefix does NOT widen access: ownership was never enforced by the collection
+        # name, it is a `recruiterId` filter on every query plus `firestore.rules`
+        # denying client reads outright. What the prefix DID do was make the paper
+        # unreachable from the other surface, which is why MCQ could not leave the
+        # browser.
+        self.mcq_sets = Collection(client, mcq.SETS_COLLECTION)
 
         # ── the interview engine ─────────────────────────────────────────────
         self.sessions = Collection(client, f"{PREFIX}sessions")
-        # Keyed by sessionId, exactly as the JSON store was: a report IS the
-        # result of one session and is always looked up by it, never by an id of
-        # its own.
-        self.reports = Collection(client, f"{PREFIX}reports", key_field="sessionId")
+        # SHARED, and deliberately NOT `web_`-prefixed — see app/reports.py.
+        #
+        # A report is the result of one interview, and both clients display reports, so
+        # a `web_`-prefixed store made the mobile app structurally unable to show one
+        # for an interview taken in a browser (and the web unable to score one taken on
+        # a phone). The key field is unchanged: a report is still looked up by the
+        # session id, which IS the interview id.
+        self.reports = Collection(
+            client, reports.REPORTS_COLLECTION, key_field=reports.KEY_FIELD
+        )
 
         # ── multi-round pipelines ────────────────────────────────────────────
         self.pipelines = Collection(client, f"{PREFIX}pipelines")
         self.pipeline_candidates = Collection(client, f"{PREFIX}pipeline_candidates")
 
         # ── candidate feedback on the interview experience ───────────────────
-        # Keyed by sessionId like reports: one interview, one verdict, and a
+        # SHARED. Keyed by sessionId like reports: one interview, one verdict, and a
         # resubmission replaces rather than duplicates.
-        self.feedback = Collection(client, f"{PREFIX}feedback", key_field="sessionId")
+        #
+        # This was `web_feedback`, which meant the prompt existed only in the browser —
+        # a candidate who interviewed on the phone was never asked, on the one channel
+        # the product has for hearing from candidates. See app/feedback.py.
+        self.feedback = Collection(
+            client, feedback.FEEDBACK_COLLECTION, key_field="sessionId"
+        )
 
         # ── public marketing lead capture (append-only, no lookups) ──────────
         self.leads = Collection(client, f"{PREFIX}leads")

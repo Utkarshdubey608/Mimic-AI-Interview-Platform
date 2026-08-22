@@ -173,7 +173,8 @@ class InterviewRound {
 
   /// The interview configuration this round hands to its candidates: prompt,
   /// questions, adaptive/adaptiveConfig, avatar, language, chatTimer, integrity,
-  /// branding, durationMinutes, maxAttempts, collectResume.
+  /// branding, durationMinutes, maxAttempts, collectResume — and `mcqSetId` for
+  /// an MCQ round, which has none of the others.
   ///
   /// Kept as a raw map for the same reason [Interview.adaptiveConfig] is: this
   /// focused model stays free of the recruiter-module types. Empty for a résumé
@@ -361,6 +362,9 @@ class InterviewRound {
   /// Lets the existing create-interview form become a round editor without that
   /// screen learning the round document's field layout.
   static Map<String, dynamic> configFromInterview(Interview i) => {
+        // An MCQ round's paper. An id, never the paper — see [Interview.mcqSetId].
+        // Written only when there is one, so a chat round's config is unchanged.
+        if (i.mcqSetId.isNotEmpty) 'mcqSetId': i.mcqSetId,
         'prompt': i.prompt,
         'questions': i.questions,
         'adaptive': i.adaptive,
@@ -432,6 +436,10 @@ class InterviewRound {
       availableFrom: opensAt,
       expiresAt: closesAt,
       maxAttempts: (c['maxAttempts'] as num?)?.toInt(),
+      // Copied at assignment like everything else here, so editing the round
+      // afterwards cannot change which paper an outstanding invite points at —
+      // and a candidate mid-assessment cannot have it swapped under them.
+      mcqSetId: (c['mcqSetId'] as String?)?.trim() ?? '',
     );
   }
 }

@@ -30,6 +30,11 @@ class CandidateResultPage extends StatelessWidget {
     final outcome = interview.outcome;
     final note = interview.candidateNote;
     final rank = interview.rank;
+    // This round was never decided on its own, and the whole run has since been
+    // concluded. Showing "Under review" here would contradict the final result
+    // the candidate has already been given — so the round reports what is
+    // actually true of it (it is finished) and points at the answer.
+    final supersededByConclusion = !interview.showsOwnOutcome;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -55,14 +60,20 @@ class CandidateResultPage extends StatelessWidget {
                             color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ),
-                  _outcomeCard(theme, outcome, rank),
+                  if (supersededByConclusion)
+                    _closedCard(theme)
+                  else
+                    _outcomeCard(theme, outcome, rank),
                   if (note.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _noteCard(theme, note),
                   ],
                   const SizedBox(height: 16),
                   Text(
-                    _footerFor(outcome),
+                    supersededByConclusion
+                        ? 'Your final result for this test is on your '
+                            'interviews screen.'
+                        : _footerFor(outcome),
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -124,6 +135,43 @@ class CandidateResultPage extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// The stand-in for an outcome card on a round the recruiter never decided
+  /// separately, once the whole run has been concluded.
+  ///
+  /// Deliberately says nothing about how the round went: it was not judged on its
+  /// own, and inferring a verdict from the conclusion would be putting words in
+  /// the recruiter's mouth on the one screen where that matters most.
+  Widget _closedCard(ThemeData theme) {
+    final color = theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.task_alt, size: 40, color: color),
+          const SizedBox(height: 12),
+          Text(
+            'Round complete',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This test has finished and your final result has been published.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
         ],
       ),
     );

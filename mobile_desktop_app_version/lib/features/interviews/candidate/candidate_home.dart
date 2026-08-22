@@ -20,8 +20,10 @@ import 'package:talbotiq/shared/widgets/desktop_page_container.dart';
 import 'package:talbotiq/shared/widgets/logout_button.dart';
 import 'package:talbotiq/shared/widgets/section_header.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/features/interviews/services/resume_service.dart';
+import 'package:talbotiq/features/interviews/candidate/candidate_conclusion_page.dart';
 import 'package:talbotiq/features/interviews/candidate/candidate_result_page.dart';
 import 'package:talbotiq/features/interviews/candidate/chat_launch_adapter.dart';
 import 'package:talbotiq/features/interviews/candidate/live_interview_page.dart';
@@ -29,6 +31,8 @@ import 'package:talbotiq/features/interviews/candidate/resume_intake_page.dart';
 import 'package:talbotiq/features/interviews/candidate/system_check_page.dart';
 import 'package:talbotiq/features/interviews/candidate/video_launch.dart';
 import 'package:talbotiq/features/interviews/candidate/voice_launch.dart';
+import 'package:talbotiq/features/interviews/candidate/feedback_prompt.dart';
+import 'package:talbotiq/features/interviews/candidate/mcq/mcq_paper_page.dart';
 
 class CandidateHome extends StatefulWidget {
   const CandidateHome({super.key});
@@ -133,19 +137,46 @@ class _CandidateHomeState extends State<CandidateHome> {
   /// has no interview track, so its document carries the harmless default
   /// `type: chat`. Routing on `type` would drop a candidate into a chat
   /// interview with no questions.
-  void _open(Interview interview) {
+  Future<void> _open(Interview interview) async {
+    // MCQ is routed on `mode`, not on `type`, and cannot be folded into the switch
+    // below. An MCQ invite reaches here as `type: chat` with an EMPTY questions list —
+    // the paper is referenced by id and resolved server-side, so the answer key never
+    // leaves the server (see backend/app/mcq_runtime.py). Left to the switch it would
+    // open a chat interview with nothing in it.
+    //
+    // This used to show "open this one in a browser". It no longer has to.
+    if (interview.effectiveMode == 'mcq') {
+      await _launchMcq(interview);
+      if (mounted) await promptForFeedback(context, interviewId: interview.id);
+      return;
+    }
+
+    // Awaited so ONE hook covers every path. Each branch used to be fire-and-forget,
+    // which meant anything that had to happen after an interview finished needed
+    // wiring into all five separately — and the fifth is always the one that gets
+    // missed.
     switch (interview.effectiveRoundKind) {
       case RoundKind.resume:
-        _submitResume(interview);
+        await _submitResume(interview);
       case RoundKind.video:
-        _launchVideo(interview);
+        await _launchVideo(interview);
       case RoundKind.chat:
-        _launchChat(interview);
+        await _launchChat(interview);
       case RoundKind.voice:
-        _launchVoice(interview);
+        await _launchVoice(interview);
       case RoundKind.twoWay:
-        _joinLiveInterview(interview);
+        await _joinLiveInterview(interview);
+      case RoundKind.mcq:
+        // Reachable only for a document whose `roundKind` says mcq but whose
+        // `mode` does not — a timeline round written by this app before `mode`
+        // was being set. The early return above handles every normal MCQ.
+        await _launchMcq(interview);
     }
+
+    // Ask what it was like. Skippable, and its failure is swallowed — see
+    // feedback_prompt.dart. The prompt existed only in the browser until now, so a
+    // candidate who interviewed on the phone was never asked at all.
+    if (mounted) await promptForFeedback(context, interviewId: interview.id);
   }
 
   /// A two-way round: a live call with a human interviewer.
@@ -223,6 +254,35 @@ class _CandidateHomeState extends State<CandidateHome> {
     );
   }
 
+  /// Opens a multiple-choice assessment.
+  ///
+  /// A full-screen page rather than a dialog: a paper is scrolled, revisited and
+  /// submitted deliberately, and none of that belongs in something dismissible by
+  /// tapping outside it.
+  ///
+  /// Awaited, so the feedback prompt fires when the candidate leaves — the same hook
+  /// every other track gets.
+  ///
+  /// **`attemptsUsed` is deliberately NOT incremented.** Every other track counts a
+  /// launch because a launch consumes the thing: a video call happens once. A paper
+  /// is resumable by design — the runtime autosaves precisely so a reload, a dropped
+  /// connection or a closed lid costs nothing — and counting each open would lock
+  /// somebody out of a paper they were halfway through. What can only happen once is
+  /// the SUBMIT, and the server refuses a second one (409) rather than rescoring.
+  Future<void> _launchMcq(Interview interview) async {
+    // The window still applies: a round the recruiter ended is closed, and the
+    // snackbar says so here rather than the candidate meeting a 409 on the paper.
+    if (!_guardAccess(interview)) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => McqPaperPage(
+          interviewId: interview.id,
+          title: interview.displayTestTitle,
+        ),
+      ),
+    );
+  }
+
   /// Confirms a résumé submission without showing the score.
   ///
   /// The number is deliberately withheld: a résumé score is a recruiter's
@@ -252,9 +312,13 @@ class _CandidateHomeState extends State<CandidateHome> {
     // A round the recruiter ended early reads as expired here, because ending a
     // round pulls `expiresAt` back to that moment. "Closed" is the honest word
     // for both, and "interview" is the wrong noun for a résumé round.
-    final noun = interview.effectiveRoundKind == RoundKind.resume
-        ? 'This round'
-        : 'This interview';
+    final noun = switch (interview.effectiveRoundKind) {
+      // "This interview is closed" is the wrong noun for a résumé upload or a
+      // multiple-choice paper, and this is the one sentence the candidate gets.
+      RoundKind.resume => 'This round',
+      RoundKind.mcq => 'This assessment',
+      _ => 'This interview',
+    };
     final String msg;
     if (interview.isExpired) {
       msg = '$noun is closed.';
@@ -500,6 +564,16 @@ class _CandidateHomeState extends State<CandidateHome> {
                   _Header(
                       label: group.title,
                       icon: Icons.work_outline),
+                  // Above the rounds, not below them: once a decision has been
+                  // released it is the only thing on this screen the candidate
+                  // came back for. The rounds stay listed underneath — they are
+                  // the record of what they did.
+                  if (group.conclusion != null)
+                    _ConclusionCard(
+                      title: group.title,
+                      conclusion: group.conclusion!,
+                      rounds: group.rounds,
+                    ),
                   for (var idx = 0; idx < group.rounds.length; idx++)
                     _AssignedCard(
                       interview: group.rounds[idx],
@@ -563,6 +637,24 @@ class CandidatePipeline {
     required this.title,
     required this.rounds,
   });
+
+  /// The recruiter's final word on this application, or null while it is still
+  /// running.
+  ///
+  /// Read off the ROUNDS rather than stored separately: a conclusion is copied
+  /// onto every assignment the candidate holds in the test (see
+  /// `InterviewRepository.publishConclusion`), precisely so that this device —
+  /// which may read nothing but its own assignments — can find it from whichever
+  /// round it happens to have. The last non-null one wins, so a partially-failed
+  /// batch shows the newest decision rather than the one it replaced.
+  TestConclusion? get conclusion {
+    TestConclusion? found;
+    for (final round in rounds) {
+      final c = round.testConclusion;
+      if (c != null) found = c;
+    }
+    return found;
+  }
 }
 
 /// Groups a candidate's assignments by the job they belong to.
@@ -608,6 +700,99 @@ List<CandidatePipeline> groupByTest(List<Interview> all) {
     return bt.compareTo(at);
   });
   return groups;
+}
+
+/// The banner that says a job is OVER, sitting above that job's rounds.
+///
+/// Styled as its own thing rather than as another round card: it is not a stage,
+/// nothing launches from it, and a candidate scanning this screen for "did I
+/// hear back" should find it without reading the list.
+class _ConclusionCard extends StatelessWidget {
+  final String title;
+  final TestConclusion conclusion;
+  final List<Interview> rounds;
+
+  const _ConclusionCard({
+    required this.title,
+    required this.conclusion,
+    required this.rounds,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (conclusion.outcome) {
+      TestOutcome.cleared => theme.colorScheme.primary,
+      // Never error-red — see candidate_conclusion_page.dart.
+      TestOutcome.notSelected => theme.colorScheme.onSurfaceVariant,
+      TestOutcome.onHold => theme.colorScheme.secondary,
+    };
+    final icon = switch (conclusion.outcome) {
+      TestOutcome.cleared => Icons.emoji_events_outlined,
+      TestOutcome.notSelected => Icons.info_outline,
+      TestOutcome.onHold => Icons.hourglass_empty,
+    };
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(28),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => CandidateConclusionPage(
+              testTitle: title,
+              conclusion: conclusion,
+              rounds: rounds,
+            ),
+          )),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: color.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: color, size: 26),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        conclusion.outcome.candidateLabel,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold, color: color),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        // A preview, not the message: the full text is one tap
+                        // away and truncating somebody's rejection mid-sentence
+                        // on a list screen is worse than not showing it.
+                        conclusion.message.isEmpty
+                            ? 'Tap to read your final result'
+                            : conclusion.message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.chevron_right,
+                    size: 20, color: theme.colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AssignedCard extends StatelessWidget {
@@ -779,6 +964,7 @@ class _AssignedCard extends StatelessWidget {
       RoundKind.voice => Icons.record_voice_over_outlined,
       RoundKind.chat => Icons.chat_bubble_outline,
       RoundKind.twoWay => Icons.groups_outlined,
+      RoundKind.mcq => Icons.fact_check_outlined,
     };
 
     return Card(
@@ -840,7 +1026,12 @@ class _AssignedCard extends StatelessWidget {
                     // The outcome, once published — the thing that tells a
                     // candidate whether the next card is theirs. Without it a new
                     // round simply appeared with no explanation.
-                    if (published) ...[
+                    //
+                    // Suppressed for an undecided round of a run that has been
+                    // concluded: it would say "Under review" directly under a
+                    // banner saying the process is over. See
+                    // `Interview.showsOwnOutcome`.
+                    if (published && interview.showsOwnOutcome) ...[
                       const SizedBox(height: 4),
                       _outcomeChip(theme),
                     ],

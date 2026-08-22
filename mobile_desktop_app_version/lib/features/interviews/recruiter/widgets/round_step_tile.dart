@@ -33,6 +33,8 @@ IconData roundKindIcon(RoundKind kind) {
       return Icons.mic_none_outlined;
     case RoundKind.twoWay:
       return Icons.groups_outlined;
+    case RoundKind.mcq:
+      return Icons.fact_check_outlined;
   }
 }
 
@@ -99,9 +101,16 @@ class RoundStepTile extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final questions = (round.config['questions'] as List?)?.length ?? 0;
-    final detail = round.kind.isInterview
+    // `usesAiInterviewer`, not `isInterview`. A question count is only meaningful
+    // for a round with a SCRIPT — an MCQ round's questions live on the paper it
+    // references, so counting `config['questions']` would report zero on a full
+    // forty-question assessment, and a two-way round's list is never read by
+    // anyone.
+    final detail = round.kind.usesAiInterviewer
         ? '${round.kind.label} · $questions question(s)'
-        : round.kind.label;
+        : round.kind == RoundKind.mcq && (round.config['mcqSetId'] as String?)?.isNotEmpty == true
+            ? '${round.kind.label} · paper attached'
+            : round.kind.label;
 
     return IntrinsicHeight(
       child: Row(

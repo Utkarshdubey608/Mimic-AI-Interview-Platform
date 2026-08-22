@@ -230,7 +230,38 @@ class Settings(BaseSettings):
     # empty, Application Default Credentials are used.
     firebase_credentials_json: str = ""
     # Firestore collection holding recruiter-saved templates.
+    # Must match `templates_store.TEMPLATES_COLLECTION`, which the WEB store reaches
+    # directly (it is handed a Firestore client, not a Settings). Not imported from
+    # there because `templates_store` imports this module — the constant is asserted
+    # equal instead, in tests/test_app.py.
     templates_collection: str = "email_templates"
+
+    # Company scoping for the SHARED recruiter collections (`web_templates`,
+    # `web_question_sets`). On by default.
+    #
+    # A kill switch, not a feature flag. Before this, both were read with `.all()`, so
+    # every recruiter on the deployment saw every other recruiter's interview templates
+    # and question sets — and turning that off is a VISIBLE change: people see a
+    # shorter list than they did yesterday. If the backfill turns out to have missed
+    # documents in a way that matters, setting this false restores the old behaviour
+    # without deploying reverted code, which is the difference between a config change
+    # and an incident.
+    #
+    # Remove it once the scoping has been live long enough to trust.
+    company_scoping_enabled: bool = True
+
+    # Whether the legacy `web_pipelines` model still accepts WRITES.
+    #
+    # Rounds (`tests/{id}/rounds`) replaced it — see app/rounds.py — and the two ran in
+    # parallel while the new timeline was proven. Turning this off is how the old model
+    # is RETIRED: existing boards keep rendering, nothing new accumulates, and no data
+    # is touched. Reads are deliberately unaffected, because a recruiter mid-hire should
+    # not lose sight of a pipeline they are running.
+    #
+    # Deleting the collections is a separate, later, explicit act —
+    # `scripts/delete_web_pipelines.py`. Retiring and deleting are not the same step,
+    # and conflating them makes the reversible one irreversible.
+    pipelines_writable: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

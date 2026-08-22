@@ -37,10 +37,12 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
+from app import interviews
 from app.providers import rekognition
 from app.providers.base import ProviderNotConfigured, UpstreamError
 from app.security import AuthedUser
 from app.web.deps import (
+    NotFound,
     RateLimitFace,
     RateLimitGenerateWeb,
     RateLimitLiveTokenWeb,
@@ -70,7 +72,7 @@ router = APIRouter(prefix="/sessions", tags=["web:sessions"])
 # The interview modes the server will accept on a session.
 #
 # `mcq` is the closed-ended mode: its answers are compared to a stored key by
-# `services/mcq_scoring.py` rather than judged by Gemini, so it is the only track
+# `app/mcq_scoring.py` rather than judged by Gemini, so it is the only track
 # whose score is exact, instant and reproducible.
 #
 # Mirrors `TrackType` in web_version/talbotiq-platform/shared/types.ts, which
@@ -95,6 +97,35 @@ def _iso(value: object) -> str | None:
     return as_iso() if callable(as_iso) else str(value)
 
 
+async def _candidate_interviews(settings, email: str) -> dict[str, dict]:
+    """Every interview assigned to this candidate, keyed by id.
+
+    Read once and used twice: for the invites they have not opened yet, and for the
+    published OUTCOME on the ones they have. Both need the same documents, and a
+    candidate's own list is small.
+
+    Best-effort. A Firestore hiccup here must not blank out the sessions they really do
+    have, so a failure logs and yields nothing rather than raising.
+    """
+    import asyncio
+
+    def _fetch() -> dict[str, dict]:
+        try:
+            documents = (
+                interview_invite.interviews_collection(settings)
+                .where("candidateEmailLower", "==", email)
+                .get()
+            )
+        except Exception as exc:  # noqa: BLE001 - convenience data, never fatal
+            logger.warning(
+                "could not read invites for %s: %s", email, type(exc).__name__
+            )
+            return {}
+        return {document.id: (document.to_dict() or {}) for document in documents}
+
+    return await asyncio.to_thread(_fetch)
+
+
 async def _pending_invites(settings, email: str, already_listed: set[str]) -> list[dict]:
     """Interviews this candidate has been invited to but has never opened.
 
@@ -112,7 +143,7 @@ async def _pending_invites(settings, email: str, already_listed: set[str]) -> li
     def _fetch() -> list[dict]:
         try:
             documents = (
-                interview_invite.interviews(settings)
+                interview_invite.interviews_collection(settings)
                 .where("candidateEmailLower", "==", email)
                 .get()
             )
@@ -142,9 +173,40 @@ async def _pending_invites(settings, email: str, already_listed: set[str]) -> li
                     ),
                     "createdAt": _iso(data.get("createdAt")),
                     "completedAt": _iso(data.get("completedAt")),
+                    # Same allowlist as the session rows above. A candidate can be
+                    # given an outcome for an interview they never opened — a résumé
+                    # round is scored from what they submitted, not from a session.
+                    "outcome": interviews.candidate_result_view(data),
+                    "roundKind": data.get("roundKind") or None,
                 }
             )
         return rows
+
+    return await asyncio.to_thread(_fetch)
+
+
+async def _recruiter_interviews(settings, uid: str) -> dict[str, dict]:
+    """This recruiter's interviews, keyed by id. Best-effort.
+
+    Read so a session row can report which TEST it belongs to — the web session does
+    not carry `testId`, and without it the browser has no batch to hang a timeline off.
+    A failure yields nothing rather than emptying the list.
+    """
+    import asyncio
+
+    def _fetch() -> dict[str, dict]:
+        try:
+            documents = (
+                interview_invite.interviews_collection(settings)
+                .where("recruiterId", "==", uid)
+                .get()
+            )
+        except Exception as exc:  # noqa: BLE001 - a convenience field, never fatal
+            logger.warning(
+                "could not read interviews for %s: %s", uid, type(exc).__name__
+            )
+            return {}
+        return {d.id: (d.to_dict() or {}) for d in documents}
 
     return await asyncio.to_thread(_fetch)
 
@@ -168,7 +230,7 @@ async def _recruiter_pending_invites(
     def _fetch() -> list[dict]:
         try:
             documents = (
-                interview_invite.interviews(settings)
+                interview_invite.interviews_collection(settings)
                 .where("recruiterId", "==", uid)
                 .get()
             )
@@ -185,6 +247,16 @@ async def _recruiter_pending_invites(
             data = document.to_dict() or {}
             email = data.get("candidateEmail") or data.get("candidateEmailLower") or ""
             role = str(data.get("role") or "").strip()
+            # The score off the SHARED record.
+            #
+            # This was hardcoded to None, and the effect was that an interview a
+            # candidate took in the Flutter app showed on the recruiter's web list as
+            # "completed" with an empty score column — while the score sat right there
+            # on the interview document the row was built from. Web scores are read
+            # from the reports collection keyed by session id, and a mobile-run
+            # interview has no web session, so it fell through to this branch and lost
+            # its number.
+            result = data.get("result") if isinstance(data.get("result"), dict) else {}
             rows.append(
                 {
                     "id": document.id,
@@ -192,6 +264,7 @@ async def _recruiter_pending_invites(
                         "name": data.get("candidateName") or "",
                         "email": email,
                     },
+                    "testId": data.get("testId") or None,
                     "templateId": None,
                     "templateName": (f"{role} — invite" if role else None)
                     or data.get("title")
@@ -203,7 +276,9 @@ async def _recruiter_pending_invites(
                     "createdAt": _iso(data.get("createdAt")),
                     "startedAt": _iso(data.get("startedAt")),
                     "completedAt": _iso(data.get("completedAt")),
-                    "overallScore": None,
+                    # Absent stays absent: an unscored interview must show an empty
+                    # column, never a 0 that reads as a real result.
+                    "overallScore": result.get("overallScore"),
                 }
             )
         return rows
@@ -308,11 +383,36 @@ async def create_session(
         ]
 
     now = _now()
+    track = body.get("track") or template.get("track")
+
+    # ── the shared assignment record ─────────────────────────────────────────
+    #
+    # A recruiter-created session used to exist ONLY in `web_sessions`: no
+    # `interviews/{id}` document, so no `viaInvite` flag, so `sync_result` returned
+    # early and the whole interview — score included — was invisible to the mobile
+    # app. A recruiter who created sessions from a template in the browser could not
+    # see any of them on their phone.
+    #
+    # The session id IS the interview id, matching what the invite bridge already
+    # does. One id for one interview is what makes the two records addressable as one
+    # thing from either client, and it is why `sync_result` no longer needs a flag to
+    # know where to write.
+    session_id = str(uuid.uuid4())
+    await _record_assignment(
+        settings,
+        interview_id=session_id,
+        user=user,
+        template=template,
+        track=track,
+        candidate_email=email,
+        candidate_name=candidate.get("name"),
+    )
+
     session = {
-        "id": str(uuid.uuid4()),
+        "id": session_id,
         "templateId": template["id"],
         "recruiterId": user.uid,
-        "track": body.get("track") or template.get("track"),
+        "track": track,
         "candidate": {"name": candidate.get("name") or "Candidate", "email": email},
         "status": "created",
         "questions": questions,
@@ -327,6 +427,77 @@ async def create_session(
         session["mcqSections"] = mcq_sections
     await store.sessions.put(session)
     return {"id": session["id"]}
+
+
+async def _record_assignment(
+    settings,
+    *,
+    interview_id: str,
+    user: AuthedUser,
+    template: dict,
+    track: str,
+    candidate_email: str,
+    candidate_name: str | None,
+) -> None:
+    """Write the shared `interviews/{id}` document for a recruiter-created session.
+
+    Best-effort: a failure here must not deny the recruiter their session, which is
+    the thing they asked for and which still runs entirely from `web_sessions`. The
+    cost of a failure is that this one interview stays web-only, which is exactly the
+    status quo it is replacing.
+
+    **The test id is the interview id**, deliberately. A standalone session is not a
+    batch, and inventing a separate `testId` for it would put an extra layer of
+    indirection on a single assignment. Mobile already has this convention: interviews
+    created before `testId` existed group under their OWN id, and both
+    `TestSummary.fromInterview` and `backfillTests` fall back to `i.id` for exactly
+    that case. So a single web session lands on the mobile dashboard as a
+    one-candidate test, using a rule that client already understands.
+    """
+    import asyncio
+
+    from firebase_admin import firestore as admin_firestore
+
+    from app import interviews
+    from app.web.services import users
+
+    role = str(template.get("role") or "").strip() or "this role"
+    label = interviews.mode_label(track)
+    recruiter_name = await users.get_display_name(settings, user.uid)
+
+    document = interviews.build_assignment(
+        test_id=interview_id,
+        recruiter_id=user.uid,
+        recruiter_email=user.email or "",
+        recruiter_name=recruiter_name,
+        candidate_email=candidate_email,
+        candidate_name=(candidate_name or "").strip() or None,
+        title=f"{role} — {label} interview",
+        mode=track,
+        server_timestamp=admin_firestore.SERVER_TIMESTAMP,
+    )
+
+    def _write() -> None:
+        interviews.collection(settings).document(interview_id).set(document)
+
+    try:
+        await asyncio.to_thread(_write)
+    except Exception as exc:  # noqa: BLE001 - never deny the recruiter their session
+        logger.error(
+            "could not record interviews/%s for a recruiter-created session "
+            "(the session still runs, but stays invisible to the mobile app): %s",
+            interview_id,
+            exc,
+        )
+        return
+
+    await interview_invite.ensure_test_summary(
+        settings,
+        test_id=interview_id,
+        recruiter_id=user.uid,
+        role=role,
+        mode=track,
+    )
 
 
 @router.post("/{session_id}/claim", summary="Open an invite link")
@@ -360,6 +531,7 @@ async def mine(request: Request, user: AuthedUser = WebUser) -> list[dict]:
 
     sessions = await store.sessions.where("candidate.email", "==", email)
     templates = {t["id"]: t for t in await store.templates.all() if t.get("id")}
+    assigned = await _candidate_interviews(settings, email)
 
     items = [
         {
@@ -373,6 +545,24 @@ async def mine(request: Request, user: AuthedUser = WebUser) -> list[dict]:
             "status": session.get("status"),
             "createdAt": session.get("createdAt"),
             "completedAt": session.get("completedAt"),
+            # What the candidate is told, or None. The ENTIRE candidate-facing result:
+            # outcome, an optional rank, an optional note the recruiter wrote for them.
+            #
+            # Never a score. `candidate_result_view` is an allowlist, not a filter, so
+            # the recruiter's evaluation — the number, the AI's verdict, its summary,
+            # its list of this person's weaknesses — cannot reach here even as new
+            # fields are added to `result`. See app/interviews.py.
+            "outcome": interviews.candidate_result_view(
+                assigned.get(session.get("id") or "") or {}
+            ),
+            # Which KIND of round this is, so the client can route.
+            #
+            # A résumé round is a submission step, not a session anyone joins — routing
+            # it into the interview engine drops the candidate into a chat with no
+            # questions, which is exactly the failure the MCQ gate exists to stop on the
+            # other client.
+            "roundKind": (assigned.get(session.get("id") or "") or {}).get("roundKind")
+            or None,
         }
         for session in sessions
     ]
@@ -396,6 +586,8 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
         store.sessions.owned_by(user.uid), store.templates.all()
     )
     by_id = {t["id"]: t for t in templates if t.get("id")}
+    # The shared assignments, for `testId` — a web session does not carry it.
+    assigned = await _recruiter_interviews(settings, user.uid)
 
     # Scores fetched concurrently: at ~60ms per round trip a sequential loop over a
     # busy recruiter's list would take seconds.
@@ -414,6 +606,11 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
         {
             "id": session.get("id"),
             "candidate": session.get("candidate"),
+            # Which BATCH this belongs to. The web had no concept of a test at all —
+            # mobile's whole recruiter dashboard is tests — so a timeline had nothing
+            # to hang off. Read from the shared assignment, because a web session does
+            # not carry it.
+            "testId": (assigned.get(session.get("id") or "") or {}).get("testId") or None,
             "templateId": session.get("templateId"),
             "templateName": (by_id.get(session.get("templateId") or "") or {}).get("name")
             or DELETED_TEMPLATE,
@@ -1002,10 +1199,20 @@ async def facial_summary(
 
 @router.get("/{session_id}/report", summary="The scored report")
 async def report(session_id: str, request: Request, user: AuthedUser = WebUser) -> dict:
-    """Owner-only. A candidate never sees a score or any feedback."""
+    """Owner-only. A candidate never sees a score or any feedback.
+
+    An interview the candidate took in the FLUTTER app has no web session — the engine
+    here never ran — so this used to 404 for it, even though the score and the full
+    report were sitting in the shared record the whole time. A recruiter who ran a
+    batch on their phone could not open a single one of those reports in the browser.
+    `_report_from_shared_record` serves those from `interviews/{id}` + `reports/{id}`.
+    """
     settings = settings_of(request)
     store = get_store(settings)
-    session, template = await session_store.load(settings, session_id, user)
+    try:
+        session, template = await session_store.load(settings, session_id, user)
+    except NotFound:
+        return await _report_from_shared_record(settings, session_id, user)
     assert_owner(session, user)
 
     is_conversation = session.get("track") in (
@@ -1053,6 +1260,95 @@ async def report(session_id: str, request: Request, user: AuthedUser = WebUser) 
         },
         "rubric": template.get("rubric"),
         "report": await store.reports.get(session_id),
+    }
+
+
+async def _report_from_shared_record(settings, interview_id: str, user: AuthedUser) -> dict:
+    """A report for an interview this surface never ran.
+
+    Same response shape, sourced from the records both clients share:
+
+      interviews/{id}    who, what role, which track, when — the assignment
+      reports/{id}       the per-question breakdown, written by whichever scorer ran
+
+    This is not a second report model. `reports/{interviewId}` is the SAME collection
+    and the same document the web scorer writes to; the only difference is that the
+    session metadata comes off the assignment instead of off a `web_sessions` row that
+    does not exist. That is what makes the score and the detail identical whichever
+    client produced them.
+
+    404 for a caller who does not own it, matching the rest of this surface — a
+    response never confirms that a record they cannot see exists.
+    """
+    import asyncio
+
+    from app import interviews as shared_interviews
+    from app import reports as shared_reports
+
+    def _read_interview() -> dict | None:
+        snapshot = shared_interviews.collection(settings).document(interview_id).get()
+        return snapshot.to_dict() if snapshot.exists else None
+
+    data = await asyncio.to_thread(_read_interview)
+    if not data:
+        raise NotFound("Session")
+    if str(data.get("recruiterId") or "") != user.uid:
+        raise NotFound("Session")
+
+    def _read_report() -> dict | None:
+        snapshot = shared_reports.collection(settings).document(interview_id).get()
+        return snapshot.to_dict() if snapshot.exists else None
+
+    stored_report = await asyncio.to_thread(_read_report)
+
+    # Falls back to the flat `interviews.result` when no report document exists —
+    # an interview scored before reports were shared, or one whose detail write failed.
+    # The score is the part that must never be missing.
+    result = data.get("result") if isinstance(data.get("result"), dict) else {}
+    if stored_report is None and result:
+        stored_report = {
+            "sessionId": interview_id,
+            "interviewId": interview_id,
+            "overallScore": result.get("overallScore"),
+            "summary": result.get("summary") or "",
+            "recommendation": result.get("recommendation") or "",
+            "strengths": result.get("strengths") or [],
+            "improvements": result.get("improvements") or [],
+            "perQuestion": [],
+        }
+
+    return {
+        "session": {
+            "id": interview_id,
+            "candidate": {
+                "name": data.get("candidateName") or "",
+                "email": data.get("candidateEmail") or data.get("candidateEmailLower") or "",
+            },
+            "templateName": data.get("title") or DELETED_TEMPLATE,
+            "track": invite_bridge.track_for(data),
+            "status": data.get("status") or "created",
+            "createdAt": _iso(data.get("createdAt")),
+            "startedAt": _iso(data.get("startedAt")),
+            "completedAt": _iso(data.get("completedAt")),
+            # The questions as ASSIGNED. The mobile runtime keeps its answers on
+            # `result.responses`, not in the per-question shape this view renders, so
+            # the breakdown comes from the report document where there is one.
+            "questions": [
+                {"id": None, "text": text, "category": None}
+                for text in (data.get("questions") or [])
+                if isinstance(text, str) and text.strip()
+            ],
+            # Integrity monitoring is a web-runtime feature; an interview taken on the
+            # phone genuinely has none, and claiming zero events would read as "clean"
+            # rather than "not measured".
+            "integrityEvents": [],
+            "tabSwitchCount": 0,
+        },
+        # The rubric lives on a web template, which an interview from the app never
+        # had. Null rather than a default: a fabricated rubric would make the report
+        # look scored against criteria nobody set.
+        "rubric": None,
+        "report": stored_report,
     }
 
 

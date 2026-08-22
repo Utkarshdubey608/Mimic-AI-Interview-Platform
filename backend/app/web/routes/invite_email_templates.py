@@ -24,6 +24,7 @@ from fastapi import APIRouter, Query, Request, Response, status
 from app.security import AuthedUser
 from app.web.deps import NotFound, WebUser, settings_of
 from app.web.shared import invite_email
+from app import templates_store
 from app.web.store import get_store
 
 logger = logging.getLogger("web.invite_email_templates")
@@ -134,6 +135,36 @@ def _sort_key(template: dict) -> tuple:
     return (not template.get("isDefault"), str(template.get("name") or "").lower())
 
 
+
+def with_mobile_compatibility(doc: dict, *, owner_email: str | None) -> dict:
+    """A stored template plus the few fields the OTHER client needs to read it.
+
+    `email_templates` is shared now, and the mobile surface stores the same thing in a
+    different shape: `body` + `isHtml` where this one has `bodyHtml`, and it scopes by
+    `ownerEmail` where this one scopes by `recruiterId`.
+
+    Both gaps matter, and only one is cosmetic:
+
+    * Without `body`, a template saved here renders as an EMPTY email on the phone.
+      The body is not an unknown key a reader can skip — it is the field.
+    * Without `ownerEmail`, `templates_store.list_all` cannot find it at all, so a
+      template saved in the browser stays invisible on the phone. That is the exact
+      defect this unification closes, reintroduced from the other side.
+
+    Everything else stays additive — the sender, CTA and branding blocks are simply
+    ignored by a client that has no use for them, which is how the shared `interviews`
+    collection has always worked.
+    """
+    return {
+        **doc,
+        **templates_store.compatibility_fields(
+            subject=str(doc.get("subject") or ""),
+            body_html=str(doc.get("bodyHtml") or ""),
+            owner_email=owner_email,
+        ),
+    }
+
+
 @router.get("", summary="This recruiter's templates of one kind")
 async def list_templates(
     request: Request,
@@ -165,7 +196,9 @@ async def list_templates(
             "updatedAt": now,
             **invite_email.default_template_for(wanted),
         }
-        await store.invite_email_templates.put(seeded)
+        await store.invite_email_templates.put(
+            with_mobile_compatibility(seeded, owner_email=user.email)
+        )
         logger.info("seeded default %s template for %s", wanted, user.uid)
         mine = [seeded]
 
@@ -193,7 +226,9 @@ async def create_template(
         "updatedAt": now,
         **normalise(body),
     }
-    await store.invite_email_templates.put(created)
+    await store.invite_email_templates.put(
+        with_mobile_compatibility(created, owner_email=user.email)
+    )
     return created
 
 
@@ -214,7 +249,9 @@ async def update_template(
         "createdAt": existing.get("createdAt"),
         "updatedAt": _now(),
     }
-    await store.invite_email_templates.put(updated)
+    await store.invite_email_templates.put(
+        with_mobile_compatibility(updated, owner_email=user.email)
+    )
     return updated
 
 
@@ -241,7 +278,9 @@ async def duplicate_template(
         "createdAt": now,
         "updatedAt": now,
     }
-    await store.invite_email_templates.put(copy)
+    await store.invite_email_templates.put(
+        with_mobile_compatibility(copy, owner_email=user.email)
+    )
     return copy
 
 

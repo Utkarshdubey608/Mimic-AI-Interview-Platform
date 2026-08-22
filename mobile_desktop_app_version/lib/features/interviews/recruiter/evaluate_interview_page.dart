@@ -81,10 +81,39 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
           : widget.interview);
 
   @override
+  /// The per-question breakdown from the SHARED `reports/{interviewId}` document.
+  ///
+  /// Separate from `interview.result`, which carries only the flat summary — see
+  /// `InterviewRepository.fetchReport`. Empty until it loads, and empty for good on an
+  /// interview scored before reports were shared, which is why the panel below says so
+  /// rather than rendering nothing.
+  List<({String question, int? score, String feedback})> _perQuestion = const [];
+  bool _loadingReport = false;
+
+  @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex ?? 0;
     _loadInterview(_current);
+    _loadReport();
+  }
+
+  /// Fetches the shared report for whichever interview is showing.
+  ///
+  /// Best-effort and never blocking: the flat score is already on screen from the
+  /// assignment, so a failure here costs the breakdown and nothing else.
+  Future<void> _loadReport() async {
+    final id = _current.id;
+    setState(() {
+      _loadingReport = true;
+      _perQuestion = const [];
+    });
+    final report = await context.read<InterviewRepository>().fetchReport(id);
+    if (!mounted || _current.id != id) return; // they paged to another candidate
+    setState(() {
+      _perQuestion = InterviewRepository.perQuestionOf(report);
+      _loadingReport = false;
+    });
   }
 
   /// Re-fetches this interview from Firestore and reloads the form — the
@@ -108,6 +137,9 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
         _refreshedInterview = fresh;
         _loadInterview(fresh);
       });
+      // The breakdown lands with the score, so refresh both together — otherwise a
+      // recruiter sees a fresh score beside a stale (or absent) per-question list.
+      await _loadReport();
       messenger.showSnackBar(
           const SnackBar(content: Text('Reloaded the latest evaluation.')));
     } catch (e) {
@@ -293,6 +325,19 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     });
   }
 
+  /// Who produced the stored score, in words.
+  ///
+  /// `mcq` is named rather than folded into "edited", which is what an unknown
+  /// scorer used to read as. An exact comparison against a stored answer key is
+  /// not a draft and not somebody's edit, and a recruiter deciding whether to
+  /// trust the number needs to know which it is.
+  static String _scorerNote(String evaluatedBy) => switch (evaluatedBy) {
+        '' => '',
+        'ai' => ' · AI draft',
+        'mcq' => ' · scored automatically',
+        _ => ' · edited',
+      };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -363,9 +408,14 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                 children: [
                   Text(i.candidateName ?? i.candidateEmail,
                       style: theme.textTheme.titleLarge),
+                  // `effectiveRoundKind`, not `type`: an MCQ assignment carries
+                  // `type: chat` (the server's buckets are video|chat) and would
+                  // otherwise be labelled "Chat Interview" on the one screen
+                  // whose job is to say what was taken. A legacy document derives
+                  // the same label from `type` anyway, so nothing regresses.
                   Text(
-                      '${i.type.label} · ${i.candidateEmail}'
-                      '${evaluatedBy.isEmpty ? '' : ' · ${evaluatedBy == 'ai' ? 'AI draft' : 'edited'}'}',
+                      '${i.effectiveRoundKind.label} · ${i.candidateEmail}'
+                      '${_scorerNote(evaluatedBy)}',
                       style: theme.textTheme.bodySmall),
                   if (_published)
                     Padding(
@@ -417,6 +467,16 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                         ],
                       ),
                     ),
+                  // The per-question breakdown, from the SHARED report document.
+                  // Shown above the raw answers because it is the reviewed view of the
+                  // same material — a recruiter reads the judgement, then the evidence.
+                  if (_loadingReport || _perQuestion.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _PerQuestionSection(
+                      rows: _perQuestion,
+                      loading: _loadingReport,
+                    ),
+                  ],
                   if (_responses.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     _ResponsesSection(
@@ -507,6 +567,86 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
 /// Read-only list of the candidate's raw per-question responses, shown above
 /// the editable score fields so the recruiter reads the actual answers before
 /// scoring/regenerating.
+/// The AI's per-question judgement, read from `reports/{interviewId}`.
+///
+/// Its own section rather than folded into the answers list: this is the SCORER's view
+/// of each answer, and the answers themselves are the evidence. Conflating them would
+/// make it unclear which text a person wrote and which a model did.
+class _PerQuestionSection extends StatelessWidget {
+  const _PerQuestionSection({required this.rows, required this.loading});
+
+  final List<({String question, int? score, String feedback})> rows;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Per-question breakdown',
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else
+          for (final row in rows)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          row.question,
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      // Absent rather than 0 when the scorer gave none — a 0 reads as
+                      // "answered badly" where the truth is "not scored".
+                      if (row.score != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '${row.score}',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (row.feedback.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      row.feedback,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+      ],
+    );
+  }
+}
+
 class _ResponsesSection extends StatelessWidget {
   const _ResponsesSection({required this.responses, required this.approximate});
 

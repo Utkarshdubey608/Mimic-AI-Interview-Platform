@@ -60,7 +60,7 @@ const ROLE_OPTIONS: { value: UserRole; label: string; description: string; icon:
 ]
 
 export default function LoginPage() {
-  const { configured, loading, isAuthenticated, role, signInWithEmail, signUpWithEmail } = useAuth()
+  const { configured, loading, isAuthenticated, role, signInWithEmail, signUpWithEmail, sendPasswordReset } = useAuth()
   const location = useLocation()
   const reduce = useReducedMotion() ?? false
 
@@ -72,6 +72,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  /** Set once a reset link has gone out, so the notice replaces the link. */
+  const [resetSent, setResetSent] = useState(false)
 
   if (!configured) return <FirebaseNotConfigured />
   if (isAuthenticated && role && !loading) {
@@ -144,7 +146,7 @@ export default function LoginPage() {
                     role="tab"
                     type="button"
                     aria-selected={mode === m}
-                    onClick={() => { setMode(m); setErr(null) }}
+                    onClick={() => { setMode(m); setErr(null); setResetSent(false) }}
                     className={cn(
                       'flex-1 rounded-sm px-3 py-1.5 text-sm font-semibold transition-colors duration-fast',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
@@ -244,6 +246,49 @@ export default function LoginPage() {
                 <Button type="submit" size="lg" block loading={busy} className="mt-5">
                   {mode === 'signup' ? `Create ${roleIntent} account` : 'Sign in'}
                 </Button>
+
+                {/* Sign-in only. Offering a reset on the sign-up form invites
+                    somebody to reset an account they have not created yet. */}
+                {mode === 'signin' ? (
+                  <div className="mt-3 text-center">
+                    {resetSent ? (
+                      <p className="text-xs text-ink-muted">
+                        If an account exists for that address, a reset link is on its way.
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs text-ink-muted underline underline-offset-2 transition-colors hover:text-ink"
+                        onClick={async () => {
+                          const address = email.trim()
+                          if (!address) {
+                            setErr('Enter your email address first, then ask for a reset link.')
+                            return
+                          }
+                          setErr(null)
+                          setBusy(true)
+                          try {
+                            await sendPasswordReset(address)
+                            setResetSent(true)
+                          } catch {
+                            /* Deliberately still reported as sent.
+                               Firebase distinguishes "no such user" from a real
+                               failure, and surfacing that difference turns this box
+                               into a way to test whether an address has an account
+                               here. The candidate who mistyped their address is
+                               better served by "check your inbox" than by a
+                               confirmation that they are not registered. */
+                            setResetSent(true)
+                          } finally {
+                            setBusy(false)
+                          }
+                        }}
+                      >
+                        Forgot your password?
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </form>
 
               {/* ── Trust ────────────────────────────────────────────────────

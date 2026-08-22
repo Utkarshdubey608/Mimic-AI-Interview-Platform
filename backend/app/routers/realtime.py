@@ -59,7 +59,13 @@ async def gemini_token(
         # Assignment first, then eligibility: someone with no claim on this
         # interview should not learn whether it has expired.
         interviews.require_candidate(interview, uid=user.uid, email=user.email)
-        interview.ensure_launchable()
+        # The client names its own platform in a header; unknown is allowed, so an
+        # older release keeps working. See the note on `interviews.DEVICES`.
+        interview.ensure_launchable(
+            interviews.device_from_header(
+                request.headers.get(interviews.CLIENT_DEVICE_HEADER)
+            )
+        )
     except InterviewAccessDenied as exc:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
     except InterviewNotLaunchable as exc:

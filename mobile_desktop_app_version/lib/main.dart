@@ -11,7 +11,6 @@ import 'package:talbotiq/firebase_options.dart';
 import 'package:talbotiq/core/services/avatar_catalog.dart';
 import 'package:talbotiq/shared/providers/app_store.dart';
 import 'package:talbotiq/features/recruiter/store/recruiter_store.dart';
-import 'package:talbotiq/features/recruiter/services/recruiter_gemini_service.dart';
 import 'package:talbotiq/features/auth/auth_service.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/core/deep_link/deep_link_service.dart';
@@ -81,9 +80,6 @@ void main() async {
   // stays fully isolated from the protected video-interview AppStore.
   final recruiterStore = RecruiterStore();
   await recruiterStore.load();
-
-  // Restore the recruiter's persisted Gemini model choice (flash/pro).
-  await recruiterGeminiService.loadModelPreference();
 
   runApp(
     MultiProvider(

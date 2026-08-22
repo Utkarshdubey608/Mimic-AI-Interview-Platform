@@ -12,9 +12,9 @@ import 'package:talbotiq/shared/widgets/desktop_page_container.dart';
 import 'package:talbotiq/shared/widgets/responsive_grid.dart';
 import 'package:talbotiq/shared/widgets/section_header.dart';
 import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
-import 'gemini_model_page.dart';
 import 'generate_from_resume_page.dart';
 import 'personas_page.dart';
+import 'mcq_sets_page.dart';
 import 'question_sets_page.dart';
 import 'replicas_page.dart';
 import 'templates_page.dart';
@@ -46,16 +46,17 @@ const _sections = [
     pageBuilder: _questionSetsPage,
   ),
   _LibrarySection(
+    icon: Icons.fact_check_outlined,
+    title: 'Assessments',
+    subtitle:
+        'Multiple-choice papers. Scored exactly, with no model in the loop.',
+    pageBuilder: _mcqSetsPage,
+  ),
+  _LibrarySection(
     icon: Icons.auto_awesome_outlined,
     title: 'Generate from résumé',
     subtitle: 'Upload a candidate PDF and generate a tailored question set.',
     pageBuilder: _generateFromResumePage,
-  ),
-  _LibrarySection(
-    icon: Icons.tune_outlined,
-    title: 'AI model',
-    subtitle: 'Choose the Gemini model (Flash / Pro).',
-    pageBuilder: _geminiModelPage,
   ),
   _LibrarySection(
     icon: Icons.face_retouching_natural_outlined,
@@ -73,8 +74,8 @@ const _sections = [
 
 Widget _templatesPage(BuildContext _) => const TemplatesPage();
 Widget _questionSetsPage(BuildContext _) => const QuestionSetsPage();
+Widget _mcqSetsPage(BuildContext _) => const McqSetsPage();
 Widget _generateFromResumePage(BuildContext _) => const GenerateFromResumePage();
-Widget _geminiModelPage(BuildContext _) => const GeminiModelPage();
 Widget _personasPage(BuildContext _) => const PersonasPage();
 Widget _replicasPage(BuildContext _) => const ReplicasPage();
 
@@ -116,7 +117,7 @@ class RecruiterLibraryPage extends StatelessWidget {
     );
   }
 
-  /// Same six destinations as mobile, same navigation targets — just a
+  /// The same destinations as mobile, same navigation targets — just a
   /// compact grid instead of tall full-width rows, since a desktop window
   /// has the horizontal room for it and drilling through a single-column
   /// list is a phone-navigation pattern.

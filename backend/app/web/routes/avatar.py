@@ -42,7 +42,7 @@ from app.web.deps import (
     WebUser,
     settings_of,
 )
-from app.web.services import gemini, voice_analysis, voice_jobs
+from app.web.services import gemini, voice_analysis, voice_jobs, app_settings
 
 logger = logging.getLogger("web.avatar")
 
@@ -74,6 +74,11 @@ async def status_(request: Request, user: AuthedUser = WebUser) -> dict:
         "hume": bool(settings.hume_api_key.strip()) or gemini_ready,
         "gemini": gemini_ready,
         "rekognition": rekognition.is_configured(settings),
+        # Added when the Tavus key stopped being something a recruiter typed into the
+        # browser. The client used to gate its avatar UI on the key it held locally,
+        # which meant the page could report "configured" for a credential the server
+        # had never seen. This is the server's own answer.
+        "tavus": bool(await app_settings.tavus_key(settings)),
     }
 
 

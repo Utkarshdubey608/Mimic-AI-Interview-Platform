@@ -24,6 +24,12 @@ import type {
   AnalyticsFilters,
   AppUser,
   CandidateAssignedSession,
+  InterviewRound,
+  RoundCriteria,
+  RoundKind,
+  RoundState,
+  TimelineResponse,
+  RetryableEvaluation,
   ExtractCandidatesResult,
   CreateInvitesRequest,
   CreateInvitesResult,
@@ -64,6 +70,33 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     if (res.status === 429) throw rateLimitError(res, data)
     const message = (data && (data.error as string)) || `Request failed (${res.status})`
+    throw new ApiError(message, res.status, data)
+  }
+  return data as T
+}
+
+/**
+ * The same request helper, against the SHARED `/api` surface rather than `/api/web`.
+ *
+ * Used where the capability already lives there and is already tested — résumé
+ * scoring, for instance. The Firebase token is attached to both bases by the global
+ * fetch interceptor in AuthProvider, so nothing extra is needed here.
+ */
+async function commonHttp<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(commonBase() + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  })
+  if (res.status === 204) return undefined as T
+  const text = await res.text()
+  const data = text ? JSON.parse(text) : undefined
+  if (!res.ok) {
+    if (res.status === 429) throw rateLimitError(res, data)
+    // The shared surface answers `{detail}`; the web surface answers `{error}`. Read
+    // both rather than assuming, or a real message degrades to "Request failed".
+    const message =
+      (data && ((data.detail as string) || (data.error as string))) ||
+      `Request failed (${res.status})`
     throw new ApiError(message, res.status, data)
   }
   return data as T
@@ -228,24 +261,8 @@ export const questionSetsApi = {
 /* ─── Settings (server-side Gemini key) ─────────────────────────────────── */
 export const settingsApi = {
   status: () => http<AppSettingsStatus>('/settings'),
-  saveGeminiKey: (apiKey: string, model?: string) =>
-    http<AppSettingsStatus>('/settings/gemini-key', {
-      method: 'PUT',
-      body: JSON.stringify({ apiKey, model }),
-    }),
-  clearGeminiKey: () => http<AppSettingsStatus>('/settings/gemini-key', { method: 'DELETE' }),
-  // Tavus key — GLOBAL, single source of truth. Saving from the Settings page
-  // pushes it server-side so it applies everywhere (candidate avatar interviews,
-  // any previously-applied Setup config) in one step.
-  saveTavusKey: (apiKey: string) =>
-    http<{ tavusKeySet: boolean; tavusKeyMasked?: string }>('/settings/tavus-key', {
-      method: 'PUT',
-      body: JSON.stringify({ apiKey }),
-    }),
-  // Video Avatar (Tavus) — the Setup page's "Apply to Candidate Interviews".
-  // Config + key are stored server-side; the status response is always masked.
   avatarStatus: () => http<AvatarSettingsStatus>('/settings/avatar'),
-  applyAvatar: (body: AvatarInterviewSettings & { tavusKey?: string }) =>
+  applyAvatar: (body: AvatarInterviewSettings) =>
     http<AvatarSettingsStatus>('/settings/avatar', { method: 'PUT', body: JSON.stringify(body) }),
 }
 
@@ -445,6 +462,216 @@ export const inviteEmailTemplatesApi = {
 }
 
 /* ─── Pipelines (multi-round interview flows, owned per recruiter) ──────── */
+/**
+ * Deciding a round, and releasing it to the candidate.
+ *
+ * These are the recruiter actions that had no web equivalent at all: this app could
+ * write `resultPublished` only as `false`, at creation, and never set it true — so a
+ * recruiter working in the browser could score an interview and had no way to tell the
+ * candidate anything. The phone was the only client that could release a result.
+ *
+ * They act on `interviews/{id}` — the record shared with the Flutter app — not on web
+ * sessions, which is why the paths are `/interviews/...`. A decision made here is
+ * visible on the phone, and one made there is visible here.
+ *
+ * What the candidate is then shown is NOT decided by any of this: the server projects
+ * an allowlist of three fields (`interviews.candidate_result_view`). Sending a score
+ * from here would not reach them.
+ */
+export const outcomesApi = {
+  /** Show or hide one candidate's result. The only thing that makes it visible. */
+  publish: (interviewId: string, published: boolean) =>
+    http<{ id: string; resultPublished: boolean }>(
+      `/interviews/${interviewId}/publish`,
+      { method: 'POST', body: JSON.stringify({ published }) },
+    ),
+
+  /** One candidate's outcome, with an optional rank pair and note. */
+  setOutcome: (
+    interviewId: string,
+    body: {
+      outcome: 'selected' | 'not_selected' | 'pending'
+      rank?: number | null
+      rankOf?: number | null
+      note?: string
+      publish?: boolean
+    },
+  ) =>
+    http<{ id: string; outcome: string; resultPublished: boolean }>(
+      `/interviews/${interviewId}/outcome`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  /**
+   * The recruiter's recoverable failures — interviews nothing scored, whose answers
+   * survive, so the scorer can simply run again.
+   *
+   * In the browser a failed scoring run used to be TERMINAL: the answers sat on the
+   * document, the scorer could have run again, and there was no route to it. The
+   * recruiter's only options were a manual evaluation or asking the candidate to sit
+   * the whole interview a second time.
+   */
+  retryable: () =>
+    http<RetryableEvaluation[]>('/interviews/retryable'),
+
+  /**
+   * Re-run scoring from the answers already stored. No candidate involvement.
+   *
+   * Runs the same scorer the mobile surface runs. The response reports whether it
+   * actually worked — the scorer never throws, it records failures on the document, so
+   * "no error" is not the same as "scored".
+   */
+  retryEvaluation: (interviewId: string) =>
+    http<{ id: string; scored: boolean; overallScore?: number; error: string }>(
+      `/interviews/${interviewId}/retry-evaluation`,
+      { method: 'POST' },
+    ),
+
+  /**
+   * Drop the result and reopen the interview, KEEPING the assignment — the candidate
+   * stays assigned and can take it again.
+   *
+   * Irreversible: the stored answers and any score go with it. Try `retryEvaluation`
+   * first, which is free and keeps everything.
+   */
+  clearResult: (interviewId: string) =>
+    http<{ id: string; status: string }>(
+      `/interviews/${interviewId}/clear-result`,
+      { method: 'POST' },
+    ),
+
+  /**
+   * Decide a whole round at once.
+   *
+   * `ranked` is IN RANK ORDER and the server stamps positions from it — a rank that
+   * recomputed itself on read would shift under the candidate every time anybody else
+   * was re-scored. Everyone in `selectedIds` moves forward; everyone else does not.
+   *
+   * All-or-nothing: the server verifies ownership of every id before writing anything,
+   * so a bad request changes nothing rather than applying half a decision.
+   */
+  decideRound: (body: {
+    ranked: string[]
+    selectedIds: string[]
+    noteForSelected?: string
+    noteForRejected?: string
+    publish?: boolean
+    /**
+     * Send each candidate the transition email for their outcome. OPT-IN, and separate
+     * from `publish`: publishing makes the outcome visible when they next sign in, an
+     * email pushes it to them, and an email cannot be unsent.
+     */
+    sendEmails?: boolean
+    roundName?: string
+  }) =>
+    http<{
+      decided: number
+      selected: number
+      published: boolean
+      emailed: number
+      /** Per recipient, so a bounced address can be retried without re-sending to all. */
+      emailFailures: { id: string; error: string }[]
+    }>(
+      '/interviews/outcomes',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+}
+
+/**
+ * A test's timeline, on the shared rounds model.
+ *
+ * Separate from `pipelinesApi`, which still drives the existing board: the two models
+ * run in parallel until the old one is retired, so nothing here reads or writes a
+ * pipeline. See `backend/app/web/routes/rounds.py`.
+ */
+/**
+ * A résumé round — the candidate submits a CV instead of sitting an interview.
+ *
+ * On the SHARED `/api` surface, because the scoring already lives there and is already
+ * tested: `app/resume.py` resolves the round's criteria server-side and writes the
+ * score with the Admin SDK, precisely so a candidate cannot lower the bar they are
+ * measured against. A second implementation on the web surface would be a second
+ * scorer for one submission.
+ */
+export const resumeApi = {
+  /** Transcribe a PDF. Useful on its own — the candidate confirms the text first. */
+  extract: (pdfBase64: string, fileName?: string) =>
+    commonHttp<{ text: string; charCount: number; truncated: boolean }>(
+      '/resume/extract',
+      { method: 'POST', body: JSON.stringify({ pdfBase64, fileName }) },
+    ),
+
+  /**
+   * Score it against the round's criteria and store the result.
+   *
+   * Deliberately sends NO criteria, role or prompt: all are resolved server-side from
+   * the interview and its round.
+   */
+  score: (interviewId: string, resumeText: string, fileName?: string) =>
+    commonHttp<{ interviewId: string; charCount: number; model: string }>(
+      '/resume/score',
+      {
+        method: 'POST',
+        body: JSON.stringify({ interviewId, resumeText, fileName }),
+      },
+    ),
+}
+
+export const roundsApi = {
+  list: (testId: string) =>
+    http<TimelineResponse>(`/tests/${testId}/rounds`),
+
+  create: (
+    testId: string,
+    body: {
+      title: string
+      kind?: RoundKind
+      opensAt?: string | null
+      closesAt?: string | null
+      criteria?: Partial<RoundCriteria>
+    },
+  ) =>
+    http<InterviewRound>(`/tests/${testId}/rounds`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  update: (testId: string, roundId: string, body: Record<string, unknown>) =>
+    http<InterviewRound>(`/tests/${testId}/rounds/${roundId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  /**
+   * End a round ahead of its deadline. `lockedOut` is how many candidates it actually
+   * reached — stamping the round alone closes nothing, because their devices gate on
+   * `expiresAt` on their own assignment.
+   */
+  end: (testId: string, roundId: string) =>
+    http<{ id: string; state: RoundState; lockedOut: number }>(
+      `/tests/${testId}/rounds/${roundId}/end`,
+      { method: 'POST' },
+    ),
+
+  /** With no `candidates`, everyone already in the TEST is assigned. */
+  assign: (testId: string, roundId: string, candidates?: string[]) =>
+    http<{ assigned: number; skipped: number }>(
+      `/tests/${testId}/rounds/${roundId}/assign`,
+      { method: 'POST', body: JSON.stringify(candidates ? { candidates } : {}) },
+    ),
+
+  /**
+   * Move assignments that belong to no round into this one.
+   *
+   * Adopts rather than recreating: those documents may already hold a completed
+   * interview, a transcript and a score.
+   */
+  adopt: (testId: string, roundId: string) =>
+    http<{ adopted: number }>(`/tests/${testId}/rounds/${roundId}/adopt`, {
+      method: 'POST',
+    }),
+}
+
 export const pipelinesApi = {
   list: (role?: string) => http<Pipeline[]>(`/pipelines${role ? `?role=${encodeURIComponent(role)}` : ''}`),
   get: (id: string) => http<Pipeline>(`/pipelines/${id}`),

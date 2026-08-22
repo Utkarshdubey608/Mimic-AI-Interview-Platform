@@ -58,48 +58,22 @@ async def run_evaluation(
     job_role: str,
     responses: list[dict],
 ) -> None:
-    """Score one interview and store the outcome. Runs after the response is sent.
+    """Delegates to `evaluation.score_and_store`.
 
-    Never raises. A background task has nobody to report to, so every failure
-    ends as a recorded failure ON THE DOCUMENT — with the answers kept — rather
-    than as a log line and a candidate whose interview silently vanished.
+    The orchestration moved into the kernel so the WEB surface can reach it too: a
+    recruiter's re-score used to be impossible in the browser purely because this code
+    lived inside the mobile surface's router, which the layering rules (correctly) keep
+    the web package out of. One scorer, two callers.
+
+    Kept as a named function rather than inlined at the call site because it is handed
+    to `BackgroundTasks`, and the name is what appears in a traceback.
     """
-    try:
-        body = evaluation.build_scoring_body(job_role=job_role, responses=responses)
-        raw = await GeminiClient(settings).generate_content(body)
-        score = evaluation.parse_score(raw)
-    except (ProviderNotConfigured, UpstreamError, evaluation.EvaluationFailed) as exc:
-        _record_failure(settings, interview_id, str(exc), responses)
-        return
-    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
-        logger.exception("evaluation crashed for %s", interview_id)
-        _record_failure(
-            settings,
-            interview_id,
-            f"Scoring failed unexpectedly: {exc}",
-            responses,
-        )
-        return
-
-    try:
-        interviews.save_evaluation(
-            settings,
-            interview_id,
-            result=evaluation.build_result_map(
-                score,
-                responses,
-                model=GeminiClient(settings).resolve_model(None),
-            ),
-        )
-        logger.info(
-            "evaluated %s: score=%s", interview_id, score.get("overallScore")
-        )
-    except Exception:  # noqa: BLE001 - nothing left to fall back to
-        # The score existed but could not be stored. Recording the failure would
-        # need the same Firestore that just refused us, so all that is left is a
-        # log — and the recruiter's retry, which re-scores from the answers the
-        # accept step already stored.
-        logger.exception("could not store evaluation for %s", interview_id)
+    await evaluation.score_and_store(
+        settings,
+        interview_id,
+        job_role=job_role,
+        responses=responses,
+    )
 
 
 def _record_failure(
@@ -108,16 +82,8 @@ def _record_failure(
     error: str,
     responses: list[dict],
 ) -> None:
-    """Store "this could not be scored, and why", keeping the answers."""
-    try:
-        interviews.save_evaluation(
-            settings,
-            interview_id,
-            result=evaluation.build_failed_result_map(error, responses),
-        )
-        logger.warning("evaluation failed for %s: %s", interview_id, error)
-    except Exception:  # noqa: BLE001
-        logger.exception("could not record evaluation failure for %s", interview_id)
+    """Delegates to `evaluation.record_failure` — see `run_evaluation`."""
+    evaluation.record_failure(settings, interview_id, error, responses)
 
 
 @router.post(

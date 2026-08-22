@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 
@@ -468,6 +469,107 @@ class InterviewRepository {
     return ranked.length;
   }
 
+  // ── The end of a candidate's run (see test_conclusion.dart) ───────────────
+  //
+  // A round outcome answers "did I get through this round". These two answer
+  // "so what happened in the end", which for a multi-round test is the only
+  // question the candidate has left once they have sat everything.
+  //
+  // Written onto EVERY assignment the candidate holds in the test, not just the
+  // last one. Three reasons, in order of how badly the alternative fails:
+  //
+  //   1. The candidate's device may only read its own `interviews` documents. A
+  //      conclusion stored on the test, or on one designated round, is either
+  //      unreadable or requires them to know which round to look at.
+  //   2. Their screen groups a job's rounds together and any of them can be the
+  //      one they open. A conclusion on one row only is a conclusion they may
+  //      never see.
+  //   3. The recruiter's candidate list already loads assignments, so a
+  //      per-round copy costs it no extra read to show who has been told.
+  //
+  // The cost is a handful of extra writes per candidate, once, at the very end
+  // of a pipeline. That is the cheapest thing here.
+
+  /// Releases [conclusion] to every candidate in [assignments].
+  ///
+  /// [assignments] is the FLATTENED list of documents to write — every round of
+  /// every chosen candidate — so the caller decides who is included and this
+  /// cannot accidentally reach a candidate they did not tick. Returns how many
+  /// documents were written.
+  ///
+  /// Visible the instant it lands: there is no draft state (see
+  /// `TestConclusion`), which is why the caller confirms before calling.
+  Future<int> publishConclusion({
+    required List<Interview> assignments,
+    required TestConclusion conclusion,
+  }) async {
+    if (assignments.isEmpty) return 0;
+    final payload = conclusion.toMap();
+
+    // Firestore hard-caps a batch at 500 writes; stay well under, as every other
+    // batched write in this file does.
+    const chunk = 400;
+    for (var i = 0; i < assignments.length; i += chunk) {
+      final end = (i + chunk < assignments.length) ? i + chunk : assignments.length;
+      final batch = _db.batch();
+      for (final interview in assignments.sublist(i, end)) {
+        batch.update(_col.doc(interview.id), {
+          'conclusion': payload,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    return assignments.length;
+  }
+
+  /// Withdraws a published conclusion from every document in [assignments].
+  ///
+  /// The undo for a decision released to the wrong people, or released early.
+  /// Deletes the field rather than writing an "on hold" one: an unsent
+  /// conclusion and a conclusion saying "we are still deciding" are different
+  /// messages, and only the recruiter knows which they meant.
+  ///
+  /// It cannot un-send an email, and cannot un-read what somebody already saw —
+  /// callers say so.
+  Future<int> clearConclusion(List<Interview> assignments) async {
+    if (assignments.isEmpty) return 0;
+    const chunk = 400;
+    for (var i = 0; i < assignments.length; i += chunk) {
+      final end = (i + chunk < assignments.length) ? i + chunk : assignments.length;
+      final batch = _db.batch();
+      for (final interview in assignments.sublist(i, end)) {
+        batch.update(_col.doc(interview.id), {
+          'conclusion': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    return assignments.length;
+  }
+
+  /// Every assignment of one test, unpaged.
+  ///
+  /// The cost this file otherwise works hard to avoid, and taken deliberately:
+  /// deciding how a candidate's RUN ended needs all of their rounds at once, and
+  /// a page boundary can fall in the middle of one. Paid once, when a recruiter
+  /// opens the conclusion screen for a single test.
+  ///
+  /// Ownership is on the query, so a stale testId can never reach another
+  /// recruiter's data.
+  Future<List<Interview>> fetchTestAssignments({
+    required String testId,
+    required String recruiterId,
+  }) async {
+    if (testId.isEmpty || recruiterId.isEmpty) return const [];
+    final snap = await _col
+        .where('recruiterId', isEqualTo: recruiterId)
+        .where('testId', isEqualTo: testId)
+        .get();
+    return _parseDocs(snap.docs);
+  }
+
   /// Show/hide a single candidate's result.
   Future<void> setPublished(String id, bool published) {
     return _col.doc(id).update({
@@ -476,6 +578,64 @@ class InterviewRepository {
     });
   }
 
+
+  // ── Reports (the rich half of a scored interview) ─────────────────────────
+  //
+  // `reports/{interviewId}`. SHARED with the web client, and deliberately separate
+  // from `interviews/{id}.result`:
+  //
+  //   result   the FLAT summary — score, recommendation, summary, strengths. What
+  //            every list, chip and leaderboard reads, so it stays on the assignment.
+  //   report   the per-question breakdown, KPI averages and provenance. Too large for
+  //            the assignment document and only read when someone opens a full report.
+  //
+  // It used to be squeezed into `result.detail`, in a shape that disagreed with the
+  // one the WEB surface wrote to the same field name — and nothing read either. See
+  // `backend/app/reports.py`.
+
+  CollectionReference<Map<String, dynamic>> get _reports =>
+      _db.collection('reports');
+
+  /// The scored report for [interviewId], or null.
+  ///
+  /// Null rather than an exception for a missing one: an interview scored before
+  /// reports were shared has none, and so does one whose detail write failed. The
+  /// score itself is on the assignment either way, so the caller shows what it has
+  /// rather than an error.
+  Future<Map<String, dynamic>?> fetchReport(String interviewId) async {
+    if (interviewId.isEmpty) return null;
+    try {
+      final doc = await _reports.doc(interviewId).get();
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      debugPrint('InterviewRepository.fetchReport($interviewId) failed: $e');
+      return null;
+    }
+  }
+
+  /// The per-question breakdown from a report document, defensively parsed.
+  ///
+  /// Written by a language model on the server, so every field is treated as
+  /// possibly-absent: a partial write must render as a short list, never throw inside
+  /// a ListView builder. Same rule as [_parseDocs].
+  static List<({String question, int? score, String feedback})> perQuestionOf(
+    Map<String, dynamic>? report,
+  ) {
+    final raw = report?['perQuestion'];
+    if (raw is! List) return const [];
+    final out = <({String question, int? score, String feedback})>[];
+    for (final entry in raw) {
+      if (entry is! Map) continue;
+      final question = (entry['question'] as String?)?.trim() ?? '';
+      if (question.isEmpty) continue;
+      out.add((
+        question: question,
+        score: (entry['score'] as num?)?.toInt(),
+        feedback: (entry['feedback'] as String?)?.trim() ?? '',
+      ));
+    }
+    return out;
+  }
 
   // ── Tests (batch metadata) ────────────────────────────────────────────────
 
@@ -1047,7 +1207,6 @@ class InterviewRepository {
         .toSet();
 
     final pending = candidates.keys.where((e) => !already.contains(e)).toList();
-    if (pending.isEmpty) return 0;
 
     const chunk = 400;
     for (var i = 0; i < pending.length; i += chunk) {
@@ -1065,7 +1224,83 @@ class InterviewRepository {
       }
       await batch.commit();
     }
+
+    // Putting somebody INTO a round says they got through the ones before it.
+    // Runs for everyone named, not just the new assignments: pressing assign a
+    // second time must still settle a candidate whose earlier round was left
+    // undecided. Idempotent, and never overwrites a decision.
+    await clearEarlierRoundsFor(round: round, emailsLower: candidates.keys);
+
     return pending.length;
+  }
+
+  /// Marks a candidate's earlier rounds as cleared, for everyone in
+  /// [emailsLower], on being put into [round].
+  ///
+  /// Advancing somebody IS the statement that they got through what came before —
+  /// there is no other reason to put them in a later round. Without this the
+  /// outcome field was simply never written on the earlier assignment, and
+  /// `RoundOutcome` defaults to `pending`, so a candidate sitting in round 2 went
+  /// on reading "Under review" against round 1 for ever.
+  ///
+  /// Only writes where there is nothing to lose. The earlier assignment must be
+  /// COMPLETED and carry no outcome of its own, so a recruiter who marked
+  /// somebody "not moving forward" and then bulk-added everybody to a round does
+  /// not have that decision silently rewritten — and a round the candidate has
+  /// not finished is left alone, because they have not cleared it.
+  ///
+  /// `resultPublished` is set with it, because an outcome nobody can see does not
+  /// fix the screen this exists for. That releases only the outcome, the rank and
+  /// the recruiter's note — never the score or the AI write-up, which are not on
+  /// the candidate's result screen at all (see `candidate_result_page.dart`).
+  ///
+  /// Returns how many assignments were settled.
+  Future<int> clearEarlierRoundsFor({
+    required InterviewRound round,
+    required Iterable<String> emailsLower,
+  }) async {
+    // Round 1 has nothing before it, and a test with no timeline has one
+    // implicit round.
+    if (round.order <= 0 || round.testId.isEmpty || round.recruiterId.isEmpty) {
+      return 0;
+    }
+    final wanted = emailsLower
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+    if (wanted.isEmpty) return 0;
+
+    final snap = await _col
+        .where('recruiterId', isEqualTo: round.recruiterId)
+        .where('testId', isEqualTo: round.testId)
+        .get();
+
+    final refs = <DocumentReference<Map<String, dynamic>>>[];
+    for (final doc in snap.docs) {
+      final interview = Interview.fromDoc(doc);
+      if (!wanted.contains(interview.candidateEmailLower)) continue;
+      if (interview.effectiveRoundOrder >= round.order) continue;
+      if (interview.status != InterviewStatus.completed) continue;
+      if (interview.hasOutcome) continue;
+      refs.add(doc.reference);
+    }
+    if (refs.isEmpty) return 0;
+
+    const chunk = 400;
+    for (var i = 0; i < refs.length; i += chunk) {
+      final end = (i + chunk < refs.length) ? i + chunk : refs.length;
+      final batch = _db.batch();
+      for (final ref in refs.sublist(i, end)) {
+        // A dotted path, so the recruiter's evaluation in the same map survives.
+        batch.update(ref, {
+          'result.outcome': RoundOutcome.selected.wire,
+          'resultPublished': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+    return refs.length;
   }
 
   /// Rewrites the timeline order to match [orderedRoundIds] (index = new order).

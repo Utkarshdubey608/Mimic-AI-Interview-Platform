@@ -39,6 +39,35 @@ MAX_RESUME_CHARS = 30_000
 # limit, because a client-side check is a courtesy, not a control.
 MAX_PDF_BYTES = 10 * 1024 * 1024
 
+# Reasoning-token allowance for both calls. ZERO, deliberately.
+#
+# Gemini 2.5 Flash thinks by default with a *dynamic* budget, and thinking tokens
+# are spent from the SAME `maxOutputTokens` allowance as the answer. That is what
+# broke scoring: a 200 OK whose JSON stopped mid-object because ~1500-1900 tokens
+# of the 3000 had gone on thinking, so `json.loads` failed and the route answered
+# 502. Measured on the real prompt: `thoughtsTokenCount` 1476 on a short résumé
+# and 1874 on a long one with a dozen required skills — the second truncated.
+#
+# Neither of these calls needs reasoning. Extraction is transcription, and scoring
+# is a schema-constrained extraction whose shape the schema already guarantees.
+# `app/web/services/gemini.py` documents the same choice for the résumé question
+# prompt, with timings: default thinking averaged 11.1s against 3.6s at zero.
+THINKING_BUDGET = 0
+
+# `maxOutputTokens` for each call, sized from what the OUTPUT can legitimately be
+# rather than picked round.
+#
+# Scoring: measured at 1,300 output tokens for a 30,000-char résumé against 24
+# skills — but the schema PERMITS 20 skills each carrying _MAX_TEXT of evidence
+# plus a _MAX_SUMMARY summary, which is roughly 3,900, so the old 3,000 had no
+# margin even before thinking took its share. 8000 leaves real headroom.
+#
+# Extraction: bounded by MAX_RESUME_CHARS, which at ~3.5 chars/token is about
+# 8600 tokens of transcript. 12000 covers it with slack; a résumé longer than the
+# cap is trimmed afterwards anyway.
+SCORING_MAX_TOKENS = 8000
+EXTRACTION_MAX_TOKENS = 12_000
+
 # Caps applied to whatever the model returns, so one odd generation cannot write
 # an unbounded document or produce a recruiter row that will not render.
 _MAX_LIST_ITEMS = 8
@@ -115,9 +144,16 @@ def build_extraction_body(pdf_base64: str) -> dict:
                 ],
             }
         ],
-        # Zero temperature: this is transcription, and a paraphrased résumé would
-        # be scored against words the candidate never wrote.
-        "generationConfig": {"temperature": 0.0, "maxOutputTokens": 8000},
+        "generationConfig": {
+            # Zero temperature: this is transcription, and a paraphrased résumé
+            # would be scored against words the candidate never wrote.
+            "temperature": 0.0,
+            "maxOutputTokens": EXTRACTION_MAX_TOKENS,
+            # Thinking would eat the transcript's own budget — and a truncated
+            # transcript is worse here than a failed one, because it still looks
+            # like text and would be scored as the whole résumé.
+            "thinkingConfig": {"thinkingBudget": THINKING_BUDGET},
+        },
     }
 
 
@@ -136,13 +172,49 @@ def first_text(response: dict) -> str:
     return ""
 
 
+def finish_reason(response: dict) -> str:
+    """Why the first candidate stopped, or "".
+
+    Worth reading rather than ignoring, because the failure it names arrives as a
+    200 with a body that looks almost right: `MAX_TOKENS` means the model was cut
+    off mid-answer, so the JSON has no closing brace and the transcript has no
+    end. Without this, both surfaced as "malformed" — which sends whoever is
+    debugging it looking for a parser bug instead of a budget.
+    """
+    for candidate in response.get("candidates") or []:
+        reason = candidate.get("finishReason")
+        if isinstance(reason, str) and reason.strip():
+            return reason.strip()
+    return ""
+
+
+def _truncated(response: dict) -> bool:
+    return finish_reason(response).upper() == "MAX_TOKENS"
+
+
 def extracted_text(response: dict) -> str:
-    """The résumé's text, trimmed and capped."""
+    """The résumé's text, trimmed and capped.
+
+    A truncated transcript is rejected rather than returned. This is the one
+    place where failing loudly is clearly better than succeeding quietly: half a
+    résumé still looks like a résumé, and it would be scored — and stored for the
+    recruiter to read — as though it were the whole thing.
+    """
     text = first_text(response).strip()
     if not text:
         raise ResumeExtractionFailed(
             "No text could be read from that PDF. If it is a scan, paste the "
             "text instead."
+        )
+    if _truncated(response):
+        logger.warning(
+            "résumé transcription hit the output cap (%d chars, cap %d tokens)",
+            len(text),
+            EXTRACTION_MAX_TOKENS,
+        )
+        raise ResumeExtractionFailed(
+            "That résumé is too long to read in one go. Try a shorter file, or "
+            "paste the text instead."
         )
     return text[:MAX_RESUME_CHARS]
 
@@ -283,7 +355,10 @@ def build_scoring_body(
             # Low but non-zero: scoring benefits from a little judgement, and a
             # schema-constrained response cannot wander structurally.
             "temperature": 0.2,
-            "maxOutputTokens": 3000,
+            "maxOutputTokens": SCORING_MAX_TOKENS,
+            # See THINKING_BUDGET: thinking is spent from the allowance above, and
+            # that is what left the JSON unfinished.
+            "thinkingConfig": {"thinkingBudget": THINKING_BUDGET},
             "responseMimeType": "application/json",
             "responseSchema": SCORE_SCHEMA,
         },
@@ -314,8 +389,15 @@ def parse_score(response: dict) -> dict:
     than fenced markdown, so no fence-stripping is needed — but a blocked or
     truncated generation still yields no text at all, which is a failure the
     caller has to see rather than a silently empty score.
+
+    The other failure, and the one that actually happened: a 200 whose JSON is
+    real but UNFINISHED, because the generation ran out of `maxOutputTokens`
+    part-way through. That is why `finishReason` is checked and logged — see
+    `finish_reason`. It is reported separately from "malformed" because the two
+    have nothing in common: one is a budget, the other would be a model fault.
     """
     text = first_text(response)
+    reason = finish_reason(response)
     if not text:
         raise ResumeScoringFailed(
             "The scorer returned nothing. Try again in a moment."
@@ -323,7 +405,19 @@ def parse_score(response: dict) -> dict:
     try:
         decoded = json.loads(text)
     except ValueError as exc:
-        logger.warning("resume score was not JSON (%d chars)", len(text))
+        # Length and reason only, never the text: it is derived from the
+        # candidate's own résumé and has no business in a log.
+        logger.warning(
+            "resume score was not JSON (%d chars, finishReason=%s)",
+            len(text),
+            reason or "unset",
+        )
+        if _truncated(response):
+            raise ResumeScoringFailed(
+                "The scorer was cut off before it finished. Try again — if it "
+                "keeps happening the résumé or the round's skill list is too "
+                "long to score in one pass."
+            ) from exc
         raise ResumeScoringFailed(
             "The scorer returned malformed JSON. Try again."
         ) from exc
@@ -396,7 +490,14 @@ def build_result_map(score: dict) -> dict:
     Mirrored onto `result` as well as `resume.score` so the recruiter's existing
     score chip, the publish flow and the round leaderboard — all of which read
     `result.overallScore` — work for a résumé round without being taught what a
-    résumé is. `detail` keeps the full breakdown for the screens that do care.
+    résumé is.
+
+    No `detail` block. It used to carry `{"kind": "resume", "resumeScore": score}`,
+    which was a verbatim copy of what `save_resume_submission` already writes to
+    `resume.score` on the same document — two copies of one breakdown, and nothing
+    ever read the second. The rich half of a scored interview now has one home
+    (`reports/{interviewId}`, see app/reports.py); a résumé round's breakdown keeps
+    its existing one in `resume.score`.
     """
     return {
         "overallScore": score["overallScore"],
@@ -407,5 +508,4 @@ def build_result_map(score: dict) -> dict:
         # what it failed to evidence.
         "improvements": score["gaps"],
         "evaluatedBy": "ai",
-        "detail": {"kind": "resume", "resumeScore": score},
     }

@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:talbotiq/core/net/api_client.dart';
 import 'package:talbotiq/core/net/backend_config.dart';
+import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/core/net/live_token.dart';
 
 /// A failure from the backend, already reduced to something showable.
@@ -135,8 +136,29 @@ class BackendClient {
   /// only — prefer the request helpers everywhere else.
   Future<String> socketToken() => _idToken();
 
+  /// Names which client this is, so the server can honour an interview a
+  /// recruiter restricted to particular devices.
+  ///
+  /// A header rather than a field on each request body: it applies to every route
+  /// at once, and no launch payload had to change to add it.
+  ///
+  /// ⚠️ Self-reported, and the server treats it that way. This is what stops a
+  /// candidate opening the wrong client by accident; it is not a security control,
+  /// and nothing that matters — access, attempts, scoring — is gated on it. See
+  /// `interviews.DEVICES` in the backend for the whole argument.
+  static const String deviceHeader = 'X-Talbotiq-Device';
+
+  /// `desktop` for a Windows/macOS/Linux build, `mobile` otherwise.
+  ///
+  /// Flutter web builds of this app report `mobile` rather than `web`: `web` means
+  /// the React application, which is a different client with a different runtime,
+  /// and claiming to be it would let this app through a browser-only restriction it
+  /// cannot actually satisfy.
+  static String get clientDevice => isDesktopPlatform ? 'desktop' : 'mobile';
+
   Future<Map<String, String>> _headers({String? contentType}) async => {
         'Authorization': 'Bearer ${await _idToken()}',
+        deviceHeader: clientDevice,
         if (contentType != null) 'Content-Type': contentType,
       };
 
@@ -171,6 +193,67 @@ class BackendClient {
         body: body == null ? null : jsonEncode(body),
       ),
     ));
+  }
+
+  Future<Map<String, dynamic>> putJson(
+    String path, {
+    Object? body,
+    Map<String, String>? query,
+  }) async {
+    _assertConfigured();
+    return _decode(await _guard(
+      () async => _api.put(
+        _uri(path, query),
+        headers: await _headers(contentType: 'application/json'),
+        body: body == null ? null : jsonEncode(body),
+      ),
+    ));
+  }
+
+  /// GETs a JSON **array**.
+  ///
+  /// Separate from [getJson] rather than folded into it: `_decode` returns a map, and
+  /// a route that answers a list (`/api/mcq-sets`) would otherwise fail with "the
+  /// server returned an unexpected response" — a message that sends somebody debugging
+  /// the server instead of the client.
+  Future<List<Map<String, dynamic>>> getJsonList(
+    String path, {
+    Map<String, String>? query,
+  }) async {
+    _assertConfigured();
+    final response = await _guard(
+      () async => _api.get(_uri(path, query), headers: await _headers()),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      // Reuse the error envelope: `_decode` raises with the backend's own `detail`,
+      // which is the truest message available.
+      _decode(response);
+    }
+    final text = _utf8Body(response);
+    if (text.isEmpty) return const [];
+    final decoded = jsonDecode(text);
+    if (decoded is! List) {
+      throw BackendException(
+        'The server returned an unexpected response.',
+        statusCode: response.statusCode,
+      );
+    }
+    return decoded.whereType<Map>().map(Map<String, dynamic>.from).toList();
+  }
+
+  /// DELETEs, tolerating an empty body.
+  ///
+  /// A 204 is the normal success here and carries nothing, so this cannot go through
+  /// `_decode` — which requires a body and would turn every successful delete into an
+  /// error.
+  Future<void> deleteJson(String path, {Map<String, String>? query}) async {
+    _assertConfigured();
+    final response = await _guard(
+      () async => _api.delete(_uri(path, query), headers: await _headers()),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response);
+    }
   }
 
   /// POSTs raw bytes — audio, where the body IS the payload.

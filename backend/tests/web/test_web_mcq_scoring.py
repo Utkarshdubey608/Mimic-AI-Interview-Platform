@@ -13,7 +13,7 @@ import json
 
 import pytest
 
-from app.web.services import mcq_scoring as m
+from app import mcq_scoring as m
 
 
 def q(qid: str, *, key: list[str], type_: str = "single", points=None, topic=None) -> dict:

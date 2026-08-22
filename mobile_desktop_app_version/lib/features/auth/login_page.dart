@@ -27,6 +27,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _companyController = TextEditingController();
 
   bool _isSignUp = false;
   // Desktop sign-up is recruiter-first by design: a candidate already has an
@@ -44,6 +45,7 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _companyController.dispose();
     super.dispose();
   }
 
@@ -81,6 +83,7 @@ class _LoginPageState extends State<LoginPage> {
           password: password,
           role: _role,
           name: _nameController.text,
+          company: _companyController.text,
         );
       } else {
         await auth.signIn(email: email, password: password);
@@ -202,6 +205,23 @@ class _LoginPageState extends State<LoginPage> {
                     keyboardType: TextInputType.name,
                   ),
                   const SizedBox(height: 16),
+                  // RECRUITERS ONLY. A candidate belongs to no company here — they
+                  // are invited by one — and asking would imply their answer matters
+                  // to something.
+                  //
+                  // Recorded in the same shape the web client writes, so colleagues
+                  // are recognised as colleagues whichever client they signed up on.
+                  // Optional: an account with no company keeps its own templates and
+                  // question sets, it just shares none.
+                  if (_role == AppRole.recruiter) ...[
+                    CustomInputField(
+                      label: 'Company',
+                      placeholder: 'Your company or organisation',
+                      controller: _companyController,
+                      keyboardType: TextInputType.text,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ],
                 CustomInputField(
                   label: 'Email',

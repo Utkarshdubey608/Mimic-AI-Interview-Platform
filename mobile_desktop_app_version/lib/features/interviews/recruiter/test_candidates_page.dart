@@ -26,16 +26,19 @@ import 'package:provider/provider.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/services/evaluation_retry_service.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
+import 'package:talbotiq/features/interviews/recruiter/candidate_grouping.dart';
 import 'package:talbotiq/features/interviews/recruiter/create_interview_page.dart';
 import 'package:talbotiq/features/interviews/candidate/live_interview_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/evaluate_interview_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/widgets/two_way_review_sheet.dart';
 import 'package:talbotiq/features/interviews/recruiter/round_leaderboard_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/round_timeline_page.dart';
+import 'package:talbotiq/features/interviews/recruiter/test_conclusion_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/widgets/recruiter_action_bar.dart';
 
 class TestCandidatesPage extends StatefulWidget {
@@ -172,10 +175,29 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
     return RegExp(r'^[a-zA-Z0-9._%+\-@]+$').hasMatch(q);
   }
 
+  /// The rows to render, in display order.
+  ///
+  /// Unscoped, a multi-round test holds ONE assignment per candidate per round
+  /// — that is the data model, not a duplicate — and the page query orders by
+  /// `createdAt`, so a person's rounds arrive interleaved with everybody
+  /// else's. Left alone, the same email appears as two unrelated candidates
+  /// with different question counts and statuses, which is exactly how it
+  /// looked. So rows are grouped by candidate here and ordered by round within
+  /// the group; `_body` then renders every row after a candidate's first as a
+  /// continuation of it.
+  ///
+  /// Grouping is over the LOADED rows only — a candidate whose rounds straddle
+  /// a page boundary joins up as soon as the next page arrives. A round-scoped
+  /// view has at most one row per candidate, so it is passed through untouched.
   List<Interview> get _visible {
-    if (_query.isEmpty) return _loaded;
-    final q = _query.toLowerCase();
-    return _loaded.where((i) {
+    final rows = _query.isEmpty ? _loaded : _matching(_loaded, _query);
+    if (widget.round != null) return rows;
+    return groupRoundsByCandidate(rows);
+  }
+
+  static List<Interview> _matching(List<Interview> rows, String query) {
+    final q = query.toLowerCase();
+    return rows.where((i) {
       final name = (i.candidateName ?? '').toLowerCase();
       return name.contains(q) || i.candidateEmail.toLowerCase().contains(q);
     }).toList();
@@ -398,13 +420,29 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
   }
 
   Widget _header(ThemeData theme) {
-    final shown = _visible.length;
-    final label = _query.isNotEmpty
-        ? '$shown match${shown == 1 ? '' : 'es'}'
-        : _total >= 0
-            ? 'Showing $shown of $_total candidate(s)'
-                '${_completed >= 0 ? ' · $_completed completed' : ''}'
-            : '$shown candidate(s)';
+    final rows = _visible;
+    final shown = rows.length;
+    final people = distinctCandidateCount(rows);
+    // `_total` comes from a count() aggregate over ASSIGNMENTS, and a
+    // multi-round test has one per candidate per round. Reporting that as
+    // "2 candidate(s)" for one person in two rounds is what made the list look
+    // like it had duplicated somebody, so once the two numbers differ each is
+    // named for what it actually is.
+    final perRound = shown != people;
+    final done = _completed >= 0 ? ' · $_completed completed' : '';
+    final String label;
+    if (_query.isNotEmpty) {
+      label = perRound
+          ? '$people candidate(s) · $shown match${shown == 1 ? '' : 'es'}'
+          : '$shown match${shown == 1 ? '' : 'es'}';
+    } else if (_total < 0) {
+      label = '$people candidate(s)';
+    } else if (perRound) {
+      label = '$people candidate(s) · $shown of $_total round entr'
+          '${_total == 1 ? 'y' : 'ies'}$done';
+    } else {
+      label = 'Showing $shown of $_total candidate(s)$done';
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Column(
@@ -485,6 +523,23 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
             icon: Icons.publish_outlined,
             onPressed: _publishAll,
           ),
+        // Closing the process, as opposed to publishing this round's results.
+        // Only offered from the all-rounds view: a conclusion is about a
+        // candidate's WHOLE run at the test, and offering it from inside one
+        // round would read as concluding that round.
+        if (hasCompleted && round == null)
+          RecruiterAction(
+            label: 'Final result',
+            icon: Icons.flag_outlined,
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => TestConclusionPage(test: widget.test),
+              ));
+              // A published conclusion shows as a pill on these rows, so the
+              // list has to be re-read on the way back.
+              if (mounted) await _refresh();
+            },
+          ),
         RecruiterAction(
           label: 'Delete test',
           icon: Icons.delete_forever_outlined,
@@ -526,12 +581,27 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
         itemCount: items.length + 1,
         itemBuilder: (context, index) {
           if (index == items.length) return _pagerRow(theme);
+          final item = items[index];
+          // `_visible` has already put a candidate's rounds next to each other,
+          // so "same key as the row above" means "another round of the same
+          // person" — rendered as a continuation rather than a fresh card.
+          final grouping = widget.round == null;
+          final continuation = grouping &&
+              index > 0 &&
+              candidateKey(items[index - 1]) == candidateKey(item);
+          final lastOfCandidate = !grouping ||
+              index == items.length - 1 ||
+              candidateKey(items[index + 1]) != candidateKey(item);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            // Tight under a row that has more rounds below it, so the group
+            // reads as one candidate rather than several.
+            padding: EdgeInsets.only(bottom: lastOfCandidate ? 10 : 4),
             child: _InterviewCard(
-              interview: items[index],
+              interview: item,
               groupInterviews: items,
               index: index,
+              showRound: grouping,
+              continuation: continuation,
             ),
           );
         },
@@ -586,15 +656,41 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
   }
 }
 
+/// "Round 2 · Technical screen" — which round of the test this row is.
+///
+/// `interview.title` is the ROUND's title (see `InterviewRound.assignTo`), and
+/// falls back to the test's title for a round that was never named or for a
+/// pre-timeline document. In that case the kind is the only informative half,
+/// so it is used instead of echoing the test name that is already in the app
+/// bar.
+String _roundLabel(Interview i) {
+  final n = i.effectiveRoundOrder + 1;
+  final title = i.title.trim();
+  final generic = title.isEmpty || title == i.testTitle.trim();
+  return 'Round $n · ${generic ? i.effectiveRoundKind.label : title}';
+}
+
 class _InterviewCard extends StatelessWidget {
   final Interview interview;
   final List<Interview> groupInterviews;
   final int index;
 
+  /// Name the round on this row. True in a test's all-rounds view, where a
+  /// candidate has one row per round and the round is the only thing that tells
+  /// those rows apart.
+  final bool showRound;
+
+  /// This row is another round of the candidate on the row above: it indents,
+  /// drops the avatar, and leads with the round instead of repeating a name and
+  /// email that are already directly above it.
+  final bool continuation;
+
   const _InterviewCard({
     required this.interview,
     required this.groupInterviews,
     required this.index,
+    this.showRound = false,
+    this.continuation = false,
   });
 
   Widget _kv(BuildContext context, String k, String v) {
@@ -686,18 +782,38 @@ class _InterviewCard extends StatelessWidget {
         : interview.candidateEmail;
     final hasName = interview.candidateName?.isNotEmpty == true;
 
-    final subtitleText = hasName
-        ? '${interview.candidateEmail} · ${interview.questions.length} Qs'
-        : '${interview.questions.length} Qs';
+    final roundLabel = interview.hasRound ? _roundLabel(interview) : null;
+    final conclusion = interview.testConclusion;
+    final qs = interview.questions.length;
+    // A continuation row leads with the round, since the person is named on the
+    // row above it.
+    final titleText =
+        continuation ? (roundLabel ?? interview.title) : name;
+    final subtitleText = [
+      if (!continuation && hasName) interview.candidateEmail,
+      if (!continuation && showRound && roundLabel != null) roundLabel,
+      // An MCQ or résumé round genuinely has no questions on the assignment —
+      // its paper lives elsewhere — so "0 Qs" was reading as a broken row.
+      // Name what the round IS when there is nothing to count.
+      if (qs > 0)
+        '$qs Qs'
+      else if (roundLabel == null)
+        interview.effectiveRoundKind.label,
+    ].join(' · ');
 
     final score = interview.result != null ? interview.result!['overallScore'] : null;
 
     return Card(
-      margin: EdgeInsets.zero,
+      // Indented and flush with the card above, so a candidate's later rounds
+      // hang off their first row instead of standing as their own entries.
+      margin: continuation
+          ? const EdgeInsets.only(left: 28)
+          : EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28.0), // More rounded!
         side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
+          color: theme.colorScheme.outline
+              .withValues(alpha: continuation ? 0.18 : 0.3),
           width: 1.0,
         ),
       ),
@@ -705,50 +821,69 @@ class _InterviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(28.0), // More rounded!
         onTap: () => _showDetail(context, interview),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(continuation ? 12 : 16),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                  shape: BoxShape.circle, // Circular shape!
-                ),
-                child: Center(
-                  child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : 'C',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                      fontSize: 16,
+              if (continuation)
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: Center(
+                    child: Icon(
+                      Icons.subdirectory_arrow_right,
+                      size: 18,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color:
+                        theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    shape: BoxShape.circle, // Circular shape!
+                  ),
+                  child: Center(
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
+              SizedBox(width: continuation ? 10 : 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      titleText,
+                      style: continuation
+                          ? theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600)
+                          : theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitleText,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (subtitleText.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitleText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -782,6 +917,20 @@ class _InterviewCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     _pill(theme, 'Score: $score',
                         theme.colorScheme.onSurfaceVariant),
+                  ],
+                  // The end of this candidate's whole run at the test, so it is
+                  // shown once per PERSON rather than repeated on each of their
+                  // rounds — every round carries the same copy.
+                  if (!continuation && conclusion != null) ...[
+                    const SizedBox(height: 6),
+                    _pill(
+                      theme,
+                      conclusion.outcome.recruiterLabel,
+                      conclusion.outcome == TestOutcome.cleared
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                      icon: Icons.flag_outlined,
+                    ),
                   ],
                 ],
               ),

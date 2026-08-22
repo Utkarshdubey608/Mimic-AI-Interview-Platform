@@ -8,7 +8,6 @@
 // the fixed/timed track; résumé question-generation is a later addition.
 
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:talbotiq/core/net/backend_client.dart';
 import 'package:talbotiq/features/recruiter/models/recruiter_models.dart';
@@ -96,9 +95,6 @@ class RecruiterGeminiService {
     'gemini-2.5-pro',
   ];
 
-  /// SharedPreferences key for the persisted model choice.
-  static const String _modelPrefsKey = 'recruiter_gemini_model';
-
   /// The feature is available whenever the backend has Gemini configured, which
   /// the server reports via /health — there is no client-side key to check.
   bool get enabled => true;
@@ -106,30 +102,18 @@ class RecruiterGeminiService {
   /// Currently selected Gemini model id (e.g. 'gemini-2.5-flash').
   String get model => _model;
 
-  /// Selects the Gemini model and persists the choice. Unknown ids are ignored
-  /// (falls back to the current model) so a bad value can never break calls.
-  Future<void> setModel(String m) async {
-    if (!availableModels.contains(m) || m == _model) return;
-    _model = m;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_modelPrefsKey, m);
-    } catch (_) {
-      // Persistence is best-effort; the in-memory selection still applies.
-    }
-  }
-
-  /// Restores the persisted model choice at startup. Safe to call once from
-  /// main(); no-ops if nothing was saved or the saved value is unknown.
-  Future<void> loadModelPreference() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString(_modelPrefsKey);
-      if (saved != null && availableModels.contains(saved)) _model = saved;
-    } catch (_) {
-      // Ignore — keep the default model.
-    }
-  }
+  // NO setter, and no per-account preference.
+  //
+  // There was a Flash/Pro picker in the recruiter library, and briefly a server-side
+  // per-account preference behind it. Both are gone: which model scores a candidate is
+  // deployment configuration, like the API key it goes with, and neither belongs in a
+  // client. `_model` is now only what this build sends as a hint — the server's
+  // `resolve_model` has the last word and will fall back to its own default.
+  //
+  // See `backend/app/web/services/app_settings.py` and mobile's own
+  // `settings/sections/service_status_section.dart`, which has always made this
+  // argument: a recruiter needs to know whether something is configured, not a control
+  // implying they can configure it.
 
   /// Generate interview questions from a résumé PDF (sent inline as base64,
   /// mirroring the web backend — no local PDF parsing). Enforces the exact

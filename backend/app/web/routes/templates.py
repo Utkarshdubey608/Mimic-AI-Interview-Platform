@@ -26,6 +26,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.security import AuthedUser
 from app.web.deps import WebUser, settings_of
+from app.web.services import users
 from app.web.store import defaults, get_store
 
 logger = logging.getLogger("web.templates")
@@ -41,7 +42,8 @@ def _now() -> str:
 
 
 def build_template(
-    body: dict, *, template_id: str, now: str, recruiter_id: str | None = None
+    body: dict, *, template_id: str, now: str, recruiter_id: str | None = None,
+    company_key: str = "",
 ) -> dict:
     """A complete template from a partial request. Pure, so it is directly testable.
 
@@ -86,6 +88,12 @@ def build_template(
     if recruiter_id:
         template["recruiterId"] = recruiter_id
 
+    # Which company may see it. Written only when the author HAS one — never a blank
+    # key, because an empty key is a value that would put every company-less template
+    # into one shared bucket, which is the exact leak `company_key` exists to prevent.
+    if company_key:
+        template["companyKey"] = company_key
+
     # ── track-dependent sections ─────────────────────────────────────────────
     mode = body.get("mode")
     if mode is None and conversational:
@@ -125,10 +133,24 @@ def build_template(
 
 @router.get("", summary="Every interview template, newest first")
 async def list_templates(request: Request, user: AuthedUser = WebUser) -> list[dict]:
-    store = get_store(settings_of(request))
-    templates = await store.templates.all()
+    settings = settings_of(request)
+    store = get_store(settings)
+    templates = await _visible(settings, await store.templates.all(), user)
     # Newest first, matching the Express ordering the list page relies on.
     return sorted(templates, key=lambda t: str(t.get("updatedAt") or ""), reverse=True)
+
+
+async def _visible(settings, documents: list[dict], user: AuthedUser) -> list[dict]:
+    """Scoped to the caller's company, plus anything they authored themselves.
+
+    The ⚠️ at the top of this module asked for this decision to be made rather than
+    left. It is made: templates are shared within a COMPANY, not across a deployment.
+    See `users.visible_to` for the two rules and why the filter is in memory.
+    """
+    if not settings.company_scoping_enabled:
+        return documents
+    key = await users.get_company_key(settings, user.uid)
+    return users.visible_to(documents, company_key=key, uid=user.uid)
 
 
 @router.get("/{template_id}", summary="One template")
@@ -147,8 +169,13 @@ async def create_template(
     body: dict, request: Request, user: AuthedUser = WebUser
 ) -> dict:
     store = get_store(settings_of(request))
+    settings = settings_of(request)
     template = build_template(
-        body or {}, template_id=str(uuid.uuid4()), now=_now(), recruiter_id=user.uid
+        body or {},
+        template_id=str(uuid.uuid4()),
+        now=_now(),
+        recruiter_id=user.uid,
+        company_key=await users.get_company_key(settings, user.uid),
     )
     await store.templates.put(template)
     logger.info("template %s created by %s", template["id"], user.uid)

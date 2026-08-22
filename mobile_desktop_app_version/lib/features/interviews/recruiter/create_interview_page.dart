@@ -34,6 +34,8 @@ import 'package:talbotiq/features/interviews/recruiter/round_timeline_page.dart'
 import 'package:talbotiq/features/interviews/recruiter/widgets/round_step_tile.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/core/deep_link/deep_link_service.dart';
+import 'package:talbotiq/features/recruiter/models/mcq_set.dart';
+import 'package:talbotiq/features/recruiter/store/mcq_sets_store.dart';
 import 'package:talbotiq/features/mailer/models/email_template.dart';
 import 'package:talbotiq/features/mailer/services/mailer_service.dart';
 import 'package:talbotiq/features/mailer/widgets/notify_candidates_card.dart';
@@ -137,6 +139,21 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   AdvanceMode _advanceMode = AdvanceMode.manual;
   num? _advanceValue;
 
+  // ── MCQ rounds only ──────────────────────────────────────────────────────
+  //
+  // Which authored paper this round assigns. An ID, never the paper: it contains
+  // the ANSWER KEY, and an interview document is readable by the candidate it is
+  // assigned to. The server resolves it per request and projects it through an
+  // allow-list. See lib/features/interviews/candidate/mcq/.
+  String _mcqSetId = '';
+
+  /// The papers this recruiter has authored, for the picker. Null while loading;
+  /// empty means they have not written one yet, which is a different thing and is
+  /// said differently.
+  List<McqSet>? _mcqSets;
+  String? _mcqError;
+  bool _mcqLoading = false;
+
   bool get _isRoundConfig => widget.roundConfigMode;
 
   /// The rounds already on an EXISTING test, shown in the edit form so a
@@ -199,6 +216,13 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   DateTime? _availableFrom;
   DateTime? _expiresAt;
   int? _maxAttempts; // null = unlimited
+
+  /// Which clients the candidate may take this on.
+  ///
+  /// Starts with all three, which the model stores as NO restriction — the two are
+  /// one policy. A recruiter narrows it only when the interview genuinely needs a
+  /// particular client.
+  final Set<String> _allowedDevices = {'web', 'mobile', 'desktop'};
 
   // Per-test key overrides. When off, candidates run this test on the
   // recruiter's Settings keys; when on, any field filled here is used instead.
@@ -306,9 +330,13 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     _advanceMode = source.advance.mode;
     _advanceValue = source.advance.value;
 
-    // A brand-new interview round gets the same starter questions a standalone
+    // A brand-new AI-run round gets the same starter questions a standalone
     // interview does, rather than an empty list the recruiter must fill blind.
-    if (draft == null && _roundKind.isInterview) {
+    //
+    // `usesAiInterviewer`, not `isInterview`: an MCQ round's questions live on the
+    // paper it references, and a two-way round's are asked by a person. Seeding
+    // either writes a script no one will ever read.
+    if (draft == null && _roundKind.usesAiInterviewer) {
       _promptController.text = DraftForm.defaults().conversationalContext;
       _questionControllers
         ..clear()
@@ -340,6 +368,13 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     // `effectiveRoundKind` falls back to `type` for pre-timeline documents, so
     // this is right for both a live round and a legacy AI one.
     _roundKind = i.effectiveRoundKind;
+    // Both hydration paths land here — the round editor goes through
+    // `assignTo` first — so this one line covers reopening a round and editing
+    // an existing assignment.
+    _mcqSetId = i.mcqSetId;
+    // Fetched so the picker can show what is already attached. Fire-and-forget:
+    // it sets state when it lands, and the rest of the form does not wait.
+    if (_roundKind.needsMcqPaper) _loadMcqSets();
     _adaptive = i.adaptive;
     _collectResume = i.collectResume;
     _language = _languages.contains(i.language) ? i.language : 'English';
@@ -381,6 +416,12 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     _availableFrom = i.availableFrom;
     _expiresAt = i.expiresAt;
     _maxAttempts = i.maxAttempts;
+    // Empty on the document means unrestricted, which is all three here.
+    _allowedDevices
+      ..clear()
+      ..addAll(i.allowedDevices.isEmpty
+          ? const {'web', 'mobile', 'desktop'}
+          : i.allowedDevices);
   }
 
   @override
@@ -618,6 +659,13 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         }
       }
     } else {
+      // An MCQ round with no paper attached is not a round: the candidate would
+      // open it and be told there is no assessment. Caught here rather than by
+      // the first candidate to try.
+      if (_roundKind.needsMcqPaper && _mcqSetId.isEmpty) {
+        fail('Pick the assessment this round uses.');
+        return;
+      }
       if (_roundKind.usesAiInterviewer) {
         if (!_isAdaptiveChat && questions.isEmpty) {
           fail('Add at least one question.');
@@ -701,7 +749,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             candidateEmail: email,
             candidateEmailLower: emailLower,
             candidateName: candidateName,
-            type: _type,
+            // MCQ pins `type` to chat, matching the server's `type_for_mode`, so
+            // `mode: mcq` and `type` cannot disagree on the stored document. Every
+            // other track uses whatever the form is set to.
+            type: _roundKind.needsMcqPaper ? InterviewType.chat : _type,
             // Written only for a kind `type` CANNOT express — the three
             // InterviewTypes are the AI tracks. Without this a live round would
             // carry only `type: chat`, and `effectiveRoundKind` would route the
@@ -726,7 +777,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             voicePersonaId:
                 _type == InterviewType.voice ? _resolvedVoicePersonaId : null,
             // Integrity + branding are enforced/shown by the chat runner.
-            integrity: _type == InterviewType.chat
+            //
+            // Keyed on the ROUND KIND as well, because MCQ pins `_type` to chat
+            // and would otherwise carry a chat runner's proctoring config it has
+            // no runtime for — a field on the document that nothing reads.
+            integrity: (_type == InterviewType.chat && !_roundKind.needsMcqPaper)
                 ? {
                     'enforceFullscreen': false,
                     'detectTabSwitch': _detectTabSwitch,
@@ -737,6 +792,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                   }
                 : null,
             branding: (_type == InterviewType.chat &&
+                    !_roundKind.needsMcqPaper &&
                     _welcomeController.text.trim().isNotEmpty)
                 ? {
                     'companyName': _recruiterName ?? 'TalbotIQ',
@@ -746,7 +802,9 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                 : null,
             // Per-question countdown (chat only). Persisted whenever enabled so
             // the chat launch adapter can run the interview in timed mode.
-            chatTimer: (_type == InterviewType.chat && _chatTimerEnabled)
+            chatTimer: (_type == InterviewType.chat &&
+                    !_roundKind.needsMcqPaper &&
+                    _chatTimerEnabled)
                 ? {
                     'enabled': true,
                     'perQuestionSeconds':
@@ -763,6 +821,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             availableFrom: _availableFrom,
             expiresAt: _expiresAt,
             maxAttempts: _maxAttempts,
+            allowedDevices: _allowedDevices.toList(),
+            // Written only for an MCQ round; empty everywhere else, which is what
+            // keeps `screening` off every other document.
+            mcqSetId: _roundKind.needsMcqPaper ? _mcqSetId : '',
           );
 
       // Candidate email → the interview id assigned to them, so each invite
@@ -875,6 +937,18 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     }
   }
 
+  /// Which of the shared delivery settings an MCQ round takes.
+  ///
+  /// An allow-list rather than a list of exclusions, for the same reason the
+  /// answer-key projection is: a delivery setting added here next year should have
+  /// to be considered for MCQ deliberately, not arrive by default on a round that
+  /// has no runtime for it.
+  static const Set<String> _mcqInheritedKeys = {
+    'language',
+    'maxAttempts',
+    'allowedDevices',
+  };
+
   /// The delivery settings every round of this test inherits.
   ///
   /// Merged UNDER each round's own config, so a round's questions, prompt and
@@ -889,6 +963,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               : _personaIdController.text.trim(),
         ).toMap(),
         'maxAttempts': _maxAttempts,
+        // Inherited by every round of this test, like the other delivery settings.
+        // Only when restricted — all three selected is no restriction at all.
+        if (_allowedDevices.isNotEmpty && _allowedDevices.length < 3)
+          'allowedDevices': _allowedDevices.toList(),
         if (_hasVoiceRound) 'voiceName': _resolvedVoiceName,
         if (_hasVoiceRound) 'voicePersonaId': _resolvedVoicePersonaId,
         'integrity': {
@@ -963,9 +1041,21 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         title: draft.title,
         kind: draft.kind,
         // Shared first so the round's own keys win.
-        config: draft.kind == RoundKind.resume
-            ? const {}
-            : {...shared, ...draft.config},
+        config: switch (draft.kind) {
+          // A résumé round has no session at all.
+          RoundKind.resume => const <String, dynamic>{},
+          // An MCQ round inherits the DELIVERY settings — language, attempts, the
+          // device restriction — and none of the script. No prompt, no question
+          // list, no avatar, no chat proctoring: its questions live on the paper it
+          // names, and storing a script beside them would be a config nothing
+          // reads sitting next to the one thing that matters.
+          RoundKind.mcq => {
+              for (final entry in shared.entries)
+                if (_mcqInheritedKeys.contains(entry.key)) entry.key: entry.value,
+              ...draft.config,
+            },
+          _ => {...shared, ...draft.config},
+        },
         opensAt: draft.opensAt,
         closesAt: draft.closesAt,
         criteria: draft.criteria,
@@ -1036,6 +1126,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       fail('Pick or enter an avatar (replica) for a video round.');
       return;
     }
+    if (_roundKind.needsMcqPaper && _mcqSetId.isEmpty) {
+      fail('Pick the assessment this round uses.');
+      return;
+    }
     if (_availableFrom != null &&
         _expiresAt != null &&
         !_expiresAt!.isAfter(_availableFrom!)) {
@@ -1085,6 +1179,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
   /// This round's config, in exactly the shape [_hydrateForRound] reads back.
   Map<String, dynamic> _roundContentConfig() => {
+        // The paper this round assigns. `assignTo` copies it onto each candidate's
+        // interview at assignment, so editing the round afterwards cannot change
+        // which paper an outstanding invite points at.
+        if (_roundKind.needsMcqPaper && _mcqSetId.isNotEmpty)
+          'mcqSetId': _mcqSetId,
         'prompt': _promptController.text.trim(),
         'questions': _isAdaptiveChat ? const <String>[] : _questions,
         'adaptive': _isAdaptiveChat,
@@ -1100,6 +1199,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         'language': _language,
         'durationMinutes': _durationMinutes,
         'maxAttempts': _maxAttempts,
+        // Inherited by every round of this test, like the other delivery settings.
+        // Only when restricted — all three selected is no restriction at all.
+        if (_allowedDevices.isNotEmpty && _allowedDevices.length < 3)
+          'allowedDevices': _allowedDevices.toList(),
         'avatar': AvatarConfig(
           replicaId: _replicaIdController.text.trim(),
           personaId: _personaIdController.text.trim().isEmpty
@@ -1332,6 +1435,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           _buildAdvancedCard(theme),
         ] else if (_roundKind == RoundKind.resume)
           _buildResumeCriteriaCard(theme)
+        else if (_roundKind == RoundKind.mcq)
+          _buildMcqCard(theme)
         else
           _buildTwoWayCard(theme),
         _buildRoundWindowCard(theme),
@@ -1362,11 +1467,14 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       // this lists its rounds to configure and offers no way to add one.
       if (_isEdit) _buildExistingRoundsCard(theme),
       _buildCandidatesCard(theme),
-      // A live round has no questions, prompt or avatar — a human asks them.
+      // A live round has no questions, prompt or avatar — a human asks them. An
+      // MCQ round has none either: its questions live on the paper it references.
       if (_roundKind.usesAiInterviewer) ...[
         _buildInterviewDesignCard(theme),
         _buildAdvancedCard(theme),
-      ] else
+      ] else if (_roundKind == RoundKind.mcq)
+        _buildMcqCard(theme)
+      else
         _buildTwoWayCard(theme),
       _buildTimingAccessCard(theme),
     ];
@@ -1471,6 +1579,128 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
   /// A live round needs no configuration — which is worth SAYING, because an
   /// otherwise empty screen reads as something failing to load.
+  /// Loads this recruiter's authored papers, once.
+  ///
+  /// Called when MCQ is selected rather than on every open: most rounds are not
+  /// MCQ, and a request per visit to this screen would be a round trip nobody
+  /// asked for.
+  Future<void> _loadMcqSets() async {
+    if (_mcqSets != null || _mcqLoading) return;
+    setState(() {
+      _mcqLoading = true;
+      _mcqError = null;
+    });
+    try {
+      final store = McqSetsStore();
+      await store.refresh();
+      if (!mounted) return;
+      setState(() {
+        _mcqSets = store.sets;
+        _mcqError = store.error;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _mcqError = '$e');
+    }
+    if (mounted) setState(() => _mcqLoading = false);
+  }
+
+  /// Which paper this round assigns.
+  ///
+  /// A picker, not an editor: papers are authored under Manage → Assessments, and
+  /// duplicating that here would be a second place for the answer key to be
+  /// edited. The list shows readiness, because sending an unfinished paper scores
+  /// every candidate zero — the one failure this screen can still prevent.
+  Widget _buildMcqCard(ThemeData theme) => _buildFormSection(
+        context: context,
+        title: 'The Assessment',
+        icon: Icons.fact_check_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'The candidate answers a multiple-choice paper. It is scored the '
+              'moment they submit — by comparison against your answers, with no '
+              'model involved, so the result is exact and reproducible.',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 14),
+            if (_mcqLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+              )
+            else if (_mcqError != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(_mcqError!,
+                        style: TextStyle(color: theme.colorScheme.error)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _mcqSets = null;
+                      _loadMcqSets();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              )
+            else if ((_mcqSets ?? const []).isEmpty)
+              // Empty and "could not load" are different facts and get different
+              // sentences — the first is something the recruiter can act on.
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'You have not written an assessment yet. Create one under '
+                  'Manage → Assessments, then come back and attach it.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              )
+            else
+              // One RadioGroup around the whole list rather than a groupValue on
+              // every tile — the per-tile API is deprecated, and one owner of the
+              // selection is what makes "exactly one paper" true by construction.
+              RadioGroup<String>(
+                groupValue: _mcqSetId,
+                onChanged: (v) => setState(() => _mcqSetId = v ?? ''),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final paper in _mcqSets!)
+                      RadioListTile<String>(
+                        contentPadding: EdgeInsets.zero,
+                        value: paper.id,
+                        title: Text(
+                            paper.name.isEmpty ? 'Untitled assessment' : paper.name),
+                        subtitle: Text(
+                          paper.ready
+                              ? '${paper.questions.length} question(s) · ready to send'
+                              : paper.faults.isEmpty
+                                  ? 'Draft'
+                                  // The first fault is enough to act on; the
+                                  // editor lists the rest.
+                                  : 'Not ready — ${paper.faults.first}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: paper.ready
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.error,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+
   Widget _buildTwoWayCard(ThemeData theme) => _buildFormSection(
         context: context,
         title: 'How This Round Runs',
@@ -2008,12 +2238,14 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     );
   }
 
-  /// The round's kind. Four options, because a round can be a résumé screen —
-  /// which [_buildTypeToggle]'s three interview tracks cannot express.
+  /// The round's kind. Six options, because a round can be a résumé screen or an
+  /// MCQ paper — neither of which [_buildTypeToggle]'s three interview tracks can
+  /// express.
   ///
   /// Selecting a kind switches which of this form's existing sections apply, so
   /// the recruiter sees the same Chat/Video/Voice configuration they would when
-  /// creating a standalone interview of that type.
+  /// creating a standalone interview of that type — and, for MCQ, a picker for the
+  /// paper instead of a script they would never be asked to write.
   Widget _buildKindToggle(ThemeData theme, {bool includeResume = true}) {
     final cs = theme.colorScheme;
 
@@ -2025,7 +2257,16 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             _roundKind = kind;
             // Keep _type in step so every type-specific section below (which all
             // switch on _type) shows the right fields.
-            _type = kind.interviewType ?? _type;
+            //
+            // MCQ pins it to chat rather than leaving it alone, because `mode`
+            // and `type` have to agree on the document: the server's
+            // `type_for_mode` puts mcq in the chat bucket, and a stored
+            // `type: video` with `mode: mcq` is exactly the disagreement `mode`
+            // exists to prevent. See `Interview.modeAgreesWithType`.
+            _type = kind == RoundKind.mcq
+                ? InterviewType.chat
+                : (kind.interviewType ?? _type);
+            if (kind == RoundKind.mcq) _loadMcqSets();
           }),
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
@@ -2064,19 +2305,37 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       );
     }
 
-    return Row(
+    // Three per row rather than one long row. Six segments across a phone gives
+    // each about 55 logical pixels, which truncates every label — and the label is
+    // the only thing telling a recruiter what the icon means.
+    final segments = <Widget>[
+      if (includeResume) seg(RoundKind.resume, Icons.description_outlined, 'Résumé'),
+      seg(RoundKind.chat, Icons.chat_bubble_outline, 'Chat'),
+      seg(RoundKind.video, Icons.videocam_outlined, 'Video'),
+      seg(RoundKind.voice, Icons.mic_none_outlined, 'Voice'),
+      seg(RoundKind.twoWay, Icons.groups_outlined, 'Live'),
+      seg(RoundKind.mcq, Icons.fact_check_outlined, 'MCQ'),
+    ];
+
+    return Column(
       children: [
-        if (includeResume) ...[
-          seg(RoundKind.resume, Icons.description_outlined, 'Résumé'),
-          const SizedBox(width: 8),
-        ],
-        seg(RoundKind.chat, Icons.chat_bubble_outline, 'Chat'),
-        const SizedBox(width: 8),
-        seg(RoundKind.video, Icons.videocam_outlined, 'Video'),
-        const SizedBox(width: 8),
-        seg(RoundKind.voice, Icons.mic_none_outlined, 'Voice'),
-        const SizedBox(width: 8),
-        seg(RoundKind.twoWay, Icons.groups_outlined, 'Live'),
+        for (var start = 0; start < segments.length; start += 3)
+          Padding(
+            padding: EdgeInsets.only(bottom: start + 3 < segments.length ? 8 : 0),
+            child: Row(
+              children: [
+                for (var i = start; i < start + 3; i++) ...[
+                  if (i < segments.length)
+                    segments[i]
+                  else
+                    // A spacer, so a trailing row of one or two keeps the same
+                    // segment width as a full row instead of stretching.
+                    const Expanded(child: SizedBox.shrink()),
+                  if (i < start + 2) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -2846,6 +3105,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               ),
             ),
           ],
+          const SizedBox(height: 20),
+          _buildDevicePicker(theme),
           if (hasChatTimer) ...[
             const SizedBox(height: 16),
             const Divider(),
@@ -2993,6 +3254,119 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// Where the candidate may take this interview.
+  ///
+  /// Multi-select, because the useful restrictions are "apps only" and "browser
+  /// only" as much as any single device.
+  ///
+  /// The last selected device cannot be turned off. An interview nobody can take is
+  /// never what a recruiter meant, and the state is easier to prevent than explain.
+  Widget _buildDevicePicker(ThemeData theme) {
+    const options = <String, ({String label, String hint})>{
+      'web': (label: 'Web browser', hint: 'Any computer or phone browser'),
+      'mobile': (label: 'Mobile app', hint: 'The TalbotIQ app on a phone'),
+      'desktop': (label: 'Desktop app', hint: 'The TalbotIQ app on a computer'),
+    };
+    final unrestricted = _allowedDevices.length == options.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Where They Can Take It',
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'All three by default. Narrow it when the interview genuinely needs one.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in options.entries)
+              _deviceChip(
+                theme,
+                id: entry.key,
+                label: entry.value.label,
+                hint: entry.value.hint,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          unrestricted
+              ? 'No restriction — candidates can use whichever they have.'
+              : 'Candidates opening another client are told to switch.',
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+      ],
+    );
+  }
+
+  Widget _deviceChip(
+    ThemeData theme, {
+    required String id,
+    required String label,
+    required String hint,
+  }) {
+    final on = _allowedDevices.contains(id);
+    final isLast = on && _allowedDevices.length == 1;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: isLast
+          ? null
+          : () => setState(() {
+                if (on) {
+                  _allowedDevices.remove(id);
+                } else {
+                  _allowedDevices.add(id);
+                }
+              }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: on
+              ? theme.colorScheme.primary.withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: on
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: on ? theme.colorScheme.primary : null,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              hint,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }

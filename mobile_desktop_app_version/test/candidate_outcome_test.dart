@@ -391,6 +391,163 @@ void main() {
       expect(again, 0, reason: 'already in that round');
     });
 
+    test('being added to a later round clears the rounds before it', () async {
+      // THE BUG: a candidate sitting in round 2 went on reading "Under review"
+      // against round 1 for ever. Nothing ever wrote round 1's outcome — only
+      // the notify screen did, and adding candidates from the timeline does not
+      // go through it — and `RoundOutcome` defaults to pending.
+      final finishedRound1 = await seed(80);
+
+      final nextId = await repo.createRound(InterviewRound(
+        id: '',
+        testId: 't-1',
+        recruiterId: 'rec-1',
+        order: 1,
+        title: 'Final panel',
+        kind: RoundKind.chat,
+        config: const {'questions': ['Q']},
+      ));
+      final next = (await repo.getRound('t-1', nextId))!;
+
+      await repo.assignCandidatesToRound(
+        round: next,
+        recruiterEmail: 'rec@co.com',
+        testTitle: 'T',
+        candidates: const {'a@b.com': 'Asha'},
+      );
+
+      final round1 = Interview.fromDoc(
+          await db.collection('interviews').doc(finishedRound1).get());
+      expect(round1.outcome, RoundOutcome.selected);
+      // Published with it: an outcome the candidate cannot see does not fix the
+      // screen this exists for.
+      expect(round1.resultPublished, isTrue);
+      // And the recruiter's evaluation in the same map is untouched.
+      expect(round1.result!['overallScore'], 80);
+      expect(round1.result!['summary'], 'internal write-up');
+    });
+
+    test('it never overwrites a decision the recruiter already made', () async {
+      // A recruiter marks somebody "not moving forward", then bulk-adds every
+      // candidate in the test to the next round. Their decision stands.
+      final rejected = await seed(30);
+      await repo.setOutcome(rejected,
+          outcome: RoundOutcome.notSelected, publish: true);
+
+      final nextId = await repo.createRound(InterviewRound(
+        id: '',
+        testId: 't-1',
+        recruiterId: 'rec-1',
+        order: 1,
+        title: 'Final panel',
+        kind: RoundKind.chat,
+        config: const {'questions': ['Q']},
+      ));
+      await repo.assignCandidatesToRound(
+        round: (await repo.getRound('t-1', nextId))!,
+        recruiterEmail: 'rec@co.com',
+        testTitle: 'T',
+        candidates: const {'a@b.com': null},
+      );
+
+      final round1 = Interview.fromDoc(
+          await db.collection('interviews').doc(rejected).get());
+      expect(round1.outcome, RoundOutcome.notSelected);
+    });
+
+    test('a round the candidate has not finished is left alone', () async {
+      // They have not cleared it, so saying they did would be a lie — and it
+      // would publish a result for an interview that has not happened.
+      final unfinished = await seed(0);
+      // Assigned and unscored, as a round nobody has sat looks.
+      await repo.clearResult(unfinished);
+
+      final nextId = await repo.createRound(InterviewRound(
+        id: '',
+        testId: 't-1',
+        recruiterId: 'rec-1',
+        order: 1,
+        title: 'Final panel',
+        kind: RoundKind.chat,
+        config: const {'questions': ['Q']},
+      ));
+      await repo.assignCandidatesToRound(
+        round: (await repo.getRound('t-1', nextId))!,
+        recruiterEmail: 'rec@co.com',
+        testTitle: 'T',
+        candidates: const {'a@b.com': null},
+      );
+
+      final round1 = Interview.fromDoc(
+          await db.collection('interviews').doc(unfinished).get());
+      expect(round1.hasOutcome, isFalse);
+      expect(round1.resultPublished, isFalse);
+    });
+
+    test('nobody else in the test is settled by it', () async {
+      final mine = await seed(80);
+      final theirs = await seed(80);
+      await db.collection('interviews').doc(theirs).update({
+        'candidateEmail': 'other@b.com',
+        'candidateEmailLower': 'other@b.com',
+      });
+
+      final nextId = await repo.createRound(InterviewRound(
+        id: '',
+        testId: 't-1',
+        recruiterId: 'rec-1',
+        order: 1,
+        title: 'Final panel',
+        kind: RoundKind.chat,
+        config: const {'questions': ['Q']},
+      ));
+      await repo.assignCandidatesToRound(
+        round: (await repo.getRound('t-1', nextId))!,
+        recruiterEmail: 'rec@co.com',
+        testTitle: 'T',
+        candidates: const {'a@b.com': null},
+      );
+
+      expect(
+        Interview.fromDoc(await db.collection('interviews').doc(mine).get())
+            .hasOutcome,
+        isTrue,
+      );
+      expect(
+        Interview.fromDoc(await db.collection('interviews').doc(theirs).get())
+            .hasOutcome,
+        isFalse,
+        reason: 'only the candidates being advanced are settled',
+      );
+    });
+
+    test('assigning the FIRST round settles nothing', () async {
+      // There is nothing before round 1, and a test with no timeline is one
+      // implicit round — this must not reach back into it.
+      final only = await seed(80);
+      final firstId = await repo.createRound(InterviewRound(
+        id: '',
+        testId: 't-1',
+        recruiterId: 'rec-1',
+        order: 0,
+        title: 'Screen',
+        kind: RoundKind.chat,
+        config: const {'questions': ['Q']},
+      ));
+      await repo.assignCandidatesToRound(
+        round: (await repo.getRound('t-1', firstId))!,
+        recruiterEmail: 'rec@co.com',
+        testTitle: 'T',
+        candidates: const {'a@b.com': null},
+      );
+
+      expect(
+        Interview.fromDoc(await db.collection('interviews').doc(only).get())
+            .hasOutcome,
+        isFalse,
+      );
+    });
+
     test('a rejected candidate is never advanced', () async {
       final winner = await seed(90);
       final loser = await seed(20);

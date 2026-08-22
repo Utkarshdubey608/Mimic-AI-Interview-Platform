@@ -105,7 +105,7 @@ async def _explain_unopened_invite(settings, session_id: str, user: AuthedUser) 
     """
     try:
         snapshot = await asyncio.to_thread(
-            interview_invite.interviews(settings).document(session_id).get
+            interview_invite.interviews_collection(settings).document(session_id).get
         )
     except Exception as exc:  # noqa: BLE001 - best-effort; fall through to a 404
         logger.info("could not check invite %s: %s", session_id, type(exc).__name__)

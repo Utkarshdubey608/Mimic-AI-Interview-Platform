@@ -1,0 +1,674 @@
+{
+  "_readme": "Golden contract for the PUBLIC MCQ paper — what a candidate's device is allowed to receive — and for the scores a submission produces. Generated from backend/app/mcq.py and backend/app/mcq_scoring.py; asserted by BOTH backend/tests/test_mcq_contract.py and mobile_desktop_app_version/test/mcq_contract_test.dart. The property being pinned is an ABSENCE: correctOptionIds and correctPairs must never appear here. Regenerate with REGENERATE_MCQ_FIXTURES=1 and update both sides in the same commit. NOTE: the `scores` block DOES contain the key — it is the RECRUITER's report, which is what makes a result reviewable. Only `publicPaper` is what a candidate's device receives.",
+  "seed": "interview-fixture-1",
+  "publicPaper": {
+    "sections": [
+      {
+        "id": "aptitude",
+        "name": "Aptitude",
+        "questionIds": [
+          "q-single"
+        ],
+        "instructions": "No calculator.",
+        "passage": "A train leaves Mumbai at 09:00."
+      },
+      {
+        "id": "role",
+        "name": "Role-based",
+        "questionIds": [
+          "q-multi",
+          "q-code",
+          "q-match"
+        ]
+      }
+    ],
+    "questions": [
+      {
+        "id": "q-single",
+        "text": "Which is a prime number?",
+        "type": "single",
+        "options": [
+          {
+            "id": "c",
+            "text": "9"
+          },
+          {
+            "id": "b",
+            "text": "7"
+          },
+          {
+            "id": "d",
+            "text": "21"
+          },
+          {
+            "id": "a",
+            "text": "4"
+          }
+        ],
+        "points": 1.0
+      },
+      {
+        "id": "q-multi",
+        "text": "Which of these are idempotent HTTP methods?",
+        "type": "multi",
+        "options": [
+          {
+            "id": "patch",
+            "text": "PATCH"
+          },
+          {
+            "id": "put",
+            "text": "PUT"
+          },
+          {
+            "id": "get",
+            "text": "GET"
+          },
+          {
+            "id": "post",
+            "text": "POST"
+          }
+        ],
+        "points": 2.0
+      },
+      {
+        "id": "q-code",
+        "text": "What does this print?",
+        "type": "single",
+        "options": [
+          {
+            "id": "c",
+            "text": "3"
+          },
+          {
+            "id": "b",
+            "text": "2"
+          },
+          {
+            "id": "a",
+            "text": "1"
+          }
+        ],
+        "points": 1.0,
+        "code": "print(len([1, 2, 3][1:]))"
+      },
+      {
+        "id": "q-match",
+        "type": "match",
+        "text": "Pair each status code with its meaning.",
+        "prompts": [
+          {
+            "id": "p500",
+            "text": "500"
+          },
+          {
+            "id": "p404",
+            "text": "404"
+          },
+          {
+            "id": "p200",
+            "text": "200"
+          }
+        ],
+        "matches": [
+          {
+            "id": "m-ok",
+            "text": "OK"
+          },
+          {
+            "id": "m-missing",
+            "text": "Not Found"
+          },
+          {
+            "id": "m-broken",
+            "text": "Server Error"
+          }
+        ],
+        "points": 3.0
+      },
+      {
+        "id": "q-unsectioned",
+        "text": "Any final comments?",
+        "type": "single",
+        "options": [
+          {
+            "id": "n",
+            "text": "No"
+          },
+          {
+            "id": "y",
+            "text": "Yes"
+          }
+        ],
+        "points": 1.0
+      }
+    ]
+  },
+  "scores": {
+    "submission/all-correct": {
+      "kind": "mcq",
+      "multiRule": "all_or_nothing",
+      "matchRule": "partial",
+      "questions": [
+        {
+          "questionId": "q-single",
+          "selectedOptionIds": [
+            "b"
+          ],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": true,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-multi",
+          "selectedOptionIds": [
+            "get",
+            "put"
+          ],
+          "correctOptionIds": [
+            "get",
+            "put"
+          ],
+          "correct": true,
+          "points": 2.0,
+          "pointsAvailable": 2.0
+        },
+        {
+          "questionId": "q-code",
+          "selectedOptionIds": [
+            "b"
+          ],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": true,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-match",
+          "type": "match",
+          "selectedPairs": {
+            "p200": "m-ok",
+            "p404": "m-missing",
+            "p500": "m-broken"
+          },
+          "correctPairs": {
+            "p200": "m-ok",
+            "p404": "m-missing",
+            "p500": "m-broken"
+          },
+          "matchedCount": 3,
+          "pairCount": 3,
+          "correct": true,
+          "points": 3.0,
+          "pointsAvailable": 3.0
+        },
+        {
+          "questionId": "q-unsectioned",
+          "selectedOptionIds": [
+            "y"
+          ],
+          "correctOptionIds": [
+            "y"
+          ],
+          "correct": true,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "correctCount": 5,
+      "questionCount": 5,
+      "points": 8.0,
+      "pointsAvailable": 8.0,
+      "percent": 100.0,
+      "passThreshold": 60,
+      "passed": true,
+      "topics": [
+        {
+          "topic": "HTTP",
+          "correct": 2,
+          "count": 2,
+          "points": 5.0,
+          "pointsAvailable": 5.0
+        },
+        {
+          "topic": "Numbers",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Python",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Uncategorised",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "sections": [
+        {
+          "sectionId": "aptitude",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0,
+          "name": "Aptitude"
+        },
+        {
+          "sectionId": "role",
+          "correct": 3,
+          "count": 3,
+          "points": 6.0,
+          "pointsAvailable": 6.0,
+          "name": "Role-based"
+        },
+        {
+          "sectionId": "unsectioned",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0,
+          "name": "Unsectioned"
+        }
+      ]
+    },
+    "submission/partial": {
+      "kind": "mcq",
+      "multiRule": "all_or_nothing",
+      "matchRule": "partial",
+      "questions": [
+        {
+          "questionId": "q-single",
+          "selectedOptionIds": [
+            "b"
+          ],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": true,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-multi",
+          "selectedOptionIds": [
+            "get"
+          ],
+          "correctOptionIds": [
+            "get",
+            "put"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 2.0
+        },
+        {
+          "questionId": "q-code",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-match",
+          "type": "match",
+          "selectedPairs": {
+            "p200": "m-ok",
+            "p404": "m-broken",
+            "p500": "m-missing"
+          },
+          "correctPairs": {
+            "p200": "m-ok",
+            "p404": "m-missing",
+            "p500": "m-broken"
+          },
+          "matchedCount": 1,
+          "pairCount": 3,
+          "correct": false,
+          "points": 1.0,
+          "pointsAvailable": 3.0
+        },
+        {
+          "questionId": "q-unsectioned",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "y"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "correctCount": 1,
+      "questionCount": 5,
+      "points": 2.0,
+      "pointsAvailable": 8.0,
+      "percent": 25.0,
+      "passThreshold": 60,
+      "passed": false,
+      "topics": [
+        {
+          "topic": "HTTP",
+          "correct": 0,
+          "count": 2,
+          "points": 1.0,
+          "pointsAvailable": 5.0
+        },
+        {
+          "topic": "Numbers",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Python",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Uncategorised",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "sections": [
+        {
+          "sectionId": "aptitude",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0,
+          "name": "Aptitude"
+        },
+        {
+          "sectionId": "role",
+          "correct": 0,
+          "count": 3,
+          "points": 1.0,
+          "pointsAvailable": 6.0,
+          "name": "Role-based"
+        },
+        {
+          "sectionId": "unsectioned",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0,
+          "name": "Unsectioned"
+        }
+      ]
+    },
+    "submission/nothing-answered": {
+      "kind": "mcq",
+      "multiRule": "all_or_nothing",
+      "matchRule": "partial",
+      "questions": [
+        {
+          "questionId": "q-single",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-multi",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "get",
+            "put"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 2.0
+        },
+        {
+          "questionId": "q-code",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-match",
+          "type": "match",
+          "selectedPairs": {},
+          "correctPairs": {
+            "p200": "m-ok",
+            "p404": "m-missing",
+            "p500": "m-broken"
+          },
+          "matchedCount": 0,
+          "pairCount": 3,
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 3.0
+        },
+        {
+          "questionId": "q-unsectioned",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "y"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "correctCount": 0,
+      "questionCount": 5,
+      "points": 0.0,
+      "pointsAvailable": 8.0,
+      "percent": 0.0,
+      "topics": [
+        {
+          "topic": "HTTP",
+          "correct": 0,
+          "count": 2,
+          "points": 0.0,
+          "pointsAvailable": 5.0
+        },
+        {
+          "topic": "Numbers",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Python",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Uncategorised",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "sections": [
+        {
+          "sectionId": "aptitude",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0,
+          "name": "Aptitude"
+        },
+        {
+          "sectionId": "role",
+          "correct": 0,
+          "count": 3,
+          "points": 0.0,
+          "pointsAvailable": 6.0,
+          "name": "Role-based"
+        },
+        {
+          "sectionId": "unsectioned",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0,
+          "name": "Unsectioned"
+        }
+      ]
+    },
+    "submission/unknown-ids-are-dropped": {
+      "kind": "mcq",
+      "multiRule": "all_or_nothing",
+      "matchRule": "partial",
+      "questions": [
+        {
+          "questionId": "q-single",
+          "selectedOptionIds": [
+            "b"
+          ],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": true,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-multi",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "get",
+            "put"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 2.0
+        },
+        {
+          "questionId": "q-code",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "b"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "questionId": "q-match",
+          "type": "match",
+          "selectedPairs": {
+            "p200": "m-ok"
+          },
+          "correctPairs": {
+            "p200": "m-ok",
+            "p404": "m-missing",
+            "p500": "m-broken"
+          },
+          "matchedCount": 1,
+          "pairCount": 3,
+          "correct": false,
+          "points": 1.0,
+          "pointsAvailable": 3.0
+        },
+        {
+          "questionId": "q-unsectioned",
+          "selectedOptionIds": [],
+          "correctOptionIds": [
+            "y"
+          ],
+          "correct": false,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "correctCount": 1,
+      "questionCount": 5,
+      "points": 2.0,
+      "pointsAvailable": 8.0,
+      "percent": 25.0,
+      "topics": [
+        {
+          "topic": "HTTP",
+          "correct": 0,
+          "count": 2,
+          "points": 1.0,
+          "pointsAvailable": 5.0
+        },
+        {
+          "topic": "Numbers",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Python",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        },
+        {
+          "topic": "Uncategorised",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0
+        }
+      ],
+      "sections": [
+        {
+          "sectionId": "aptitude",
+          "correct": 1,
+          "count": 1,
+          "points": 1.0,
+          "pointsAvailable": 1.0,
+          "name": "Aptitude"
+        },
+        {
+          "sectionId": "role",
+          "correct": 0,
+          "count": 3,
+          "points": 1.0,
+          "pointsAvailable": 6.0,
+          "name": "Role-based"
+        },
+        {
+          "sectionId": "unsectioned",
+          "correct": 0,
+          "count": 1,
+          "points": 0.0,
+          "pointsAvailable": 1.0,
+          "name": "Unsectioned"
+        }
+      ]
+    }
+  }
+}

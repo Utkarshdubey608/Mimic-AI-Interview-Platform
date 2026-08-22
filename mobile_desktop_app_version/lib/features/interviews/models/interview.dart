@@ -8,6 +8,8 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
+
 /// Video (Tavus avatar) vs text Chat vs real-time Voice interview.
 enum InterviewType { video, chat, voice }
 
@@ -49,11 +51,11 @@ extension InterviewTypeX on InterviewType {
 /// What a candidate does in one round of a test's timeline.
 ///
 /// A superset of [InterviewType]: `resume` is a submission step with no
-/// interview session, the other three map 1:1 onto the interview tracks. It is
-/// declared here rather than beside [InterviewRound] because the `interviews`
-/// document itself carries it — putting it in the round file would make these
-/// two models import each other.
-enum RoundKind { resume, chat, video, voice, twoWay }
+/// interview session, `mcq` is a paper the candidate sits, and the other three
+/// map 1:1 onto the interview tracks. It is declared here rather than beside
+/// [InterviewRound] because the `interviews` document itself carries it —
+/// putting it in the round file would make these two models import each other.
+enum RoundKind { resume, chat, video, voice, twoWay, mcq }
 
 extension RoundKindX on RoundKind {
   String get wire {
@@ -68,6 +70,8 @@ extension RoundKindX on RoundKind {
         return 'voice';
       case RoundKind.twoWay:
         return 'two_way';
+      case RoundKind.mcq:
+        return 'mcq';
     }
   }
 
@@ -83,11 +87,17 @@ extension RoundKindX on RoundKind {
         return 'Voice Interview';
       case RoundKind.twoWay:
         return 'Live Interview';
+      case RoundKind.mcq:
+        return 'MCQ Assessment';
     }
   }
 
-  /// True when the round runs a live session the candidate joins. A résumé round
-  /// is a submission and has none of that.
+  /// True when the candidate SITS this round on their device, as opposed to
+  /// submitting something to it.
+  ///
+  /// Only a résumé round is false. An MCQ paper is true even though nobody
+  /// conducts it — the candidate opens it, works through it and hands it in,
+  /// which is the distinction this flag is actually used for.
   bool get isInterview => this != RoundKind.resume;
 
   /// True when an AI conducts the interview, so the round needs a script —
@@ -98,8 +108,21 @@ extension RoundKindX on RoundKind {
   /// from [isInterview] because a two-way round IS a live session — it just is
   /// not an AI one, and conflating the two would make the round editor demand
   /// questions nobody will read.
+  /// FALSE for MCQ too, and for a sharper reason: an MCQ paper's questions are
+  /// authored separately and referenced by id, so a prompt, a question list, an
+  /// avatar and a voice are all meaningless on it. A round editor that demanded
+  /// them would be asking for a script nobody reads.
   bool get usesAiInterviewer =>
-      this != RoundKind.resume && this != RoundKind.twoWay;
+      this != RoundKind.resume &&
+      this != RoundKind.twoWay &&
+      this != RoundKind.mcq;
+
+  /// True when this round needs an MCQ paper attached to be sendable.
+  ///
+  /// The paper is referenced by id rather than embedded, because it contains the
+  /// ANSWER KEY and the candidate's device must never receive it. See
+  /// `features/interviews/candidate/mcq/`.
+  bool get needsMcqPaper => this == RoundKind.mcq;
 
   /// True when the recruiter scores this round by hand.
   ///
@@ -121,6 +144,9 @@ extension RoundKindX on RoundKind {
         return InterviewType.voice;
       case RoundKind.twoWay:
         return null;
+      // Scored by comparison against a stored key, with no model in the loop.
+      case RoundKind.mcq:
+        return null;
     }
   }
 
@@ -134,6 +160,8 @@ extension RoundKindX on RoundKind {
         return RoundKind.voice;
       case 'two_way':
         return RoundKind.twoWay;
+      case 'mcq':
+        return RoundKind.mcq;
       default:
         return RoundKind.chat;
     }
@@ -384,6 +412,45 @@ class Interview {
   /// How many times the candidate has launched it so far.
   final int attemptsUsed;
 
+  /// Which clients this may be taken on: `web`, `mobile`, `desktop`.
+  ///
+  /// EMPTY MEANS UNRESTRICTED, and so does having all three — the two are one
+  /// policy, and the server stores both the same way. Every interview created
+  /// before this existed has no field at all, which reads as empty here.
+  ///
+  /// ⚠️ A policy control, not a security boundary. The server decides; this app
+  /// names its own platform in a header and a modified build could name another.
+  /// It stops someone opening the wrong client by accident. See
+  /// `interviews.DEVICES` in the backend.
+  /// The PRECISE track this interview runs on: `chat`, `chatbot`, `video`,
+  /// `video_avatar`, `voice`, `two_way`, `mcq`.
+  ///
+  /// `type` (video | chat) is this app's original two-way bucket and cannot express
+  /// six tracks, so the exact one rides here. Empty on every interview created before
+  /// this field existed, and on those the web client has to GUESS from `type` — which
+  /// is how a recruiter's recorded-video interview once became a Tavus avatar
+  /// conversation the moment a candidate opened it in a browser.
+  ///
+  /// Mirrors `MODE_LABELS` in `backend/app/interviews.py`, the shared vocabulary that
+  /// `contracts/interview_document.fixtures.json` pins.
+  final String mode;
+
+  final List<String> allowedDevices;
+
+  /// MCQ rounds only: WHICH paper this assignment is of — an id, never the paper.
+  ///
+  /// Referenced rather than embedded because a paper contains the ANSWER KEY, and
+  /// an interview document is readable by the candidate it is assigned to. The
+  /// server resolves the id and projects the paper through an allow-list on every
+  /// request (`backend/app/mcq_runtime.py`), so the key never reaches a device.
+  ///
+  /// This is why an MCQ invite carries `questions: []`. Empty on every other track.
+  ///
+  /// Stored under `screening.mcqSetId`, which is where the web surface has always
+  /// written it — a top-level `mcqSetId` is also read, for a document written by
+  /// hand or by an older build.
+  final String mcqSetId;
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -404,6 +471,19 @@ class Interview {
   /// is written only by the backend with the Admin SDK, and `firestore.rules`
   /// blocks the candidate from touching it. See `resume_submission.dart`.
   final Map<String, dynamic>? resume;
+
+  /// The recruiter's decision about the candidate's WHOLE run at this test, once
+  /// released. Null until then.
+  ///
+  /// Deliberately not inside `result`: `result` is this round's scoring and
+  /// `clearResult` wipes it so a candidate can retake, which must not silently
+  /// un-tell somebody the outcome of the entire process. See
+  /// `test_conclusion.dart`.
+  ///
+  /// Copied onto EVERY assignment of that candidate in the test, so it is found
+  /// from whichever round they open and needs no read the candidate's device is
+  /// not permitted to make.
+  final Map<String, dynamic>? conclusion;
 
   // ── Evaluation state ──────────────────────────────────────────────────────
   //
@@ -497,12 +577,35 @@ class Interview {
   /// True once a recruiter has actually decided, as opposed to defaulting.
   bool get hasOutcome => result?['outcome'] != null;
 
+  /// Whether this round's OWN outcome is worth showing the candidate.
+  ///
+  /// False for an undecided round of a run that has already been CONCLUDED.
+  /// [outcome] defaults to [RoundOutcome.pending] — "Under review" — and a round
+  /// still under review sitting beside a published "You cleared every round" is a
+  /// contradiction the candidate is left to resolve on their own. The conclusion
+  /// is the later and stronger statement, so an undecided round defers to it.
+  ///
+  /// A round that carries a real decision keeps showing it: "not moving forward"
+  /// on round 2 explains a conclusion in a way the conclusion alone does not.
+  bool get showsOwnOutcome => hasOutcome || !hasConclusion;
+
   /// Position on this round's leaderboard, stamped at publish time so it cannot
   /// drift when someone else is scored later. Null when not shared.
   int? get rank => (result?['rank'] as num?)?.toInt();
 
   /// How many were ranked, for "4 of 32". Null when not shared.
   int? get rankOf => (result?['rankOf'] as num?)?.toInt();
+
+  /// How the candidate's whole run at this test ended, or null while it is still
+  /// running. Parsed from [conclusion].
+  ///
+  /// Independent of [outcome], which is only ever about one round: a candidate
+  /// can be "moving forward" on their last round and have no conclusion yet.
+  TestConclusion? get testConclusion => TestConclusion.fromMap(conclusion);
+
+  /// True once a recruiter has released a conclusion for this test. Presence IS
+  /// publication — see `test_conclusion.dart`.
+  bool get hasConclusion => testConclusion != null;
 
   /// A note the recruiter wrote FOR the candidate. Distinct from `summary`,
   /// which is the AI's internal write-up and is never shown to them.
@@ -523,6 +626,57 @@ class Interview {
 
   /// What the candidate does here. Falls back to [type] for pre-timeline
   /// documents, which were always live interviews.
+  /// Whether [effectiveMode] and [type] describe the same interview.
+  ///
+  /// Not enforced at the write — `type` is the caller's — so this is what a test
+  /// asserts instead. A document whose two disagree runs one track on the phone and a
+  /// different one in the browser, which is the whole class of bug `mode` exists to
+  /// close.
+  bool get modeAgreesWithType {
+    switch (effectiveMode) {
+      case '':
+        return true; // a résumé round has no track at all
+      case 'video':
+      case 'video_avatar':
+      case 'two_way':
+        return type == InterviewType.video;
+      case 'voice':
+        return type == InterviewType.voice;
+      // `mcq` lands in the chat bucket, matching the server's `type_for_mode`:
+      // `mcq` is not in `_VIDEO_MODES`, so an MCQ document carries `type: chat`
+      // and routing switches on `mode`. See candidate_home.dart.
+      default:
+        return type == InterviewType.chat;
+    }
+  }
+
+  /// The track to WRITE, derived from what this interview actually is.
+  ///
+  /// `roundKind` is the richest thing this app knows — a round says whether it is a
+  /// chat, a video, a voice or a live two-way interview — so it wins where present.
+  /// Otherwise `type` is all there is.
+  ///
+  /// A `resume` round writes NOTHING. A résumé screen is not an interview track, it
+  /// has no web runtime, and inventing a mode for it would tell the browser to try to
+  /// run one.
+  String get effectiveMode {
+    if (mode.isNotEmpty) return mode;
+    switch (effectiveRoundKind) {
+      case RoundKind.chat:
+        return 'chat';
+      case RoundKind.video:
+        return 'video';
+      case RoundKind.voice:
+        return 'voice';
+      case RoundKind.twoWay:
+        return 'two_way';
+      case RoundKind.mcq:
+        return 'mcq';
+      case RoundKind.resume:
+        return '';
+    }
+  }
+
   RoundKind get effectiveRoundKind =>
       roundKind ?? RoundKindX.fromInterviewType(type);
 
@@ -559,11 +713,15 @@ class Interview {
     this.expiresAt,
     this.maxAttempts,
     this.attemptsUsed = 0,
+    this.mode = '',
+    this.allowedDevices = const [],
+    this.mcqSetId = '',
     this.createdAt,
     this.updatedAt,
     this.result,
     this.resultPublished = false,
     this.resume,
+    this.conclusion,
   });
 
   /// Time-window checks.
@@ -624,11 +782,21 @@ class Interview {
       expiresAt: (d['expiresAt'] as Timestamp?)?.toDate(),
       maxAttempts: (d['maxAttempts'] as num?)?.toInt(),
       attemptsUsed: (d['attemptsUsed'] as num?)?.toInt() ?? 0,
+      mode: (d['mode'] as String?)?.trim() ?? '',
+      allowedDevices: [
+        for (final v in (d['allowedDevices'] as List?) ?? const [])
+          if (v is String && v.trim().isNotEmpty) v.trim().toLowerCase(),
+      ],
+      mcqSetId: (((d['screening'] as Map?)?['mcqSetId'] ?? d['mcqSetId'])
+                  as String?)
+              ?.trim() ??
+          '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
       result: d['result'] as Map<String, dynamic>?,
       resultPublished: (d['resultPublished'] as bool?) ?? false,
       resume: d['resume'] as Map<String, dynamic>?,
+      conclusion: d['conclusion'] as Map<String, dynamic>?,
     );
   }
 
@@ -672,6 +840,27 @@ class Interview {
         'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt!),
         'maxAttempts': maxAttempts,
         'attemptsUsed': 0,
+        // The PRECISE track, so the web client never has to guess it from `type`.
+        //
+        // NOT derived from `type`, and the two are not redundant: this app's
+        // `InterviewType` is video | chat | VOICE, while the server's `type_for_mode`
+        // collapses voice into chat — so mobile's bucket is the richer of the two and
+        // cannot be reconstructed from the server's. `mode` is the shared vocabulary;
+        // `type` stays this app's own.
+        //
+        // They do have to AGREE, and nothing here can enforce that because `type` is
+        // set by the caller. `modeAgreesWithType` is the check, asserted in
+        // test/interview_contract_test.dart.
+        if (effectiveMode.isNotEmpty) 'mode': effectiveMode,
+        // Written only when actually restricted. An absent field and "all three
+        // selected" are the same policy, so the common case adds nothing.
+        if (allowedDevices.isNotEmpty && allowedDevices.length < 3)
+          'allowedDevices': allowedDevices,
+        // Nested, matching what the web surface writes, so one interview document
+        // means the same thing whichever client created it. Written only for an MCQ
+        // round — every other track has no paper and gets no key at all rather than
+        // an empty one.
+        if (mcqSetId.isNotEmpty) 'screening': {'mcqSetId': mcqSetId},
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -709,6 +898,16 @@ class Interview {
         'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt!),
         // attemptsUsed is intentionally omitted so an edit never resets it.
         'maxAttempts': maxAttempts,
+        // A DOTTED path, so a `screening` map the web surface wrote keeps its other
+        // keys — `mcqConfig` lives there too, and replacing the whole map from here
+        // would silently drop the scoring rules a recruiter set in the browser.
+        //
+        // Deleted rather than blanked when an interview is edited off the MCQ track:
+        // an empty string would leave the document claiming a paper that is not
+        // there, which reads on the server as "no assessment attached" only by
+        // accident.
+        'screening.mcqSetId':
+            mcqSetId.isEmpty ? FieldValue.delete() : mcqSetId,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }

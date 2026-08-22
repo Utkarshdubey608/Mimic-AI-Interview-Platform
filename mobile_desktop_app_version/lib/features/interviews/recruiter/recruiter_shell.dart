@@ -30,6 +30,7 @@ import 'package:talbotiq/features/settings/settings_page.dart';
 import 'package:talbotiq/features/recruiter/analytics/analytics_page.dart';
 import 'package:talbotiq/features/recruiter/views/management/recruiter_library_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/recruiter_home.dart';
+import 'package:talbotiq/features/auth/company_prompt.dart';
 
 class RecruiterShell extends StatefulWidget {
   const RecruiterShell({super.key});
@@ -40,6 +41,18 @@ class RecruiterShell extends StatefulWidget {
 
 class _RecruiterShellState extends State<RecruiterShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Asks an existing recruiter for their company, once. Here rather than on a page
+    // so it cannot be skipped by navigating: templates and question sets are scoped by
+    // the key server-side, and without one a recruiter silently stops seeing their
+    // colleagues' work. Returns without a dialog when nothing is needed.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybePromptForCompany(context);
+    });
+  }
 
   static const _mobileItems = [
     FloatingNavItem(

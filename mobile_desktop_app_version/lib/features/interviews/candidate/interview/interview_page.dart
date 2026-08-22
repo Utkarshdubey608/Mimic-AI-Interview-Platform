@@ -46,6 +46,18 @@ class _InterviewPageState extends State<InterviewPage>
   Timer? _fallbackRevealTimer;
   Timer? _autoAdvanceTimeoutTimer;
 
+  /// Shows the "this call ends by itself" notice for the first few seconds.
+  ///
+  /// A NOTICE, not a countdown, and that is the whole point. Tavus is given
+  /// `max_call_duration` (see `video_launch.dart`), so the call already ends on
+  /// its own at the interview's duration — what was missing was telling the
+  /// candidate. A live clock on this screen is what has to be avoided: this is a
+  /// full-screen video Stack, and a ticker rebuilding it once a second is what
+  /// made a countdown here unusable. One `setState` at start and one to dismiss;
+  /// nothing repaints per second.
+  bool _showDurationNotice = true;
+  Timer? _durationNoticeTimer;
+
   // Local .wav recorder for the candidate's mic (native only). The recording is
   // transcribed by Deepgram on the results page once the call ends.
   final RecordingService _recorder = RecordingService();
@@ -61,6 +73,11 @@ class _InterviewPageState extends State<InterviewPage>
     WidgetsBinding.instance.addObserver(this);
     _revealedIdx = 0;
     _resetQuestionTimers();
+    // Long enough to read twice, short enough to be out of the way before the
+    // first answer.
+    _durationNoticeTimer = Timer(const Duration(seconds: 10), () {
+      if (mounted) setState(() => _showDurationNotice = false);
+    });
   }
 
   /// Integrity: flag when the candidate leaves the app mid-interview.
@@ -132,6 +149,7 @@ class _InterviewPageState extends State<InterviewPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _store?.removeListener(_syncRecordingWithRoute);
+    _durationNoticeTimer?.cancel();
     _fallbackRevealTimer?.cancel();
     _autoAdvanceTimeoutTimer?.cancel();
     _recorder.dispose();
@@ -356,6 +374,12 @@ class _InterviewPageState extends State<InterviewPage>
         fit: StackFit.expand,
         children: [
           VideoPanel(store: store, validQs: validQs),
+          // What the candidate was never told: this call hangs up by itself.
+          if (_showDurationNotice)
+            _DurationNotice(
+              seconds: store.activeInterviewDurationSeconds,
+              onDismiss: () => setState(() => _showDurationNotice = false),
+            ),
           Positioned(
             left: 0,
             right: 0,
@@ -383,6 +407,64 @@ class _InterviewPageState extends State<InterviewPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The one-off "this ends by itself" banner over the video.
+///
+/// Static text, not a clock. The call's real end is enforced by Tavus's
+/// `max_call_duration`, so nothing here has to count — and nothing here may
+/// repaint per second, because this sits on top of a live video surface. See
+/// `_InterviewPageState._showDurationNotice`.
+class _DurationNotice extends StatelessWidget {
+  const _DurationNotice({required this.seconds, required this.onDismiss});
+
+  /// The interview's length. Zero or less means no limit was configured, and
+  /// then there is nothing to promise.
+  final int seconds;
+
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    if (seconds <= 0) return const SizedBox.shrink();
+    final minutes = (seconds / 60).round();
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 12,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(100),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(100),
+          onTap: onDismiss,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
+              children: [
+                const Icon(Icons.schedule, size: 16, color: Colors.white70),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    minutes <= 1
+                        ? 'This interview ends automatically after 1 minute.'
+                        : 'This interview ends automatically after $minutes '
+                            'minutes.',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const Icon(Icons.close, size: 15, color: Colors.white54),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -339,24 +339,37 @@ class _RecruiterHomeState extends State<RecruiterHome> {
   }
 
   Widget _body(ThemeData theme) {
+    // FAILED, not empty — with a retry. Rendered as a message before, which meant a
+    // recruiter whose request 503'd was told something that reads like "you have no
+    // tests" and went looking for deleted data.
     if (_error != null && _tests.isEmpty) {
-      return AppMessageState(
-        icon: Icons.error_outline,
-        title: 'Could not load tests',
-        subtitle: '$_error',
+      return AppErrorState(
+        title: 'Could not load your tests',
+        detail: '$_error',
+        onRetry: () => _refresh(),
       );
     }
+    // Shaped like the rows that are coming, so the page does not jump when they land.
     if (_tests.isEmpty && (_loading || _backfilling)) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppSkeletonList(rows: 4);
     }
     final items = _visible;
     if (items.isEmpty) {
-      return AppMessageState(
-        icon: _query.isEmpty ? Icons.inbox_outlined : Icons.search_off,
-        title: _query.isEmpty ? 'No interviews yet' : 'No matching tests',
-        subtitle: _query.isEmpty
-            ? 'Create one and assign it to a candidate email.'
-            : 'Try a different name.',
+      // A search that matched nothing is NOT an empty account, and the two want
+      // different things: clear the filter, versus create the first test.
+      if (_query.isNotEmpty) {
+        return AppNoResults(
+          query: _query,
+          onClear: () {
+            _searchCtrl.clear();
+            setState(() => _query = '');
+          },
+        );
+      }
+      return AppEmptyState(
+        icon: Icons.inbox_outlined,
+        title: 'No interviews yet',
+        description: 'Create one and assign it to a candidate email.',
       );
     }
     if (isDesktopPlatform) return _desktopGrid(theme, items);
