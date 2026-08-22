@@ -211,8 +211,6 @@ export default function ResultsPage() {
     store.humeJobStatus !== 'COMPLETED' &&
     store.humeJobStatus !== 'FAILED'
 
-  const humeNoData = !humeResult && !humeIsProcessing
-
   // ── Gemini ATS analysis trigger ───────────────────────────────────────────
   // Candidate name is embedded in the Tavus conversation_name ("TalbotIQ — Name").
   const candidateName = (conv?.conversation_name ?? '').split('—').pop()?.trim() || 'Candidate'

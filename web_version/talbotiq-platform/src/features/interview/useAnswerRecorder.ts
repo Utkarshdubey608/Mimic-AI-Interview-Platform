@@ -89,7 +89,7 @@ export function useAnswerRecorder() {
     setRecording(false)
     const rec = audioRecRef.current
     const ws = wsRef.current
-    const finish = () => { try { ws?.close() } catch { /* noop */ }; wsRef.current = null; audioRecRef.current = null; return transcriptRef.current.trim() }
+    const finish = () => { try { ws?.close() } catch { /* noop */ } wsRef.current = null; audioRecRef.current = null; return transcriptRef.current.trim() }
     return new Promise((resolve) => {
       if (!rec) { resolve(finish()); return }
       // Flush the final chunk, allow a short grace for a full relay round-trip

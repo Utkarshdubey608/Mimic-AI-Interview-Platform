@@ -35,7 +35,7 @@
 
 // Zero-width and bidirectional marks — invisible in every UI, so two names that
 // look identical could differ by one and become separate companies.
-const INVISIBLE = /[​-‏‪-‮⁠﻿]/g
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g
 const WHITESPACE = /\s+/g
 
 export const MAX_COMPANY_NAME = 120

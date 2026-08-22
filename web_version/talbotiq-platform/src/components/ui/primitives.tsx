@@ -100,16 +100,27 @@ export function Button({
         // uncushioned, which is a jump rather than feedback.
         'motion-safe:active:scale-[0.985] active:duration-75',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
-        // Disabled is flat: no ink weight, no lift. A greyed button that still
-        // casts a shadow reads as pressable.
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none',
+        // Disabled RECEDES — it does not merely fade.
+        //
+        // This was `disabled:opacity-50`, which is ground-naive and broke in the
+        // room: the primary action is near-white on a dark ground, and a
+        // near-white fill at 50% is still the brightest object on the screen. A
+        // candidate looking at the pre-flight saw a bright bar captioned "Enter
+        // your full name to continue" and read it as the thing to press.
+        //
+        // So a disabled control resolves to real recessed tokens instead, which
+        // are correct on both grounds by construction: a sunk surface, disabled
+        // ink, a hairline, no lift. `!` because the variant classes below set
+        // background and colour and would otherwise win on specificity order.
+        'disabled:cursor-not-allowed disabled:pointer-events-none',
         BTN_VARIANTS[variant],
+        // After the variant, so these win by order rather than by `!important`.
+        // Busy is NOT disabled: it is still the live control the person just
+        // pressed, so it keeps the variant's full ink and lets the spinner and
+        // `aria-busy` carry the state. Applying the recessed set only when the
+        // button is genuinely dead is what keeps those two states apart.
+        !loading && 'disabled:bg-surface-sunk disabled:text-ink-disabled disabled:border-rule disabled:shadow-none',
         iconOnly ? BTN_ICON_SIZES[size] : BTN_SIZES[size],
-        // Busy is NOT disabled, even though it is implemented with the disabled
-        // attribute. It is still the live control the person just pressed, so it
-        // keeps its full ink; the spinner and `aria-busy` carry the state
-        // instead. Without this a loading button and a dead button look the same.
-        loading && 'disabled:opacity-100',
         block && 'w-full',
         className,
       )}

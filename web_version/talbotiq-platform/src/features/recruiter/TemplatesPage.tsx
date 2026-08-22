@@ -2,25 +2,17 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
-  Copy, Pencil, Trash2, FileText, MessageSquare, Mic, Video, Plus, LayoutTemplate,
-  AlertTriangle, RefreshCw, Timer, Clock, ListChecks, type LucideIcon,
+  Copy, Pencil, Trash2, Plus, LayoutTemplate,
+  AlertTriangle, RefreshCw, Timer, Clock, ListChecks,
 } from 'lucide-react'
 import { PageHeader, Card, Button, Badge, EmptyState, ExhibitTab, Skeleton, cn } from '@/components/ui'
 import { templatesApi, describeFetchError } from '@/lib/api'
 import type { InterviewTemplate } from '@shared/types'
 
-/** Format per interview track — one plate style, one glyph and label each. */
-const TRACK_META: Record<InterviewTemplate['track'], { Icon: LucideIcon; label: string }> = {
-  chat:         { Icon: FileText,       label: 'Chat' },
-  chatbot:      { Icon: MessageSquare,  label: 'Chatbot' },
-  voice:        { Icon: Mic,            label: 'Voice' },
-  video_avatar: { Icon: Video,          label: 'Video avatar' },
-  video:        { Icon: Video,          label: 'Video' },
-  two_way:      { Icon: Video,          label: 'Two-way' },
-  // ListChecks, not a document glyph: the distinguishing thing about this mode
-  // is the choosing, not the writing.
-  mcq:          { Icon: ListChecks,     label: 'MCQ' },
-}
+/* A local TRACK_META map (one glyph and label per interview track) used to live
+   here. REMOVED — `ExhibitTab` now owns the per-track plate, glyph and label, so
+   the map was a second, drifting source for the same thing. See the note on the
+   template card below; git history has the map. */
 
 /** A single meta fact on a card — icon, label, and a tabular value. */
 function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
@@ -114,7 +106,6 @@ export default function TemplatesPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.data.map((t) => {
-            const { Icon, label } = TRACK_META[t.track] ?? TRACK_META.chat
             const adaptive = t.questionSource === 'adaptive'
             return (
               <Card key={t.id} hover className="flex flex-col p-5">

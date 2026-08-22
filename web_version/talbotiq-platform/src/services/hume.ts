@@ -11,8 +11,6 @@ import type {
 import { categorizeEmotion } from '@/types/hume.types'
 import { httpBase } from '@/lib/apiOrigin'
 
-const BASE = 'https://api.hume.ai'
-
 // ── Category aggregation helpers ──────────────────────────────────────────────
 
 function emptyCategoryScores(): Record<EmotionCategory, number> {

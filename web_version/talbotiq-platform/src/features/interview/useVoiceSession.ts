@@ -52,7 +52,7 @@ export function useVoiceSession(sessionId: string) {
   const clientRef = useRef<VoiceClient | null>(null)
   const startedRef = useRef(false)
   const everSpokeRef = useRef(false) // agent audio has been audible at least once
-  const [live, setLive] = useState(false) // the call is up: run the local recogniser
+  const [, setLive] = useState(false) // the call is up: run the local recogniser
 
   const start = useCallback(async () => {
     if (startedRef.current) return
