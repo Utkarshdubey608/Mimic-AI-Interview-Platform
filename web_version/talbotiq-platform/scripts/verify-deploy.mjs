@@ -44,6 +44,23 @@ if (failed.length) {
 }
 console.log('\n✅ All test files passed')
 
+/* ── The colour system's promises are part of the deploy gate ───────────────
+   contrast-audit.mjs used to be a manual step, which is how a manual step is
+   skipped. It measures every text/ground pair the token layer promises and
+   checks tokens.ts against tokens.css for drift; a token edit that breaks a
+   promise now fails the same command that runs the tests. */
+try {
+  execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'contrast-audit.mjs')], {
+    cwd: ROOT,
+    stdio: 'pipe',
+  })
+  console.log('✅ Contrast audit — every promised pair clears its bar, no token drift')
+} catch (err) {
+  console.log('\n❌ Contrast audit failed:')
+  console.log(String(err.stdout ?? ''))
+  process.exit(1)
+}
+
 /* ── The browser harness must never ship ───────────────────────────────────
    `/__mcq` mounts a recruiter screen OUTSIDE the identity gate, so Playwright can
    drive it without a Firebase session. It is guarded by `import.meta.env.DEV`,

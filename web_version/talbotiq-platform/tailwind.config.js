@@ -88,6 +88,11 @@ export default {
         warn: { DEFAULT: 'var(--warn)', bg: 'var(--warn-bg)', rule: 'var(--warn-rule)' },
         risk: { DEFAULT: 'var(--risk)', bg: 'var(--risk-bg)', rule: 'var(--risk-rule)' },
 
+        /* Machine presence — the AI accent. Functional state coding only:
+           AI speaking/listening/thinking, AI-written content, the intelligence
+           signal. Never a large fill. Gated by scripts/contrast-audit.mjs. */
+        ai: { DEFAULT: 'var(--ai-fg)', bg: 'var(--ai-bg)', rule: 'var(--ai-rule)' },
+
         /* ── EXHIBIT RAMP — the six interview formats ────────────────────
            Index-tab coding: the colour IS the format. The only place saturation
            is permitted, and never decorative. Both grounds are contrast-verified

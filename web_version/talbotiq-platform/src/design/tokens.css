@@ -175,6 +175,27 @@
   --live-soft: #EDF6F5;
   --live-room-soft: #10302C;
 
+  /* ═══ MACHINE PRESENCE — the AI accent ═══════════════════════════════════
+     An earlier draft removed a violet "AI accent" as decoration, and that
+     verdict stands: no hue may exist only to say "technology". This one is
+     different in kind — it is FUNCTIONAL state coding, like the exhibit ramp.
+     It marks the four machine states a person must be able to read at a
+     glance in a live interview (speaking / listening / thinking / idle) and
+     the provenance of machine-written content. Rules of use:
+
+       · never a large fill, never a gradient field, never on chrome
+       · always paired with a glyph or a word (ProvenanceMark keeps its text)
+       · at most one AI-accented element per region of a screen
+       · every text pair below is measured by scripts/contrast-audit.mjs
+
+     A restrained cyan: read as signal-processing, not neon. */
+  --ai: #0B6C84;               /* AA as ink on the light ground and on white */
+  --ai-room: #5BD1E4;          /* AA as ink on the room ground and panels    */
+  --ai-soft: #E7F5F9;
+  --ai-room-soft: #0B2530;
+  --ai-line: #BFE3EE;
+  --ai-room-line: #1B4655;
+
   /* ═══ TOAST ══════════════════════════════════════════════════════════════
      Ground-INDEPENDENT on purpose.
 
@@ -233,11 +254,20 @@
   --accent-soft: var(--signal-soft);
   --accent-ink: #152E76;    /* the accent used AS text on a light ground */
 
-  /* Machine output. Neutral by design — the glyph and the word carry it. */
-  --intel-fg: var(--ink-body);
-  --intel-bg: #F1F3F7;
+  /* Machine output now carries the AI accent: same glyph, same word, plus the
+     one hue that means "a model produced this". */
+  --intel-fg: var(--ai);
+  --intel-bg: var(--ai-soft);
   --live-fg: var(--live);
   --live-bg: var(--live-soft);
+
+  /* Machine presence, resolved for this ground. */
+  --ai-fg: var(--ai);
+  --ai-bg: var(--ai-soft);
+  --ai-rule: var(--ai-line);
+  /* The key light: the halo utilities read these. Never used as text. */
+  --halo-ai: rgb(11 108 132 / 0.10);
+  --halo-accent: rgb(29 63 160 / 0.08);
 
   --ok: #15803D;      --ok-bg: #EFF7F1;      --ok-rule: #C9E5D2;
   --warn: #8A4308;    --warn-bg: #FDF5EA;    --warn-rule: #F0DBBC;
@@ -272,12 +302,12 @@
    the same declaration as a full-screen candidate interview.
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-ground='room'] {
-  --ground: #0B0F18;         /* the room */
-  --ground-sunk: #070A11;    /* the void behind a video canvas */
-  --surface: #131A27;        /* a lit panel */
-  --surface-raised: #1A2333; /* a panel above a panel */
-  --surface-sunk: #0E141F;
-  --surface-hover: #1F2937;
+  --ground: #080C14;         /* the room — deepened so lit panels carry more depth */
+  --ground-sunk: #04060B;    /* the void behind a video canvas */
+  --surface: #101724;        /* a lit panel */
+  --surface-raised: #182132; /* a panel above a panel */
+  --surface-sunk: #0C121D;
+  --surface-hover: #1D2737;
 
   --rule: #232D3F;
   --rule-strong: #33415A;    /* structural, see the record ground note above */
@@ -302,10 +332,17 @@
   --accent-soft: var(--signal-room-soft);
   --accent-ink: var(--signal-room);
 
-  --intel-fg: var(--ink-body);
-  --intel-bg: #1F2937;
+  --intel-fg: var(--ai-room);
+  --intel-bg: var(--ai-room-soft);
   --live-fg: var(--live-room);
   --live-bg: var(--live-room-soft);
+
+  /* Machine presence, resolved for this ground. */
+  --ai-fg: var(--ai-room);
+  --ai-bg: var(--ai-room-soft);
+  --ai-rule: var(--ai-room-line);
+  --halo-ai: rgb(91 209 228 / 0.13);
+  --halo-accent: rgb(138 166 240 / 0.11);
 
   --ok: #5CC98A;      --ok-bg: #10261A;      --ok-rule: #1F4A31;
   --warn: #E9A23B;    --warn-bg: #2A1D0B;    --warn-rule: #4D3616;

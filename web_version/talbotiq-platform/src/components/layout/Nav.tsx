@@ -8,6 +8,7 @@ import { cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { MimicMark } from '@/components/brand/MimicMark'
+import { setWorkspaceGround, useWorkspaceGround } from '@/lib/workspaceGround'
 
 /**
  * THE SPINE — the bundle's cover, carrying its sections.
@@ -79,6 +80,43 @@ function Mark() {
         <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#E8E8ED" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
+  )
+}
+
+/**
+ * The ground switch — the workspace read in the ROOM (dark) or on the RECORD
+ * (light). Product vocabulary rather than a sun/moon glyph, because the two
+ * grounds are named concepts here, not generic themes. Lives in the spine's
+ * footer with the other secondary signals; the spine itself is the bundle's
+ * ink cover and does not change with the ground.
+ */
+function GroundSwitch({ compact = false }: { compact?: boolean }) {
+  const ground = useWorkspaceGround()
+  return (
+    <div
+      role="group"
+      aria-label="Workspace ground"
+      className={cn(
+        'grid grid-cols-2 rounded-md border border-brand-border bg-brand-black p-0.5',
+        compact ? 'w-full' : '',
+      )}
+    >
+      {(['room', 'record'] as const).map((g) => (
+        <button
+          key={g}
+          onClick={() => setWorkspaceGround(g)}
+          aria-pressed={ground === g}
+          className={cn(
+            'min-h-[30px] rounded-[4px] px-2 text-[11px] font-semibold capitalize transition-colors duration-150',
+            ground === g
+              ? 'bg-brand-card text-brand-gold-light'
+              : 'text-brand-gray hover:text-brand-gold-light',
+          )}
+        >
+          {g}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -193,7 +231,7 @@ export function Nav() {
             </button>
           )}
 
-
+          <GroundSwitch compact />
         </div>
       </aside>
 
@@ -268,6 +306,10 @@ export function Nav() {
                 <KeyRound size={14} strokeWidth={2} aria-hidden="true" /> Add an API key
               </button>
             )}
+
+            <div className="mt-3">
+              <GroundSwitch compact />
+            </div>
           </div>
         )}
       </header>

@@ -394,6 +394,27 @@
     background-repeat: no-repeat;
   }
 
+  /* ── Key light ──────────────────────────────────────────────────────────
+     Localised illumination behind the one object a screen is about — the AI
+     presence, the sign-in card, a hero visual. One light per region, never a
+     page-wide gradient. Position is steerable per use through --key-x/--key-y.
+     These paint with the halo tokens, which exist only at very low alpha, so
+     they can never carry text and never need a contrast gate. */
+  .keylight-ai {
+    background-image: radial-gradient(
+      44rem 30rem at var(--key-x, 50%) var(--key-y, 36%),
+      var(--halo-ai), transparent 68%
+    );
+    background-repeat: no-repeat;
+  }
+  .keylight-accent {
+    background-image: radial-gradient(
+      44rem 30rem at var(--key-x, 50%) var(--key-y, 36%),
+      var(--halo-accent), transparent 68%
+    );
+    background-repeat: no-repeat;
+  }
+
   /* The ruled gutter of a transcript page. 28px rhythm matches the line box. */
   .ruled {
     background-image: repeating-linear-gradient(
