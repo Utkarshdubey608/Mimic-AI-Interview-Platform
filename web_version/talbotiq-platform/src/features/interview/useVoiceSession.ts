@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { VoiceClient } from '@/lib/voiceClient'
 import { isSpeechRecognitionSupported } from '@/lib/speechRecognition'
-import { applyLocal, applyRemote, type MergedCaption } from './captionMerge'
+import { applyRemote, type MergedCaption } from './captionMerge'
 import type { VoicePhase, TimeOfDay } from '@shared/types'
 
 export type { MergedCaption }

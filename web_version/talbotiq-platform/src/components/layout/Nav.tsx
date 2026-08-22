@@ -72,16 +72,10 @@ const GROUPS: Group[] = [
 ]
 const ALL: Dest[] = GROUPS.flatMap((g) => g.items)
 
-/** The chevron mark, on ink. A confirmed brand asset — kept, re-grounded. */
-function Mark() {
-  return (
-    <span className="grid place-items-center h-8 w-8 rounded-md border border-brand-border bg-brand-card">
-      <svg viewBox="0 0 32 32" className="h-[17px] w-[17px]" aria-hidden="true">
-        <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#E8E8ED" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  )
-}
+/* The chevron mark, on ink — a confirmed brand asset — used to be inlined here
+   as a local `Mark` component. It has been REMOVED: the shared
+   `MimicMark` above is the single source for it and is what this spine renders.
+   Git history has the inline version. */
 
 /**
  * The ground switch — the workspace read in the ROOM (dark) or on the RECORD

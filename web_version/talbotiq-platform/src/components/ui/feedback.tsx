@@ -186,11 +186,12 @@ function StateKeylight() {
   return (
     <span
       aria-hidden="true"
-      // -z-10 inside the state's own stacking context (`isolate` on the root),
-      // so the wash sits under the plate and the type without escaping behind
-      // whatever the state is rendered into.
-      className="keylight-accent pointer-events-none absolute inset-0 -z-10"
-      style={{ '--key-y': '30%' } as React.CSSProperties}
+      className="keylight-accent pointer-events-none absolute inset-0"
+      // The negative index is inline rather than a `-z-*` utility because it is
+      // load-bearing: without it the wash — being the only positioned child —
+      // paints OVER the plate and the type. `isolate` on the state root keeps it
+      // from escaping behind whatever the state is rendered into.
+      style={{ zIndex: -1, '--key-y': '30%' } as React.CSSProperties}
     />
   )
 }

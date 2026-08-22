@@ -65,7 +65,7 @@ const isAnswered = (answers: Record<string, Answer>, id: string): boolean => {
 }
 
 export function McqStage({
-  sessionId, branding, onIntegrity,
+  sessionId, branding,
 }: { sessionId: string; branding: BrandingConfig; onIntegrity?: (type: string) => void }) {
   const reduce = useReducedMotion() ?? false
   const [state, setState] = useState<McqPaperState | null>(null)

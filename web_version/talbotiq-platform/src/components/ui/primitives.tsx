@@ -576,9 +576,15 @@ export function Slider({
           // duplicating the shape. It grows under the pointer and compresses on
           // the grab, which is what makes a drag feel held rather than watched.
           // Transform only; the halo on hover is already index.css's job.
+          // The pseudo-element variant is written FIRST on purpose. Tailwind
+          // applies variants right-to-left, so a trailing `[&::-webkit-slider-
+          // thumb]` lands BEFORE `:hover` in the compound selector and produces
+          // `::-webkit-slider-thumb:hover:enabled`, which is invalid — a
+          // pseudo-element has to be last. Leftmost puts it last, where it
+          // belongs: `:hover:enabled::-webkit-slider-thumb`.
           '[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-fast [&::-webkit-slider-thumb]:ease-out',
-          'motion-safe:enabled:hover:[&::-webkit-slider-thumb]:scale-110',
-          'motion-safe:enabled:active:[&::-webkit-slider-thumb]:scale-95',
+          '[&::-webkit-slider-thumb]:motion-safe:enabled:hover:scale-110',
+          '[&::-webkit-slider-thumb]:motion-safe:enabled:active:scale-95',
         )}
         // The filled portion is painted as a gradient stop rather than as a
         // second element, so the track cannot desynchronise from the thumb.

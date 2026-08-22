@@ -64,7 +64,7 @@ const URGENT = 'var(--risk)'
  *     abrupt brightness changes (§14 again). The blend is continuous, so a
  *     candidate perceives time draining rather than an alarm tripping.
  */
-export function CircularCountdown({ remaining, total, phase, warningThreshold, accentColor, size = 140 }: Props) {
+export function CircularCountdown({ remaining, total, phase, warningThreshold, size = 140 }: Props) {
   const reduce = useReducedMotion()
   const compact = size < 110
 

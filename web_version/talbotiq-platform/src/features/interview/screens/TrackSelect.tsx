@@ -47,7 +47,7 @@ const TRACKS: { id: TrackType; title: string; blurb: string; icon: typeof Video 
   },
 ]
 
-export function TrackSelect({ branding, defaultTrack, steps, onChoose, busy }: Props) {
+export function TrackSelect({ defaultTrack, steps, onChoose, busy }: Props) {
   const [selected, setSelected] = useState<TrackType>(defaultTrack)
 
   return (

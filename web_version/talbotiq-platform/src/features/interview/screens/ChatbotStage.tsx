@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
+import { Send, Loader2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/components/ui'
 import type { BrandingConfig } from '@shared/types'
 import { useChatbotSession } from '../useChatbotSession'

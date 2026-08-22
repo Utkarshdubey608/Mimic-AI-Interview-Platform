@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Mic, AlertTriangle, CheckCircle2, Captions, ShieldCheck } from 'lucide-react'
+import { Mic, AlertTriangle, Captions, ShieldCheck } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
 import { AISignal, type AIState } from '@/components/ai/AISignal'
 import { InterviewStage } from '../stage/InterviewStage'

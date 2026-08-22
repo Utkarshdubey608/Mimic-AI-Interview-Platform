@@ -27,7 +27,7 @@ import type { BrandingConfig } from '@shared/types'
  * would be an evaluation delivered by a machine with no human in the loop and no
  * right of reply. The absence is a decision, not an omission.
  */
-export function Completion({ branding, sessionId }: { branding: BrandingConfig; sessionId?: string }) {
+export function Completion({ sessionId }: { branding: BrandingConfig; sessionId?: string }) {
   const reduce = useReducedMotion() ?? false
   // Set once the feedback step is answered EITHER way — sent or declined. Both
   // mean the same thing here: the candidate is finished with this page.

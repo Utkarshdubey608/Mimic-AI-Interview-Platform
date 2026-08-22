@@ -6,9 +6,9 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer,
 } from 'recharts'
 import {
-  Activity, AlertTriangle, ArrowLeft, ArrowRight, BarChart3, Check, ChevronDown, ClipboardCheck,
+  Activity, AlertTriangle, ArrowLeft, BarChart3, ChevronDown, ClipboardCheck,
   Clock, Download, Inbox, Info, Keyboard, KeyRound, ListChecks, MessageSquare, Mic, ShieldAlert,
-  Sparkles, Star, Target, Video, Zap,
+  Star, Target, Video, Zap,
 } from 'lucide-react'
 import { Card, Button, Textarea, Badge, Skeleton, cn } from '@/components/ui'
 import { AIInsight, AIObservation } from '@/components/ai/AIInsight'

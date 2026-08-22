@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, LogOut, Inbox, RotateCw } from 'lucide-react'
+import { ArrowRight, CheckCircle2, LogOut, Inbox } from 'lucide-react'
 import {
   Button, Skeleton, ExhibitTab, Card, EmptyState, ErrorState, Page,
 } from '@/components/ui'

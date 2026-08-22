@@ -44,12 +44,25 @@
      because on a page this restrained ink already wins.
      Every legacy `--mm-reg-*` reference resolves here by alias, so the
      whole stylesheet changed accent in one place. */
-  --mm-acc:#0B7A45;          /* 4.9:1 on white — link-safe */
-  --mm-acc-h:#085F36;
-  --mm-acc-d:#064428;
-  --mm-acc-tint:#E1F3E9;
-  --mm-acc-wash:#F2FAF5;
-  --mm-acc-line:#C2E5D1;
+  /* ONE accent across the whole surface.
+
+     This was green (#0B7A45). The product uses registrar blue (--signal,
+     #1D3FA0) for links, focus and the progress rail, so a visitor crossing
+     from this site into the workspace watched the accent change hue — the
+     single most visible break in the brand, and one nobody had noticed because
+     the two halves are maintained in different stylesheets.
+
+     Blue wins the tie for three reasons: it is what the product already ships
+     and is threaded through ~39 files; it measures 9.25:1 on white against
+     green's 4.9:1, so links get materially more legible; and it frees green to
+     mean only one thing again — success — which is what it means everywhere
+     else in the system. The exhibit ramp and the seal are untouched. */
+  --mm-acc:#1D3FA0;          /* 9.25:1 on white — matches the product's --signal */
+  --mm-acc-h:#152E76;
+  --mm-acc-d:#102456;
+  --mm-acc-tint:#E2E8F6;
+  --mm-acc-wash:#F4F6FC;
+  --mm-acc-line:#C6D2ED;
   --mm-reg:var(--mm-acc);
   --mm-reg-h:var(--mm-acc-h);
   --mm-reg-d:var(--mm-acc-d);
@@ -76,7 +89,11 @@
   --mm-on-ink-2:#9BA0A6;     /* ≥6.9:1 on #0E1420 */
   --mm-on-ink-line:#2C3036;
   --mm-on-ink-card:#1A1E24;
-  --mm-on-ink-accent:#7FDCA8; /* the accent that works on dark */
+  /* The accent that works on dark. Was mint (#7FDCA8), the dark-ground partner
+     of the retired green; now the product's own --signal-room, so the accent
+     holds its identity across both grounds and both halves of the surface.
+     10.6:1 on the ink field. */
+  --mm-on-ink-accent:#8AA6F0;
   --mm-ai:#5BD1E4;           /* machine presence — matches the product's --ai-room;
                                 only ever marks what the model is doing (9.2:1 on ink) */
   /* The field's LIGHT — deliberately NOT the accent above.
@@ -1960,7 +1977,11 @@
   font-size:clamp(2.3rem,3.8vw,3.5rem);
 }
 .mimic-site .hero.room .sub{color:var(--mm-on-ink-2);max-width:46ch}
-.mimic-site .hero.room .hero-note{color:var(--mm-on-ink-2)}
+/* The note is the last thing in the copy column, so its page-level bottom
+   margin (48px, correct when this sat mid-page) made a mathematically centred
+   column read as sitting high in the panel. Optical balance beats the box
+   model: the margin goes, the grid's own padding closes the column. */
+.mimic-site .hero.room .hero-note{color:var(--mm-on-ink-2);margin-bottom:0}
 .mimic-site .hero.room .hero-note svg{color:var(--mm-ai)}
 /* The eyebrow is suppressed site-wide; in the room it earns its place as the
    one line that names the category, marked with the machine-presence dot. */

@@ -97,6 +97,21 @@
 
   input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 
+  /* Date fields. The field itself is `.input-base` like every other control;
+     what gave it away as a browser default was the calendar button — full
+     opacity, no hover, and no relationship to the ink around it. `color-scheme`
+     (set per ground in tokens.css) already flips the glyph light in a room, so
+     this only has to give it the same quiet-until-hovered manners as the rest
+     of the system. */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    transition: opacity var(--dur-fast) ease;
+  }
+  input[type='date']:hover::-webkit-calendar-picker-indicator,
+  input[type='date']:focus::-webkit-calendar-picker-indicator { opacity: 1; }
+
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
