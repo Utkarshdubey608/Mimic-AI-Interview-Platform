@@ -1268,7 +1268,15 @@
   background:var(--mm-ink);color:var(--mm-on-ink);
   border-top:1px solid var(--mm-on-ink-line);padding:4rem 0 var(--mm-s-5)
 }
-.mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:2.5rem}
+/* Six blocks — the brand plus five nav groups — in a four-column grid, so
+   Resources and Company wrapped onto a second row and left its right half
+   empty. The columns match what the footer actually holds: the count comes
+   from NAV, so a sixth section would need this number changed with it. */
+.mimic-site .foot-grid{
+  display:grid;
+  grid-template-columns:1.5fr repeat(5,minmax(0,1fr));
+  gap:var(--mm-s-6) var(--mm-s-5);
+}
 .mimic-site .foot-brand .kn{color:var(--mm-on-ink-2);max-width:38ch;margin-top:var(--mm-s-2)}
 .mimic-site .foot h4{font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-on-ink-2);margin-bottom:var(--mm-s-2)}
@@ -1513,7 +1521,10 @@
   .mimic-site .tracks{grid-template-columns:repeat(4,1fr)}
   .mimic-site .track{grid-column:span 2}
   .mimic-site .track.wide,.mimic-site .track.assure{grid-column:span 4}
-  .mimic-site .foot-grid{grid-template-columns:1fr 1fr}
+  /* Five ~150px columns cannot hold "Interview question library"; three can,
+     with the brand on its own row above them. */
+  .mimic-site .foot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mimic-site .foot-brand{grid-column:1 / -1}
   .mimic-site .mega-in{grid-template-columns:repeat(2,minmax(0,1fr))}
   /* One column below this width: two columns of ~150px cannot hold a label
      like "Interview templates" without overflowing. */
