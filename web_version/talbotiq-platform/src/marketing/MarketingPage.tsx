@@ -44,12 +44,12 @@ export default function MarketingPage() {
   if (!page) {
     return (
       <MarketingLayout seo={{ title: 'Page not found, Mimic', desc: 'That page could not be found.' }}>
-        <main className="mkpage"><div className="wrap" style={{ padding: '110px 40px', textAlign: 'center' }}>
+        <main className="mkpage"><div className="wrap mk-empty">
           <h1 className="h2">We couldn’t find that page.</h1>
-          <p className="lede" style={{ margin: '16px auto 30px', maxWidth: '46ch' }}>
+          <p className="lede">
             The link may be old. Try the platform overview, or book a demo and we’ll point you the right way.
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div className="mk-actions is-centred">
             <Link className="btn btn-primary" to="/">Back to home</Link>
             <Link className="btn btn-ghost" to="/solutions">Explore solutions</Link>
           </div>
@@ -69,8 +69,8 @@ export default function MarketingPage() {
           <Breadcrumbs page={page} />
           <header className="mk-hero">
             <h1>{page.h1}</h1>
-            <p className="lede" style={{ marginTop: 18 }}>{page.intro}</p>
-            <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <p className="lede">{page.intro}</p>
+            <div className="mk-actions">
               <Link className="btn btn-primary" to="/#demo">Book a demo</Link>
               {page.tier !== 'hub' && <Link className="btn btn-ghost" to={page.sectionTo}>All {page.section.toLowerCase()}</Link>}
             </div>
@@ -162,7 +162,7 @@ export default function MarketingPage() {
 
           {page.faqs?.length ? (
             <section className="mk-faq" aria-label="Frequently asked questions">
-              <h2 id="questions" className="h2" style={{ fontSize: 28, marginBottom: 10 }}>Questions</h2>
+              <h2 id="questions" className="mk-faq-h">Questions</h2>
               <div className="faq">
                 {page.faqs.map((f, i) => (
                   <details key={f.q} open={i === 0}>
@@ -181,14 +181,14 @@ export default function MarketingPage() {
 
             The inline grid columns below finally apply, too — `.cta-in` was never
             `display:grid`, so this style has been inert since it was written. */}
-        <section className="cta" style={{ marginTop: 8 }}>
+        <section className="cta cta-page">
           <Field seed={11} />
-          <div className="wrap cta-in" style={{ gridTemplateColumns: 'minmax(0,1fr) auto', alignItems: 'center' }}>
+          <div className="wrap cta-in cta-in-page">
             <div>
-              <h2 style={{ fontSize: 'clamp(28px,3vw,38px)' }}>{cta.title}</h2>
+              <h2>{cta.title}</h2>
               <p className="sub">{cta.sub}</p>
             </div>
-            <Link className="btn btn-light btn-lg" to="/#demo" style={{ alignSelf: 'center' }}>Book a demo</Link>
+            <Link className="btn btn-light btn-lg" to="/#demo">Book a demo</Link>
           </div>
         </section>
       </main>

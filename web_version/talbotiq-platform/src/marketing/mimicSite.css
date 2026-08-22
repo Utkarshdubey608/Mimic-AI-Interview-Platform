@@ -135,6 +135,46 @@
   --mm-gutter:clamp(1.25rem,4vw,2.5rem);   /* page gutter, mobile-first */
   --mm-measure:66ch;                        /* the reading measure, everywhere */
 
+  /* ── Type scale — CLOSED, and in rem ──────────────────────────────────
+     The audit that opened this pass found 37 distinct font-size values on
+     this surface, 42 of them declared in px. Two separate faults:
+
+     A closed scale is what makes a surface read as one system. Sizes that
+     drift — 14.5, 15, 15.5 within one page — are not a hierarchy, they are
+     the residue of authoring decisions made one component at a time. Nine
+     steps below absorb all fifteen px values; neighbours were snapped
+     together, never spread apart, so the largest shift is half a pixel.
+
+     And px freezes type against the reader's own setting. The space scale
+     above went to rem for exactly this reason; the type never followed, so a
+     reader at a 20px default got larger HEADINGS inside body copy, nav and
+     footers that stayed put. Every step here is rem, so the whole page scales
+     as one.
+
+     Tracking is paired with each step, never inherited: letterforms read
+     further apart as they grow, so display tightens and small text opens up.
+     Leading moves the opposite way. */
+  --mm-t-micro:.6875rem;      /* 11px — uppercase labels, seals */
+  --mm-t-caption:.8125rem;    /* 13px — meta, footnotes, captions */
+  --mm-t-footnote:.875rem;    /* 14px — footer links, dense rows */
+  --mm-t-callout:.9375rem;    /* 15px — controls, nav, card body */
+  --mm-t-body:1rem;           /* 16px — the reading size */
+  --mm-t-lead:1.0625rem;      /* 17px — FAQ questions, emphasised rows */
+  --mm-t-brand:1.1875rem;     /* 19px — the wordmark */
+  --mm-t-metric:1.875rem;     /* 30px — a single machine value */
+  /* Display range. Six steps, each earned by a real role — the range was never
+     the problem; the body range below it was. Declared here so the scale can be
+     read in one place instead of inferred from six rules. */
+  --mm-t-d1:clamp(2.75rem,6.2vw,5rem);       /* home cover line */
+  --mm-t-d2:clamp(2.375rem,4.8vw,4rem);      /* inner-page h1 */
+  --mm-t-d3:clamp(2.3rem,3.8vw,3.5rem);      /* h1 inside a panel — presence comes from the room */
+  --mm-t-d4:clamp(2rem,3.9vw,3.25rem);       /* section title */
+  --mm-t-d5:clamp(1.75rem,2.6vw,2.375rem);   /* a machine result */
+  --mm-t-d6:clamp(1.5rem,2.4vw,2rem);        /* inner-page section head */
+  --mm-t-h3:clamp(1.2rem,1.6vw,1.45rem);
+  --mm-t-lede:clamp(1.075rem,1.35vw,1.25rem);
+  --mm-t-lede-lg:clamp(1.125rem,1.5vw,1.3125rem);
+
   /* ── Motion ───────────────────────────────────────────────────────────
      Two curves and three durations, nothing else. `--mm-ease` is the settle:
      critically damped, no overshoot, so a transition is felt rather than
@@ -205,30 +245,30 @@
   margin:0;
 }
 .mimic-site h1{
-  font-size:clamp(2.75rem,6.2vw,5rem);
+  font-size:var(--mm-t-d1);
   font-weight:800;line-height:1.02;letter-spacing:-.045em;
 }
 .mimic-site .h2,.mimic-site h2{
-  font-size:clamp(2rem,3.9vw,3.25rem);
+  font-size:var(--mm-t-d4);
   font-weight:750;line-height:1.06;letter-spacing:-.034em;
 }
 .mimic-site h3{
-  font-size:clamp(1.2rem,1.6vw,1.45rem);
+  font-size:var(--mm-t-h3);
   font-weight:700;line-height:1.22;letter-spacing:-.022em;
 }
-.mimic-site h4{font-size:1rem;font-weight:700;line-height:1.3;letter-spacing:-.014em}
+.mimic-site h4{font-size:var(--mm-t-body);font-weight:700;line-height:1.3;letter-spacing:-.014em}
 .mimic-site p{margin:0}
 /* Body sits at tracking ~0 — the size the face was drawn for. */
 .mimic-site .lede{
-  font-size:clamp(1.075rem,1.35vw,1.25rem);
+  font-size:var(--mm-t-lede);
   line-height:1.58;letter-spacing:-.011em;color:var(--mm-ink-2);max-width:var(--mm-measure)
 }
-.mimic-site .sub{font-size:1rem;line-height:1.62;letter-spacing:-.004em;color:var(--mm-muted);max-width:62ch}
+.mimic-site .sub{font-size:var(--mm-t-body);line-height:1.62;letter-spacing:-.004em;color:var(--mm-muted);max-width:62ch}
 /* Small text takes POSITIVE tracking. Below ~14px the counters close up and
    the line reads as a smear without it. */
 .mimic-site .meta,.mimic-site .fnote,.mimic-site .tnote,.mimic-site .hero-note,
 .mimic-site .roi-note,.mimic-site .form-note,.mimic-site .mk-note{
-  font-size:.8125rem;line-height:1.55;letter-spacing:.004em;color:var(--mm-muted)
+  font-size:var(--mm-t-caption);line-height:1.55;letter-spacing:.004em;color:var(--mm-muted)
 }
 .mimic-site a{color:var(--mm-reg);text-decoration-color:var(--mm-reg-line);text-underline-offset:2px}
 .mimic-site a:hover{color:var(--mm-reg-h)}
@@ -253,7 +293,7 @@
 
 /* Ruled section label. Labels a REGION, never sits above a heading. */
 .mimic-site .lbl,.mimic-site .lab,.mimic-site .tag{
-  display:inline-block;font-size:11px;font-weight:700;letter-spacing:.09em;
+  display:inline-block;font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--mm-muted)
 }
 
@@ -285,7 +325,7 @@
   display:inline-flex;align-items:center;justify-content:center;gap:.5rem;
   min-height:2.8rem;padding:0 1.3rem;border:1px solid transparent;
   border-radius:var(--mm-r-ctl);
-  font-family:inherit;font-size:.9rem;font-weight:600;letter-spacing:-.004em;
+  font-family:inherit;font-size:var(--mm-t-callout);font-weight:600;letter-spacing:-.004em;
   cursor:pointer;text-decoration:none;white-space:nowrap;
   /* transform is in the list so the press below composites rather than
      relayouts. Colour and shadow settle on the same curve as everything else. */
@@ -295,7 +335,7 @@
              box-shadow var(--mm-dur-1) var(--mm-ease),
              transform var(--mm-dur-1) var(--mm-ease);
 }
-.mimic-site .btn-lg{min-height:3.3rem;padding:0 1.85rem;font-size:1rem}
+.mimic-site .btn-lg{min-height:3.3rem;padding:0 1.85rem;font-size:var(--mm-t-body)}
 /* Feedback belongs on the press, not the release. Waiting for click to
    acknowledge a tap is the single latency a reader feels most, and it is what
    separates a control that responds from one that merely works. */
@@ -325,7 +365,7 @@
    shouting. It scrolls away; the nav is what stays. */
 .mimic-site .banner{
   background:var(--mm-bg-alt);color:var(--mm-ink-2);
-  font-size:13px;text-align:center;padding:9px 20px;
+  font-size:var(--mm-t-caption);text-align:center;padding:9px 20px;
   border-bottom:1px solid var(--mm-line)
 }
 .mimic-site .banner a{color:var(--mm-ink);text-decoration:underline;text-decoration-color:var(--mm-line-2)}
@@ -351,7 +391,7 @@
   background:linear-gradient(to bottom,rgb(14 20 32 / .055),rgb(14 20 32 / 0));
 }
 .mimic-site .nav-in{display:flex;align-items:center;gap:1.75rem;min-height:3.9rem}
-.mimic-site .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:19px;
+.mimic-site .brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;font-size:var(--mm-t-brand);
   letter-spacing:-.03em;color:var(--mm-ink);text-decoration:none;font-stretch:118%}
 .mimic-site .brand .ico,.mimic-site .brand .ic{
   display:grid;place-items:center;width:30px;height:30px;border-radius:var(--mm-r-ctl);
@@ -360,13 +400,13 @@
 .mimic-site .navlinks{display:flex;align-items:center;gap:4px;margin-left:8px}
 .mimic-site .navlinks>*{
   display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:980px;
-  font-size:14.5px;font-weight:500;color:var(--mm-ink-2);text-decoration:none;background:none;
+  font-size:var(--mm-t-callout);font-weight:500;color:var(--mm-ink-2);text-decoration:none;background:none;
   border:0;cursor:pointer;font-family:inherit;
   transition:background-color .15s var(--mm-ease),color .15s var(--mm-ease)
 }
 .mimic-site .navlinks>*:hover,.mimic-site .navlinks>.on{background:var(--mm-bg-alt);color:var(--mm-ink)}
 .mimic-site .nav-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.mimic-site .signin{font-size:14.5px;font-weight:600;color:var(--mm-ink-2);text-decoration:none}
+.mimic-site .signin{font-size:var(--mm-t-callout);font-weight:600;color:var(--mm-ink-2);text-decoration:none}
 .mimic-site .signin:hover{color:var(--mm-ink)}
 .mimic-site .navtoggle{
   display:none;width:42px;height:42px;border:0;
@@ -411,14 +451,14 @@
    greys rather than link blue: inside navigation chrome every item is a link,
    so colouring them all as links says nothing and just adds noise. */
 .mimic-site .mega-col h4{
-  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-muted);margin:0 0 var(--mm-s-2)
 }
 .mimic-site .mega-col ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .mimic-site .mega-col a{
   display:flex;align-items:center;min-height:2.5rem;
   padding:.4rem .625rem;margin-left:-.625rem;border-radius:var(--mm-r-ctl);
-  font-size:.9375rem;font-weight:550;letter-spacing:-.008em;
+  font-size:var(--mm-t-callout);font-weight:550;letter-spacing:-.008em;
   color:var(--mm-ink-2);text-decoration:none;
   transition:background-color var(--mm-dur-1) var(--mm-ease),color var(--mm-dur-1) var(--mm-ease)
 }
@@ -434,18 +474,18 @@
    shouting at once — the links are the content here, the heading only names
    the pile. This rule out-specifies the global display h2 on purpose. */
 .mimic-site .hub-col h2,.mimic-site .hub-col h4{
-  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   font-stretch:100%;line-height:1.4;
   color:var(--mm-muted);margin:0 0 14px}
 .mimic-site .hub-col ul{list-style:none;margin:0;padding:0}
-.mimic-site .hub-col a{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:15.5px;color:var(--mm-ink);
+.mimic-site .hub-col a{display:flex;align-items:center;gap:6px;padding:8px 0;font-size:var(--mm-t-callout);color:var(--mm-ink);
   text-decoration:none;font-weight:550;letter-spacing:-.01em}
 .mimic-site .hub-col a svg{color:var(--mm-muted);transition:transform var(--mm-dur-1) var(--mm-ease)}
 .mimic-site .hub-col a:hover{color:var(--mm-acc)}
 .mimic-site .hub-col a:hover svg{transform:translateX(3px);color:var(--mm-acc)}
 .mimic-site .mmenu{border-top:1px solid var(--mm-line);background:#fff;padding:14px 0 22px}
 .mimic-site .mmenu a,.mimic-site .mmenu button{
-  display:block;width:100%;text-align:left;padding:12px 0;font-size:16px;font-weight:600;
+  display:block;width:100%;text-align:left;padding:12px 0;font-size:var(--mm-t-body);font-weight:600;
   color:var(--mm-ink);text-decoration:none;background:none;border:0;
   border-bottom:1px solid var(--mm-line);font-family:inherit;cursor:pointer;min-height:48px
 }
@@ -538,7 +578,7 @@
 /* Display type needs air beneath it or the sub-line reads as a fourth line of
    the headline rather than an answer to it. The measure is short on purpose —
    a lede is scanned, not read, and a long line defeats that. */
-.mimic-site .hero .lede{margin-top:var(--mm-s-4);font-size:clamp(1.125rem,1.5vw,1.3125rem);max-width:48ch}
+.mimic-site .hero .lede{margin-top:var(--mm-s-4);font-size:var(--mm-t-lede-lg);max-width:48ch}
 .mimic-site .hero-cta{margin-top:var(--mm-s-5)}
 /* The frame below is parallaxed upward, and with only 16px of clearance it rode
    over this line. The clearance now exceeds the parallax travel (22px). */
@@ -580,7 +620,7 @@
 .mimic-site .ph{
   display:inline-flex;align-items:center;gap:5px;padding:2px 7px;
   border:1px solid var(--mm-line-2);border-radius:2px;background:#fff;
-  font-family:'Chivo Mono',ui-monospace,monospace;font-size:10px;
+  font-family:'Chivo Mono',ui-monospace,monospace;font-size:var(--mm-t-micro);
   letter-spacing:.04em;text-transform:uppercase;color:var(--mm-muted)
 }
 
@@ -596,9 +636,9 @@
 .mimic-site .mech-q{
   padding:16px 20px;border-bottom:1px solid var(--mm-line);
   box-shadow:inset 0 2px 0 0 var(--mm-ink);
-  font-weight:650;font-size:15px;color:var(--mm-ink)
+  font-weight:650;font-size:var(--mm-t-callout);color:var(--mm-ink)
 }
-.mimic-site .mech-a{padding:18px 20px;font-size:15px;line-height:1.68;color:var(--mm-ink-2)}
+.mimic-site .mech-a{padding:18px 20px;font-size:var(--mm-t-callout);line-height:1.68;color:var(--mm-ink-2)}
 /* Declared as a gradient of one colour rather than a flat fill: visually
    identical, but it gives `background-size` something to animate, which is how
    the highlight sweeps across the evidence instead of appearing all at once. */
@@ -614,13 +654,13 @@
   border-top:1px solid var(--mm-line);padding:14px 20px;display:flex;align-items:baseline;
   justify-content:space-between;gap:12px;background:var(--mm-bg-alt)
 }
-.mimic-site .mech-total .kpi{font-size:30px;font-weight:600;color:var(--mm-ink)}
+.mimic-site .mech-total .kpi{font-size:var(--mm-t-metric);font-weight:600;color:var(--mm-ink)}
 .mimic-site .mech-points{display:grid;gap:18px}
 .mimic-site .mech-points li{list-style:none;padding-left:0}
 .mimic-site .rec{
   display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:2px;
   border:1.5px solid var(--mm-acc);color:var(--mm-acc);
-  font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.12em;text-transform:uppercase
 }
 
 /* ── The five formats as exhibit tabs ────────────────────────────────── */
@@ -706,7 +746,7 @@
    their descendant rules — were removed with the drawn hero sessions list they
    styled. Nothing renders those classes now; the hero is a video. */
 .mimic-site .where{
-  display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mm-muted)
+  display:inline-flex;align-items:center;gap:6px;font-size:var(--mm-t-caption);color:var(--mm-muted)
 }
 
 /* ── `.kpi` rows, and the `.track` NAME COLLISION ─────────────────────
@@ -719,7 +759,7 @@
   margin-bottom:14px;font-family:inherit;font-variant-numeric:normal
 }
 .mimic-site .kpi:last-of-type{margin-bottom:0}
-.mimic-site .kpi .kn{font-size:14px;font-weight:500;color:var(--mm-ink-2)}
+.mimic-site .kpi .kn{font-size:var(--mm-t-footnote);font-weight:500;color:var(--mm-ink-2)}
 .mimic-site .kpi .track{
   height:5px;background:var(--mm-line);border-radius:2px;overflow:hidden;margin-top:8px;
   border:0;padding:0;box-shadow:none;grid-column:auto;background-clip:border-box
@@ -765,7 +805,7 @@
   .mimic-site .mech-card .mech-total,.mimic-site .mech-card .mech-a mark{transition:none}
 }
 .mimic-site .kpi .kv{
-  font-family:'Chivo Mono',ui-monospace,monospace;font-weight:500;font-size:17px;
+  font-family:'Chivo Mono',ui-monospace,monospace;font-weight:500;font-size:var(--mm-t-lead);
   text-align:right;font-variant-numeric:tabular-nums;display:block
 }
 .mimic-site .track .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -864,7 +904,7 @@
 }
 .mimic-site .shot figcaption{
   display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
-  margin-top:var(--mm-s-2);font-size:.8438rem;letter-spacing:.003em;
+  margin-top:var(--mm-s-2);font-size:var(--mm-t-footnote);letter-spacing:.003em;
   color:var(--mm-muted);max-width:var(--mm-measure)
 }
 
@@ -907,15 +947,15 @@
 .mimic-site .step .n,.mimic-site .step .num,.mimic-site .mk-step-n{
   display:grid;place-items:center;width:26px;height:26px;border-radius:2px;
   border:1px solid var(--mm-line-2);background:#fff;
-  font-size:12px;color:var(--mm-muted)
+  font-size:var(--mm-t-caption);color:var(--mm-muted)
 }
 .mimic-site .step.on .n,.mimic-site .step.on .num{background:var(--mm-ink);border-color:var(--mm-ink);color:#fff}
-.mimic-site .step h4,.mimic-site .step h3{font-size:15px;font-weight:650;color:var(--mm-ink);margin-bottom:3px;letter-spacing:-.012em;line-height:1.3}
+.mimic-site .step h4,.mimic-site .step h3{font-size:var(--mm-t-callout);font-weight:650;color:var(--mm-ink);margin-bottom:3px;letter-spacing:-.012em;line-height:1.3}
 .mimic-site .proc-panel{
   border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;
   padding:28px;box-shadow:var(--mm-shadow)
 }
-.mimic-site .step p{font-size:14px;line-height:1.55;color:var(--mm-muted)}
+.mimic-site .step p{font-size:var(--mm-t-footnote);line-height:1.55;color:var(--mm-muted)}
 /* ── Section kit: the deep pages' layout primitives ───────────────────────
    These carry their own inner-element rules deliberately. An earlier pass
    styled only the outer class and aliased .mk-flow-node onto .step — a
@@ -930,8 +970,8 @@
   display:grid;grid-template-columns:30px minmax(0,1fr);gap:14px;align-items:start
 }
 .mimic-site .mk-steps > li > div{min-width:0}
-.mimic-site .mk-steps strong{display:block;font-size:15.5px;font-weight:680;color:var(--mm-ink);letter-spacing:-.014em}
-.mimic-site .mk-steps p{margin-top:5px;font-size:15px;line-height:1.62;color:var(--mm-ink-2)}
+.mimic-site .mk-steps strong{display:block;font-size:var(--mm-t-callout);font-weight:680;color:var(--mm-ink);letter-spacing:-.014em}
+.mimic-site .mk-steps p{margin-top:5px;font-size:var(--mm-t-callout);line-height:1.62;color:var(--mm-ink-2)}
 
 /* Flow diagram: a horizontal sequence that wraps, never a stack. */
 .mimic-site .mk-flow{
@@ -947,11 +987,11 @@
   display:inline-flex;align-items:center;width:auto;
   padding:7px 13px;background:#fff;border:1px solid var(--mm-line-2);
   border-radius:var(--mm-r-ctl);
-  font-size:13.5px;font-weight:640;color:var(--mm-ink);letter-spacing:-.008em;
+  font-size:var(--mm-t-footnote);font-weight:640;color:var(--mm-ink);letter-spacing:-.008em;
   white-space:nowrap
 }
 .mimic-site .mk-flow-arrow{width:18px;height:18px;color:var(--mm-reg);flex:none}
-.mimic-site .mk-flow figcaption{margin-top:14px;font-size:13.5px;line-height:1.55;color:var(--mm-muted)}
+.mimic-site .mk-flow figcaption{margin-top:14px;font-size:var(--mm-t-footnote);line-height:1.55;color:var(--mm-muted)}
 
 /* ── Evidence / proof row ─────────────────────────────────────────────
    Three real, cleared logos, presented as a continuous scroll on the user's
@@ -1015,7 +1055,7 @@
 /* `.lead` labels the cleared-logo row. It is a region label, not a lede, and
    deliberately not styled as a heading — the three real logos are the content. */
 .mimic-site .lead{
-  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-muted);margin-bottom:20px
 }
 /* `.meta` renders a list of short tags. Without a layout rule its spans butted
@@ -1033,7 +1073,7 @@
    the product shot. PRODUCT.md requires the label; it does not require it to be
    the loudest thing in the image. */
 .mimic-site .kv{display:grid;gap:6px}
-.mimic-site .kn{font-size:13px;color:var(--mm-muted)}
+.mimic-site .kn{font-size:var(--mm-t-caption);color:var(--mm-muted)}
 
 /* ── Full-bleed ink field: the bundle cover, used as an anchor ────────── */
 .mimic-site .cta,.mimic-site .mech.on-dark,.mimic-site .section.on-dark{
@@ -1054,7 +1094,7 @@
 }
 .mimic-site .assure > span{
   display:inline-flex;align-items:center;gap:.45rem;
-  font-size:.8125rem;letter-spacing:.004em;color:var(--mm-on-ink-2);white-space:nowrap
+  font-size:var(--mm-t-caption);letter-spacing:.004em;color:var(--mm-on-ink-2);white-space:nowrap
 }
 .mimic-site .assure svg{color:var(--mm-on-ink-accent)}
 .mimic-site .cta h2,.mimic-site .on-dark h2,.mimic-site .on-dark h3{color:#fff}
@@ -1070,9 +1110,9 @@
   box-shadow:var(--mm-shadow)
 }
 .mimic-site .field{display:grid;gap:6px;margin-bottom:14px}
-.mimic-site .field label,.mimic-site .field .lbl{font-size:12.5px;font-weight:600;color:var(--mm-ink-2);letter-spacing:0}
+.mimic-site .field label,.mimic-site .field .lbl{font-size:var(--mm-t-caption);font-weight:600;color:var(--mm-ink-2);letter-spacing:0}
 .mimic-site .field input,.mimic-site .field select,.mimic-site .field textarea,.mimic-site .ctl{
-  width:100%;height:42px;padding:0 12px;font-family:inherit;font-size:15px;color:var(--mm-ink);
+  width:100%;height:42px;padding:0 12px;font-family:inherit;font-size:var(--mm-t-callout);color:var(--mm-ink);
   background:#fff;border:1px solid var(--mm-stroke);border-radius:var(--mm-r-ctl);outline:none;
   transition:border-color .15s var(--mm-ease),box-shadow .15s var(--mm-ease)
 }
@@ -1090,7 +1130,7 @@
 .mimic-site .submit>button{
   display:inline-flex;align-items:center;justify-content:center;width:100%;
   min-height:3.1rem;padding:0 1.6rem;border:1px solid transparent;border-radius:var(--mm-r-ctl);
-  background:var(--mm-ink);color:#fff;font-family:inherit;font-size:.95rem;
+  background:var(--mm-ink);color:#fff;font-family:inherit;font-size:var(--mm-t-callout);
   font-weight:600;letter-spacing:-.004em;cursor:pointer;
   box-shadow:0 1px 2px 0 rgb(14 20 32 / .14);
   transition:background-color var(--mm-dur-1) var(--mm-ease),
@@ -1104,7 +1144,7 @@
   .mimic-site .submit>button:hover,.mimic-site .submit>button:active{transform:none}
 }
 .mimic-site .err{
-  display:flex;align-items:flex-start;gap:6px;font-size:12.5px;color:var(--mm-seal);margin-top:2px
+  display:flex;align-items:flex-start;gap:6px;font-size:var(--mm-t-caption);color:var(--mm-seal);margin-top:2px
 }
 /* An error is a RESPONSE to what someone did, and there is nothing to respond
    to on a form nobody has touched. This had no visibility rule at all, so all
@@ -1140,7 +1180,7 @@
   height:auto;padding:0;border:0;box-shadow:none;background:none;
   display:grid;gap:.5rem;margin-bottom:var(--mm-s-4)
 }
-.mimic-site .roi .ctl label{font-size:.9rem;font-weight:550;color:var(--mm-ink-2)}
+.mimic-site .roi .ctl label{font-size:var(--mm-t-callout);font-weight:550;color:var(--mm-ink-2)}
 .mimic-site .roi .ctl label b{color:var(--mm-ink);font-weight:700;font-variant-numeric:tabular-nums}
 .mimic-site .roi input[type=range]{
   -webkit-appearance:none;appearance:none;width:100%;height:20px;
@@ -1166,10 +1206,10 @@
 }
 .mimic-site .res .n{
   font-family:'Chivo Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;
-  font-size:clamp(1.75rem,2.6vw,2.375rem);font-weight:600;color:var(--mm-ink);
+  font-size:var(--mm-t-d5);font-weight:600;color:var(--mm-ink);
   letter-spacing:-.02em;line-height:1.1
 }
-.mimic-site .res .l{margin-top:.35rem;font-size:.875rem;color:var(--mm-muted)}
+.mimic-site .res .l{margin-top:.35rem;font-size:var(--mm-t-footnote);color:var(--mm-muted)}
 @media (max-width:1040px){
   .mimic-site .roi{grid-template-columns:minmax(0,1fr)}
 }
@@ -1177,12 +1217,12 @@
 /* ── FAQ ──────────────────────────────────────────────────────────────── */
 .mimic-site .faq,.mimic-site .mk-faq{display:grid;gap:0;border-top:1px solid var(--mm-line)}
 .mimic-site .faq>*,.mimic-site .mk-faq>*{border-bottom:1px solid var(--mm-line);padding:20px 0}
-.mimic-site .faq h3,.mimic-site .mk-faq h3{font-size:17px;margin-bottom:8px}
+.mimic-site .faq h3,.mimic-site .mk-faq h3{font-size:var(--mm-t-lead);margin-bottom:8px}
 .mimic-site .featlist{display:grid;gap:12px}
 /* Two-column because these carry a tick icon in the first cell. */
 .mimic-site .featlist li{
   list-style:none;display:grid;grid-template-columns:18px 1fr;gap:11px;align-items:start;
-  font-size:15.5px;color:var(--mm-ink-2);line-height:1.6
+  font-size:var(--mm-t-callout);color:var(--mm-ink-2);line-height:1.6
 }
 
 /* ── Prose bullets ────────────────────────────────────────────────────────
@@ -1197,7 +1237,7 @@
 .mimic-site .mk-bullets li{
   list-style:none;display:block;position:relative;
   padding-left:20px;
-  font-size:15.5px;line-height:1.62;color:var(--mm-ink-2)
+  font-size:var(--mm-t-callout);line-height:1.62;color:var(--mm-ink-2)
 }
 .mimic-site .mk-bullets li::before{
   content:"";position:absolute;left:2px;top:.62em;
@@ -1222,14 +1262,14 @@
 }
 .mimic-site .foot-grid{display:grid;grid-template-columns:1.4fr repeat(3,1fr);gap:40px}
 .mimic-site .foot-brand .kn{color:var(--mm-on-ink-2);max-width:38ch;margin-top:12px}
-.mimic-site .foot h4{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+.mimic-site .foot h4{font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-on-ink-2);margin-bottom:12px}
-.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-on-ink);text-decoration:none;font-size:14px}
+.mimic-site .foot a{display:block;padding:5px 0;color:var(--mm-on-ink);text-decoration:none;font-size:var(--mm-t-footnote)}
 .mimic-site .foot a:hover{color:#fff;text-decoration:underline}
 .mimic-site .foot-bottom{
   margin-top:44px;padding-top:22px;border-top:1px solid var(--mm-on-ink-line);
   display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
-  font-size:12.5px;color:var(--mm-on-ink-2)
+  font-size:var(--mm-t-caption);color:var(--mm-on-ink-2)
 }
 .mimic-site .foot .brand{color:#fff}
 .mimic-site .foot .brand .ico,.mimic-site .foot .brand .ic{
@@ -1243,7 +1283,7 @@
    and it is generous enough to do it. A rule between sections tells the reader
    where a section ends; enough air lets them feel it instead. */
 .mimic-site .mk-hero{padding:var(--mm-s-8) 0 var(--mm-s-6)}
-.mimic-site .mk-hero h1{font-size:clamp(2.375rem,4.8vw,4rem);line-height:1.04;letter-spacing:-.04em}
+.mimic-site .mk-hero h1{font-size:var(--mm-t-d2);line-height:1.04;letter-spacing:-.04em}
 .mimic-site .mk-sec{padding:var(--mm-s-7) 0}
 .mimic-site .mk-sec:last-child{padding-bottom:var(--mm-s-8)}
 /* 66ch, not 74. Past roughly 75 characters the eye loses the line return, and
@@ -1252,14 +1292,14 @@
 .mimic-site .mk-body p,.mimic-site .mk p{line-height:1.68}
 .mimic-site .mk-body p+p,.mimic-site .mk p+p{margin-top:var(--mm-s-3)}
 .mimic-site .mk-body h2,.mimic-site .mk h2{
-  font-size:clamp(1.5rem,2.4vw,2rem);line-height:1.14;letter-spacing:-.028em;
+  font-size:var(--mm-t-d6);line-height:1.14;letter-spacing:-.028em;
   margin:var(--mm-s-6) 0 var(--mm-s-3)
 }
 .mimic-site .mk-body h3,.mimic-site .mk h3{margin:var(--mm-s-5) 0 var(--mm-s-2)}
 .mimic-site .mk-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--mm-s-3);margin:var(--mm-s-4) 0 0}
 .mimic-site .mk-split > div{padding:var(--mm-s-3) var(--mm-s-4);border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;min-width:0}
-.mimic-site .mk-split strong{display:block;font-size:.94rem;font-weight:680;color:var(--mm-ink);letter-spacing:-.012em}
-.mimic-site .mk-split p{margin-top:.35rem;font-size:.9rem;line-height:1.6;color:var(--mm-ink-2)}
+.mimic-site .mk-split strong{display:block;font-size:var(--mm-t-callout);font-weight:680;color:var(--mm-ink);letter-spacing:-.012em}
+.mimic-site .mk-split p{margin-top:.35rem;font-size:var(--mm-t-callout);line-height:1.6;color:var(--mm-ink-2)}
 
 /* Deep-page layout: prose at reading measure, the index parked in the margin.
    Every column is minmax(0,…) so a wide table scrolls inside its own wrapper
@@ -1272,27 +1312,27 @@
   background:var(--mm-bg-alt)
 }
 .mimic-site .mk-layout .mk-toc h2{
-  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-muted);margin-bottom:11px
 }
 .mimic-site .mk-layout .mk-toc ul{display:flex;flex-direction:column;gap:1px;margin:0;padding:0;list-style:none}
 .mimic-site .mk-layout .mk-toc a{
   display:block;padding:6px 9px;margin-left:-9px;border-radius:var(--mm-r-ctl);
-  font-size:14px;line-height:1.45;color:var(--mm-ink-2);text-decoration:none
+  font-size:var(--mm-t-footnote);line-height:1.45;color:var(--mm-ink-2);text-decoration:none
 }
 .mimic-site .mk-layout .mk-toc a:hover{background:var(--mm-reg-wash);color:var(--mm-reg)}
 .mimic-site .mk-sec h2{scroll-margin-top:88px}
 
 /* Callouts — a full frame, never a bare coloured left edge. */
 .mimic-site .mk-note{margin:var(--mm-s-4) 0 0;padding:var(--mm-s-3) var(--mm-s-4);border-radius:var(--mm-r-card);border:1px solid var(--mm-line);background:var(--mm-bg-alt)}
-.mimic-site .mk-note strong{display:block;font-size:11px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--mm-muted);margin-bottom:6px}
-.mimic-site .mk-note p{font-size:14.5px;line-height:1.6;color:var(--mm-ink-2)}
+.mimic-site .mk-note strong{display:block;font-size:var(--mm-t-micro);font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--mm-muted);margin-bottom:6px}
+.mimic-site .mk-note p{font-size:var(--mm-t-callout);line-height:1.6;color:var(--mm-ink-2)}
 .mimic-site .mk-note-info{background:var(--mm-reg-wash);border-color:var(--mm-reg-line)}
 .mimic-site .mk-note-info strong{color:var(--mm-reg)}
 .mimic-site .mk-note-limit{background:#FDF5EA;border-color:#F0DBBC}
 .mimic-site .mk-note-limit strong{color:#8A4308}
 .mimic-site .mk-note-placeholder{background:#fff;border-style:dashed;border-color:var(--mm-line-2)}
-.mimic-site .mk-toc,.mimic-site .crumbs{display:flex;flex-wrap:wrap;gap:10px;font-size:13px;color:var(--mm-muted)}
+.mimic-site .mk-toc,.mimic-site .crumbs{display:flex;flex-wrap:wrap;gap:10px;font-size:var(--mm-t-caption);color:var(--mm-muted)}
 .mimic-site .crumbs a{color:var(--mm-muted);text-decoration:none}
 .mimic-site .crumbs a:hover{color:var(--mm-reg)}
 /* The table is allowed a min-width so columns stay readable, but the wrapper
@@ -1303,14 +1343,14 @@
   overflow-x:auto;max-width:100%;min-width:0;
   border:1px solid var(--mm-line);border-radius:var(--mm-r-card);margin:22px 0 0
 }
-.mimic-site .mk-spec{width:100%;min-width:520px;border-collapse:collapse;font-size:14px}
+.mimic-site .mk-spec{width:100%;min-width:520px;border-collapse:collapse;font-size:var(--mm-t-footnote)}
 /* The key column needs a floor. Sized purely to content it collapsed to ~122px,
    which is fine for a single hyphenated token and breaks a multi-word term one
    word per line — the glossary's "Human in the loop" wrapped to four lines the
    moment that term stopped being hyphenated. The row label is the thing you
    scan, so it gets a real measure and the value column takes the remainder. */
 .mimic-site .mk-spec th{
-  text-align:left;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  text-align:left;font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
   color:var(--mm-muted);padding:10px 12px;border-bottom:1px solid var(--mm-line);
   min-width:10.5rem;text-wrap:balance
 }
@@ -1332,7 +1372,7 @@
 .mimic-site .macc{border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;overflow:hidden}
 .mimic-site .macc>button{
   width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;
-  padding:16px 18px;background:none;border:0;font-family:inherit;font-size:15.5px;font-weight:650;
+  padding:16px 18px;background:none;border:0;font-family:inherit;font-size:var(--mm-t-callout);font-weight:650;
   color:var(--mm-ink);cursor:pointer;text-align:left;min-height:48px
 }
 .mimic-site .macc>button:hover{background:var(--mm-bg-alt)}
@@ -1711,7 +1751,7 @@
 .mimic-site .mk-faq summary{
   display:flex;align-items:flex-start;justify-content:space-between;gap:var(--mm-s-4);
   min-height:2.75rem;cursor:pointer;list-style:none;
-  font-size:1.0625rem;font-weight:650;line-height:1.34;letter-spacing:-.018em;
+  font-size:var(--mm-t-lead);font-weight:650;line-height:1.34;letter-spacing:-.018em;
   color:var(--mm-ink);
   transition:color var(--mm-dur-1) var(--mm-ease)
 }
@@ -1751,7 +1791,7 @@
    contains the cards. */
 .mimic-site .mk-related{display:block;margin-top:var(--mm-s-7)}
 .mimic-site .mk-related > h2{
-  font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-muted);margin:0 0 var(--mm-s-3)
 }
 .mimic-site .mk-related > div{
@@ -1787,7 +1827,7 @@
   min-height:3rem;padding:0 1.35rem;
   border:1px solid transparent;border-radius:var(--mm-r-ctl);
   background:var(--mm-ink);color:#fff;
-  font-family:inherit;font-size:.95rem;font-weight:650;letter-spacing:-.004em;
+  font-family:inherit;font-size:var(--mm-t-callout);font-weight:650;letter-spacing:-.004em;
   cursor:pointer;
   box-shadow:0 1px 2px 0 rgb(14 20 32 / .16);
   transition:background-color var(--mm-dur-1) var(--mm-ease),
@@ -1928,7 +1968,7 @@
    spending 28px on a gap it no longer needs. */
 @media (max-width:400px){
   .mimic-site .nav-in{gap:.75rem}
-  .mimic-site .nav-in .btn{padding:0 .85rem;font-size:.85rem}
+  .mimic-site .nav-in .btn{padding:0 .85rem;font-size:var(--mm-t-footnote)}
 }
 
 /* ── 12. Responsive corrections for the rules above ────────────────────────
@@ -1974,7 +2014,7 @@
    old full-width cover line — presence comes from the panel, not from 68px. */
 .mimic-site .hero.room h1{
   color:var(--mm-on-ink);max-width:15ch;
-  font-size:clamp(2.3rem,3.8vw,3.5rem);
+  font-size:var(--mm-t-d3);
 }
 .mimic-site .hero.room .sub{color:var(--mm-on-ink-2);max-width:46ch}
 /* The note is the last thing in the copy column, so its page-level bottom
@@ -1987,7 +2027,7 @@
    one line that names the category, marked with the machine-presence dot. */
 .mimic-site .hero.room .eyebrow{
   display:inline-flex;align-items:center;gap:.55rem;margin-bottom:var(--mm-s-3);
-  font-size:.75rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
+  font-size:var(--mm-t-caption);font-weight:650;letter-spacing:.12em;text-transform:uppercase;
   color:var(--mm-ai);
 }
 .mimic-site .hero.room .eyebrow::before{
@@ -2044,7 +2084,7 @@
 .mimic-site .airail[data-state='listening'] .airail-dot{animation:mmPulse 1.8s var(--mm-ease) infinite}
 .mimic-site .airail[data-state='thinking'] .airail-dot{animation:mmPulse .8s var(--mm-ease) infinite}
 .mimic-site .airail-word{
-  font-size:.8125rem;font-weight:650;letter-spacing:.02em;color:var(--mm-on-ink);
+  font-size:var(--mm-t-caption);font-weight:650;letter-spacing:.02em;color:var(--mm-on-ink);
   font-variant-numeric:tabular-nums
 }
 .mimic-site .airail-wave{
@@ -2084,9 +2124,9 @@
 .mimic-site .airail-mark[data-on]{
   opacity:1;border-color:color-mix(in srgb, var(--mm-ai) 35%, var(--mm-on-ink-line))
 }
-.mimic-site .airail-k{font-size:.6875rem;color:var(--mm-on-ink-2);letter-spacing:.01em}
+.mimic-site .airail-k{font-size:var(--mm-t-micro);color:var(--mm-on-ink-2);letter-spacing:.01em}
 .mimic-site .airail-v{
-  font-size:.8125rem;font-weight:700;color:var(--mm-on-ink);font-variant-numeric:tabular-nums
+  font-size:var(--mm-t-caption);font-weight:700;color:var(--mm-on-ink);font-variant-numeric:tabular-nums
 }
 .mimic-site .airail-fill{
   position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:1px;
@@ -2146,7 +2186,7 @@
   box-shadow:inset 0 2px 0 0 var(--mm-ink), var(--mm-shadow-md);
 }
 .mimic-site .noise-label{
-  font-size:.6875rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--mm-muted);
 }
 .mimic-site .noise-side.is-ordered .noise-label{color:var(--mm-ink)}
@@ -2174,7 +2214,7 @@
   width:100%;background:color-mix(in srgb, var(--mm-reg) 55%, transparent);
 }
 .mimic-site .noise-foot{
-  font-size:.8125rem;line-height:1.5;color:var(--mm-muted);
+  font-size:var(--mm-t-caption);line-height:1.5;color:var(--mm-muted);
 }
 .mimic-site .noise-side.is-ordered .noise-foot{color:var(--mm-ink-2)}
 .mimic-site .noise-arrow{
@@ -2197,3 +2237,56 @@
   }
   .mimic-site .noise-row{transition:none}
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Page kit — the one-off inline styles, promoted to the system.
+
+   MarketingPage.tsx carried ten inline `style={{…}}` objects: a 110px/40px
+   404 pad, three ad-hoc button rows, a 28px heading and a hand-set CTA grid.
+   Inline styles are how a design system quietly dies — they are invisible to
+   the token scale, unreachable from a media query, and impossible to change
+   in one place. Every value below came from one of those objects and now
+   resolves to a token, so the button row on the 404 page and the button row
+   on all 73 content pages are the same row.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The action row. One rule, three call sites. */
+.mimic-site .mk-actions{
+  display:flex;gap:var(--mm-s-2);flex-wrap:wrap;margin-top:var(--mm-s-5);
+}
+.mimic-site .mk-actions.is-centred{justify-content:center}
+
+/* Hero lede: the 18px inline margin, on the space scale. */
+.mimic-site .mk-hero .lede{margin-top:var(--mm-s-4)}
+
+/* The empty state — a real one, not a centred paragraph.
+   It gets the same vertical air as a section rather than a magic 110px, so it
+   reads as a page that meant to be here rather than a page that broke. */
+.mimic-site .mk-empty{
+  padding:var(--mm-sec-y) var(--mm-gutter);
+  text-align:center;
+}
+.mimic-site .mk-empty .lede{
+  margin:var(--mm-s-4) auto 0;
+  max-width:46ch;
+}
+
+/* The FAQ section head. Was an inline 28px, which sat outside the scale and
+   below the section heads above it — the questions read as a footnote. */
+.mimic-site .mk-faq-h{
+  font-size:var(--mm-t-d6);line-height:1.14;letter-spacing:-.028em;
+  margin-bottom:var(--mm-s-3);
+}
+
+/* The inner-page CTA. `.cta-in` is the shared grid; the page variant only
+   states the two things that differ — the column split and the optical
+   centring — instead of restating the whole grid inline. */
+.mimic-site .cta-page{margin-top:var(--mm-s-1)}
+@media (min-width:900px){
+  .mimic-site .cta-in-page{
+    grid-template-columns:minmax(0,1fr) auto;
+    align-items:center;
+  }
+  .mimic-site .cta-in-page .btn{align-self:center}
+}
+.mimic-site .cta-in-page h2{font-size:var(--mm-t-d5)}
