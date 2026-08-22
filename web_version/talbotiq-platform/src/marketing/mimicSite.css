@@ -463,6 +463,14 @@
    magnetic control snaps to the cursor instead of easing to it, which reads as
    a glitch rather than as responsiveness. */
 .mimic-site .mm-parallax{will-change:transform}
+.mimic-site .mm-tilt{will-change:transform;transform-style:preserve-3d}
+/* The cursor light. Faint by construction — it borrows the soft lamp token, so
+   it can never outshine the field lighting it sits over. */
+.mimic-site .mm-cursorlight{
+  position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;
+  transition:opacity .6s var(--mm-ease);
+  background:radial-gradient(30rem 22rem at var(--mx,72%) var(--my,30%), var(--mm-lamp-soft), transparent 72%);
+}
 .mimic-site .mm-magnetic{display:inline-block;transition:transform .3s var(--mm-ease);will-change:transform}
 
 /* ── Accessibility preferences ────────────────────────────────────────

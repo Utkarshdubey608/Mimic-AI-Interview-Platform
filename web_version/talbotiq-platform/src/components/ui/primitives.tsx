@@ -92,7 +92,10 @@ export function Button({
       aria-busy={loading || undefined}
       className={cn(
         'inline-flex items-center justify-center font-semibold rounded-md select-none whitespace-nowrap',
-        'transition-[background-color,border-color,box-shadow,color,opacity,filter] duration-fast ease-out',
+        'transition-[background-color,border-color,box-shadow,color,transform] duration-fast ease-out',
+        // Press feedback: transform only, faster down than up, so the button
+        // reads as depressed the instant the pointer commits.
+        'active:scale-[0.985] active:duration-75',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none',
         BTN_VARIANTS[variant],

@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles } from 'lucide-react'
 import {
   PageHeader, Card, Button, Input, Select, Badge, EmptyState, ErrorState, RecordRows,
-  ExhibitTab, Citation, Modal, Toggle, cn,
+  ExhibitTab, Citation, Modal, Toggle, StatFigure, cn,
 } from '@/components/ui'
+import { staggerVariants, staggerChild } from '@/design/motion'
 import { templatesApi, sessionsApi, settingsApi, describeFetchError } from '@/lib/api'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import type { SessionListItem, TrackType } from '@shared/types'

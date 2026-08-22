@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useReducedMotion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {

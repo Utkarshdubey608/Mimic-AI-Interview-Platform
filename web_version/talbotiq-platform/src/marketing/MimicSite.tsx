@@ -29,7 +29,7 @@ import { Link } from 'react-router-dom'
 import { httpBase } from '@/lib/apiOrigin'
 import './mimicSite.css'
 import { MarketingLayout } from './MarketingLayout'
-import { Magnetic, Parallax, Reveal, useInView } from './motion'
+import { CursorLight, Magnetic, Parallax, Reveal, Tilt, useInView } from './motion'
 import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
@@ -352,6 +352,9 @@ export default function MimicSite() {
               {/* The ink field built for the site's dark surfaces — layered
                   light, WebGL when the device can afford it, CSS when not. */}
               <Field seed={7} />
+              {/* The room answers the visitor's hand: a faint light tracks the
+                  cursor across the panel. Atmosphere, not information. */}
+              <CursorLight />
               <div className="hero-room-in">
                 <div className="hero-copy">
                   <span className="eyebrow">AI native interview screening</span>
@@ -380,8 +383,12 @@ export default function MimicSite() {
                     first load. Parallax is kept, gentler than before: inside a
                     panel a large lean reads as the panel failing, not depth. */}
                 <div className="hero-stage">
+                  {/* Parallax owns scroll travel; Tilt owns pointer depth — two
+                      transforms on two elements, no conflict. The tilt is what
+                      makes the footage an object IN the room. */}
                   <Parallax strength={12}>
                     <Reveal>
+                      <Tilt>
                       <div className="hero-shot">
                         <DemoVideo
                           priority
@@ -394,6 +401,7 @@ export default function MimicSite() {
                           contentAspect={DEMO_COPY.video_avatar.contentAspect}
                         />
                       </div>
+                      </Tilt>
                     </Reveal>
                   </Parallax>
                   <HeroIntelligence />
