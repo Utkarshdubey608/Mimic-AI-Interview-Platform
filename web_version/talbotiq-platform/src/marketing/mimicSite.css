@@ -1023,38 +1023,30 @@
   display:flex;flex-wrap:wrap;align-items:center;gap:2.5rem
 }
 
-/* ── Logo marquee ─────────────────────────────────────────────────────── */
-.mimic-site .logo-marquee{
-  position:relative;overflow:hidden;
-  /* Fades the ends so logos enter and leave rather than being clipped. */
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);
-  mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)
-}
-/* Duration is set for a constant ~35px/s rather than picked by feel: the track
-   is ~7.2k px, so half of it passes in about 100s. Faster than roughly 50px/s
-   reads as a ticker; slower reads as broken. */
-.mimic-site .logo-track{
-  display:flex;width:max-content;
-  animation:mm-marquee 70s linear infinite;
-  will-change:transform
-}
-/* Generous spacing on purpose. At a 40px gap the same three logos cycled five
-   times across the viewport and the loop was the first thing you noticed; at
-   ~96px roughly two cycles are visible and it reads as a moving row. */
-.mimic-site .logo-set{display:flex;align-items:center;gap:6rem;padding-right:6rem;flex:none}
-/* Six sets, translated by three: the second half is pixel-identical to the
-   first at the loop point, so it closes seamlessly. */
-@keyframes mm-marquee{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
-/* Stopping on hover lets someone actually read a logo they recognised. */
-.mimic-site .logo-marquee:hover .logo-track,
-.mimic-site .logo-marquee:focus-within .logo-track{animation-play-state:paused}
+/* ── The customer row ─────────────────────────────────────────────────
+   Was a 12-set marquee: 36 <img> elements, a 70-second infinite translate, and
+   a mask to hide the seam. Now three logos in a row. See the note in
+   MimicSite.tsx for why the motion went; what remains is the two faults the
+   motion was hiding.
 
-@media (prefers-reduced-motion: reduce){
-  .mimic-site .logo-track{animation:none;width:auto;flex-wrap:wrap}
-  /* Static row, three logos, exactly as before the marquee. */
-  .mimic-site .logo-set{padding-right:0}
-  .mimic-site .logo-set[aria-hidden="true"]{display:none}
+   The strip had NO vertical padding of its own — measured at exactly the height
+   of its tallest logo — so it sat flush against the hero above and the section
+   below, the one band on the page with no air. It gets its own, smaller than a
+   full section because it is a strip and not a section.
+
+   And the marks sat at .72 opacity under a full greyscale filter, which on art
+   that is already light grey left them almost invisible. Cleared customer logos
+   should be quiet, not apologetic. */
+.mimic-site .logos{padding:var(--mm-s-7) 0}
+.mimic-site .logo-row{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:var(--mm-s-6) clamp(2.5rem,6vw,5.5rem);
 }
+/* Centred, with its label. Three marks left-aligned in a 1440px row leaves 60%
+   of it empty on one side — the same one-sided hole the inner pages had, at a
+   smaller scale. The row is short, so it belongs on the page's centre line. */
+.mimic-site .logos .lead{text-align:center}
+
 /* Logos are OPTICALLY sized, not mathematically sized. Set to one height they
    look wrong, because each mark carries a different amount of internal padding
    and ink — a wordmark that fills its box reads far larger than one drawn
@@ -1062,7 +1054,7 @@
    override, and it has to drive BOTH the slot and the image: an inline
    `height` on the img alone was silently clamped by the `max-height` here, so
    every per-logo size set that way has been dead. */
-.mimic-site .logo-slot{display:inline-flex;align-items:center;height:var(--logo-h,30px);opacity:.72;
+.mimic-site .logo-slot{display:inline-flex;align-items:center;height:var(--logo-h,30px);opacity:.88;
   filter:grayscale(1);transition:opacity .18s var(--mm-ease),filter .18s var(--mm-ease)}
 .mimic-site .logo-slot:hover{opacity:1;filter:grayscale(0)}
 /* `height` as well as the cap: a cropped mark derives its width from its
@@ -1545,10 +1537,6 @@
   .mimic-site .btn,.mimic-site .btn-lg{width:100%}
   .mimic-site .controls,.mimic-site .hero-cta{flex-direction:column;align-items:stretch}
   .mimic-site .logo-row,.mimic-site .trust-grid{gap:var(--mm-s-4)}
-  /* Tighter on a phone, and proportionally quicker so the apparent speed stays
-     around 35px/s rather than crawling. */
-  .mimic-site .logo-set{gap:3.25rem;padding-right:3.25rem}
-  .mimic-site .logo-track{animation-duration:48s}
 }
 
 /* Reduced motion: the reveal becomes a no-op in CSS as well as in JS. */
@@ -2397,10 +2385,16 @@
    ══════════════════════════════════════════════════════════════════════════ */
 .mimic-site .mkpage{--mm-article:74ch}
 
+/* A hub's link columns are NOT prose, so they do not take the prose measure.
+   Squeezed into 74ch the three columns broke long entries onto two lines and
+   stranded their arrows out to the right — "Illinois AI Video Interview Act"
+   and "Data residency & retention" both. A directory wants width; the reading
+   measure exists to stop a SENTENCE running too long. Same reason the recorded
+   footage keeps the full wrap. */
+
 .mimic-site .mkpage > .wrap > .crumbs,
 .mimic-site .mkpage .mk-hero,
 .mimic-site .mkpage > .wrap > .mk-body,
-.mimic-site .mkpage .hub-cols,
 .mimic-site .mkpage .mk-related,
 .mimic-site .mkpage .mk-faq{
   max-width:var(--mm-article);
@@ -2444,3 +2438,94 @@
   mask-image:linear-gradient(180deg, #000 0%, #000 45%, transparent 100%);
 }
 .mimic-site .mkpage > .wrap{position:relative;z-index:1}
+
+/* ── The format chip: neutral, and the glyph does the work ────────────────
+   Five saturated chips used to sit in a row here, coloured by an inline style
+   fed from a `bg`/`fg` pair on each TRACKS entry — the retired five-hue palette
+   living a second life in a data array. The chip is a surface now, and the
+   glyph inside it identifies the format. On hover the card's accent runs
+   through the chip too, so each card has exactly one colour event and it means
+   "this one". */
+.mimic-site .track .ic{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:2.25rem;height:2.25rem;border-radius:var(--mm-r-ctl);
+  background:var(--mm-bg-alt);color:var(--mm-ink);
+  border:1px solid var(--mm-line);
+  transition:background var(--mm-dur-2) var(--mm-ease),
+             color var(--mm-dur-2) var(--mm-ease),
+             border-color var(--mm-dur-2) var(--mm-ease);
+}
+.mimic-site .track:hover .ic,
+.mimic-site .track:focus-visible .ic{
+  background:var(--mm-acc-wash);color:var(--mm-acc);border-color:var(--mm-acc-line);
+}
+/* The footage takes the card over on hover, so the chip must not float on top
+   of it — it fades with the rest of the card's furniture. */
+.mimic-site .track.is-playing .ic{opacity:0;transition:opacity var(--mm-dur-1) var(--mm-ease)}
+
+/* ── Section heads centre ────────────────────────────────────────────────
+   They were capped at the reading measure and left-aligned inside a 1216px
+   wrap, which left the right 45% of every section head empty and put the rule
+   above the heading in the middle of nowhere. A marketing section head sits
+   over the full width of what it introduces, so it centres on that width — the
+   same fault the inner pages had in their right-hand column, and the same fix:
+   give the composition a centre line and let the air sit on both sides of it. */
+.mimic-site .sec-head{
+  margin-inline:auto;
+  text-align:center;
+}
+.mimic-site .sec-head .lede,
+.mimic-site .sec-head .sub{margin-inline:auto}
+/* The rule above the heading spans the head, so centring the head centres it. */
+@media (max-width:760px){
+  /* On a phone the measure is the viewport, so centred body copy becomes a
+     ragged column on both edges. The heading stays centred; the sentence under
+     it goes back to a single left edge the eye can return to. */
+  .mimic-site .sec-head .lede,
+  .mimic-site .sec-head .sub{text-align:left}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Press states — feedback on pointer-DOWN.
+
+   `.btn`, the form submit and the shot toggle already had one. Nothing else
+   did: the nav, the mega-menu, the hub directories, breadcrumbs, keep-reading
+   cards, the footer, the mobile accordion, the FAQ disclosures and the format
+   cards all responded to HOVER only. On a touch screen there is no hover, so
+   a tap on any of them produced nothing at all until the next page painted —
+   which is the exact moment the interface stops feeling direct. Feedback has
+   to exist at the start of the interaction, not at the end of it.
+
+   Text targets shift colour, which is instant and costs no layout. Card-shaped
+   targets take a small scale, and keep whatever lift their hover gave them so
+   the press reads as pushing the same object rather than replacing it.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .navlinks > *:active,
+.mimic-site .mega-col a:active,
+.mimic-site .hub-col a:active,
+.mimic-site .crumbs a:active,
+.mimic-site .signin:active,
+.mimic-site .macc > button:active,
+.mimic-site .faq summary:active,
+.mimic-site .mk-faq summary:active{color:var(--mm-acc-d)}
+
+/* The footer sits on the ink field, where the light accent is the legible one. */
+.mimic-site .foot a:active{color:#fff}
+
+.mimic-site .mk-related a:active,
+.mimic-site .step:active{
+  transform:scale(.994);
+  transition:transform .08s var(--mm-ease);
+}
+/* The card is already lifted 2px by hover; the press pushes THAT object down a
+   little rather than dropping it back to the page. */
+.mimic-site .track:active{
+  transform:translateY(-2px) scale(.995);
+  transition:transform .08s var(--mm-ease);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .mk-related a:active,
+  .mimic-site .step:active,
+  .mimic-site .track:active{transform:none}
+}

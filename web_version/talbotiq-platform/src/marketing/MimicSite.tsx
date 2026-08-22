@@ -45,22 +45,33 @@ import { Ico } from './icons'
       it here sent buyers looking for a page that was never written. Adding it
       back means writing that page and restoring the count in scripts/
       audit-marketing-claims.ts, which pins the advertised number to five. */
+/* No per-track colour here any more.
+   These five entries used to carry a `bg`/`fg` pair each — teal, indigo, pink,
+   sky and amber — applied as an inline style to the icon chip. That is the same
+   five-hue palette the token file just retired, living a second life in a data
+   array where a grep for `--mm-ex-` could not find it, and it put five
+   saturated chips in a row on the most-read section of the site.
+
+   The chips are neutral now and the glyph does the work: chat, mic, video,
+   users, clock already say which format each card is, and a glyph is
+   information where a hue with no legend is decoration. The one colour event
+   per card is the accent arriving under the pointer. */
 const TRACKS = [
   { name: 'Conversational chat', tag: 'Async', icon: 'chat' as const, track: 'chatbot' as const,
     desc: 'A text interview candidates finish on a phone in minutes. Best for hourly and high volume roles.',
-    meta: ['No scheduling', 'Mobile first'], bg: '#EAF4F3', fg: '#0F766E' },
+    meta: ['No scheduling', 'Mobile first'] },
   { name: 'Voice screening', tag: 'Async', icon: 'mic' as const, track: 'voice' as const,
     desc: 'A spoken conversation with an AI interviewer. Answers are transcribed, then scored on content and delivery together.',
-    meta: ['Live transcript', 'Interruptible'], bg: '#EEEFFB', fg: '#4338CA' },
+    meta: ['Live transcript', 'Interruptible'] },
   { name: 'AI video avatar', tag: 'Async', icon: 'video' as const, track: 'video_avatar' as const,
     desc: 'A configured presenter asks each question on camera, reacts to the answer, and follows up when one is thin.',
-    meta: ['Personas', 'Replicas'], bg: '#FCF0F5', fg: '#BE185D' },
+    meta: ['Personas', 'Replicas'] },
   { name: 'Live two-way call', tag: 'Live', icon: 'users' as const, track: 'two_way' as const,
     desc: 'Your interviewer leads a real video call. Mimic records it with consent, transcribes it and scores the same rubric.',
-    meta: ['Host room', 'Star rating'], bg: '#EAF3F9', fg: '#0369A1' },
+    meta: ['Host room', 'Star rating'] },
   { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
     desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
-    meta: ['Timer on every question', 'Integrity checks'], bg: '#FBF2E7', fg: '#B45309' },
+    meta: ['Timer on every question', 'Integrity checks'] },
 ]
 
 /* Five cards do not divide into the 3-column grid, so the last one widens to
@@ -236,7 +247,7 @@ function TrackCard({ t, wide }: { t: (typeof TRACKS)[number]; wide: boolean }) {
       tabIndex={0}
     >
       <div className="top">
-        <span className="ic" style={{ background: t.bg, color: t.fg }}><Ico n={t.icon} /></span>
+        <span className="ic"><Ico n={t.icon} /></span>
         <span className="tag">{t.tag}</span>
       </div>
       <h3>{t.name}</h3>
@@ -422,29 +433,23 @@ export default function MimicSite() {
         <section className="logos" aria-label="Customers">
           <div className="wrap">
             <p className="lead">Teams already screening with Mimic</p>
-            {/* Continuous horizontal scroll. The track translates by exactly
-                half its width, so the loop closes on itself with no jump — but
-                that only looks seamless if the remaining half is still wider
-                than the visible strip, otherwise a gap opens at the wrap point.
-                Twelve sets keeps half the track (~1.6k px) comfortably past the
-                1140px container at every breakpoint.
+            {/* Three logos, shown three times each, moving continuously — that
+                was the previous design, and its own comment gave the reason it
+                could not work: the gap had to be tuned until "roughly two
+                cycles are visible", which is another way of saying the row was
+                padded until the repetition stopped being the first thing you
+                noticed.
 
-                Only the first set is in the accessibility tree — the repeats are
-                presentational, and a screen reader should hear three customers,
-                not thirty-six. Under prefers-reduced-motion the animation is off
-                and the row sits static, which is the design this replaced. */}
-            <div className="logo-marquee">
-              <div className="logo-track">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((set) => (
-                  <div className="logo-set" key={set} aria-hidden={set > 0 ? true : undefined}>
-                    {/* Spread, not field-by-field: listing props here meant a
-                        new one on ClientLogo was silently dropped at the call
-                        site while typechecking clean, because every prop is
-                        optional. */}
-                    {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
-                  </div>
-                ))}
-              </div>
+                Three is what we have, so three is what we show. A perpetual
+                loop is the kind of motion this surface is meant not to have —
+                it never ends, it says nothing, and it is the one animation a
+                reader cannot dismiss. It also cost 36 <img> elements and 12
+                duplicate DOM subtrees to display three files.
+
+                The static row was already the reduced-motion fallback here. It
+                is simply the design now, so everyone sees the same page. */}
+            <div className="logo-row">
+              {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
             </div>
           </div>
         </section>
