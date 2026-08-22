@@ -1697,7 +1697,7 @@ const RESOURCE_PAGES: MktPage[] = [
     ]),
 ]
 const COMPANY_PAGES: MktPage[] = [
-  page('company/about', 'A', 'About · Company', 'AI interviews for every candidate, built by TalbotIQ.', 'About TalbotIQ, the team behind Mimic', 'TalbotIQ builds Mimic: AI interviewing that measures every candidate the same way and keeps a human on every decision.', 'We started TalbotIQ because the first round of hiring was broken: good people wait weeks, recruiters drown, and no two candidates get the same interview. Mimic is our answer.',     [
+  page('company/about', 'A', 'Company · About', 'AI interviews for every candidate, built by TalbotIQ.', 'About TalbotIQ, the team behind Mimic', 'TalbotIQ builds Mimic: AI interviewing that measures every candidate the same way and keeps a human on every decision.', 'We started TalbotIQ because the first round of hiring was broken: good people wait weeks, recruiters drown, and no two candidates get the same interview. Mimic is our answer.',     [
       { h2: 'The problem we started with', body: 'The first round of hiring is where the process breaks. Good candidates wait weeks for a call that may never come, recruiters spend their most valuable hours on screens that take twenty minutes, and because those screens are unstructured no two candidates get the same interview, so the results were never comparable in the first place.', blocks: [
         { kind: 'p', text: 'The industry\'s usual answer is to filter harder on the resume. That controls the queue but selects for people who write good CVs, which is rarely the job. Mimic exists because interviewing everyone is the better answer, and it only became practical once the scheduling and the recruiter hours came out of the first round.' },
       ] },

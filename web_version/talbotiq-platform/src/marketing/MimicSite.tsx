@@ -105,7 +105,14 @@ const RUBRIC = [
       file delivered with baked-in padding renders smaller than its box, so
       matching box heights across a row does not match what the eye sees. */
 type ClientLogo = { name: string; srcs: string[]; h?: number; crop?: string }
-const withExts = (base: string) => ['png', 'svg', 'jpg', 'jpeg', 'webp'].map((e) => `${base}.${e}`)
+/* The extension that actually exists goes FIRST; the rest stay as a safety net
+   for a logo dropped in later with a different one.
+   `aisling` ships as .webp, so a png-first list 404'd on png, svg, jpg AND jpeg
+   before reaching it — and the row renders twice for the marquee, so the home
+   page paid up to 48 failed requests on every load to fetch two images. A
+   fallback chain is insurance, not the happy path. */
+const withExts = (base: string, real = 'webp') =>
+  [real, ...['webp', 'png', 'svg', 'jpg', 'jpeg'].filter((e) => e !== real)].map((e) => `${base}.${e}`)
 /* Sized by AREA, not by height.
 
    Measured ink boxes, meaning the mark itself with the padding in the file
@@ -127,8 +134,8 @@ const withExts = (base: string) => ['png', 'svg', 'jpg', 'jpeg', 'webp'].map((e)
    Aisling still needs its crop: 76% of that file is empty padding, so without
    it `h` sizes the padding instead of the mark. */
 const CLIENTS: ClientLogo[] = [
-  { name: 'Total IT Global', srcs: withExts('/mimic-logos/total-it-global'), h: 45 },
-  { name: 'Aisling', srcs: withExts('/mimic-logos/aisling'), h: 30, crop: '180 / 43' },
+  { name: 'Total IT Global', srcs: withExts('/mimic-logos/total-it-global', 'png'), h: 45 },
+  { name: 'Aisling', srcs: withExts('/mimic-logos/aisling', 'webp'), h: 30, crop: '180 / 43' },
   { name: 'TalbotIQ', srcs: ['/talbotiq-logo.png'], h: 41 },
 ]
 function LogoSlot({ name, srcs, h, crop }: ClientLogo) {

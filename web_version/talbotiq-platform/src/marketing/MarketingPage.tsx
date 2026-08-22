@@ -60,6 +60,10 @@ export default function MarketingPage() {
 
   const group = NAV.find((g) => g.to === page.sectionTo)
   const cta = page.cta ?? { title: 'See Mimic on your roles', sub: 'Book a 30-minute walkthrough, no card required.' }
+  /* Pages past ~600 words become a wall without an index; hubs are link
+     directories and already are one. Plain anchors, no scroll-spy — nothing to
+     go stale. */
+  const showIndex = page.tier !== 'hub' && page.sections.length >= 4
 
   return (
     <MarketingLayout seo={{ title: page.metaTitle, desc: page.metaDesc }}>
@@ -72,10 +76,39 @@ export default function MarketingPage() {
             <p className="lede">{page.intro}</p>
             <div className="mk-actions">
               <Link className="btn btn-primary" to="/#demo">Book a demo</Link>
-              {page.tier !== 'hub' && <Link className="btn btn-ghost" to={page.sectionTo}>All {page.section.toLowerCase()}</Link>}
+              {/* "All company" and "All trust" are not things. The label names
+                  the destination — a section overview — which is both accurate
+                  and the same shape on all five sections. */}
+              {page.tier !== 'hub' && <Link className="btn btn-ghost" to={page.sectionTo}>{page.section} overview</Link>}
             </div>
           </header>
+        </div>
 
+        {/* The section index — page chrome, so it lives OUTSIDE the article.
+            It began as a card in a right-hand column, which left a 1100x600
+            hole on 54 pages, and then as a sticky pill inside the centred
+            measure, which half-covered every heading that scrolled past it: a
+            floating island narrower than the text it floats over reads as a
+            rendering fault. A secondary toolbar spanning the full width, sitting
+            directly under the header, is the shape this actually is — content
+            passes under it the way it passes under the header itself. That
+            requires it to be a sibling of the article rather than a child of it,
+            which is why the wrap closes above. */}
+        {showIndex && (
+          <nav className="mk-index" aria-label="On this page">
+            <div className="wrap mk-index-in">
+              <h2>On this page</h2>
+              <ul>
+                {page.sections.map((s) => (
+                  <li key={s.h2}><a href={`#${slugify(s.h2)}`}>{s.h2}</a></li>
+                ))}
+                {page.faqs?.length ? <li><a href="#questions">Questions</a></li> : null}
+              </ul>
+            </div>
+          </nav>
+        )}
+
+        <div className="wrap">
           {/* The format, running.
               A buyer choosing a screening tool is also choosing what they put
               their applicants through, and a feature list cannot answer that.
@@ -130,31 +163,16 @@ export default function MarketingPage() {
               )}
             </>
           ) : (
-            <div className={page.sections.length >= 4 ? 'mk-layout' : undefined}>
-              {/* Pages past ~600 words become a wall without an index. The TOC is
-                  plain anchor links — no scroll-spy, nothing to go stale. */}
-              {page.sections.length >= 4 && (
-                <nav className="mk-toc" aria-label="On this page">
-                  <h2>On this page</h2>
-                  <ul>
-                    {page.sections.map((s) => (
-                      <li key={s.h2}><a href={`#${slugify(s.h2)}`}>{s.h2}</a></li>
-                    ))}
-                    {page.faqs?.length ? <li><a href="#questions">Questions</a></li> : null}
-                  </ul>
-                </nav>
-              )}
-              <div className="mk-body">
-                {page.slug === 'resources/roi-calculator' && <Reveal><RoiCalculator /></Reveal>}
-                {page.sections.map((s, i) => (
-                  <Reveal key={s.h2} as="section" className="mk-sec" delay={i * 70}>
-                    <h2 id={slugify(s.h2)}>{s.h2}</h2>
-                    {s.body && <p>{s.body}</p>}
-                    {s.bullets && <ul className="mk-bullets">{s.bullets.map((b) => <li key={b}>{b}</li>)}</ul>}
-                    <Blocks blocks={s.blocks} />
-                  </Reveal>
-                ))}
-              </div>
+            <div className="mk-body">
+              {page.slug === 'resources/roi-calculator' && <Reveal><RoiCalculator /></Reveal>}
+              {page.sections.map((s, i) => (
+                <Reveal key={s.h2} as="section" className="mk-sec" delay={i * 70}>
+                  <h2 id={slugify(s.h2)}>{s.h2}</h2>
+                  {s.body && <p>{s.body}</p>}
+                  {s.bullets && <ul className="mk-bullets">{s.bullets.map((b) => <li key={b}>{b}</li>)}</ul>}
+                  <Blocks blocks={s.blocks} />
+                </Reveal>
+              ))}
             </div>
           )}
 

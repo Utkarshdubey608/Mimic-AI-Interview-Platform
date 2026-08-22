@@ -198,6 +198,12 @@
   --mm-dur-2:.26s;   /* local state: menus, disclosure */
   --mm-dur-3:.42s;   /* entrances travelling a real distance */
 
+  /* ── Chrome metrics ───────────────────────────────────────────────────
+     The header measures 62px at every width. Anything that sticks BELOW it
+     needs that number, and a second sticky strip guessing at it is how you
+     get a 6px seam of content showing through the gap. Named once. */
+  --mm-nav-h:3.875rem;
+
   background:var(--mm-bg);
   color:var(--mm-ink);
   font-family:'Archivo',system-ui,-apple-system,sans-serif;
@@ -1294,8 +1300,19 @@
    where a section ends; enough air lets them feel it instead. */
 .mimic-site .mk-hero{padding:var(--mm-s-8) 0 var(--mm-s-6)}
 .mimic-site .mk-hero h1{font-size:var(--mm-t-d2);line-height:1.04;letter-spacing:-.04em}
-.mimic-site .mk-sec{padding:var(--mm-s-7) 0}
-.mimic-site .mk-sec:last-child{padding-bottom:var(--mm-s-8)}
+/* ── Section rhythm: ONE rule owns the air ─────────────────────────────
+   Two rules were paying for the same gap. `.mk-sec` contributed 72px of
+   padding-top and the `h2` inside it another 48px of margin-top, so every
+   section head sat 120px below the paragraph above it — measured, not
+   estimated. On a section with three lines of body copy that is more air than
+   content, and it read as an unfinished page rather than a generous one.
+
+   The section owns its top air; the heading inside it owns none. And the air
+   is a clamp, not a fixed 4.5rem, so a phone gets 40px where a desktop gets
+   72px — one rhythm, scaled to the viewport it is read on. */
+.mimic-site .mk-sec{padding:clamp(2.5rem,4.5vw,4.5rem) 0 0}
+.mimic-site .mk-sec > h2:first-child{margin-top:0}
+.mimic-site .mk-sec:last-child{padding-bottom:var(--mm-s-7)}
 /* 66ch, not 74. Past roughly 75 characters the eye loses the line return, and
    this site's pages are read top to bottom rather than skimmed. */
 .mimic-site .mk-body,.mimic-site .mk{max-width:var(--mm-measure)}
@@ -1314,24 +1331,82 @@
 /* Deep-page layout: prose at reading measure, the index parked in the margin.
    Every column is minmax(0,…) so a wide table scrolls inside its own wrapper
    rather than widening the grid. */
-.mimic-site .mk-layout{display:grid;grid-template-columns:minmax(0,74ch) minmax(0,1fr);gap:3.5rem;align-items:start}
-.mimic-site .mk-layout .mk-body{max-width:none;min-width:0}
-.mimic-site .mk-layout .mk-toc{
-  position:sticky;top:88px;order:2;display:block;max-width:300px;
-  padding:1.25rem var(--mm-s-4);border:1px solid var(--mm-line);border-radius:var(--mm-r-card);
-  background:var(--mm-bg-alt)
+/* ── The index is a RAIL ACROSS, not a card beside ─────────────────────
+   This was a two-column grid: 74ch of text, 56px of gap, and a 402px column
+   holding a 300px card. Measured on /company/about at 1440: the card ended
+   300px down and the remaining ~1100x600 of that column was white. Fifty-four
+   pages carried the same hole. That is not generous whitespace — whitespace is
+   generous when it frames something, and there was nothing on that side of the
+   page to frame.
+
+   So the index becomes what it actually is: a sub-navigation. A sticky
+   horizontal rail directly under the header, at most seven items because no
+   page on this site has more, translucent like the header above it so the
+   content passes underneath rather than being cut off by an opaque strip. The
+   article gets the whole measure back and sits in one centred column, which is
+   the composition the reading measure was designed for in the first place. */
+/* ── The section index: a secondary TOOLBAR ────────────────────────────
+   Three shapes were tried and two were wrong, so the reasoning is worth
+   keeping.
+
+   It began as a card in a right-hand grid column. Measured on /company/about at
+   1440: the card ended 300px down and the remaining ~1100x600 of that column
+   was white, on all 54 pages that render an index. Whitespace is generous when
+   it frames something; there was nothing on that side of the page to frame.
+
+   Then it became a sticky pill inside the centred measure. That fixed the hole
+   and broke something worse: a floating island NARROWER than the text it floats
+   over clipped the left half of every heading that scrolled past it, which reads
+   as a rendering fault rather than as depth.
+
+   What it actually is, is a secondary navigation bar — so it spans the full
+   width and sits directly beneath the header, and content passes underneath it
+   exactly as it passes under the header. Same material, same leading-edge
+   light, same scroll edge, so the two strips read as one piece of chrome. This
+   requires the index to be a SIBLING of the article, not a child; see the note
+   in MarketingPage.tsx. */
+.mimic-site .mk-index{
+  position:sticky;top:var(--mm-nav-h);z-index:40;
+  background:rgb(255 255 255 / .82);
+  backdrop-filter:saturate(180%) blur(24px);
+  -webkit-backdrop-filter:saturate(180%) blur(24px);
+  /* Light on the leading edge, then a scroll edge rather than a hard 1px rule:
+     a border under a sticky strip cuts the page in half. */
+  box-shadow:inset 0 1px 0 0 rgb(255 255 255 / .65),
+             0 1px 0 0 rgb(14 20 32 / .05),
+             0 8px 16px -12px rgb(14 20 32 / .10);
 }
-.mimic-site .mk-layout .mk-toc h2{
-  font-size:var(--mm-t-micro);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--mm-muted);margin-bottom:var(--mm-s-2)
+.mimic-site .mk-index-in{
+  display:flex;align-items:center;
+  overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
 }
-.mimic-site .mk-layout .mk-toc ul{display:flex;flex-direction:column;gap:1px;margin:0;padding:0;list-style:none}
-.mimic-site .mk-layout .mk-toc a{
-  display:block;padding:var(--mm-s-1) var(--mm-s-1);margin-left:-9px;border-radius:var(--mm-r-ctl);
-  font-size:var(--mm-t-footnote);line-height:1.45;color:var(--mm-ink-2);text-decoration:none
+.mimic-site .mk-index-in::-webkit-scrollbar{display:none}
+/* "On this page" is for a screen reader. A sighted reader can see that this is
+   a row of section names sitting under the header. */
+.mimic-site .mk-index h2{
+  position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;margin:0;
 }
-.mimic-site .mk-layout .mk-toc a:hover{background:var(--mm-reg-wash);color:var(--mm-reg)}
-.mimic-site .mk-sec h2{scroll-margin-top:88px}
+.mimic-site .mk-index ul{
+  display:flex;align-items:center;gap:var(--mm-s-1);
+  margin:0;padding:0;list-style:none;flex-wrap:nowrap;
+}
+.mimic-site .mk-index li{flex:0 0 auto;scroll-snap-align:start}
+.mimic-site .mk-index a{
+  display:block;padding:.6875rem var(--mm-s-2);border-radius:var(--mm-r-ctl);
+  font-size:var(--mm-t-footnote);font-weight:550;line-height:1.45;
+  letter-spacing:-.008em;color:var(--mm-ink-2);text-decoration:none;
+  white-space:nowrap;
+  transition:color var(--mm-dur-1) var(--mm-ease);
+}
+.mimic-site .mk-index a:hover{color:var(--mm-reg)}
+/* Feedback on the press, not on release. */
+.mimic-site .mk-index a:active{color:var(--mm-reg-d)}
+.mimic-site .mk-index a:focus-visible{outline:2px solid var(--mm-reg);outline-offset:-2px}
+
+/* Both strips sit above an anchor target, so a jump must clear both. */
+.mimic-site .mk-sec h2{scroll-margin-top:8.5rem}
 
 /* Callouts — a full frame, never a bare coloured left edge. */
 .mimic-site .mk-note{margin:var(--mm-s-4) 0 0;padding:var(--mm-s-3) var(--mm-s-4);border-radius:var(--mm-r-card);border:1px solid var(--mm-line);background:var(--mm-bg-alt)}
@@ -1342,7 +1417,10 @@
 .mimic-site .mk-note-limit{background:#FDF5EA;border-color:#F0DBBC}
 .mimic-site .mk-note-limit strong{color:#8A4308}
 .mimic-site .mk-note-placeholder{background:#fff;border-style:dashed;border-color:var(--mm-line-2)}
-.mimic-site .mk-toc,.mimic-site .crumbs{display:flex;flex-wrap:wrap;gap:var(--mm-s-1);font-size:var(--mm-t-caption);color:var(--mm-muted)}
+/* The section index used to share this rule with the breadcrumbs, which are a
+   different component doing a different job. It defines its own shape above,
+   and inheriting `flex-wrap:wrap` from here would break its single-line rail. */
+.mimic-site .crumbs{display:flex;flex-wrap:wrap;gap:var(--mm-s-1);font-size:var(--mm-t-caption);color:var(--mm-muted)}
 .mimic-site .crumbs a{color:var(--mm-muted);text-decoration:none}
 .mimic-site .crumbs a:hover{color:var(--mm-reg)}
 /* The table is allowed a min-width so columns stay readable, but the wrapper
@@ -1428,8 +1506,9 @@
   .mimic-site .mech,.mimic-site .two{grid-template-columns:1fr;gap:var(--mm-s-5)}
   .mimic-site .mk-split{grid-template-columns:minmax(0,1fr);gap:var(--mm-s-2)}
   /* The index leaves the margin and returns to normal flow above the prose. */
-  .mimic-site .mk-layout{grid-template-columns:minmax(0,1fr);gap:0}
-  .mimic-site .mk-layout .mk-toc{position:static;order:0;max-width:none;margin-top:1.75rem}
+  /* The index needs no narrow-screen variant any more. It was a sidebar card
+     that had to be unstacked here; it is a scrollable rail now, which is the
+     shape a phone wanted in the first place. */
   .mimic-site .mk-spec{min-width:0}
   /* Still a floor, just a smaller one. Dropping it to 0 here reintroduced the
      one-word-per-line collapse on tablet widths; the wrapper scrolls if the
@@ -1563,8 +1642,7 @@
    pattern, no repeating gradient: at this contrast a texture is either invisible
    or it is moire, and the ink fields already carry the grain (the shader dithers
    its own gradient). What paper gets is LIGHT, and that is all. */
-.mimic-site .hero::before,
-.mimic-site .mk-hero::before{
+.mimic-site .hero::before{
   content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
   background:
     radial-gradient(80% 55% at 8% -12%, color-mix(in srgb, var(--mm-reg) 7%, transparent), transparent 60%),
@@ -1935,13 +2013,13 @@
 @media (prefers-reduced-transparency:reduce){
   .mimic-site .mm-field{background:none}
   .mimic-site .mm-field-gl{display:none}
-  .mimic-site .hero::before,.mimic-site .mk-hero::before{background:none}
+  .mimic-site .hero::before,.mimic-site .mkpage::before{background:none}
 }
 /* More contrast wants edges, not atmosphere. The seams become real rules and the
    lighting is dropped, so nothing sits between the ink and the type on it. */
 @media (prefers-contrast:more){
   .mimic-site .mm-field,.mimic-site .mm-field-gl{display:none}
-  .mimic-site .hero::before,.mimic-site .mk-hero::before,.mimic-site .hero::after{background:none}
+  .mimic-site .hero::before,.mimic-site .mkpage::before,.mimic-site .hero::after{background:none}
   .mimic-site .section.tinted::before{background:none;border-top-color:var(--mm-stroke)}
   .mimic-site .cta::before,.mimic-site .foot::before,
   .mimic-site .section.on-dark::before{background:var(--mm-on-ink-2)}
@@ -2300,3 +2378,69 @@
   .mimic-site .cta-in-page .btn{align-self:center}
 }
 .mimic-site .cta-in-page h2{font-size:var(--mm-t-d5)}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The article measure — one centred column, media full width.
+
+   With the index moved out of the right-hand column, the prose had nothing
+   holding it to a measure any more: the grid cell used to do the capping, so
+   removing the grid would have let paragraphs run the full 1216px of the wrap.
+   Seventy characters is the point past which the eye loses the line return;
+   1216px is about a hundred and thirty.
+
+   So the text column states its own measure and CENTRES. Everything that is
+   prose — breadcrumb, hero, index, body, questions, keep-reading — shares that
+   one axis. Everything that is evidence — the recorded footage — keeps the full
+   width of the wrap. A narrow measure with full-bleed media on the same centre
+   line is the composition; the previous layout's void on the right was the
+   absence of one.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .mkpage{--mm-article:74ch}
+
+.mimic-site .mkpage > .wrap > .crumbs,
+.mimic-site .mkpage .mk-hero,
+.mimic-site .mkpage > .wrap > .mk-body,
+.mimic-site .mkpage .hub-cols,
+.mimic-site .mkpage .mk-related,
+.mimic-site .mkpage .mk-faq{
+  max-width:var(--mm-article);
+  margin-inline:auto;
+}
+/* The index spans the page, so its inner row keeps the article's measure and
+   centre line — the first item sits directly above the first heading.
+   The gutter is added back into the cap because `.wrap` puts its padding INSIDE
+   the max-width: capping at the bare measure indents the row by one gutter and
+   lands the first item ~50px right of the heading beneath it. */
+.mimic-site .mk-index-in{max-width:calc(var(--mm-article) + var(--mm-gutter) * 2)}
+
+/* Keep-reading, at the article measure, is two across rather than three-plus-a
+   stranded-fourth. */
+@media (min-width:700px){
+  .mimic-site .mkpage .mk-related > div{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ── Light on the page, not a box on it ───────────────────────────────────
+   The inner-page hero used to paint its own field with `inset:0`. That was
+   invisible while the hero spanned the full wrap, and became a defect the
+   moment the article took a centred measure: a grey rectangle with four hard
+   edges sitting behind the headline, reading as a mis-sized panel rather than
+   as light.
+
+   The field belongs to the PAGE, so the page paints it. Full width without a
+   single `vw` unit — `left:0;right:0` on the positioned page container spans
+   exactly the content box and cannot add a horizontal scrollbar the way
+   `100vw` does when a vertical one is present. It fades out downward instead
+   of stopping, so there is no bottom edge either. */
+.mimic-site .mkpage{position:relative;isolation:isolate}
+.mimic-site .mkpage::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:34rem;
+  z-index:0;pointer-events:none;
+  background:
+    radial-gradient(70% 60% at 18% -10%, color-mix(in srgb, var(--mm-reg) 8%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--mm-bg-alt), var(--mm-bg) 74%);
+  /* The mask is what removes the edge. Without it the linear-gradient still
+     lands on an abrupt boundary wherever the 34rem ends. */
+  -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 45%, transparent 100%);
+  mask-image:linear-gradient(180deg, #000 0%, #000 45%, transparent 100%);
+}
+.mimic-site .mkpage > .wrap{position:relative;z-index:1}

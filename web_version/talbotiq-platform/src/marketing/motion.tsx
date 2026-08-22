@@ -17,7 +17,14 @@ export function Reveal({ children, delay = 0, as: Tag = 'div', className = '' }:
     if (!el || typeof IntersectionObserver === 'undefined') { setInView(true); return }
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => { if (e.isIntersecting) { setInView(true); io.disconnect() } })
-    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+      // The trigger is GEOMETRIC, not proportional. A 0.12 threshold asks that
+      // 12% of the element's OWN area be on screen, which a tall section can
+      // never satisfy: past roughly seven viewports of height, 12% of it does
+      // not fit at once, the reveal never fires, and the content sits at
+      // opacity 0 permanently. Asking instead that the element's top has risen
+      // above 88% of the viewport behaves the same for a card and cannot be
+      // starved by height.
+    }, { threshold: 0, rootMargin: '0px 0px -12% 0px' })
     io.observe(el)
     return () => io.disconnect()
   }, [])
