@@ -2152,7 +2152,7 @@
 .mimic-site .noise-side.is-ordered .noise-label{color:var(--mm-ink)}
 .mimic-site .noise-rows{display:flex;flex-direction:column;gap:9px}
 .mimic-site .noise-row{
-  display:block;height:7px;border-radius:2px;
+  display:block;height:6px;border-radius:2px;
   background:var(--mm-line-2);
   width:var(--w,100%);
   transform-origin:left;
@@ -2165,8 +2165,13 @@
 .mimic-site .noise-side.is-ordered .noise-row{
   width:62%;background:var(--mm-line-2);
 }
+/* Calm, not loud. Eight bars at full accent saturation made this the most
+   shouting block on the page — which argues against the very thing the section
+   claims, since structure is the quiet outcome, not the emphatic one. Mixed
+   back to just over half strength it still reads unmistakably as the accent
+   and as the resolved state, without competing with the headline above it. */
 .mimic-site .reveal.in .noise-side.is-ordered .noise-row{
-  width:100%;background:var(--mm-reg);
+  width:100%;background:color-mix(in srgb, var(--mm-reg) 55%, transparent);
 }
 .mimic-site .noise-foot{
   font-size:.8125rem;line-height:1.5;color:var(--mm-muted);
@@ -2187,6 +2192,8 @@
 @media (prefers-reduced-motion:reduce){
   /* The resolved state is the finished design; without travel it simply
      renders that way from the start. */
-  .mimic-site .noise-side.is-ordered .noise-row{width:100%;background:var(--mm-reg);transition:none}
+  .mimic-site .noise-side.is-ordered .noise-row{
+    width:100%;background:color-mix(in srgb, var(--mm-reg) 55%, transparent);transition:none
+  }
   .mimic-site .noise-row{transition:none}
 }
