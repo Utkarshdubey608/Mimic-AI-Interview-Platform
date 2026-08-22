@@ -1,49 +1,58 @@
 // src/components/ats/FacialAnalysisPanel.tsx
-// Displays AWS Rekognition facial analysis on the Mimic light surface.
+// Displays AWS Rekognition facial analysis on ground-aware surfaces.
 
 import { useState } from 'react'
 import { AlertTriangle, Check, ChevronDown, Flag, ScanFace } from 'lucide-react'
 import { Card, SectionTitle, cn } from '@/components/ui'
+import { palette, exhibit, diverging, type Ground } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
 import type { FacialSessionSummary, RekognitionEmotionType, FacialFrame } from '@/types/rekognition.types'
 
+type Pal = ReturnType<typeof palette>
+
 // Emotion accents, all drawn from the exhibit ramp so eight distinct signals
-// still read as one system on a white surface.
-const EMOTION_COLOR: Record<RekognitionEmotionType, string> = {
-  CALM:      '#0F766E',
-  HAPPY:     '#15803D',
-  CONFUSED:  '#B45309',
-  SURPRISED: '#4338CA',
-  FEAR:      '#BE185D',
-  SAD:       '#0369A1',
-  ANGRY:     '#B3261E',
-  DISGUSTED: '#064428',
+// still read as one system on either ground.
+function emotionColor(type: RekognitionEmotionType, ground: Ground): string {
+  const map: Record<RekognitionEmotionType, string> = {
+    CALM:      exhibit.chatbot[ground],
+    HAPPY:     exhibit.video[ground],
+    CONFUSED:  exhibit.chat[ground],
+    SURPRISED: exhibit.voice[ground],
+    FEAR:      exhibit.video_avatar[ground],
+    SAD:       exhibit.two_way[ground],
+    ANGRY:     palette(ground).risk,
+    DISGUSTED: ground === 'room' ? diverging.room[4] : '#064428',
+  }
+  return map[type] ?? palette(ground).inkFaint
 }
 
-function emotionChipStyle(type: RekognitionEmotionType) {
-  const c = EMOTION_COLOR[type] ?? '#5B6067'
+function emotionChipStyle(type: RekognitionEmotionType, ground: Ground) {
+  const c = emotionColor(type, ground)
   return { color: c, background: `${c}14`, borderColor: `${c}33` } // 14/33 = ~8%/20% alpha hex
 }
 
-function barColor(pct: number) {
-  return pct >= 80 ? '#15803D' : pct >= 60 ? '#B45309' : '#B3261E'
+function barColor(pct: number, pal: Pal) {
+  return pct >= 80 ? pal.ok : pct >= 60 ? pal.warn : pal.risk
 }
 
 function AttentionBar({ score, label }: { score: number; label: string }) {
+  const pal = palette(useWorkspaceGround())
   const pct = Math.round(Math.max(0, Math.min(1, score)) * 100)
   return (
     <div className="flex items-center gap-3">
-      <span className="w-36 flex-shrink-0 text-xs font-medium text-neutral-600">{label}</span>
-      <div className="flex-1 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: barColor(pct) }} />
+      <span className="w-36 flex-shrink-0 text-xs font-medium text-ink-body">{label}</span>
+      <div className="flex-1 h-1.5 bg-surface-hover rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: barColor(pct, pal) }} />
       </div>
-      <span className="w-10 text-right text-xs font-bold tabular-nums" style={{ color: barColor(pct) }}>{pct}%</span>
+      <span className="w-10 text-right text-xs font-bold tabular-nums" style={{ color: barColor(pct, pal) }}>{pct}%</span>
     </div>
   )
 }
 
 function EmotionChip({ type, conf }: { type: RekognitionEmotionType; conf: number }) {
+  const ground = useWorkspaceGround()
   return (
-    <span className="text-2xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border" style={emotionChipStyle(type)}>
+    <span className="text-2xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border" style={emotionChipStyle(type, ground)}>
       {type} <span className="opacity-60 tabular-nums">{conf.toFixed(0)}%</span>
     </span>
   )
@@ -88,8 +97,8 @@ function frameOutcomes(frames: FacialFrame[]) {
 function DiagRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 h-7 border-b border-border last:border-0">
-      <span className="text-xs text-neutral-500">{label}</span>
-      <span className="text-xs font-medium text-neutral-700 truncate">{value}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
+      <span className="text-xs font-medium text-ink-body truncate">{value}</span>
     </div>
   )
 }
@@ -97,8 +106,8 @@ function DiagRow({ label, value }: { label: string; value: React.ReactNode }) {
 function CaptureDiagnostics({ summary, proxyUrl }: { summary: FacialSessionSummary; proxyUrl?: string }) {
   const outcomes = frameOutcomes(summary.frames)
   return (
-    <div className="mt-4 rounded-xl bg-neutral-50 border border-border p-4">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-2">Capture diagnostics</p>
+    <div className="mt-4 rounded-xl bg-surface-sunk border border-border p-4">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-2">Capture diagnostics</p>
       <div>
         <DiagRow label="Proxy URL" value={<span className="font-mono">{proxyUrl || 'not set'}</span>} />
         <DiagRow label="Frames attempted" value={<span className="tabular-nums">{summary.totalFrames}</span>} />
@@ -106,11 +115,11 @@ function CaptureDiagnostics({ summary, proxyUrl }: { summary: FacialSessionSumma
       </div>
       {outcomes.length > 0 && (
         <div className="mt-3 pt-3 border-t border-border">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-1">Per-frame outcomes</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-1">Per-frame outcomes</p>
           {outcomes.map(o => (
             <DiagRow key={o.label} label={o.label} value={<span className="tabular-nums">{o.count}</span>} />
           ))}
-          <p className="text-2xs text-neutral-400 mt-2 italic leading-relaxed">Latest note: "{outcomes[0].note}"</p>
+          <p className="text-2xs text-ink-faint mt-2 italic leading-relaxed">Latest note: "{outcomes[0].note}"</p>
         </div>
       )}
     </div>
@@ -131,32 +140,32 @@ export function FacialAnalysisPanel({ summary, proxyUrl }: Props) {
   // Nothing captured at all — tell the user clearly + why, so they can debug.
   if (summary.totalFrames === 0) {
     return (
-      <Card className="p-6 border-warning-border">
+      <Card className="p-6 border-warn-rule">
         <div className="flex items-start gap-3">
-          <span className="w-9 h-9 rounded-full bg-warning-bg border border-warning-border text-warning flex items-center justify-center flex-shrink-0">
+          <span className="w-9 h-9 rounded-full bg-warn-bg border border-warn-rule text-warn flex items-center justify-center flex-shrink-0">
             <ScanFace size={17} strokeWidth={1.75} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="text-sm font-semibold text-neutral-900">No facial frames were captured</h3>
+              <h3 className="text-sm font-semibold text-ink">No facial frames were captured</h3>
               <span className="badge badge-warning">Not captured</span>
             </div>
-            <p className="text-sm text-neutral-500 mt-1.5 leading-relaxed">
+            <p className="text-sm text-ink-muted mt-1.5 leading-relaxed">
               Facial analysis has nothing to report for this interview. The most common causes:
             </p>
-            <ul className="text-xs text-neutral-500 mt-2.5 space-y-1.5">
+            <ul className="text-xs text-ink-muted mt-2.5 space-y-1.5">
               <li className="flex gap-2 leading-relaxed">
-                <span className="text-neutral-300 flex-shrink-0" aria-hidden="true">—</span>
+                <span className="text-ink-disabled flex-shrink-0" aria-hidden="true">—</span>
                 {proxyUrl
-                  ? <>Proxy URL is set — confirm the proxy is actually running at <span className="font-mono text-neutral-600">{proxyUrl}</span>.</>
+                  ? <>Proxy URL is set — confirm the proxy is actually running at <span className="font-mono text-ink-body">{proxyUrl}</span>.</>
                   : <>No proxy URL configured — set it in Settings → AWS Rekognition Proxy URL.</>}
               </li>
               <li className="flex gap-2 leading-relaxed">
-                <span className="text-neutral-300 flex-shrink-0" aria-hidden="true">—</span>
+                <span className="text-ink-disabled flex-shrink-0" aria-hidden="true">—</span>
                 Camera permission must be granted when the interview starts.
               </li>
               <li className="flex gap-2 leading-relaxed">
-                <span className="text-neutral-300 flex-shrink-0" aria-hidden="true">—</span>
+                <span className="text-ink-disabled flex-shrink-0" aria-hidden="true">—</span>
                 Facial capture only runs while the interview is active (≈1 frame / 8s).
               </li>
             </ul>

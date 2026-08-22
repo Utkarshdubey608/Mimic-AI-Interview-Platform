@@ -390,7 +390,7 @@ export function Toggle({ checked, onChange, label, description, disabled, inline
     >
       <span
         className={cn(
-          'absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm',
+          'absolute top-[3px] h-4 w-4 rounded-full bg-surface shadow-sm',
           // transform, not `left`: animating `left` is a layout property and
           // would invalidate on every frame.
           'transition-transform duration-base ease-out',

@@ -113,9 +113,13 @@ export function PageHeader({
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <h1 className="font-display text-[30px] font-bold text-ink sm:text-4xl">{title}</h1>
+          {/* 22px, not 30-36. A workspace page is a place someone works all day;
+              its name is wayfinding, not a cover line. The display voice keeps
+              its widened character at a size that reads as confident rather than
+              loud — the marketing site is where the 68px voice lives. */}
+          <h1 className="font-display text-[21px] font-bold tracking-[-0.015em] text-ink sm:text-[23px]">{title}</h1>
           {description && (
-            <p className="measure mt-2 text-sm leading-relaxed text-ink-muted">{description}</p>
+            <p className="measure mt-1.5 text-sm leading-relaxed text-ink-muted">{description}</p>
           )}
           {meta && <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div>}
         </div>

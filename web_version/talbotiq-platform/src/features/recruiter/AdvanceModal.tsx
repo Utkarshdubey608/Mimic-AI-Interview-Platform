@@ -176,7 +176,7 @@ export function AdvanceModal({
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="field-label mb-0">Results</span>
-            <span className="text-xs font-medium tabular-nums text-neutral-500">
+            <span className="text-xs font-medium tabular-nums text-ink-muted">
               {movedCount} moved · {sentCount} email{sentCount === 1 ? '' : 's'} sent
               {failedCount > 0 ? ` · ${failedCount} failed` : ''}
             </span>
@@ -186,31 +186,31 @@ export function AdvanceModal({
             // The candidates WERE moved server-side; only email delivery failed.
             // Say so explicitly so a mail-server rejection doesn't look like the
             // whole action failed (and can't be un-done by mistake).
-            <div className="flex items-start gap-2.5 rounded-xl border border-primary-200 bg-primary-50 px-3.5 py-3">
-              <Info size={15} aria-hidden className="mt-0.5 shrink-0 text-primary-700" />
-              <p className="text-xs leading-relaxed text-neutral-700">
-                <span className="font-bold text-neutral-900">Every candidate was moved.</span> Only the email delivery failed — the reason is listed per recipient below. That&rsquo;s a mail-server (Brevo) issue, not the advancement, so there is nothing to redo here.
+            <div className="flex items-start gap-2.5 rounded-xl border border-rule bg-surface-hover px-3.5 py-3">
+              <Info size={15} aria-hidden className="mt-0.5 shrink-0 text-ink" />
+              <p className="text-xs leading-relaxed text-ink-body">
+                <span className="font-bold text-ink">Every candidate was moved.</span> Only the email delivery failed — the reason is listed per recipient below. That&rsquo;s a mail-server (Brevo) issue, not the advancement, so there is nothing to redo here.
               </p>
             </div>
           )}
 
           <div className="overflow-hidden rounded-xl border border-border">
-            <div className="flex items-center justify-between gap-3 border-b border-border bg-neutral-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-neutral-500">
+            <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunk px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
               <span>Recipient</span>
               <span>Outcome</span>
             </div>
             <ul className="max-h-64 divide-y divide-border overflow-auto">
               {results.map((r) => (
-                <li key={r.pipelineCandidateId} className="flex flex-col gap-1 bg-white px-3 py-2.5">
+                <li key={r.pipelineCandidateId} className="flex flex-col gap-1 bg-surface px-3 py-2.5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate font-mono text-xs text-neutral-700">{r.email}</span>
+                    <span className="min-w-0 truncate font-mono text-xs text-ink-body">{r.email}</span>
                     {r.sent
                       ? <Badge variant="success">Email sent</Badge>
                       : r.error
                         ? <Badge variant="warning">Moved · email failed</Badge>
                         : <Badge variant="neutral">Moved</Badge>}
                   </div>
-                  {r.error && <p className="break-words text-[11px] leading-snug text-neutral-400">{r.error}</p>}
+                  {r.error && <p className="break-words text-[11px] leading-snug text-ink-faint">{r.error}</p>}
                 </li>
               ))}
             </ul>
@@ -228,20 +228,20 @@ export function AdvanceModal({
               <Badge variant="neutral" className="tabular-nums">{candidates.length}</Badge>
             </div>
             <div className="overflow-hidden rounded-xl border border-border">
-              <div className="flex items-center justify-between gap-3 border-b border-border bg-neutral-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-neutral-500">
+              <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunk px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-muted">
                 <span>Candidate</span>
                 <span>Score</span>
               </div>
               <ul className="max-h-40 divide-y divide-border overflow-auto">
                 {candidates.map((c) => (
-                  <li key={c.pipelineCandidateId} className="flex items-center justify-between gap-3 bg-white px-3 py-2">
+                  <li key={c.pipelineCandidateId} className="flex items-center justify-between gap-3 bg-surface px-3 py-2">
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">{c.candidateName || c.candidateEmail}</span>
-                      {c.candidateName && <span className="block truncate font-mono text-[11px] text-neutral-400">{c.candidateEmail}</span>}
+                      <span className="block truncate text-sm font-semibold text-ink">{c.candidateName || c.candidateEmail}</span>
+                      {c.candidateName && <span className="block truncate font-mono text-[11px] text-ink-faint">{c.candidateEmail}</span>}
                     </span>
                     {c.score != null
-                      ? <span className="shrink-0 text-sm font-bold tabular-nums text-neutral-900">{c.score}</span>
-                      : <span title="No score yet" className="shrink-0 text-xs font-medium text-neutral-300">—</span>}
+                      ? <span className="shrink-0 text-sm font-bold tabular-nums text-ink">{c.score}</span>
+                      : <span title="No score yet" className="shrink-0 text-xs font-medium text-ink-disabled">—</span>}
                   </li>
                 ))}
               </ul>
@@ -251,7 +251,7 @@ export function AdvanceModal({
           {kind === 'rejection' && (
             <div className={cn(
               'rounded-2xl border px-4 transition-colors duration-150',
-              rejectOptIn ? 'border-primary-200 bg-primary-50/70' : 'border-border bg-neutral-50',
+              rejectOptIn ? 'border-rule bg-surface-hover/70' : 'border-border bg-surface-sunk',
             )}>
               <Toggle
                 checked={rejectOptIn}
@@ -278,7 +278,7 @@ export function AdvanceModal({
                   <AlertTriangle size={15} aria-hidden className="mt-0.5 shrink-0 text-warning" />
                   <p className="text-xs leading-relaxed text-warning">
                     <span className="font-bold">Missing the required link.</span> Insert{' '}
-                    <code className="rounded bg-white/70 px-1 py-0.5 font-mono text-[11px]">{'{{interview_link}}'}</code>{' '}
+                    <code className="rounded bg-surface/70 px-1 py-0.5 font-mono text-[11px]">{'{{interview_link}}'}</code>{' '}
                     in the subject or body so the candidate can reach their next round.
                   </p>
                 </div>

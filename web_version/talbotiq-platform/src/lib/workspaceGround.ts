@@ -11,9 +11,30 @@
  * partialized; a display preference that must resolve before first paint has no
  * business waiting on zustand hydration.
  */
-import { useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 export type WorkspaceGround = 'room' | 'record'
+
+/**
+ * Pin the document's ground while the calling surface is mounted.
+ *
+ * html/body paint var(--ground), so a full-screen surface that only sets
+ * `data-ground` on its own root leaves the page edge on the other ground — an
+ * over-scroll bounce or a route transition flashes the wrong world. Full-screen
+ * surfaces (entry, candidate lobby, interview rooms) call this; the previous
+ * value is restored on unmount so nested surfaces unwind correctly.
+ */
+export function useDocumentGround(ground: WorkspaceGround): void {
+  useEffect(() => {
+    const el = document.documentElement
+    const prev = el.dataset.ground
+    el.dataset.ground = ground
+    return () => {
+      if (prev === undefined) delete el.dataset.ground
+      else el.dataset.ground = prev
+    }
+  }, [ground])
+}
 
 const KEY = 'mimic-workspace-ground'
 

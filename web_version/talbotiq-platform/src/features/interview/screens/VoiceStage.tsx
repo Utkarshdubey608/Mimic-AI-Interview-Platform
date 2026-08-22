@@ -139,7 +139,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
      boundary before requesting the permission rather than after. */
   if (!gestured) {
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -176,7 +176,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
     // saw depended on which format their recruiter happened to pick.
     if (v.endedGraceful) {
       return (
-        <InterviewStage branding={branding} track="voice" ground="record">
+        <InterviewStage branding={branding} track="voice">
           <Completion branding={branding} sessionId={sessionId} />
         </InterviewStage>
       )
@@ -185,7 +185,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
     // Telling someone "all done, thank you" when their connection died mid-answer
     // is a lie the product would be telling at the worst possible moment.
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -205,7 +205,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
 
   if (v.phase === 'error') {
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -238,7 +238,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
       branding={branding}
       track="voice"
       layout="focus"
-      ground="record"
+     
       connection={<ConnectionMeter quality={quality} />}
       transport={
         /* `busy` is deliberately not passed. It previously carried `connecting`,

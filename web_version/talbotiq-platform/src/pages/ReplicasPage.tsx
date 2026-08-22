@@ -16,7 +16,7 @@ function StatusBadge({ status }: { status: TavusReplica['status'] }) {
 /* ── Face placeholder for replicas without a preview video ──────────────────── */
 function PlaceholderFace() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-300">
+    <div className="flex h-full w-full items-center justify-center bg-surface-hover text-ink-disabled">
       <svg
         width="40" height="40" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -33,18 +33,18 @@ function PlaceholderFace() {
 function ReplicaCardSkeleton() {
   return (
     <Card className="overflow-hidden">
-      <div className="h-44 w-full animate-pulse bg-neutral-100" />
+      <div className="h-44 w-full animate-pulse bg-surface-hover" />
       <div className="p-4">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3.5 w-3/5 animate-pulse rounded bg-neutral-100" />
-            <div className="h-2.5 w-2/5 animate-pulse rounded bg-neutral-100" />
+            <div className="h-3.5 w-3/5 animate-pulse rounded bg-surface-hover" />
+            <div className="h-2.5 w-2/5 animate-pulse rounded bg-surface-hover" />
           </div>
-          <div className="h-5 w-16 flex-shrink-0 animate-pulse rounded-full bg-neutral-100" />
+          <div className="h-5 w-16 flex-shrink-0 animate-pulse rounded-full bg-surface-hover" />
         </div>
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <div className="h-2.5 w-24 animate-pulse rounded bg-neutral-100" />
-          <div className="h-2.5 w-12 animate-pulse rounded bg-neutral-100" />
+          <div className="h-2.5 w-24 animate-pulse rounded bg-surface-hover" />
+          <div className="h-2.5 w-12 animate-pulse rounded bg-surface-hover" />
         </div>
       </div>
     </Card>
@@ -57,7 +57,7 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
 
   return (
     <Card hover className="group flex flex-col overflow-hidden cursor-pointer" onClick={() => onSelect(r)}>
-      <div className="relative h-44 w-full overflow-hidden rounded-t-2xl bg-neutral-100">
+      <div className="relative h-44 w-full overflow-hidden rounded-t-2xl bg-surface-hover">
         {r.thumbnail_video_url
           ? <video src={r.thumbnail_video_url} className="h-full w-full object-cover" muted loop autoPlay playsInline />
           : <PlaceholderFace />
@@ -72,8 +72,8 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-neutral-900">{r.replica_name}</p>
-            <p className="mt-0.5 truncate font-mono text-xs text-neutral-400">{r.replica_id}</p>
+            <p className="truncate text-sm font-semibold text-ink">{r.replica_name}</p>
+            <p className="mt-0.5 truncate font-mono text-xs text-ink-faint">{r.replica_id}</p>
           </div>
           <StatusBadge status={r.status} />
         </div>
@@ -81,23 +81,23 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
         {r.status === 'training' && (
           <div className="mb-3">
             <div className="mb-1.5 flex items-baseline justify-between text-xs">
-              <span className="font-medium text-neutral-500">Training</span>
-              <span className="font-bold tabular-nums text-neutral-700">{progress}%</span>
+              <span className="font-medium text-ink-muted">Training</span>
+              <span className="font-bold tabular-nums text-ink-body">{progress}%</span>
             </div>
-            <div className="h-[5px] overflow-hidden rounded-sm bg-neutral-200">
-              <div className="h-full rounded-sm bg-primary-700 transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-[5px] overflow-hidden rounded-sm bg-surface-hover">
+              <div className="h-full rounded-sm bg-action transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
 
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
-          <span className="truncate text-xs text-neutral-400">
+          <span className="truncate text-xs text-ink-faint">
             {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
           </span>
           <button
             type="button"
             onClick={e => { e.stopPropagation(); if (confirm(`Delete "${r.replica_name}"?`)) del.mutate(r.replica_id, { onSuccess: () => toast.success('Replica deleted'), onError: (e: any) => toast.error(e.message) }) }}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
             aria-label={`Delete replica ${r.replica_name}`}
           >
             <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
@@ -138,8 +138,8 @@ export default function ReplicasPage() {
 
       {/* Inventory line — only once there is something to count */}
       {!isLoading && !isError && total > 0 && (
-        <div className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-neutral-500">
-          <span className="font-semibold tabular-nums text-neutral-700">{total}</span>
+        <div className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-muted">
+          <span className="font-semibold tabular-nums text-ink-body">{total}</span>
           <span>replica{total !== 1 ? 's' : ''} available</span>
           {trainingCount > 0 && (
             <>
@@ -215,7 +215,7 @@ export default function ReplicasPage() {
                 src={selected.thumbnail_video_url}
                 controls
                 playsInline
-                className="max-h-52 w-full rounded-xl border border-border bg-neutral-100 object-contain"
+                className="max-h-52 w-full rounded-xl border border-border bg-surface-hover object-contain"
               />
             )}
 

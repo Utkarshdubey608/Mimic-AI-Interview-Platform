@@ -29,7 +29,7 @@ const filingRef = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUp
 
 /** Score ink by band: strong / borderline / low. */
 const scoreTone = (score: number) =>
-  score >= 80 ? 'text-success' : score >= 65 ? 'text-warning' : 'text-neutral-900'
+  score >= 80 ? 'text-success' : score >= 65 ? 'text-warning' : 'text-ink'
 
 export default function SessionsPage() {
   const qc = useQueryClient()
@@ -157,7 +157,7 @@ export default function SessionsPage() {
         <Card className="overflow-hidden p-0">
           <div className="record-head flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
             <span className="section-label">Bundle index</span>
-            <span className="font-mono nums text-[11px] text-neutral-500">
+            <span className="font-mono nums text-[11px] text-ink-muted">
               {sessions.data.length} record{sessions.data.length === 1 ? '' : 's'}
               {' · '}
               {sessions.data.filter((s) => s.status === 'completed').length} filed
@@ -173,7 +173,7 @@ export default function SessionsPage() {
             <table className="w-full min-w-[880px] text-sm">
               <caption className="sr-only">Interview records, newest first</caption>
               <thead>
-                <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+                <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
                   <th scope="col" className="px-4 py-2.5 font-bold">Ref</th>
                   <th scope="col" className="px-4 py-2.5 font-bold">Candidate</th>
                   <th scope="col" className="px-4 py-2.5 font-bold">Standard applied</th>
@@ -188,22 +188,22 @@ export default function SessionsPage() {
                 {sessions.data.map((s: SessionListItem) => (
                   <tr
                     key={s.id}
-                    className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-neutral-50"
+                    className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-surface-sunk"
                   >
                     <td className="px-4 py-3 align-middle">
-                      <span className="font-mono nums text-[11px] text-neutral-500">{filingRef(s.id)}</span>
+                      <span className="font-mono nums text-[11px] text-ink-muted">{filingRef(s.id)}</span>
                     </td>
                     <td className="px-4 py-3 align-middle">
                       <div className="min-w-0">
-                        <div className="truncate font-semibold text-neutral-900">{s.candidate.name}</div>
+                        <div className="truncate font-semibold text-ink">{s.candidate.name}</div>
                         {/* Unnamed candidates fall back to their email in the
                             line above; repeating it here reads as a bug. */}
                         {s.candidate.email && s.candidate.email !== s.candidate.name && (
-                          <div className="truncate text-xs text-neutral-500">{s.candidate.email}</div>
+                          <div className="truncate text-xs text-ink-muted">{s.candidate.email}</div>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 align-middle text-neutral-600">{s.templateName}</td>
+                    <td className="px-4 py-3 align-middle text-ink-body">{s.templateName}</td>
                     <td className="px-4 py-3 align-middle">
                       <ExhibitTab track={s.track} />
                     </td>
@@ -216,7 +216,7 @@ export default function SessionsPage() {
                           {s.overallScore}
                         </span>
                       ) : (
-                        <span className="font-mono text-neutral-400" aria-label="Not yet scored">—</span>
+                        <span className="font-mono text-ink-faint" aria-label="Not yet scored">—</span>
                       )}
                     </td>
                     {/* The thesis, made operable: a score never stands alone —
@@ -238,12 +238,12 @@ export default function SessionsPage() {
                             navigator.clipboard.writeText(`${window.location.origin}/take/${s.id}`)
                             toast.success('Candidate link copied')
                           }}
-                          className="text-xs font-medium text-neutral-500 transition-colors duration-150 hover:text-primary-700"
+                          className="text-xs font-medium text-ink-muted transition-colors duration-150 hover:text-ink"
                         >
                           Copy link
                         </button>
                         {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
-                          <Link to={`/live/${s.id}`} className="text-xs font-semibold text-primary-700 hover:underline">
+                          <Link to={`/live/${s.id}`} className="text-xs font-semibold text-ink hover:underline">
                             Join call
                           </Link>
                         )}
@@ -264,21 +264,21 @@ export default function SessionsPage() {
             {sessions.data.map((s: SessionListItem) => (
               <li key={s.id} className="px-4 py-3.5">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono nums text-[11px] text-neutral-500">{filingRef(s.id)}</span>
+                  <span className="font-mono nums text-[11px] text-ink-muted">{filingRef(s.id)}</span>
                   {typeof s.overallScore === 'number' ? (
                     <span className={cn('font-mono nums text-[19px] font-medium leading-none', scoreTone(s.overallScore))}>
                       {s.overallScore}
                     </span>
                   ) : (
-                    <span className="font-mono text-neutral-400 leading-none" aria-label="Not yet scored">—</span>
+                    <span className="font-mono text-ink-faint leading-none" aria-label="Not yet scored">—</span>
                   )}
                 </div>
 
-                <p className="mt-1.5 font-semibold text-neutral-900">{s.candidate.name}</p>
+                <p className="mt-1.5 font-semibold text-ink">{s.candidate.name}</p>
                 {s.candidate.email && s.candidate.email !== s.candidate.name && (
-                  <p className="truncate text-xs text-neutral-500">{s.candidate.email}</p>
+                  <p className="truncate text-xs text-ink-muted">{s.candidate.email}</p>
                 )}
-                <p className="mt-1 text-xs text-neutral-600">{s.templateName}</p>
+                <p className="mt-1 text-xs text-ink-body">{s.templateName}</p>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-2">
                   <ExhibitTab track={s.track} />
@@ -297,12 +297,12 @@ export default function SessionsPage() {
                       navigator.clipboard.writeText(`${window.location.origin}/take/${s.id}`)
                       toast.success('Candidate link copied')
                     }}
-                    className="font-medium text-neutral-500 hover:text-primary-700"
+                    className="font-medium text-ink-muted hover:text-ink"
                   >
                     Copy link
                   </button>
                   {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
-                    <Link to={`/live/${s.id}`} className="font-medium text-primary-700 hover:underline">
+                    <Link to={`/live/${s.id}`} className="font-medium text-ink hover:underline">
                       Join call
                     </Link>
                   )}
@@ -321,8 +321,8 @@ export default function SessionsPage() {
                 <Check size={13} strokeWidth={2.5} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-neutral-900">Interview link ready</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-neutral-600">
+                <p className="text-sm font-semibold text-ink">Interview link ready</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-body">
                   Share it with the candidate — the link opens their interview directly.
                 </p>
               </div>
@@ -364,7 +364,7 @@ export default function SessionsPage() {
               <button
                 type="button"
                 onClick={() => { setOpen(false); setGenOpen(true) }}
-                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
               >
                 <Sparkles size={13} /> Generate questions from a résumé instead
               </button>
@@ -405,14 +405,14 @@ export default function SessionsPage() {
                   <Check size={13} strokeWidth={2.5} className="mt-0.5 flex-shrink-0" />
                   <span>
                     Uses your applied avatar{avatarApplied.data.replicaId ? <> (<span className="font-mono">{avatarApplied.data.replicaId}</span>)</> : null} —{' '}
-                    <button type="button" className="font-semibold text-primary-700 underline underline-offset-2" onClick={() => { setOpen(false); navigate('/setup', { state: { returnTo: '/sessions' } }) }}>
+                    <button type="button" className="font-semibold text-ink underline underline-offset-2" onClick={() => { setOpen(false); navigate('/setup', { state: { returnTo: '/sessions' } }) }}>
                       edit avatar setup
                     </button>
                   </span>
                 </p>
               )}
             </div>
-            <div className="space-y-3 rounded-md border border-border bg-neutral-50 p-4">
+            <div className="space-y-3 rounded-md border border-border bg-surface-sunk p-4">
               <Toggle
                 label="Per-question timer"
                 description="Each question gets its own answer countdown (greetings, “are you ready?” and wrap-up are never timed). Applies to the Chatbot and Timed Q&A tracks."

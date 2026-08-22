@@ -169,7 +169,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
     // own wording, so the last thing a candidate saw depended on which format
     // their recruiter picked. It is now identical across every mode.
     return (
-      <InterviewStage branding={branding} track="video_avatar" ground="record">
+      <InterviewStage branding={branding} track="video_avatar">
         <Completion branding={branding} sessionId={sessionId} />
       </InterviewStage>
     )

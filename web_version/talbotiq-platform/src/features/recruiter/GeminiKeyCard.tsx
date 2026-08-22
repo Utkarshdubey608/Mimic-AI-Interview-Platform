@@ -53,9 +53,9 @@ export function GeminiKeyCard() {
           This panel kept its icon plate when the others lost theirs, which read
           as one section arbitrarily outranking its neighbours. */}
       <div className="record-head px-5 py-2.5">
-        <h2 className="font-display text-[14px] font-bold text-neutral-900">Gemini — AI interview</h2>
+        <h2 className="font-display text-[14px] font-bold text-ink">Gemini — AI interview</h2>
       </div>
-      <p className="px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+      <p className="px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
         Used server-side for résumé question generation &amp; scoring. Stored on the server, never sent back to the browser.
       </p>
 
@@ -66,9 +66,9 @@ export function GeminiKeyCard() {
           {status?.geminiKeySet ? (
             <>
               <span className="badge badge-success"><span className="live-dot" />Active</span>
-              <span className="font-mono text-xs text-neutral-600">{status.geminiKeyMasked}</span>
-              <span className="text-xs text-neutral-400">·</span>
-              <span className="text-xs text-neutral-500">{status.source} · <span className="font-mono">{status.model}</span></span>
+              <span className="font-mono text-xs text-ink-body">{status.geminiKeyMasked}</span>
+              <span className="text-xs text-ink-faint">·</span>
+              <span className="text-xs text-ink-muted">{status.source} · <span className="font-mono">{status.model}</span></span>
             </>
           ) : (
             <span className="badge badge-warning">Not configured — using heuristic fallback</span>
@@ -90,16 +90,16 @@ export function GeminiKeyCard() {
               type="button"
               onClick={() => setShow((s) => !s)}
               aria-label={show ? 'Hide the Gemini API key' : 'Show the Gemini API key'}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
             >
               {show ? 'Hide' : 'Show'}
             </button>
           </div>
-          <p className="mt-2 text-xs text-neutral-500">Get one at aistudio.google.com → API keys. Keys start with “AIza”.</p>
+          <p className="mt-2 text-xs text-ink-muted">Get one at aistudio.google.com → API keys. Keys start with “AIza”.</p>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-1 rounded-md border border-border bg-neutral-100 p-1" role="group" aria-label="Gemini model">
+          <div className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-hover p-1" role="group" aria-label="Gemini model">
             {(['gemini-2.5-flash', 'gemini-2.5-pro'] as GeminiModel[]).map((m) => (
               <button
                 key={m}
@@ -108,7 +108,7 @@ export function GeminiKeyCard() {
                 aria-pressed={model === m}
                 className={cn(
                   'rounded-md px-3 py-1 text-xs font-semibold capitalize transition-colors duration-150',
-                  model === m ? 'bg-white text-primary-700 shadow-xs' : 'text-neutral-500 hover:text-neutral-800',
+                  model === m ? 'bg-surface text-ink shadow-xs' : 'text-ink-muted hover:text-ink',
                 )}
               >
                 {m.replace('gemini-2.5-', '')}

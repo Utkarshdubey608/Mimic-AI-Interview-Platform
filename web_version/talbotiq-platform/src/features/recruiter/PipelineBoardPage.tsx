@@ -113,25 +113,25 @@ function Cardlet({
       style={style}
       className={cn(
         'card p-3.5 transition-shadow duration-150',
-        card.advanceable ? 'border-primary-200' : 'border-border',
+        card.advanceable ? 'border-rule' : 'border-border',
         isDragging ? 'opacity-40 shadow-lg' : 'hover:shadow',
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-bold tracking-[-0.01em] text-neutral-900">{card.candidateName || card.candidateEmail}</div>
+          <div className="truncate text-sm font-bold tracking-[-0.01em] text-ink">{card.candidateName || card.candidateEmail}</div>
           {/* Only a secondary line when it says something new — unnamed
               candidates fall back to the email above, and printing it twice
               reads as a rendering bug. */}
           {card.candidateName && (
-            <div className="truncate font-mono text-[11px] leading-4 text-neutral-400">{card.candidateEmail}</div>
+            <div className="truncate font-mono text-[11px] leading-4 text-ink-faint">{card.candidateEmail}</div>
           )}
         </div>
         {card.advanceable && (
           <button
             {...attributes}
             {...listeners}
-            className="shrink-0 cursor-grab touch-none rounded-lg border border-primary-100 bg-primary-50 p-1 text-primary-400 transition-colors duration-150 hover:border-primary-300 hover:bg-primary-100 hover:text-primary-700 active:cursor-grabbing"
+            className="shrink-0 cursor-grab touch-none rounded-lg border border-rule bg-surface-hover p-1 text-ink-faint transition-colors duration-150 hover:border-rule-strong hover:bg-surface-hover hover:text-ink active:cursor-grabbing"
             aria-label="Drag to advance"
           >
             <GripVertical size={14} aria-hidden />
@@ -142,24 +142,24 @@ function Cardlet({
       <div className="mt-2.5 flex items-center justify-between gap-2">
         <Badge variant={s.variant}>{s.label}</Badge>
         {card.score !== null
-          ? <span className="text-right text-sm font-bold tabular-nums text-neutral-900">{card.score}</span>
-          : <span title="No score yet" className="text-right text-xs font-medium text-neutral-300">—</span>}
+          ? <span className="text-right text-sm font-bold tabular-nums text-ink">{card.score}</span>
+          : <span title="No score yet" className="text-right text-xs font-medium text-ink-disabled">—</span>}
       </div>
 
       {hasActions && (
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border pt-2.5">
           {card.advanceable && (
-            <button onClick={() => onAdvance(card)} className="inline-flex items-center gap-1 text-xs font-bold text-primary-700 transition-colors duration-150 hover:text-primary-800">
+            <button onClick={() => onAdvance(card)} className="inline-flex items-center gap-1 text-xs font-bold text-ink transition-colors duration-150 hover:text-ink">
               Advance <ArrowRight size={12} aria-hidden />
             </button>
           )}
           {card.status === 'in_round' && (
-            <button onClick={() => onReject(card)} className="text-xs font-medium text-neutral-400 transition-colors duration-150 hover:text-danger">
+            <button onClick={() => onReject(card)} className="text-xs font-medium text-ink-faint transition-colors duration-150 hover:text-danger">
               Not advancing
             </button>
           )}
           {canMoveBack && (
-            <button onClick={() => onMoveBack(card)} className="inline-flex items-center gap-1 text-xs font-medium text-neutral-400 transition-colors duration-150 hover:text-neutral-700">
+            <button onClick={() => onMoveBack(card)} className="inline-flex items-center gap-1 text-xs font-medium text-ink-faint transition-colors duration-150 hover:text-ink-body">
               <Undo2 size={11} aria-hidden /> Move back
             </button>
           )}
@@ -168,8 +168,8 @@ function Cardlet({
               onClick={onToggleAudit}
               aria-expanded={auditOpen}
               className={cn(
-                'ml-auto inline-flex items-center gap-1 text-xs font-medium transition-colors duration-150 hover:text-neutral-700',
-                auditOpen ? 'text-neutral-700' : 'text-neutral-400',
+                'ml-auto inline-flex items-center gap-1 text-xs font-medium transition-colors duration-150 hover:text-ink-body',
+                auditOpen ? 'text-ink-body' : 'text-ink-faint',
               )}
             >
               <HistoryIcon size={11} aria-hidden /> {auditOpen ? 'Hide' : 'History'}
@@ -179,17 +179,17 @@ function Cardlet({
       )}
 
       {auditOpen && card.history.length > 0 && (
-        <ol className="mt-3 rounded-xl border border-border bg-neutral-50 px-3 py-2.5">
+        <ol className="mt-3 rounded-xl border border-border bg-surface-sunk px-3 py-2.5">
           {card.history.map((h, i) => {
             const e = describeEntry(h, rounds)
             return (
               <li key={i} className="relative pb-2.5 pl-4 last:pb-0">
-                <span aria-hidden className="absolute left-0 top-[5px] h-1.5 w-1.5 rounded-full bg-primary-300 ring-2 ring-neutral-50" />
+                <span aria-hidden className="absolute left-0 top-[5px] h-1.5 w-1.5 rounded-full bg-ink-disabled ring-2 ring-surface-sunk" />
                 {i < card.history.length - 1 && (
                   <span aria-hidden className="absolute bottom-0 left-[2.5px] top-[13px] w-px bg-border" />
                 )}
-                <span className="block text-[11px] font-semibold leading-snug text-neutral-700">{e.what}</span>
-                <span className="block text-[11px] leading-snug text-neutral-400">{e.meta}</span>
+                <span className="block text-[11px] font-semibold leading-snug text-ink-body">{e.what}</span>
+                <span className="block text-[11px] leading-snug text-ink-faint">{e.meta}</span>
               </li>
             )
           })}
@@ -208,20 +208,20 @@ function QuickAdvanceBar({ round, onApply }: { round: RoundDef | undefined; onAp
   const [value, setValue] = useState<number>(round?.advanceRule?.value ?? 60)
 
   return (
-    <div className="mb-2.5 flex items-center gap-1.5 rounded-xl border border-border bg-white p-1.5 shadow-xs">
+    <div className="mb-2.5 flex items-center gap-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-xs">
       <Select
         aria-label="Quick-advance rule"
         value={mode}
         onChange={(e) => setMode(e.target.value as 'threshold' | 'topN')}
         options={[{ value: 'threshold', label: 'Score ≥' }, { value: 'topN', label: 'Top N' }]}
-        className="!h-8 w-[92px] !rounded-lg !border-neutral-200 !pl-2.5 !pr-7 text-xs font-semibold"
+        className="!h-8 w-[92px] !rounded-lg !border-rule !pl-2.5 !pr-7 text-xs font-semibold"
       />
       <input
         aria-label="Quick-advance value"
         type="number"
         value={value}
         onChange={(e) => setValue(Number(e.target.value))}
-        className="input-base !h-8 w-14 !rounded-lg !border-neutral-200 px-2 text-xs font-semibold tabular-nums"
+        className="input-base !h-8 w-14 !rounded-lg !border-rule px-2 text-xs font-semibold tabular-nums"
       />
       <Button size="sm" variant="outline" className="ml-auto" onClick={() => onApply(mode, value)}>Apply</Button>
     </div>
@@ -237,7 +237,7 @@ function DroppableColumn({ col, children }: { col: BoardColumn; children: React.
         // min-h keeps EMPTY columns (Selected / Not-advancing) a large, reliable
         // drop target — otherwise a short empty column is nearly impossible to hit.
         'flex min-h-[16rem] w-72 shrink-0 flex-col rounded-2xl border p-3 transition-colors duration-150',
-        isOver ? 'border-primary-200 bg-primary-50 ring-2 ring-primary-300' : 'border-transparent bg-neutral-100/70',
+        isOver ? 'border-rule bg-surface-hover ring-2 ring-signal' : 'border-transparent bg-surface-hover/70',
       )}
     >
       {children}
@@ -252,17 +252,17 @@ function ColumnHead({ col }: { col: BoardColumn }) {
     <div
       className={cn(
         'mb-2.5 flex items-center justify-between gap-2 rounded-xl border px-2.5 py-1.5',
-        col.kind === 'selected' ? 'border-mint-border bg-mint-bg' : 'border-transparent bg-white/60',
+        col.kind === 'selected' ? 'border-mint-border bg-mint-bg' : 'border-transparent bg-surface/60',
       )}
     >
       <span className="flex min-w-0 items-center gap-1.5">
         {col.kind === 'selected' && <CheckCircle2 size={13} aria-hidden className="shrink-0 text-mint-ink" />}
-        {col.kind === 'not_advancing' && <XCircle size={13} aria-hidden className="shrink-0 text-neutral-400" />}
-        <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-neutral-900">{col.title}</span>
+        {col.kind === 'not_advancing' && <XCircle size={13} aria-hidden className="shrink-0 text-ink-faint" />}
+        <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-ink">{col.title}</span>
       </span>
       <Badge
         variant="neutral"
-        className={cn('shrink-0 tabular-nums', col.kind === 'selected' && 'border-mint-border bg-white/80 text-mint-ink')}
+        className={cn('shrink-0 tabular-nums', col.kind === 'selected' && 'border-mint-border bg-surface/80 text-mint-ink')}
       >
         {col.cards.length}
       </Badge>
@@ -305,9 +305,9 @@ function Column({
       <div className="flex-1 space-y-2">
         {col.cards.length === 0
           ? (
-            <div className="flex h-full min-h-[7rem] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-300 px-3 text-center">
-              <span className="text-xs font-medium text-neutral-500">{EMPTY_LANE_LABEL[col.kind]}</span>
-              <span className="text-[11px] text-neutral-400">Drop a card here to move it</span>
+            <div className="flex h-full min-h-[7rem] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-rule-strong px-3 text-center">
+              <span className="text-xs font-medium text-ink-muted">{EMPTY_LANE_LABEL[col.kind]}</span>
+              <span className="text-[11px] text-ink-faint">Drop a card here to move it</span>
             </div>
           )
           : col.cards.map((c) => (
@@ -488,12 +488,12 @@ export default function PipelineBoardPage() {
         <Skeleton className="mt-3 h-4 w-96" />
         <div className="mt-9 flex gap-4 overflow-x-auto pb-4">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex min-h-[16rem] w-72 shrink-0 flex-col rounded-2xl bg-neutral-100/70 p-3">
-              <div className="flex items-center justify-between rounded-xl bg-white/60 px-2.5 py-2">
+            <div key={i} className="flex min-h-[16rem] w-72 shrink-0 flex-col rounded-2xl bg-surface-hover/70 p-3">
+              <div className="flex items-center justify-between rounded-xl bg-surface/60 px-2.5 py-2">
                 <Skeleton className="h-3.5 w-24" />
                 <Skeleton className="h-5 w-7 rounded-full" />
               </div>
-              <div className="mt-2.5 flex items-center gap-1.5 rounded-xl border border-border bg-white p-1.5">
+              <div className="mt-2.5 flex items-center gap-1.5 rounded-xl border border-border bg-surface p-1.5">
                 <Skeleton className="h-8 w-[92px] rounded-lg" />
                 <Skeleton className="h-8 w-14 rounded-lg" />
                 <Skeleton className="ml-auto h-8 w-16 rounded-full" />
@@ -530,7 +530,7 @@ export default function PipelineBoardPage() {
             action={(
               <div className="flex items-center gap-4">
                 <Button onClick={() => void q.refetch()}>Try again</Button>
-                <Link to="/pipelines" className="text-sm font-semibold text-primary-700 transition-colors duration-150 hover:text-primary-800">
+                <Link to="/pipelines" className="text-sm font-semibold text-ink transition-colors duration-150 hover:text-ink">
                   Back to pipelines
                 </Link>
               </div>
@@ -630,7 +630,7 @@ export default function PipelineBoardPage() {
     <div className="max-w-[1440px] mx-auto px-6 py-8">
       <Link
         to="/pipelines"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 transition-colors duration-150 hover:text-primary-700"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors duration-150 hover:text-ink"
       >
         <ArrowLeft size={15} aria-hidden /> All pipelines
       </Link>
@@ -659,13 +659,13 @@ export default function PipelineBoardPage() {
         </div>
         <DragOverlay>
           {activeCard ? (
-            <div className="w-72 rotate-1 rounded-2xl border border-primary-300 bg-white p-3.5 shadow-xl">
-              <div className="truncate text-sm font-bold tracking-[-0.01em] text-neutral-900">{activeCard.candidateName || activeCard.candidateEmail}</div>
+            <div className="w-72 rotate-1 rounded-2xl border border-rule-strong bg-surface p-3.5 shadow-xl">
+              <div className="truncate text-sm font-bold tracking-[-0.01em] text-ink">{activeCard.candidateName || activeCard.candidateEmail}</div>
               {activeCard.candidateName && (
-                <div className="truncate font-mono text-[11px] leading-4 text-neutral-400">{activeCard.candidateEmail}</div>
+                <div className="truncate font-mono text-[11px] leading-4 text-ink-faint">{activeCard.candidateEmail}</div>
               )}
               {activeCard.score !== null && (
-                <div className="mt-2 text-right text-sm font-bold tabular-nums text-neutral-900">{activeCard.score}</div>
+                <div className="mt-2 text-right text-sm font-bold tabular-nums text-ink">{activeCard.score}</div>
               )}
             </div>
           ) : null}

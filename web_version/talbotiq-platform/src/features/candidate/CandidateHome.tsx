@@ -8,6 +8,7 @@ import { AmbientField } from '@/components/shell/AmbientField'
 import { MimicLockup } from '@/components/brand/MimicMark'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { useDocumentGround } from '@/lib/workspaceGround'
 import type { CandidateAssignedSession } from '@shared/types'
 
 /**
@@ -23,6 +24,7 @@ import type { CandidateAssignedSession } from '@shared/types'
  */
 export default function CandidateHome() {
   const { user, signOutUser } = useAuth()
+  useDocumentGround('room')
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my-sessions'],
     queryFn: sessionsApi.mine,
@@ -31,10 +33,13 @@ export default function CandidateHome() {
   const pending = data?.filter((s) => s.status !== 'completed' && s.status !== 'expired') ?? []
 
   return (
-    <div className="relative min-h-screen bg-ground">
-      <AmbientField variant="record" />
+    // The room, like the sign-in that led here: a candidate's whole path — the
+    // public site's hero, the entry, this lobby, most interview stages — now
+    // reads as one dark product rather than a light site with dark rooms in it.
+    <div data-ground="room" className="relative min-h-screen bg-ground">
+      <AmbientField variant="room" />
 
-      <header className="relative z-sticky border-b border-rule bg-surface">
+      <header className="relative z-sticky border-b border-rule bg-surface/80 backdrop-blur-sm">
         <div className="mx-auto flex h-[60px] max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
           <MimicLockup />
           <div className="flex items-center gap-3">
@@ -48,7 +53,7 @@ export default function CandidateHome() {
 
       <main className="relative z-raised">
         <Page width="reading">
-          <h1 className="font-display text-[28px] font-bold tracking-[-0.03em] text-ink">Your interviews</h1>
+          <h1 className="font-display text-[23px] font-bold tracking-[-0.02em] text-ink">Your interviews</h1>
           <p className="mt-1.5 text-sm text-ink-muted">
             {/* States the count rather than only listing rows: a candidate wants
                 to know how many things are outstanding before they read any. */}

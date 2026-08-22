@@ -11,7 +11,7 @@ function HeaderRow({ label, value, strong, size = 'sm' }: { label: string; value
   return (
     <div className={cn('flex items-baseline gap-3', size === 'lg' ? 'py-1' : 'py-[3px]')}>
       <span className={cn(
-        'flex-shrink-0 font-bold uppercase tracking-[0.08em] text-neutral-400',
+        'flex-shrink-0 font-bold uppercase tracking-[0.08em] text-ink-faint',
         size === 'lg' ? 'w-16 text-[11px]' : 'w-14 text-[10px]',
       )}>
         {label}
@@ -19,7 +19,7 @@ function HeaderRow({ label, value, strong, size = 'sm' }: { label: string; value
       <span className={cn(
         'min-w-0 flex-1 truncate',
         size === 'lg' ? 'text-sm' : 'text-xs',
-        strong ? 'font-semibold text-neutral-900' : 'text-neutral-600',
+        strong ? 'font-semibold text-ink' : 'text-ink-body',
       )}>
         {value}
       </span>
@@ -74,30 +74,30 @@ export function EmailPreview({
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-xs">
+      <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
         {/* Client chrome — toolbar */}
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-neutral-50 px-4 py-2">
-          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
-            <Mail size={13} className="text-primary-700" /> Email preview
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-sunk px-4 py-2">
+          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+            <Mail size={13} className="text-ink" /> Email preview
           </span>
           <Button
             size="xs" variant="ghost" onClick={() => setFull(true)}
             icon={<Maximize2 size={13} />}
-            className="text-primary-700 hover:bg-primary-50 hover:text-primary-800"
+            className="text-ink hover:bg-surface-hover hover:text-ink"
           >
             Full preview
           </Button>
         </div>
 
         {/* Client chrome — message headers */}
-        <div className="border-b border-border bg-white px-4 py-2.5">
+        <div className="border-b border-border bg-surface px-4 py-2.5">
           <HeaderRow label="From" value={fromLine} />
           <HeaderRow label="To" value={candidateEmail} />
           <HeaderRow label="Subject" value={subject} strong />
         </div>
 
         {/* Scaled-to-fit inline render — the whole email, never clipped. */}
-        <div ref={boxRef} className="max-h-[520px] overflow-y-auto overflow-x-hidden bg-neutral-100">
+        <div ref={boxRef} className="max-h-[520px] overflow-y-auto overflow-x-hidden bg-surface-hover">
           <div style={{ zoom: scale }} dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       </div>
@@ -129,24 +129,24 @@ function FullPreview({
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900/40 backdrop-blur-[2px] animate-fade-in" onClick={onClose}>
-      <div className="mx-auto my-4 flex h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border bg-white shadow-xl animate-slide-up"
+      <div className="mx-auto my-4 flex h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-xl animate-slide-up"
         onClick={(e) => e.stopPropagation()}>
         {/* Email client header */}
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-lg font-extrabold tracking-[-0.02em] text-neutral-900">{subject}</h3>
+            <h3 className="truncate font-display text-lg font-extrabold tracking-[-0.02em] text-ink">{subject}</h3>
             <div className="mt-2.5 border-t border-border pt-2.5">
               <HeaderRow label="From" value={from} size="lg" />
               <HeaderRow label="To" value={to} size="lg" />
             </div>
           </div>
           <button type="button" onClick={onClose} aria-label="Close preview"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-700">
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink-body">
             <X size={18} />
           </button>
         </div>
         {/* Rendered email body, natural size, on the reading-pane canvas */}
-        <div className="flex-1 overflow-auto bg-neutral-100">
+        <div className="flex-1 overflow-auto bg-surface-hover">
           <div dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       </div>

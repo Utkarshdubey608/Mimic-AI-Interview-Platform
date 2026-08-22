@@ -46,19 +46,19 @@ function RoundCard({ d, n, onChange, onRemove, canRemove }: {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'rounded-2xl border bg-white p-4 transition-shadow duration-150',
-        isDragging ? 'border-primary-300 shadow-lg' : 'border-border shadow-xs',
+        'rounded-2xl border bg-surface p-4 transition-shadow duration-150',
+        isDragging ? 'border-rule-strong shadow-lg' : 'border-border shadow-xs',
       )}
     >
       <div className="flex items-start gap-3">
         {/* Order rail */}
         <div className="flex flex-shrink-0 flex-col items-center gap-1.5 pt-0.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-50 text-sm font-bold tabular-nums text-primary-700">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-surface-hover text-sm font-bold tabular-nums text-ink">
             {n}
           </span>
           <button
             {...attributes} {...listeners}
-            className="cursor-grab touch-none rounded-lg p-1 text-neutral-300 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-500 active:cursor-grabbing"
+            className="cursor-grab touch-none rounded-lg p-1 text-ink-disabled transition-colors duration-150 hover:bg-surface-hover hover:text-ink-muted active:cursor-grabbing"
             aria-label="Drag to reorder round"
           >
             <GripVertical size={15} />
@@ -68,13 +68,13 @@ function RoundCard({ d, n, onChange, onRemove, canRemove }: {
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">Round {n}</span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">Round {n}</span>
               {modeLabel && <span className="badge badge-info">{modeLabel}</span>}
             </div>
             {canRemove && (
               <button
                 type="button" onClick={onRemove} aria-label={`Remove round ${n}`}
-                className="rounded-lg p-1.5 text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+                className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
               >
                 <Trash2 size={15} />
               </button>

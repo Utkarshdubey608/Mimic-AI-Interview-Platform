@@ -156,19 +156,19 @@ export function GenerateMcqModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-5" role="dialog" aria-modal="true" aria-labelledby="gen-mcq-title">
       <button className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm" onClick={close} aria-label="Close" />
-      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-white p-6 shadow-lg">
+      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-lg">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 id="gen-mcq-title" className="font-display text-lg font-bold text-neutral-900">
+            <h2 id="gen-mcq-title" className="font-display text-lg font-bold text-ink">
               Generate an MCQ paper
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-neutral-500">
+            <p className="mt-1 text-sm leading-relaxed text-ink-muted">
               {topics === null
                 ? 'Name the role. We’ll suggest the skill areas worth testing, and you decide which ones make the paper.'
                 : 'Edit the topics, then set the shape of the paper. You’ll review every question before anything is saved.'}
             </p>
           </div>
-          <button onClick={close} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-100" aria-label="Close">
+          <button onClick={close} className="rounded-lg p-1.5 text-ink-faint hover:bg-surface-hover" aria-label="Close">
             <X size={16} />
           </button>
         </div>
@@ -202,17 +202,17 @@ export function GenerateMcqModal({
             {/* ── Step 2: the topics, edited ──────────────────────────────── */}
             <div className="mt-5">
               <span className="field-label">Topics</span>
-              <p className="mb-2 text-xs text-neutral-500">
+              <p className="mb-2 text-xs text-ink-muted">
                 Remove what doesn’t apply, add what’s missing. The paper is spread across these.
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {topics.map((t) => (
-                  <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-primary-100 bg-primary-50 py-1 pl-3 pr-2 text-xs font-medium text-primary-700">
+                  <span key={t} className="inline-flex items-center gap-1.5 rounded-full border border-rule bg-surface-hover py-1 pl-3 pr-2 text-xs font-medium text-ink">
                     {t}
                     <button
                       onClick={() => setTopics(topics.filter((x) => x !== t))}
                       aria-label={`Remove ${t}`}
-                      className="rounded-full p-0.5 text-primary-400 transition-colors hover:bg-primary-100 hover:text-primary-700"
+                      className="rounded-full p-0.5 text-ink-faint transition-colors hover:bg-surface-hover hover:text-ink"
                     >
                       <X size={12} />
                     </button>
@@ -240,7 +240,7 @@ export function GenerateMcqModal({
             {/* ── Step 3: the sections, and how many questions each gets ── */}
             <div className="mt-5">
               <span className="field-label">Sections</span>
-              <p className="mb-2 text-xs leading-relaxed text-neutral-500">
+              <p className="mb-2 text-xs leading-relaxed text-ink-muted">
                 How the paper is divided. Technical questions come from the topics above;
                 non-technical ones test judgement on the job — prioritising under pressure,
                 handling an ambiguous requirement, explaining a trade-off to someone without
@@ -255,7 +255,7 @@ export function GenerateMcqModal({
                     aria-pressed={style === s.value}
                     className={cn(
                       'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors',
-                      style === s.value ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
+                      style === s.value ? 'bg-action text-action-ink' : 'text-ink-muted hover:text-ink',
                     )}
                   >
                     {s.label}
@@ -281,7 +281,7 @@ export function GenerateMcqModal({
             </div>
 
             {style === 'mix' && total >= 1 && total <= 40 && (
-              <p className="mt-2 text-xs tabular-nums text-neutral-500">
+              <p className="mt-2 text-xs tabular-nums text-ink-muted">
                 {total} question{total === 1 ? '' : 's'} in total.
               </p>
             )}
@@ -303,7 +303,7 @@ export function GenerateMcqModal({
                     onClick={() => setDifficulty(d)}
                     className={cn(
                       'rounded-md px-2.5 py-1 text-xs font-semibold capitalize transition-colors',
-                      difficulty === d ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-900',
+                      difficulty === d ? 'bg-action text-action-ink' : 'text-ink-muted hover:text-ink',
                     )}
                   >
                     {d}
@@ -312,7 +312,7 @@ export function GenerateMcqModal({
               </div>
             </div>
 
-            <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-sm text-neutral-700">
+            <label className="mt-4 flex cursor-pointer items-center gap-2.5 text-sm text-ink-body">
               <input
                 type="checkbox"
                 checked={allowMulti}
@@ -337,7 +337,7 @@ export function GenerateMcqModal({
                 </Button>
               </div>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-neutral-500">
+            <p className="mt-3 text-xs leading-relaxed text-ink-muted">
               You’ll review and edit every question — including which option is correct — before anything is saved.
             </p>
           </>

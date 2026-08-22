@@ -8,18 +8,21 @@ import {
 import { AlertTriangle, BarChart3, Inbox, Info, LineChart as LineChartIcon, RotateCcw } from 'lucide-react'
 import { Button, Card, PageHeader, Select, Skeleton, EmptyState, SectionTitle, cn } from '@/components/ui'
 import { FeedbackPanel } from '@/features/recruiter/FeedbackPanel'
+import { palette } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
 import { analyticsApi, templatesApi } from '@/lib/api'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { matchOption, normalizeTrack } from '@/features/guide/autopilot/filterMatch'
 import type { AnalyticsFilters, AnalyticsSummary, InterviewTemplate, TrackType } from '@shared/types'
 
-/* ── Chart chrome — one visual contract for every series on this page ─────── */
-const TOOLTIP = { background: '#fff', border: '1px solid #E3E6ED', borderRadius: 10, color: '#0E1420', fontSize: 12, padding: '8px 10px', boxShadow: '0 4px 12px -2px rgba(27,11,59,0.10)' }
-const TOOLTIP_LABEL = { color: '#0E1420', fontWeight: 600, marginBottom: 2 }
-const TOOLTIP_ITEM = { color: '#3A4454' }
-const ACCENT = '#0E1420'
-const GRID = '#E3E6ED'
-const AXIS_TICK = { fill: '#5C6879', fontSize: 11 }
+/* ── Chart chrome — one visual contract for every series on this page.
+      Charts can't read CSS variables, so the hexes come from the typed token
+      mirror, resolved against the current workspace ground. ───────────────── */
+type Pal = ReturnType<typeof palette>
+
+const tooltipStyle = (pal: Pal) => ({ background: pal.surface, border: `1px solid ${pal.rule}`, borderRadius: 10, color: pal.ink, fontSize: 12, padding: '8px 10px', boxShadow: '0 4px 12px -2px rgba(27,11,59,0.10)' })
+const tooltipLabelStyle = (pal: Pal) => ({ color: pal.ink, fontWeight: 600, marginBottom: 2 })
+const tooltipItemStyle = (pal: Pal) => ({ color: pal.inkBody })
 
 const TRACK_LABEL: Record<TrackType, string> = {
   chat: 'Timed Q&A', chatbot: 'Chatbot', voice: 'Voice', video_avatar: 'Video Avatar', video: 'Video Interview', two_way: 'Two-way Interview',
@@ -28,20 +31,19 @@ const TRACK_LABEL: Record<TrackType, string> = {
 const REC_LABEL: Record<string, string> = {
   strong_yes: 'Strong Yes', yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unscored',
 }
-const REC_COLOR: Record<string, string> = {
-  strong_yes: '#0E1420', yes: '#15803D', maybe: '#B45309', no: '#B3261E', unknown: '#626B79',
-}
+const recColor = (rec: string, pal: Pal) =>
+  rec === 'strong_yes' ? pal.ink : rec === 'yes' ? pal.ok : rec === 'maybe' ? pal.warn : rec === 'no' ? pal.risk : pal.inkFaint
 
 /* ── Score bands — the single colour language for every score on the page,
       aligned to the five distribution buckets the API returns. ───────────── */
-const bucketColor = (b: string) => (b === '81-100' ? '#0E1420' : b === '61-80' ? '#15803D' : b === '41-60' ? '#B45309' : '#B3261E')
-const scoreColor = (n: number) => (n >= 81 ? '#0E1420' : n >= 61 ? '#15803D' : n >= 41 ? '#B45309' : '#B3261E')
-const scoreInk = (n: number) => (n >= 81 ? 'text-primary-700' : n >= 61 ? 'text-success' : n >= 41 ? 'text-warning' : 'text-danger')
-const BAND_LEGEND = [
-  { label: '0–40', hex: '#B3261E' },
-  { label: '41–60', hex: '#B45309' },
-  { label: '61–80', hex: '#15803D' },
-  { label: '81–100', hex: '#0E1420' },
+const bucketColor = (b: string, pal: Pal) => (b === '81-100' ? pal.ink : b === '61-80' ? pal.ok : b === '41-60' ? pal.warn : pal.risk)
+const scoreColor = (n: number, pal: Pal) => (n >= 81 ? pal.ink : n >= 61 ? pal.ok : n >= 41 ? pal.warn : pal.risk)
+const scoreInk = (n: number) => (n >= 81 ? 'text-ink' : n >= 61 ? 'text-ok' : n >= 41 ? 'text-warn' : 'text-risk')
+const bandLegend = (pal: Pal) => [
+  { label: '0–40', hex: pal.risk },
+  { label: '41–60', hex: pal.warn },
+  { label: '61–80', hex: pal.ok },
+  { label: '81–100', hex: pal.ink },
 ]
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
@@ -53,9 +55,9 @@ const mmss = (s: number) => (s > 0 ? `${Math.floor(s / 60)}m ${Math.round(s % 60
 function Stat({ label, value, sub, tone = 'ink' }: { label: string; value: string | number; sub?: string; tone?: 'ink' | 'primary' }) {
   return (
     <Card className="flex flex-col gap-1.5 p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className={cn('font-display text-3xl font-extrabold tracking-[-0.03em] tabular-nums', tone === 'primary' ? 'text-primary-700' : 'text-neutral-900')}>{value}</p>
-      {sub && <p className="text-xs font-medium text-neutral-500">{sub}</p>}
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{label}</p>
+      <p className={cn('font-display text-3xl font-extrabold tracking-[-0.03em] tabular-nums', tone === 'primary' ? 'text-ink' : 'text-ink')}>{value}</p>
+      {sub && <p className="text-xs font-medium text-ink-muted">{sub}</p>}
     </Card>
   )
 }
@@ -65,7 +67,7 @@ function PanelHead({ title, meta }: { title: ReactNode; meta?: ReactNode }) {
   return (
     <div className="mb-4">
       <SectionTitle className={meta ? 'mb-1.5' : 'mb-0'}>{title}</SectionTitle>
-      {meta && <p className="text-xs leading-relaxed text-neutral-500">{meta}</p>}
+      {meta && <p className="text-xs leading-relaxed text-ink-muted">{meta}</p>}
     </div>
   )
 }
@@ -73,8 +75,8 @@ function PanelHead({ title, meta }: { title: ReactNode; meta?: ReactNode }) {
 /** In-panel empty — a designed well rather than a bare sentence. */
 function MiniEmpty({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-neutral-50 px-4 py-6 text-sm text-neutral-500">
-      <Inbox className="h-5 w-5 flex-shrink-0 text-neutral-400" strokeWidth={1.75} aria-hidden="true" />
+    <div className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-surface-sunk px-4 py-6 text-sm text-ink-muted">
+      <Inbox className="h-5 w-5 flex-shrink-0 text-ink-faint" strokeWidth={1.75} aria-hidden="true" />
       <span>{children}</span>
     </div>
   )
@@ -89,13 +91,13 @@ function Th({ children, align = 'left', className }: { children: ReactNode; alig
 function ScoreCell({ value }: { value: number }) {
   return value
     ? <span className={cn('text-sm font-bold tabular-nums', scoreInk(value))}>{value}</span>
-    : <span className="text-sm text-neutral-400">—</span>
+    : <span className="text-sm text-ink-faint">—</span>
 }
 
 /** Proportional bar — neutral well, rounded-full fill. */
 function MeterBar({ value, color }: { value: number; color: string }) {
   return (
-    <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
+    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-hover">
       <div className="h-full rounded-full transition-[width] duration-200 ease-out" style={{ width: `${value}%`, background: color }} />
     </div>
   )
@@ -132,6 +134,17 @@ function ListSkeleton({ rows }: { rows: number }) {
 }
 
 export default function AnalyticsPage() {
+  // Chart chrome resolved against the current workspace ground — Recharts needs
+  // literal hexes, so these come from the typed token mirror, not CSS variables.
+  const ground = useWorkspaceGround()
+  const pal = palette(ground)
+  const TOOLTIP = tooltipStyle(pal)
+  const TOOLTIP_LABEL = tooltipLabelStyle(pal)
+  const TOOLTIP_ITEM = tooltipItemStyle(pal)
+  const ACCENT = pal.ink
+  const GRID = pal.rule
+  const AXIS_TICK = { fill: pal.inkMuted, fontSize: 11 }
+
   const [filters, setFilters] = useState<AnalyticsFilters>({})
   const set = <K extends keyof AnalyticsFilters>(k: K, v: AnalyticsFilters[K]) =>
     setFilters((f) => ({ ...f, [k]: v || undefined }))
@@ -384,15 +397,15 @@ export default function AnalyticsPage() {
 
           {/* In the aggregate (all-positions) view, position-specific insights are hidden. */}
           {!positionSelected && (
-            <Card className="border-primary-200 bg-primary-50/70 p-4">
+            <Card className="border-rule bg-surface-hover p-4">
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700">
+                <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-ink">
                   <Info className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-neutral-900">Position-level insights are hidden</p>
-                  <p className="mt-1 text-sm leading-relaxed text-neutral-700">
-                    Select a <span className="font-semibold text-neutral-900">Role</span> or <span className="font-semibold text-neutral-900">Template</span> above to see the
+                  <p className="text-sm font-semibold text-ink">Position-level insights are hidden</p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-body">
+                    Select a <span className="font-semibold text-ink">Role</span> or <span className="font-semibold text-ink">Template</span> above to see the
                     {' '}average score, score distribution, KPI averages, and top candidates for that position.
                     These are only meaningful within a single position.
                   </p>
@@ -411,15 +424,15 @@ export default function AnalyticsPage() {
                   <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
                   <XAxis dataKey="bucket" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ fill: '#F1F3F7' }} />
+                  <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ fill: pal.surfaceSunk }} />
                   <Bar dataKey="count" name="Interviews" radius={[6, 6, 0, 0]} maxBarSize={54}>
-                    {a.scoreDistribution.map((d) => <Cell key={d.bucket} fill={bucketColor(d.bucket)} />)}
+                    {a.scoreDistribution.map((d) => <Cell key={d.bucket} fill={bucketColor(d.bucket, pal)} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3">
-                {BAND_LEGEND.map((b) => (
-                  <span key={b.label} className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-neutral-500">
+                {bandLegend(pal).map((b) => (
+                  <span key={b.label} className="flex items-center gap-1.5 text-[11px] font-medium tabular-nums text-ink-muted">
                     <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: b.hex }} />
                     {b.label}
                   </span>
@@ -430,10 +443,10 @@ export default function AnalyticsPage() {
             <Card className="p-5">
               <PanelHead title="Average Score Trend" meta="By completion day" />
               {a.trend.length === 0 ? (
-                <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50 text-center">
-                  <LineChartIcon className="h-5 w-5 text-neutral-400" strokeWidth={1.75} aria-hidden="true" />
-                  <p className="text-sm text-neutral-500">Not enough history yet</p>
-                  <p className="max-w-[16rem] text-xs text-neutral-400">A trend line appears once interviews are completed on two or more days.</p>
+                <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface-sunk text-center">
+                  <LineChartIcon className="h-5 w-5 text-ink-faint" strokeWidth={1.75} aria-hidden="true" />
+                  <p className="text-sm text-ink-muted">Not enough history yet</p>
+                  <p className="max-w-[16rem] text-xs text-ink-faint">A trend line appears once interviews are completed on two or more days.</p>
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
@@ -442,7 +455,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
                     <XAxis dataKey="date" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(d: string) => d.slice(5)} />
                     <YAxis domain={[0, 100]} tick={AXIS_TICK} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ stroke: '#CBD1DC' }} />
+                    <Tooltip contentStyle={TOOLTIP} labelStyle={TOOLTIP_LABEL} itemStyle={TOOLTIP_ITEM} cursor={{ stroke: pal.ruleStrong }} />
                     <Area type="monotone" dataKey="averageOverall" name="Avg score" stroke={ACCENT} strokeWidth={2} fill="url(#scoreGrad)" dot={{ fill: ACCENT, r: 3, strokeWidth: 0 }} activeDot={{ fill: ACCENT, r: 4, strokeWidth: 0 }} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -461,10 +474,10 @@ export default function AnalyticsPage() {
               <div className="divide-y divide-border">
                 {a.kpiAverages.map((k) => (
                   <div key={k.kpiId} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                    <span className="w-24 flex-shrink-0 truncate text-sm text-neutral-700 sm:w-44" title={k.label}>{k.label}</span>
-                    <MeterBar value={k.average} color={scoreColor(k.average)} />
-                    <span className="w-9 flex-shrink-0 text-right text-sm font-bold tabular-nums text-neutral-800">{k.average}</span>
-                    <span className="w-20 flex-shrink-0 text-right text-[11px] tabular-nums text-neutral-400 sm:w-24" title="Share of scored interviews whose rubric included this KPI">{pct(k.coverage)} coverage</span>
+                    <span className="w-24 flex-shrink-0 truncate text-sm text-ink-body sm:w-44" title={k.label}>{k.label}</span>
+                    <MeterBar value={k.average} color={scoreColor(k.average, pal)} />
+                    <span className="w-9 flex-shrink-0 text-right text-sm font-bold tabular-nums text-ink">{k.average}</span>
+                    <span className="w-20 flex-shrink-0 text-right text-[11px] tabular-nums text-ink-faint sm:w-24" title="Share of scored interviews whose rubric included this KPI">{pct(k.coverage)} coverage</span>
                   </div>
                 ))}
               </div>
@@ -479,7 +492,7 @@ export default function AnalyticsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[26rem] table-fixed text-sm">
                   <thead>
-                    <tr className="border-b border-border text-[11px] uppercase tracking-wide text-neutral-500">
+                    <tr className="border-b border-border text-[11px] uppercase tracking-wide text-ink-muted">
                       <Th>Track</Th>
                       <Th align="right" className="w-24">Sessions</Th>
                       <Th align="right" className="w-24">Avg score</Th>
@@ -489,10 +502,10 @@ export default function AnalyticsPage() {
                   <tbody>
                     {a.byTrack.map((t) => (
                       <tr key={t.track} className="border-b border-border last:border-0">
-                        <td className="truncate py-3 pr-3 font-semibold text-neutral-900" title={TRACK_LABEL[t.track]}>{TRACK_LABEL[t.track]}</td>
-                        <td className="py-3 pl-3 text-right tabular-nums text-neutral-500">{t.count}</td>
+                        <td className="truncate py-3 pr-3 font-semibold text-ink" title={TRACK_LABEL[t.track]}>{TRACK_LABEL[t.track]}</td>
+                        <td className="py-3 pl-3 text-right tabular-nums text-ink-muted">{t.count}</td>
                         <td className="py-3 pl-3 text-right"><ScoreCell value={t.averageOverall} /></td>
-                        <td className="py-3 pl-3 text-right font-semibold tabular-nums text-neutral-800">{pct(t.completionRate)}</td>
+                        <td className="py-3 pl-3 text-right font-semibold tabular-nums text-ink">{pct(t.completionRate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -509,21 +522,21 @@ export default function AnalyticsPage() {
                   a.recommendationDistribution.map((r) => {
                     const total = a.recommendationDistribution.reduce((s, x) => s + x.count, 0)
                     const share = total ? r.count / total : 0
-                    const color = REC_COLOR[r.recommendation] ?? '#626B79'
+                    const color = recColor(r.recommendation, pal)
                     return (
                       <div key={r.recommendation} className="flex items-center gap-3">
-                        <span className="flex w-24 flex-shrink-0 items-center gap-2 text-sm text-neutral-700">
+                        <span className="flex w-24 flex-shrink-0 items-center gap-2 text-sm text-ink-body">
                           <span aria-hidden="true" className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: color }} />
                           <span className="truncate">{REC_LABEL[r.recommendation] ?? r.recommendation}</span>
                         </span>
                         <MeterBar value={Math.round(share * 100)} color={color} />
-                        <span className="w-8 flex-shrink-0 text-right text-sm font-bold tabular-nums text-neutral-800">{r.count}</span>
-                        <span className="w-10 flex-shrink-0 text-right text-[11px] tabular-nums text-neutral-400">{pct(share)}</span>
+                        <span className="w-8 flex-shrink-0 text-right text-sm font-bold tabular-nums text-ink">{r.count}</span>
+                        <span className="w-10 flex-shrink-0 text-right text-[11px] tabular-nums text-ink-faint">{pct(share)}</span>
                       </div>
                     )
                   })
                 )}
-                <div className="mt-1 border-t border-border pt-3 text-xs text-neutral-500">
+                <div className="mt-1 border-t border-border pt-3 text-xs text-ink-muted">
                   Integrity flags on {pct(a.integrityFlagRate)} of scored interviews.
                 </div>
               </div>
@@ -538,7 +551,7 @@ export default function AnalyticsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[22rem] table-fixed text-sm">
                     <thead>
-                      <tr className="border-b border-border text-[11px] uppercase tracking-wide text-neutral-500">
+                      <tr className="border-b border-border text-[11px] uppercase tracking-wide text-ink-muted">
                         <Th>Role</Th>
                         <Th align="right" className="w-24">Sessions</Th>
                         <Th align="right" className="w-24">Avg score</Th>
@@ -547,8 +560,8 @@ export default function AnalyticsPage() {
                     <tbody>
                       {a.byRole.map((r) => (
                         <tr key={r.role} className="border-b border-border last:border-0">
-                          <td className="truncate py-3 pr-3 text-neutral-700" title={r.role}>{r.role}</td>
-                          <td className="py-3 pl-3 text-right tabular-nums text-neutral-500">{r.count}</td>
+                          <td className="truncate py-3 pr-3 text-ink-body" title={r.role}>{r.role}</td>
+                          <td className="py-3 pl-3 text-right tabular-nums text-ink-muted">{r.count}</td>
                           <td className="py-3 pl-3 text-right"><ScoreCell value={r.averageOverall} /></td>
                         </tr>
                       ))}
@@ -564,7 +577,7 @@ export default function AnalyticsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[22rem] table-fixed text-sm">
                     <thead>
-                      <tr className="border-b border-border text-[11px] uppercase tracking-wide text-neutral-500">
+                      <tr className="border-b border-border text-[11px] uppercase tracking-wide text-ink-muted">
                         <Th>Template</Th>
                         <Th align="right" className="w-24">Sessions</Th>
                         <Th align="right" className="w-24">Avg score</Th>
@@ -573,8 +586,8 @@ export default function AnalyticsPage() {
                     <tbody>
                       {a.byTemplate.map((t) => (
                         <tr key={t.templateId} className="border-b border-border last:border-0">
-                          <td className="truncate py-3 pr-3 text-neutral-700" title={t.name}>{t.name}</td>
-                          <td className="py-3 pl-3 text-right tabular-nums text-neutral-500">{t.count}</td>
+                          <td className="truncate py-3 pr-3 text-ink-body" title={t.name}>{t.name}</td>
+                          <td className="py-3 pl-3 text-right tabular-nums text-ink-muted">{t.count}</td>
                           <td className="py-3 pl-3 text-right"><ScoreCell value={t.averageOverall} /></td>
                         </tr>
                       ))}
@@ -597,16 +610,16 @@ export default function AnalyticsPage() {
                 {a.topCandidates.map((c, i) => (
                   <Link key={c.sessionId} to={`/sessions/${c.sessionId}/report`}
                     title={`Open ${c.name}'s full candidate report`}
-                    className="group flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors duration-150 hover:border-primary-100 hover:bg-primary-50/60">
+                    className="group flex items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 transition-colors duration-150 hover:border-rule hover:bg-surface-hover">
                     {/* A rank is a numeral, so it is set in the mono and squared. It was a
                         gradient-filled circle, which made position 1 read as a
                         decorated badge rather than as the top of an ordered list. */}
-                    <span className={cn('flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm border font-mono text-[11px] nums', i === 0 ? 'border-neutral-900 bg-neutral-900 text-white' : 'border-border bg-neutral-50 text-neutral-500')}>{i + 1}</span>
+                    <span className={cn('flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm border font-mono text-[11px] nums', i === 0 ? 'border-action bg-action text-action-ink' : 'border-border bg-surface-sunk text-ink-muted')}>{i + 1}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">{c.name}</span>
-                      {c.role && <span className="block truncate text-xs text-neutral-500">{c.role}</span>}
+                      <span className="block truncate text-sm font-semibold text-ink">{c.name}</span>
+                      {c.role && <span className="block truncate text-xs text-ink-muted">{c.role}</span>}
                     </span>
-                    <span aria-hidden="true" className="hidden flex-shrink-0 text-xs font-semibold text-primary-700 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:inline">View report →</span>
+                    <span aria-hidden="true" className="hidden flex-shrink-0 text-xs font-semibold text-ink opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 sm:inline">View report →</span>
                     <span className={cn('flex-shrink-0 text-sm font-bold tabular-nums', scoreInk(c.overallScore))}>{c.overallScore}</span>
                   </Link>
                 ))}
@@ -620,7 +633,7 @@ export default function AnalyticsPage() {
               candidates, this measures us. */}
           <FeedbackPanel />
 
-          <p className="text-center text-[11px] text-neutral-400">Aggregated {new Date(a.generatedAt).toLocaleString()} · scored interviews only</p>
+          <p className="text-center text-[11px] text-ink-faint">Aggregated {new Date(a.generatedAt).toLocaleString()} · scored interviews only</p>
         </div>
       )}
     </div>

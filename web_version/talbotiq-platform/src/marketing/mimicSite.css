@@ -77,6 +77,8 @@
   --mm-on-ink-line:#2C3036;
   --mm-on-ink-card:#1A1E24;
   --mm-on-ink-accent:#7FDCA8; /* the accent that works on dark */
+  --mm-ai:#5BD1E4;           /* machine presence — matches the product's --ai-room;
+                                only ever marks what the model is doing (9.2:1 on ink) */
   /* The field's LIGHT — deliberately NOT the accent above.
      The accent marks single elements: a link, a tick, a focus ring. The ambient
      field lights a whole surface, and spending the green there tinted every ink
@@ -1917,4 +1919,170 @@
      phone, where the frame is already at the gutter. */
   .mimic-site .shots{padding:.5rem;border-radius:var(--mm-r-lg)}
   .mimic-site .sec-head{padding-top:var(--mm-s-2)}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13. THE ROOM HERO — the first viewport is the interview room itself.
+
+   A dark panel set into the light record, exactly the relationship the
+   product's own two grounds have. Inside it: the real avatar-round footage
+   (the page's one permitted proof) and the intelligence rail annotating what
+   the machine is doing with it. The panel hosts an ink field (`.mm-field`)
+   like every other dark surface on the site, so its lighting cannot drift
+   from the CTA's or the footer's.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .hero.room{padding:var(--mm-s-4) 0 var(--mm-s-7)}
+.mimic-site .hero-room{
+  position:relative;isolation:isolate;overflow:hidden;
+  background:var(--mm-ink);color:var(--mm-on-ink);
+  border-radius:22px;
+  border:1px solid rgb(255 255 255 / .07);
+  box-shadow:0 40px 90px -40px rgb(14 20 32 / .55), 0 16px 36px -24px rgb(14 20 32 / .35);
+}
+.mimic-site .hero-room-in{
+  position:relative;z-index:1;
+  display:grid;grid-template-columns:minmax(0,1.04fr) minmax(0,.96fr);
+  gap:clamp(32px,4.5vw,64px);align-items:center;
+  padding:clamp(34px,4.6vw,62px) clamp(24px,4.2vw,60px);
+}
+/* The headline shares a room with the footage now, so it sets smaller than the
+   old full-width cover line — presence comes from the panel, not from 68px. */
+.mimic-site .hero.room h1{
+  color:var(--mm-on-ink);max-width:15ch;
+  font-size:clamp(2.3rem,3.8vw,3.5rem);
+}
+.mimic-site .hero.room .sub{color:var(--mm-on-ink-2);max-width:46ch}
+.mimic-site .hero.room .hero-note{color:var(--mm-on-ink-2)}
+.mimic-site .hero.room .hero-note svg{color:var(--mm-ai)}
+/* The eyebrow is suppressed site-wide; in the room it earns its place as the
+   one line that names the category, marked with the machine-presence dot. */
+.mimic-site .hero.room .eyebrow{
+  display:inline-flex;align-items:center;gap:.55rem;margin-bottom:var(--mm-s-3);
+  font-size:.75rem;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--mm-ai);
+}
+.mimic-site .hero.room .eyebrow::before{
+  content:'';width:6px;height:6px;border-radius:999px;background:var(--mm-ai);
+  box-shadow:0 0 12px 2px color-mix(in srgb, var(--mm-ai) 55%, transparent);
+}
+/* Ghost action for dark panels — `.btn-ghost` is a light-ground control. */
+.mimic-site .btn-ghost-dark{background:rgb(255 255 255 / .09);color:var(--mm-on-ink)}
+.mimic-site .btn-ghost-dark:hover{background:rgb(255 255 255 / .16)}
+
+/* The stage: footage above, intelligence rail below, one column. min-width:0
+   down the whole chain, because the video's intrinsic 1280px otherwise sets the
+   min-content size of every wrapper and pushes the column through the panel. */
+.mimic-site .hero-stage{display:grid;gap:var(--mm-s-3);min-width:0}
+.mimic-site .hero-stage > *,
+.mimic-site .hero-shot,
+.mimic-site .hero-shot .reveal,
+.mimic-site .hero-shot .shot{min-width:0;max-width:100%}
+.mimic-site .hero-shot .shot video{max-width:100%}
+.mimic-site .hero-shot .shot video,
+.mimic-site .hero-shot .shot img{
+  border-color:rgb(255 255 255 / .12);background:var(--mm-on-ink-card);
+  box-shadow:0 24px 60px -28px rgb(0 0 0 / .7);
+}
+.mimic-site .hero-shot .shot figcaption{color:var(--mm-on-ink-2)}
+.mimic-site .hero-shot .shot-toggle{
+  background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);color:var(--mm-on-ink)
+}
+.mimic-site .hero-shot .shot-toggle:hover{background:#232833;border-color:#3A4150}
+.mimic-site .hero-shot .shot-rail::-webkit-slider-runnable-track{
+  background:linear-gradient(90deg,var(--mm-ai) 0 var(--p,0%),var(--mm-on-ink-line) var(--p,0%) 100%)
+}
+.mimic-site .hero-shot .shot-rail::-webkit-slider-thumb{background:var(--mm-ai);border-color:var(--mm-ink)}
+.mimic-site .hero-shot .shot-rail::-moz-range-track{background:var(--mm-on-ink-line)}
+.mimic-site .hero-shot .shot-rail::-moz-range-progress{background:var(--mm-ai)}
+.mimic-site .hero-shot .shot-rail::-moz-range-thumb{background:var(--mm-ai);border-color:var(--mm-ink)}
+
+/* ── The intelligence rail ──────────────────────────────────────────────────
+   Listening → thinking → scoring, over a speech-profiled waveform, with the
+   three real default criteria marking as the loop completes. Annotation, not
+   fabrication: the states and numbers are the ones the page already discloses. */
+.mimic-site .airail{
+  display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;
+  gap:12px 18px;min-width:0;
+  padding:12px 16px 14px;border-radius:14px;
+  background:color-mix(in srgb, var(--mm-on-ink-card) 82%, transparent);
+  border:1px solid var(--mm-on-ink-line);
+}
+.mimic-site .airail-live{display:flex;align-items:center;gap:.5rem;flex:none;min-width:6.2rem}
+.mimic-site .airail-dot{
+  width:7px;height:7px;border-radius:999px;background:var(--mm-ai);
+  box-shadow:0 0 10px 2px color-mix(in srgb, var(--mm-ai) 50%, transparent)
+}
+.mimic-site .airail[data-state='listening'] .airail-dot{animation:mmPulse 1.8s var(--mm-ease) infinite}
+.mimic-site .airail[data-state='thinking'] .airail-dot{animation:mmPulse .8s var(--mm-ease) infinite}
+.mimic-site .airail-word{
+  font-size:.8125rem;font-weight:650;letter-spacing:.02em;color:var(--mm-on-ink);
+  font-variant-numeric:tabular-nums
+}
+.mimic-site .airail-wave{
+  position:relative;display:flex;align-items:center;gap:3px;
+  height:26px;flex:1;min-width:0;overflow:hidden
+}
+.mimic-site .airail-bar{
+  flex:1;min-width:2px;max-width:5px;height:100%;border-radius:2px;
+  background:var(--mm-ai);opacity:.9;
+  transform:scaleY(calc(var(--h) * .3));
+  transition:transform .5s var(--mm-ease);
+  will-change:transform;
+}
+.mimic-site .airail[data-state='listening'] .airail-bar{
+  animation:mmWave 1.5s var(--mm-ease) infinite;
+  animation-delay:calc(var(--i) * 65ms);
+}
+.mimic-site .airail[data-state='thinking'] .airail-bar{transform:scaleY(.14);opacity:.55}
+.mimic-site .airail[data-state='scoring'] .airail-bar,
+.mimic-site .airail[data-state='scored'] .airail-bar{transform:scaleY(calc(var(--h) * .8))}
+.mimic-site .airail-sweep{
+  position:absolute;left:0;top:50%;margin-top:-1px;width:34%;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,var(--mm-ai),transparent);
+  opacity:0;transform:translateX(-40%);will-change:transform;
+}
+.mimic-site .airail[data-state='thinking'] .airail-sweep{
+  opacity:1;animation:mmSweep 1.3s linear infinite
+}
+.mimic-site .airail-marks{grid-column:1 / -1;display:flex;gap:8px;min-width:0}
+.mimic-site .airail-mark{
+  position:relative;display:flex;align-items:baseline;justify-content:space-between;gap:.45rem;
+  flex:1;min-width:0;overflow:hidden;
+  padding:5px 10px 7px;border-radius:9px;border:1px solid var(--mm-on-ink-line);
+  opacity:.45;transition:opacity .5s var(--mm-ease),border-color .5s var(--mm-ease);
+}
+.mimic-site .airail-k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mimic-site .airail-mark[data-on]{
+  opacity:1;border-color:color-mix(in srgb, var(--mm-ai) 35%, var(--mm-on-ink-line))
+}
+.mimic-site .airail-k{font-size:.6875rem;color:var(--mm-on-ink-2);letter-spacing:.01em}
+.mimic-site .airail-v{
+  font-size:.8125rem;font-weight:700;color:var(--mm-on-ink);font-variant-numeric:tabular-nums
+}
+.mimic-site .airail-fill{
+  position:absolute;left:0;right:0;bottom:0;height:2px;border-radius:1px;
+  background:var(--mm-ai);transform:scaleX(0);transform-origin:left;
+  transition:transform .9s var(--mm-ease-out);
+}
+.mimic-site .airail-mark[data-on] .airail-fill{transform:scaleX(var(--v))}
+
+@keyframes mmWave{0%,100%{transform:scaleY(calc(var(--h) * .3))}50%{transform:scaleY(var(--h))}}
+@keyframes mmSweep{from{transform:translateX(-60%)}to{transform:translateX(360%)}}
+@keyframes mmPulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Stacking and small screens. The marks drop first — on a phone the rail keeps
+   its state and wave, which is the part that reads at a glance. */
+@media (max-width:1080px){
+  .mimic-site .hero-room-in{grid-template-columns:minmax(0,1fr);gap:var(--mm-s-5)}
+  .mimic-site .hero.room h1{max-width:18ch}
+}
+@media (max-width:560px){
+  .mimic-site .airail-marks{display:none}
+  .mimic-site .hero-room-in{padding:26px 18px}
+  .mimic-site .hero-room{border-radius:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .airail-bar,.mimic-site .airail-dot,.mimic-site .airail-sweep{animation:none}
+  .mimic-site .airail-sweep{opacity:0}
+  .mimic-site .airail-bar{transition:none}
 }

@@ -32,6 +32,7 @@ import { MarketingLayout } from './MarketingLayout'
 import { Magnetic, Parallax, Reveal, useInView } from './motion'
 import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
+import { HeroIntelligence } from './HeroIntelligence'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
 import { Ico } from './icons'
@@ -336,80 +337,69 @@ export default function MimicSite() {
     <MarketingLayout>
       <main id="top">
 
-        {/* ── HERO ── */}
-        <section className="hero centered" aria-labelledby="hero-h1">
-          {/* A WebGL card field was built for this hero and never mounted. It was
-              removed rather than left shelved: the composition had no negative
-              space for it, and three passes at art direction could not fix what
-              was a placement problem. The lesson worth keeping is that one —
-              decide where a scene goes before deciding what it looks like. It is
-              in git history if it is ever wanted back. */}
-          <div className="wrap hero-in">
-            <div>
-              <span className="eyebrow">AI native interview screening</span>
-              <h1 id="hero-h1"><SplitText delay={90}>Screening intelligence, decided by humans.</SplitText></h1>
-              <p className="sub">
-                Mimic interviews every applicant the day they apply (across chat, voice, AI video
-                and a live round), and scores every answer against one rubric you define, with the
-                evidence attached.
-              </p>
-              <div className="hero-cta">
-                {/* Magnetic is pointer-gated and capped at ~6px — enough to feel
-                    responsive under the cursor, not enough to become a toy. */}
-                <Magnetic><a className="btn btn-primary btn-lg" href="#demo">Book a demo</a></Magnetic>
-                <Magnetic><a className="btn btn-ghost btn-lg" href="#scoring">See how scoring works</a></Magnetic>
+        {/* ── HERO — THE ROOM ──
+            The first viewport is the interview room itself: a dark panel set
+            into the light record, the way the product's own two grounds work.
+            Inside it, the page's one permitted proof — the real avatar round,
+            running — with the intelligence rail underneath annotating what the
+            machine is doing with it (listening → thinking → scoring). Nothing
+            here is a fabricated interface: the footage is real, the states are
+            the product's real states, and the rail's numbers are the same
+            disclosed dramatisation the scoring section uses. */}
+        <section className="hero room" aria-labelledby="hero-h1">
+          <div className="wrap">
+            <div className="hero-room">
+              {/* The ink field built for the site's dark surfaces — layered
+                  light, WebGL when the device can afford it, CSS when not. */}
+              <Field seed={7} />
+              <div className="hero-room-in">
+                <div className="hero-copy">
+                  <span className="eyebrow">AI native interview screening</span>
+                  <h1 id="hero-h1"><SplitText delay={90}>Screening intelligence, decided by humans.</SplitText></h1>
+                  <p className="sub">
+                    Mimic interviews every applicant the day they apply (across chat, voice, AI video
+                    and a live round), and scores every answer against one rubric you define, with the
+                    evidence attached.
+                  </p>
+                  <div className="hero-cta">
+                    {/* Magnetic is pointer-gated and capped at ~6px — enough to feel
+                        responsive under the cursor, not enough to become a toy. */}
+                    <Magnetic><a className="btn btn-light btn-lg" href="#demo">Book a demo</a></Magnetic>
+                    <Magnetic><a className="btn btn-ghost-dark btn-lg" href="#scoring">See how scoring works</a></Magnetic>
+                  </div>
+                  <p className="hero-note">
+                    <Ico n="check" />
+                    Candidates interview in the browser. No scheduling, no app to install.
+                  </p>
+                </div>
+
+                {/* The recording is the real product: a real Tavus replica
+                    asking a real question over the live pipeline. `priority`,
+                    because this is above the fold — the lazy arming that is
+                    right for the demos further down would paint an empty box on
+                    first load. Parallax is kept, gentler than before: inside a
+                    panel a large lean reads as the panel failing, not depth. */}
+                <div className="hero-stage">
+                  <Parallax strength={12}>
+                    <Reveal>
+                      <div className="hero-shot">
+                        <DemoVideo
+                          priority
+                          src={demoVideoSrc('video_avatar')}
+                          poster={demoPosterSrc('video_avatar')}
+                          still={demoPosterSrc('video_avatar')}
+                          caption={DEMO_COPY.video_avatar.caption}
+                          alt={DEMO_COPY.video_avatar.alt}
+                          disclosure={DEMO_COPY.video_avatar.disclosure}
+                          contentAspect={DEMO_COPY.video_avatar.contentAspect}
+                        />
+                      </div>
+                    </Reveal>
+                  </Parallax>
+                  <HeroIntelligence />
+                </div>
               </div>
-              <p className="hero-note">
-                <Ico n="check" />
-                Candidates interview in the browser. No scheduling, no app to install.
-              </p>
             </div>
-
-            {/* The hero is the AI video avatar interview, running.
-
-                What stood here was a hand-built `.frame` — five invented
-                candidates in a drawn sessions list, captioned "Illustrative
-                data" — which is the exact thing this page's thesis argues
-                against: a depiction standing in for evidence. It was the last
-                fabricated interface on the page.
-
-                The recording is the real product: a real Tavus replica asking a
-                real question over the live pipeline. It replaced the voice
-                recording here because the avatar round is the format buyers ask
-                to see, and a presenter on camera reads as an interview in one
-                frame where an audio waveform does not. Voice keeps its own card
-                and its platform page, so nothing was lost from the site.
-
-                `priority`, because this is above the fold — the lazy arming
-                that is right for the demos further down would paint an empty
-                box on first load. Parallax is kept: it is the hero's only depth
-                cue now that the WebGL layer is unmounted. */}
-            {/* `shots` is what breaks the recording out of the prose column.
-                The footage is the page's only permitted proof, so it gets the
-                widest measure here rather than being sized to the paragraph
-                above it. Same primitive the sections below use, so the frame,
-                caption measure and controls behave identically throughout. */}
-            {/* Reveal inside Parallax, not instead of it. Parallax owns the
-                transform on its own element; Reveal owns the entrance on a
-                nested one, and the desk under the frame settles from .988 via
-                `.reveal .shots` — so the hero's evidence is SET DOWN rather than
-                simply appearing. Two elements, two transforms, no conflict. */}
-            <Parallax strength={22}>
-              <Reveal>
-              <div className="shots">
-                <DemoVideo
-                  priority
-                  src={demoVideoSrc('video_avatar')}
-                  poster={demoPosterSrc('video_avatar')}
-                  still={demoPosterSrc('video_avatar')}
-                  caption={DEMO_COPY.video_avatar.caption}
-                  alt={DEMO_COPY.video_avatar.alt}
-                  disclosure={DEMO_COPY.video_avatar.disclosure}
-                  contentAspect={DEMO_COPY.video_avatar.contentAspect}
-                />
-              </div>
-              </Reveal>
-            </Parallax>
           </div>
         </section>
 

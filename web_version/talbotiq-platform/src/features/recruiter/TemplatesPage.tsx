@@ -25,8 +25,8 @@ const TRACK_META: Record<InterviewTemplate['track'], { Icon: LucideIcon; label: 
 /** A single meta fact on a card — icon, label, and a tabular value. */
 function MetaChip({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-500">
-      <span className="flex-shrink-0 text-neutral-400">{icon}</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-sunk px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+      <span className="flex-shrink-0 text-ink-faint">{icon}</span>
       {children}
     </span>
   )
@@ -128,18 +128,18 @@ export default function TemplatesPage() {
                   <Badge variant={adaptive ? 'info' : 'neutral'}>{adaptive ? 'Adaptive' : 'Fixed'}</Badge>
                 </div>
 
-                <h3 className="mt-3.5 line-clamp-2 text-base font-bold leading-snug tracking-[-0.01em] text-neutral-900">{t.name}</h3>
-                <p className="mt-0.5 line-clamp-1 text-sm text-neutral-500">{t.role}{t.seniority ? ` · ${t.seniority}` : ''}</p>
+                <h3 className="mt-3.5 line-clamp-2 text-base font-bold leading-snug tracking-[-0.01em] text-ink">{t.name}</h3>
+                <p className="mt-0.5 line-clamp-1 text-sm text-ink-muted">{t.role}{t.seniority ? ` · ${t.seniority}` : ''}</p>
 
                 <div className="mt-4 mb-5 flex flex-wrap gap-1.5">
                   <MetaChip icon={<Timer size={12} strokeWidth={1.75} />}>
-                    Prep <span className="font-bold tabular-nums text-neutral-700">{t.timing.prepSeconds}s</span>
+                    Prep <span className="font-bold tabular-nums text-ink-body">{t.timing.prepSeconds}s</span>
                   </MetaChip>
                   <MetaChip icon={<Clock size={12} strokeWidth={1.75} />}>
-                    Answer <span className="font-bold tabular-nums text-neutral-700">{t.timing.answerSeconds}s</span>
+                    Answer <span className="font-bold tabular-nums text-ink-body">{t.timing.answerSeconds}s</span>
                   </MetaChip>
                   <MetaChip icon={<ListChecks size={12} strokeWidth={1.75} />}>
-                    <span className="font-bold tabular-nums text-neutral-700">{t.rubric.kpis.filter((k) => k.enabled).length}</span> KPIs
+                    <span className="font-bold tabular-nums text-ink-body">{t.rubric.kpis.filter((k) => k.enabled).length}</span> KPIs
                   </MetaChip>
                 </div>
 
@@ -149,7 +149,7 @@ export default function TemplatesPage() {
                   <button
                     onClick={() => { if (confirm(`Delete “${t.name}”?`)) remove.mutate(t.id) }}
                     className={cn(
-                      'ml-auto flex h-8 w-8 items-center justify-center rounded-full text-neutral-400',
+                      'ml-auto flex h-8 w-8 items-center justify-center rounded-full text-ink-faint',
                       'transition-colors duration-150 hover:bg-danger-bg hover:text-danger',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2',
                     )}

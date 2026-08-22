@@ -184,7 +184,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
     // the way a timed one does. This used to be a bespoke card with its own
     // wording, its own accent bar and its own tick plate.
     return (
-      <InterviewStage branding={branding} track="chatbot" ground="record">
+      <InterviewStage branding={branding} track="chatbot">
         <Completion branding={branding} sessionId={sessionId} />
       </InterviewStage>
     )

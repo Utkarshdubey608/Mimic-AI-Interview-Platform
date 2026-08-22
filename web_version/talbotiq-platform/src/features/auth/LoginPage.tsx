@@ -8,6 +8,7 @@ import { MimicMark } from '@/components/brand/MimicMark'
 import { pageVariants } from '@/design/motion'
 import { useAuth } from './AuthProvider'
 import { AuthLoading, FirebaseNotConfigured } from './guards'
+import { useDocumentGround } from '@/lib/workspaceGround'
 import type { UserRole } from '@shared/types'
 
 /**
@@ -63,6 +64,7 @@ export default function LoginPage() {
   const { configured, loading, isAuthenticated, role, signInWithEmail, signUpWithEmail } = useAuth()
   const location = useLocation()
   const reduce = useReducedMotion() ?? false
+  useDocumentGround('room')
 
   const [mode, setMode] = useState<Mode>('signin')
   const [roleIntent, setRoleIntent] = useState<UserRole>('candidate')
@@ -100,12 +102,20 @@ export default function LoginPage() {
   }
 
   return (
-    // The entry surface is PAPER, not a room — it is the marketing site's own
-    // hero ground, so arriving here from the public site is continuous rather
-    // than a jump between two identities. An earlier pass built this as a
-    // near-black room; it looked expensive and belonged to a different company.
-    <div className="relative flex min-h-screen flex-col bg-ground">
-      <AmbientField variant="entry" />
+    // The entry surface is the ROOM. The public site now opens on the dark room
+    // hero and the workspace defaults to the room ground, so a dark entry is the
+    // continuous path — the paper version this replaces was continuous with a
+    // light-first site that no longer exists. The one rule survives unchanged:
+    // nothing may delay signing in — the atmosphere is CSS, present from the
+    // first frame, and the form is interactive immediately.
+    <div data-ground="room" className="relative flex min-h-screen flex-col bg-ground">
+      <AmbientField variant="room" />
+      {/* One key light behind the card — localized, not a page gradient. */}
+      <div
+        aria-hidden="true"
+        className="keylight-ai pointer-events-none absolute inset-0"
+        style={{ '--key-y': '46%' } as React.CSSProperties}
+      />
 
       <main className="relative z-raised flex flex-1 items-center justify-center px-5 py-10">
         <motion.div

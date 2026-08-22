@@ -46,9 +46,9 @@ function PanelHead({ title, children }: { icon?: ReactNode; title: string; child
   return (
     <>
       <div className="record-head px-5 py-2.5">
-        <h2 className="font-display text-[14px] font-bold text-neutral-900">{title}</h2>
+        <h2 className="font-display text-[14px] font-bold text-ink">{title}</h2>
       </div>
-      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
         {children}
       </p>
     </>
@@ -152,12 +152,12 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => setShowTavus(s => !s)}
                   aria-label={showTavus ? 'Hide the Tavus API key' : 'Show the Tavus API key'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-neutral-500 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
                 >
                   {showTavus ? 'Hide' : 'Show'}
                 </button>
               </div>
-              <p className="mt-2 text-xs text-neutral-500">Required — find it at tavus.io → Settings → API Keys.</p>
+              <p className="mt-2 text-xs text-ink-muted">Required — find it at tavus.io → Settings → API Keys.</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-danger">Tavus rejected the key or was unreachable — check the key, then test again.</p>
               )}
               {connState === 'ok' && (
-                <p className="text-xs text-neutral-500">Key verified. Save settings to apply it everywhere.</p>
+                <p className="text-xs text-ink-muted">Key verified. Save settings to apply it everywhere.</p>
               )}
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function SettingsPage() {
         <Card className="divide-y divide-border">
           <PanelHead icon={<Server size={17} />} title="Analysis providers — server-side">
             These keys stay on the server (set in its environment) and are proxied via{' '}
-            <span className="font-mono text-neutral-600">/api/avatar/*</span> — never exposed to the browser.
+            <span className="font-mono text-ink-body">/api/avatar/*</span> — never exposed to the browser.
           </PanelHead>
           <ul className="divide-y divide-border">
             {SERVER_KEYS.map(f => {
@@ -189,16 +189,16 @@ export default function SettingsPage() {
               return (
                 <li key={f.key} className="flex items-start justify-between gap-4 px-6 py-4">
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-neutral-900">{f.label}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">{f.hint}</p>
+                    <p className="text-sm font-semibold text-ink">{f.label}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{f.hint}</p>
                     {!configured && (
-                      <p className="mt-1.5 text-[11px] text-neutral-400">
-                        Set <span className="font-mono text-neutral-500">{f.env}</span> in the server environment.
+                      <p className="mt-1.5 text-[11px] text-ink-faint">
+                        Set <span className="font-mono text-ink-muted">{f.env}</span> in the server environment.
                       </p>
                     )}
                   </div>
                   <span className={cn('badge flex-shrink-0', configured ? 'badge-success' : 'badge-neutral', status === null && 'animate-pulse')}>
-                    <span className={cn('h-1.5 w-1.5 rounded-full', configured ? 'bg-success' : 'bg-neutral-300')} aria-hidden />
+                    <span className={cn('h-1.5 w-1.5 rounded-full', configured ? 'bg-success' : 'bg-ink-disabled')} aria-hidden />
                     {status === null ? 'Checking…' : configured ? 'Configured' : 'Not set'}
                   </span>
                 </li>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
         <Button variant="secondary" onClick={() => { if (confirm('Reset Tavus key and local preferences?')) { localStorage.removeItem('talbotiq-store'); location.reload() } }}>
           Reset to defaults
         </Button>
-        <p className="ml-auto hidden text-xs text-neutral-400 sm:block">Saving syncs the Tavus key to the server.</p>
+        <p className="ml-auto hidden text-xs text-ink-faint sm:block">Saving syncs the Tavus key to the server.</p>
       </div>
     </div>
   )

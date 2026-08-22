@@ -9,6 +9,8 @@ import {
   FileText, RotateCcw, Waves, Quote,
 } from 'lucide-react'
 import { useHumePoll } from '@/hooks/useHumeBatch'
+import { palette } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
 import { useGeminiAnalysis } from '@/hooks/useGeminiAnalysis'
 import { buildGeminiInput } from '@/services/analysisDataBuilder'
 import { ATSScorecardPanel } from '@/components/ats/ATSScorecardPanel'
@@ -25,19 +27,16 @@ import { EmotionHeatmap } from '@/components/hume/EmotionHeatmap'
 import { PerQuestionCard } from '@/components/hume/PerQuestionCard'
 
 // ── Brand score bands ───────────────────────────────────────────────────────
-// 85+ reads as the full violet→magenta signature, 75–84 as lavender-neutral,
-// below 75 as amber. Used by every score surface on the page so one number
-// always carries the same colour.
-const BAND = {
-  strong:   '#0E1420',
-  moderate: '#626B79',
-  low:      '#B45309',
-} as const
+// 85+ reads as the accent, 75–84 as neutral ink, below 75 as the warn tone.
+// Used by every score surface on the page so one number always carries the
+// same colour. Hexes come from the typed token mirror so charts and inline
+// styles follow the workspace ground.
+type Pal = ReturnType<typeof palette>
 
-function scoreColor(s: number) {
-  if (s >= 85) return { text: '#0E1420', bg: '#E2E8F6', bar: 'linear-gradient(90deg,#0E1420 0%,#BE185D 100%)' }
-  if (s >= 75) return { text: '#4A5566', bg: '#F1F3F7', bar: '#626B79' }
-  return { text: '#B45309', bg: '#FDF5EA', bar: '#B45309' }
+function scoreColor(s: number, pal: Pal) {
+  if (s >= 85) return { text: pal.ink, bg: pal.accentSoft, bar: pal.accent }
+  if (s >= 75) return { text: pal.inkBody, bg: pal.surfaceSunk, bar: pal.inkFaint }
+  return { text: pal.warn, bg: pal.surfaceSunk, bar: pal.warn }
 }
 
 /** Badge token for the headline verdict — never a flat "success" for a weak report. */
@@ -49,6 +48,12 @@ function verdictBadge(score: number, noSignal: boolean) {
 }
 
 export default function ResultsPage() {
+  // Score-band + chart hexes resolved against the current workspace ground —
+  // SVG strokes and inline styles can't read the CSS variables.
+  const ground = useWorkspaceGround()
+  const pal = palette(ground)
+  const BAND = { strong: pal.ink, moderate: pal.inkFaint, low: pal.warn } as const
+
   const store = useAppStore()
   const navigate = useNavigate()
   const conv = store.currentConversation
@@ -265,16 +270,16 @@ export default function ResultsPage() {
         description="Comprehensive candidate intelligence powered by conversational AI and behavioral analytics."
         action={
           <div className="text-right">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Session ID</p>
-            <p className="font-mono text-xs font-semibold text-neutral-700 mt-1">{conv?.conversation_id ?? 'TIQ-demo'}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Session ID</p>
+            <p className="font-mono text-xs font-semibold text-ink-body mt-1">{conv?.conversation_id ?? 'TIQ-demo'}</p>
           </div>
         }
       />
 
       {/* Hume batch processing status banner */}
       {humeIsProcessing && (
-        <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary-100 bg-primary-50 text-sm text-primary-700">
-          <span className="w-2 h-2 rounded-full bg-primary-700 animate-pulse flex-shrink-0" />
+        <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-rule bg-surface-hover text-sm text-ink">
+          <span className="w-2 h-2 rounded-full bg-action animate-pulse flex-shrink-0" />
           <span className="text-xs font-medium">Analysing voice prosody — emotion results will appear below as soon as they land.</span>
         </div>
       )}
@@ -292,20 +297,20 @@ export default function ResultsPage() {
         <Card className="p-6 flex flex-col items-center">
           <div className="relative w-32 h-32 mb-5">
             <svg width="128" height="128" viewBox="0 0 110 110" style={{ transform: 'rotate(-90deg)' }} aria-hidden="true">
-              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#E3E6ED" fill="none" />
-              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke="#0E1420" fill="none" strokeLinecap="round"
+              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke={pal.rule} fill="none" />
+              <circle cx="55" cy="55" r="48" strokeWidth="7" stroke={pal.accent} fill="none" strokeLinecap="round"
                 strokeDasharray="301.6" strokeDashoffset={offset} style={{ transition: 'stroke-dashoffset 1.5s ease' }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] tabular-nums text-neutral-900">{noSignal ? '—' : overall}</span>
-              <span className="text-xs text-neutral-400 font-semibold mt-1">/100</span>
+              <span className="font-display text-[34px] leading-none font-extrabold tracking-[-0.03em] tabular-nums text-ink">{noSignal ? '—' : overall}</span>
+              <span className="text-xs text-ink-faint font-semibold mt-1">/100</span>
             </div>
           </div>
           <p className="section-label mb-2.5">Overall Score</p>
           <span className={cn('badge', verdictBadge(overall, noSignal), 'px-3 py-1 text-xs text-center')}>{verdict}</span>
-          <div className="mt-6 w-full p-4 bg-neutral-50 rounded-xl border border-border">
-            <p className="text-[11px] font-bold text-neutral-500 uppercase tracking-wide mb-2">AI Summary</p>
-            <p className="text-xs text-neutral-600 leading-relaxed">
+          <div className="mt-6 w-full p-4 bg-surface-sunk rounded-xl border border-border">
+            <p className="text-[11px] font-bold text-ink-muted uppercase tracking-wide mb-2">AI Summary</p>
+            <p className="text-xs text-ink-body leading-relaxed">
               {humeResult
                 ? `Dominant emotion: ${humeResult.overallTopEmotions[0]?.name ?? 'Engagement'}. Composite score from ${humeResult.timeline.length} prosody predictions across ${questionsAnswered} questions.`
                 : `Candidate completed ${questionsAnswered} question${questionsAnswered !== 1 ? 's' : ''}. ${confScore >= 70 ? 'Strong confidence signals throughout.' : 'Some confidence fluctuation observed.'} Engagement: ${engageScore}%.`}
@@ -317,11 +322,11 @@ export default function ResultsPage() {
           <SectionTitle>Dimension Scores</SectionTitle>
           <div className="space-y-3.5">
             {dims.map(d => {
-              const c = scoreColor(d.score)
+              const c = scoreColor(d.score, pal)
               return (
                 <div key={d.name} className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-neutral-700 w-32 flex-shrink-0">{d.name}</span>
-                  <div className="flex-1 h-2 bg-neutral-100 rounded-full overflow-hidden">
+                  <span className="text-sm font-medium text-ink-body w-32 flex-shrink-0">{d.name}</span>
+                  <div className="flex-1 h-2 bg-surface-hover rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-700" style={{ width: `${d.score}%`, background: c.bar }} />
                   </div>
                   <span className="text-sm font-bold w-9 text-right tabular-nums" style={{ color: c.text }}>{d.score}</span>
@@ -331,7 +336,7 @@ export default function ResultsPage() {
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 mt-6 pt-4 border-t border-border">
             {[[BAND.strong, '85+ Excellent'], [BAND.moderate, '75–84 Good'], [BAND.low, 'Below 75 Moderate']].map(([c, l]) => (
-              <span key={l} className="flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+              <span key={l} className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: c }} />{l}
               </span>
             ))}
@@ -340,14 +345,14 @@ export default function ResultsPage() {
       </div>
 
       {/* ── Hume AI Emotion Dashboard ─────────────────────────────────────────── */}
-      <div className="rounded-3xl bg-white border border-border p-6 space-y-7 shadow-sm">
+      <div className="rounded-3xl bg-surface border border-border p-6 space-y-7 shadow-sm">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <span className="pill mb-2.5 inline-flex">
               <Waves size={12} strokeWidth={2} aria-hidden="true" /> Hume AI · Prosody
             </span>
-            <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">Emotional Intelligence Report</h2>
-            <p className="text-xs text-neutral-500 mt-1.5">Voice-only signals. Not a measure of intent, ability, or personality.</p>
+            <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink">Emotional Intelligence Report</h2>
+            <p className="text-xs text-ink-muted mt-1.5">Voice-only signals. Not a measure of intent, ability, or personality.</p>
           </div>
           {humeResult && <SentimentArc score={humeResult.compositeScore} label="Emotion Score" size={120} />}
         </div>
@@ -356,26 +361,26 @@ export default function ResultsPage() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Overall Emotion Profile</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-3">Overall Emotion Profile</p>
                 <EmotionRadar categoryScores={humeResult.overallCategoryScores} />
               </div>
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Category Breakdown</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-3">Category Breakdown</p>
                 <EmotionCategoryPanel categoryScores={humeResult.overallCategoryScores} />
               </div>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Emotion Timeline</p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-3">Emotion Timeline</p>
               <EmotionTimeline timeline={humeResult.timeline} questionTimestamps={store.questionTimestamps} />
             </div>
             {perQuestionFiltered.length > 0 && (
               <>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Per-Question Heatmap</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-3">Per-Question Heatmap</p>
                   <EmotionHeatmap perQuestion={perQuestionFiltered} />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500 mb-3">Question-by-Question Analysis</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-ink-muted mb-3">Question-by-Question Analysis</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {perQuestionFiltered.map((q, i) => (
                       <PerQuestionCard key={i} summary={q} index={i} />
@@ -387,11 +392,11 @@ export default function ResultsPage() {
           </>
         ) : humeIsProcessing ? (
           /* Loading — skeletons shaped like the dashboard that's coming. */
-          <div className="rounded-2xl bg-neutral-50 border border-border p-6 space-y-6">
+          <div className="rounded-2xl bg-surface-sunk border border-border p-6 space-y-6">
             <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-primary-700 animate-pulse flex-shrink-0" />
-              <p className="text-sm font-semibold text-neutral-800">Processing prosody analysis</p>
-              <span className="text-xs text-neutral-400">results appear automatically</span>
+              <span className="w-2 h-2 rounded-full bg-action animate-pulse flex-shrink-0" />
+              <p className="text-sm font-semibold text-ink">Processing prosody analysis</p>
+              <span className="text-xs text-ink-faint">results appear automatically</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Skeleton className="h-56 rounded-2xl" />
@@ -401,9 +406,9 @@ export default function ResultsPage() {
             </div>
             <Skeleton className="h-40 rounded-2xl" />
             <div className="flex items-center justify-between gap-4 flex-wrap pt-1 border-t border-border">
-              <p className="text-xs text-neutral-400 pt-4">Job ID <span className="font-mono text-neutral-500">{store.humeJobId}</span></p>
+              <p className="text-xs text-ink-faint pt-4">Job ID <span className="font-mono text-ink-muted">{store.humeJobId}</span></p>
               <button
-                className="text-xs font-semibold text-neutral-500 underline underline-offset-4 hover:text-neutral-800 transition-colors duration-150 pt-4"
+                className="text-xs font-semibold text-ink-muted underline underline-offset-4 hover:text-ink transition-colors duration-150 pt-4"
                 onClick={() => {
                   store.setHumeJobId(null)
                   store.setHumeJobStatus(null)
@@ -414,7 +419,7 @@ export default function ResultsPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl bg-neutral-50 border border-border">
+          <div className="rounded-2xl bg-surface-sunk border border-border">
             <EmptyState
               icon={<Mic strokeWidth={1.75} />}
               title="No voice-emotion data for this session"
@@ -429,12 +434,12 @@ export default function ResultsPage() {
         <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
           <SectionTitle className="mb-0 flex-1 min-w-[200px]">Voice & Signal Analytics</SectionTitle>
           {hasTranscript ? (
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success-bg border border-success-border px-2.5 py-1 rounded-full flex-shrink-0">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-bg border border-ok-rule px-2.5 py-1 rounded-full flex-shrink-0">
               <span className="live-dot" />
               Deepgram Nova-3
             </span>
           ) : (
-            <span className="text-[11px] font-medium text-neutral-400 flex-shrink-0">Transcription not captured</span>
+            <span className="text-[11px] font-medium text-ink-faint flex-shrink-0">Transcription not captured</span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -446,12 +451,12 @@ export default function ResultsPage() {
             { label: 'Confidence',     value: confScore > 0 ? `${confScore}%` : hc ? `${confScore}%` : '—',    color: confScore >= 70 ? BAND.strong : BAND.low, badge: confScore > 0 && confScore < 50 ? 'Low' : undefined },
             { label: 'Questions Done', value: `${questionsAnswered}`, color: BAND.strong,                                                 badge: undefined },
           ].map(s => (
-            <div key={s.label} className="relative bg-neutral-50 rounded-xl border border-border p-4">
+            <div key={s.label} className="relative bg-surface-sunk rounded-xl border border-border p-4">
               {s.badge && (
                 <span className="badge badge-warning absolute top-2.5 right-2.5">{s.badge}</span>
               )}
               <p className="text-2xl font-bold tabular-nums tracking-[-0.02em]" style={{ color: s.color }}>{s.value}</p>
-              <p className="text-xs font-medium text-neutral-500 mt-1.5">{s.label}</p>
+              <p className="text-xs font-medium text-ink-muted mt-1.5">{s.label}</p>
             </div>
           ))}
         </div>
@@ -460,8 +465,8 @@ export default function ResultsPage() {
       {/* Strengths / Watch — dynamic */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Card className="p-6">
-          <p className="text-[11px] font-bold text-primary-700 uppercase tracking-wide mb-4 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-primary-50 border border-primary-100 flex items-center justify-center flex-shrink-0">
+          <p className="text-[11px] font-bold text-ink uppercase tracking-wide mb-4 flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-surface-hover border border-rule flex items-center justify-center flex-shrink-0">
               <Check size={11} strokeWidth={3} aria-hidden="true" />
             </span>
             Strengths
@@ -471,8 +476,8 @@ export default function ResultsPage() {
           </div>
         </Card>
         <Card className="p-6">
-          <p className="text-[11px] font-bold text-warning uppercase tracking-wide mb-4 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-warning-bg border border-warning-border flex items-center justify-center flex-shrink-0">
+          <p className="text-[11px] font-bold text-warn uppercase tracking-wide mb-4 flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-warn-bg border border-warn-rule flex items-center justify-center flex-shrink-0">
               <AlertTriangle size={11} strokeWidth={2.5} aria-hidden="true" />
             </span>
             Watch Points
@@ -494,15 +499,15 @@ export default function ResultsPage() {
               const active = i === store.currentQuestionIdx
               return (
                 <div key={i} className="flex-1 flex flex-col items-center text-center relative z-10 px-1">
-                  <div className={cn('w-11 h-11 rounded-full border-2 flex items-center justify-center text-xs font-bold tabular-nums bg-white mb-3 shadow-xs',
-                    done ? 'border-primary-700 text-primary-700' : active ? 'border-warning text-warning' : 'border-neutral-300 text-neutral-400')}>
+                  <div className={cn('w-11 h-11 rounded-full border-2 flex items-center justify-center text-xs font-bold tabular-nums bg-surface mb-3 shadow-xs',
+                    done ? 'border-action text-ink' : active ? 'border-warn text-warn' : 'border-rule-strong text-ink-faint')}>
                     {done ? <Check size={16} strokeWidth={3} aria-hidden="true" /> : i + 1}
                   </div>
                   <span className={cn('badge mb-1.5 whitespace-nowrap',
                     done ? 'badge-info' : active ? 'badge-warning' : 'badge-neutral')}>
                     {done ? 'Answered' : active ? 'In Progress' : 'Pending'}
                   </span>
-                  <p className="text-[11px] text-neutral-500 leading-tight line-clamp-2">{q.slice(0, 40)}{q.length > 40 ? '…' : ''}</p>
+                  <p className="text-[11px] text-ink-muted leading-tight line-clamp-2">{q.slice(0, 40)}{q.length > 40 ? '…' : ''}</p>
                 </div>
               )
             })}
@@ -550,12 +555,12 @@ export default function ResultsPage() {
         <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
           <SectionTitle className="mb-0 flex-1 min-w-[200px]">Interview Transcript</SectionTitle>
           {hasTranscript ? (
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success-bg border border-success-border px-2.5 py-1 rounded-full flex-shrink-0 tabular-nums">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-bg border border-ok-rule px-2.5 py-1 rounded-full flex-shrink-0 tabular-nums">
               <span className="live-dot" />
               {realWordCount} words · {sentenceCount} sentences
             </span>
           ) : (
-            <span className="text-[11px] font-medium text-neutral-400 flex-shrink-0">Deepgram Nova-3 · not captured</span>
+            <span className="text-[11px] font-medium text-ink-faint flex-shrink-0">Deepgram Nova-3 · not captured</span>
           )}
         </div>
 
@@ -570,24 +575,24 @@ export default function ResultsPage() {
               return (
                 <div key={qi} className="py-5 first:pt-0 last:pb-0">
                   <div className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-700 text-white text-[10px] font-bold tabular-nums flex items-center justify-center mt-px">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-action text-action-ink text-[10px] font-bold tabular-nums flex items-center justify-center mt-px">
                       {qi + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-neutral-700 mb-2.5 flex gap-1.5">
-                        <Quote size={13} strokeWidth={2} className="text-neutral-300 mt-1 flex-shrink-0" aria-hidden="true" />
+                      <p className="text-sm font-medium text-ink-body mb-2.5 flex gap-1.5">
+                        <Quote size={13} strokeWidth={2} className="text-ink-disabled mt-1 flex-shrink-0" aria-hidden="true" />
                         <span className="italic">{q}</span>
                       </p>
                       <div className="space-y-1.5">
                         {entries.map((e, i) => (
-                          <div key={i} className="bg-neutral-50 rounded-xl border border-border px-3.5 py-2.5">
-                            <p className="text-sm text-neutral-700 leading-relaxed">{e.text}</p>
+                          <div key={i} className="bg-surface-sunk rounded-xl border border-border px-3.5 py-2.5">
+                            <p className="text-sm text-ink-body leading-relaxed">{e.text}</p>
                           </div>
                         ))}
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[11px] text-neutral-400">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2.5 text-[11px] text-ink-faint">
                         <span className="tabular-nums">{qWords} words</span>
-                        {qFillers > 0 && <span className="text-warning font-medium tabular-nums">{qFillers} filler{qFillers !== 1 ? 's' : ''}</span>}
+                        {qFillers > 0 && <span className="text-warn font-medium tabular-nums">{qFillers} filler{qFillers !== 1 ? 's' : ''}</span>}
                         <span className="tabular-nums">{new Date(entries[0].timestamp).toLocaleTimeString()}</span>
                       </div>
                     </div>
@@ -612,15 +617,15 @@ export default function ResultsPage() {
           section with no explanation looked like a silent failure. */}
       {gemini.status === 'idle' && !gemini.scorecard && !hasTranscript && (
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">AI-Powered ATS Assessment</h2>
+          <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink">AI-Powered ATS Assessment</h2>
           <Card className="p-6">
             <div className="flex items-start gap-3">
-              <span className="w-9 h-9 rounded-full bg-neutral-100 border border-border text-neutral-500 flex items-center justify-center flex-shrink-0">
+              <span className="w-9 h-9 rounded-full bg-surface-hover border border-border text-ink-muted flex items-center justify-center flex-shrink-0">
                 <Radio size={17} strokeWidth={1.75} aria-hidden="true" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-neutral-900">Waiting on a transcript</p>
-                <p className="mt-1 text-xs text-neutral-500 max-w-lg leading-relaxed">
+                <p className="text-sm font-semibold text-ink">Waiting on a transcript</p>
+                <p className="mt-1 text-xs text-ink-muted max-w-lg leading-relaxed">
                   The Gemini assessment reasons over the Deepgram transcript, so it can't run for a
                   session with no captured speech. Voice-emotion and facial analysis above are independent.
                 </p>
@@ -632,7 +637,7 @@ export default function ResultsPage() {
       {(gemini.status !== 'idle' || gemini.scorecard) && (
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">AI-Powered ATS Assessment</h2>
+            <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink">AI-Powered ATS Assessment</h2>
             {gemini.status === 'complete' && (
               <Button variant="ghost" size="sm" icon={<RotateCcw size={13} />} onClick={runAtsAnalysis}>
                 Re-run analysis
@@ -650,7 +655,7 @@ export default function ResultsPage() {
 
       {/* ── Facial Analysis (AWS Rekognition) — always shown, with capture diagnostics ── */}
       <section className="space-y-4">
-        <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900">Facial Analysis</h2>
+        <h2 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink">Facial Analysis</h2>
         <FacialAnalysisPanel
           summary={facialSummary}
           questionCount={store.questions.filter(Boolean).length}
@@ -674,10 +679,10 @@ export default function ResultsPage() {
 
       {/* Schedule modal */}
       {scheduleOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-[2px]" onClick={() => setScheduleOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="Schedule technical interview" className="bg-white rounded-2xl shadow-xl border border-border p-8 w-full max-w-md animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900 mb-1">Schedule Technical Interview</h3>
-            <p className="text-sm text-neutral-500 mb-6">Book the next round for this candidate.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--scrim)] backdrop-blur-[2px]" onClick={() => setScheduleOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="Schedule technical interview" className="bg-surface rounded-2xl shadow-xl border border-border p-8 w-full max-w-md animate-slide-up" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink mb-1">Schedule Technical Interview</h3>
+            <p className="text-sm text-ink-muted mb-6">Book the next round for this candidate.</p>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="field-label">Date</label><input type="date" className="input-base" /></div>
@@ -696,10 +701,10 @@ export default function ResultsPage() {
 
       {/* Offer modal */}
       {offerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/40 backdrop-blur-[2px]" onClick={() => setOfferOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-label="AI offer recommendation" className="bg-white rounded-2xl shadow-xl border border-border p-8 w-full max-w-lg animate-slide-up" onClick={e => e.stopPropagation()}>
-            <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900 mb-4">AI Offer Recommendation</h3>
-            <pre className="bg-neutral-50 border border-border rounded-xl p-4 text-xs text-neutral-700 font-mono leading-relaxed whitespace-pre-wrap">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--scrim)] backdrop-blur-[2px]" onClick={() => setOfferOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-label="AI offer recommendation" className="bg-surface rounded-2xl shadow-xl border border-border p-8 w-full max-w-lg animate-slide-up" onClick={e => e.stopPropagation()}>
+            <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-ink mb-4">AI Offer Recommendation</h3>
+            <pre className="bg-surface-sunk border border-border rounded-xl p-4 text-xs text-ink-body font-mono leading-relaxed whitespace-pre-wrap">
 {`OFFER RECOMMENDATION — TalbotIQ AI
 Session: ${conv?.conversation_id ?? 'demo'}
 Score: ${overall}/100  |  Confidence: ${hiringConf}%

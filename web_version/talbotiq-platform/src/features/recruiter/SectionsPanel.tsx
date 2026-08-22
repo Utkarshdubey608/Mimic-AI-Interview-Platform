@@ -64,8 +64,8 @@ function SortableSection({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'rounded-xl border bg-white p-3',
-        isDragging ? 'border-primary-300 shadow-md' : 'border-border',
+        'rounded-xl border bg-surface p-3',
+        isDragging ? 'border-rule-strong shadow-md' : 'border-border',
       )}
     >
       <div className="flex items-center gap-2">
@@ -73,7 +73,7 @@ function SortableSection({
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${section.name || 'section'}`}
-          className="cursor-grab rounded p-1 text-neutral-300 hover:text-neutral-500"
+          className="cursor-grab rounded p-1 text-ink-disabled hover:text-ink-muted"
         >
           <GripVertical size={15} />
         </button>
@@ -84,7 +84,7 @@ function SortableSection({
           aria-label="Section name"
           className="input-base h-9 flex-1 text-sm font-semibold"
         />
-        <span className="whitespace-nowrap text-xs tabular-nums text-neutral-400">
+        <span className="whitespace-nowrap text-xs tabular-nums text-ink-faint">
           {count} question{count === 1 ? '' : 's'}
         </span>
         <button
@@ -93,7 +93,7 @@ function SortableSection({
           // not only sighted users reading the number beside it.
           aria-label={`Remove ${section.name || 'section'}, freeing ${count} question${count === 1 ? '' : 's'}`}
           title={count > 0 ? `${count} question${count === 1 ? '' : 's'} will lose their section` : 'Remove section'}
-          className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-danger-bg hover:text-danger"
+          className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger"
         >
           <Trash2 size={14} />
         </button>
@@ -123,14 +123,14 @@ function SortableSection({
             placeholder="Paste the passage. Every question in this section is about it."
             className="input-base w-full resize-y py-2 text-xs leading-relaxed"
           />
-          <p className="mt-1 text-2xs text-neutral-400">
+          <p className="mt-1 text-2xs text-ink-faint">
             One passage per section. For a second passage, add another section.
           </p>
         </div>
       ) : (
         <button
           onClick={() => setShowPassage(true)}
-          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"
         >
           <BookOpen size={12} /> Add a reading passage
         </button>
@@ -177,10 +177,10 @@ export function SectionsPanel({
   const taken = new Set(sections.map((s) => s.name.trim().toLowerCase()))
 
   return (
-    <section className="rounded-2xl border border-border bg-neutral-50/60 p-4">
+    <section className="rounded-2xl border border-border bg-surface-sunk/60 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-sm font-bold text-neutral-900">Sections</h2>
-        <p className="text-xs text-neutral-500">
+        <h2 className="font-display text-sm font-bold text-ink">Sections</h2>
+        <p className="text-xs text-ink-muted">
           The parts of the assessment, in the order a candidate meets them.
         </p>
       </div>
@@ -236,8 +236,8 @@ export function SectionsPanel({
               className={cn(
                 'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                 already
-                  ? 'cursor-not-allowed border-border bg-neutral-100 text-neutral-400'
-                  : 'border-primary-100 bg-primary-50 text-primary-700 hover:border-primary-300',
+                  ? 'cursor-not-allowed border-border bg-surface-hover text-ink-faint'
+                  : 'border-rule bg-surface-hover text-ink hover:border-rule-strong',
               )}
             >
               {already ? entry.name : `+ ${entry.name}`}
@@ -247,8 +247,8 @@ export function SectionsPanel({
       </div>
 
       {sections.length === 0 && (
-        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-neutral-500">
-          <AlertTriangle size={13} className="mt-px flex-shrink-0 text-neutral-400" />
+        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
+          <AlertTriangle size={13} className="mt-px flex-shrink-0 text-ink-faint" />
           An assessment with no sections still works — every question simply belongs
           to the paper as a whole, exactly as before.
         </p>

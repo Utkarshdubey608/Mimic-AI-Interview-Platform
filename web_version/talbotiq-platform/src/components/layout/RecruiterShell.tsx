@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Nav } from '@/components/layout/Nav'
 import { refreshServiceStatus } from '@/store/useAppStore'
 import { IntroFaceSync } from '@/features/intro/IntroFaceSync'
-import { useWorkspaceGround } from '@/lib/workspaceGround'
+import { useDocumentGround, useWorkspaceGround } from '@/lib/workspaceGround'
 
 /**
  * Recruiter app chrome — top nav + routed content. Mounts only for an
@@ -26,15 +26,7 @@ export default function RecruiterShell() {
   // on unmount so the candidate surfaces and the marketing site keep choosing
   // their own ground.
   const ground = useWorkspaceGround()
-  useEffect(() => {
-    const el = document.documentElement
-    const prev = el.dataset.ground
-    el.dataset.ground = ground
-    return () => {
-      if (prev === undefined) delete el.dataset.ground
-      else el.dataset.ground = prev
-    }
-  }, [ground])
+  useDocumentGround(ground)
 
   // The spine is fixed at 15rem on md+, so the workspace surface is inset by
   // that width rather than sitting under it. Below md the spine becomes a

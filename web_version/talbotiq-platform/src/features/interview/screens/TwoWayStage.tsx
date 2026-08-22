@@ -193,7 +193,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
      the whole point of having one stage. */
   if (completed) {
     return (
-      <InterviewStage branding={branding} track="two_way" ground="record">
+      <InterviewStage branding={branding} track="two_way">
         <Completion branding={branding} sessionId={sessionId} />
       </InterviewStage>
     )

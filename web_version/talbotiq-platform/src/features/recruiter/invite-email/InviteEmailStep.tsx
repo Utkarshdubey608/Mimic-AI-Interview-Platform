@@ -20,12 +20,12 @@ export function sampleName(email: string): string {
 /** A titled config panel in the left-hand column. */
 function Panel({ icon, title, hint, children }: { icon: ReactNode; title: string; hint?: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-white p-5 shadow-xs">
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
       <div className="mb-4 flex items-start gap-3">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">{icon}</span>
+        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-surface-hover text-ink">{icon}</span>
         <div className="min-w-0">
-          <h3 className="text-sm font-bold leading-tight text-neutral-900">{title}</h3>
-          {hint && <p className="mt-0.5 text-xs leading-relaxed text-neutral-500">{hint}</p>}
+          <h3 className="text-sm font-bold leading-tight text-ink">{title}</h3>
+          {hint && <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{hint}</p>}
         </div>
       </div>
       {children}
@@ -195,7 +195,7 @@ export function InviteEmailStep({
                   <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' (default)' : ''}</option>
                 ))}
               </select>
-              <svg className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+              <svg className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-faint" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
             </div>
             {selectedId
               ? <Button size="sm" variant="secondary" icon={<Save size={14} />} loading={busy} onClick={updateSaved}>Update</Button>
@@ -204,9 +204,9 @@ export function InviteEmailStep({
             <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} disabled={!selectedId || busy} onClick={remove}>Delete</Button>
             {selectedId && <Button size="sm" variant="ghost" onClick={saveAsNew} disabled={busy}>Save as new</Button>}
           </div>
-          {templates.isLoading && <p className="mt-2.5 text-xs text-neutral-400">Loading your saved templates…</p>}
+          {templates.isLoading && <p className="mt-2.5 text-xs text-ink-faint">Loading your saved templates…</p>}
           {!templates.isLoading && !templates.data?.length && (
-            <p className="mt-2.5 text-xs text-neutral-400">No saved templates yet — set this email up below, then Save to reuse it for future batches.</p>
+            <p className="mt-2.5 text-xs text-ink-faint">No saved templates yet — set this email up below, then Save to reuse it for future batches.</p>
           )}
         </Panel>
 
@@ -233,8 +233,8 @@ export function InviteEmailStep({
               <Input label="From name" value={draft.sender.fromName} onChange={(e) => setSender({ fromName: e.target.value })} />
               <Input label="Reply-to (optional)" value={draft.sender.replyTo || ''} onChange={(e) => setSender({ replyTo: e.target.value })} />
             </div>
-            <div className="flex items-start gap-2.5 rounded-xl border border-border bg-neutral-50 p-3 text-xs leading-relaxed text-neutral-500">
-              <Info size={14} className="mt-0.5 flex-shrink-0 text-neutral-400" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-sunk p-3 text-xs leading-relaxed text-ink-muted">
+              <Info size={14} className="mt-0.5 flex-shrink-0 text-ink-faint" />
               <span>
                 You can only send from a Brevo-verified sender. Branded sending from your own domain
                 (instead of the default <span className="font-mono">…@brevosend.com</span> subdomain) requires
@@ -295,7 +295,7 @@ export function InviteEmailStep({
               </div>
               {draft.branding.logoUrl && (
                 <div className="mt-2.5 flex items-center gap-2.5">
-                  <span className="inline-flex items-center rounded-xl border border-border bg-neutral-50 p-1.5">
+                  <span className="inline-flex items-center rounded-xl border border-border bg-surface-sunk p-1.5">
                     <img
                       key={draft.branding.logoUrl}
                       src={draft.branding.logoUrl}
@@ -308,8 +308,8 @@ export function InviteEmailStep({
                   {logoBroken && <span className="text-xs leading-relaxed text-danger">This URL didn’t load as an image — use a public direct image link, or Upload a file.</span>}
                 </div>
               )}
-              <p className="mt-2 text-xs leading-relaxed text-neutral-400">
-                Paste a <span className="font-medium text-neutral-500">public, direct</span> image URL, or Upload a file (we host it). Google Drive/Docs links and <span className="font-mono">localhost</span> URLs won’t load in emails.
+              <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                Paste a <span className="font-medium text-ink-muted">public, direct</span> image URL, or Upload a file (we host it). Google Drive/Docs links and <span className="font-mono">localhost</span> URLs won’t load in emails.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -319,8 +319,8 @@ export function InviteEmailStep({
           </div>
         </Panel>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-neutral-50 px-4 py-3">
-          <p className="text-xs leading-relaxed text-neutral-500">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-sunk px-4 py-3">
+          <p className="text-xs leading-relaxed text-ink-muted">
             Send yourself a copy first — it arrives with sample candidate details.
           </p>
           <Button variant="secondary" icon={<Send size={15} />} loading={testing} onClick={sendTest}>Send test to me</Button>
@@ -330,7 +330,7 @@ export function InviteEmailStep({
       {/* ── Preview column ── */}
       <div className="space-y-2 lg:sticky lg:top-4 lg:self-start">
         <EmailPreview draft={draft} vars={vars} candidateEmail={sampleEmail} origin={origin} />
-        <p className="px-1 text-xs leading-relaxed text-neutral-400">
+        <p className="px-1 text-xs leading-relaxed text-ink-faint">
           Sample data shown. The real per-candidate link is generated per recipient at send time.
         </p>
       </div>
@@ -348,7 +348,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
         <input
           type="color" aria-label={`${label} swatch`}
           value={valid ? value : '#0E1420'} onChange={(e) => onChange(e.target.value)}
-          className="h-10 w-11 flex-shrink-0 cursor-pointer rounded-xl border border-border bg-white p-1 transition-colors duration-150 hover:border-primary-300"
+          className="h-10 w-11 flex-shrink-0 cursor-pointer rounded-xl border border-border bg-surface p-1 transition-colors duration-150 hover:border-rule-strong"
         />
         <input
           aria-label={`${label} hex value`}
