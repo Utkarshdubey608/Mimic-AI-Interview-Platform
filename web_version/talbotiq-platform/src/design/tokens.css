@@ -137,13 +137,14 @@
                                                      not a colour. Hover #1B2436.
        a, :focus-visible  var(--mm-reg) #1D3FA0   → registrar blue is for LINKS
                                                      and the FOCUS RING only.
-       --mm-ex-*                                  → the six exhibit colours are
-                                                     the only saturation on the
-                                                     whole site.
+       --mm-ex-*                                  → RETIRED. The six per-format
+                                                     hues had one call site and
+                                                     no legend; the surface
+                                                     holds one accent now.
 
-     So this product is ink-and-paper with one blue for navigation and one
-     colour per interview format. That restraint IS the identity — the premium
-     reading comes from type, space and rule weight, not from a palette.
+     So this product is ink-and-paper with one blue for navigation and focus,
+     and nothing else. That restraint IS the identity — the premium reading
+     comes from type, space and rule weight, not from a palette.
 
        action  the primary action. Ink on paper; on a dark ground it inverts to
                near-white with ink text, which is exactly what the marketing
