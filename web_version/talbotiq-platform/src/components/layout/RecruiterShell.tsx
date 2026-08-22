@@ -28,9 +28,16 @@ export default function RecruiterShell() {
   const ground = useWorkspaceGround()
   useDocumentGround(ground)
 
-  // The spine is fixed at 15rem on md+, so the workspace surface is inset by
-  // that width rather than sitting under it. Below md the spine becomes a
-  // sticky cover bar and the inset drops to zero.
+  // The spine is fixed, so the workspace surface is inset by its width rather
+  // than sitting under it — and that width now changes with the viewport:
+  //
+  //   < md            a sticky cover bar; the inset drops to zero
+  //   md .. xl        a 4rem icon rail (--spine-w-collapsed)
+  //   >= xl           the full 15rem spine (--spine-w)
+  //
+  // The middle step exists because at 1024px a 15rem spine takes 23% of the
+  // viewport and the sessions record starts clipping its own score column. The
+  // collapsed width was already in the token layer and had never been used.
   return (
     <div data-ground={ground} className="min-h-screen bg-background font-sans">
       <Nav />
@@ -38,7 +45,7 @@ export default function RecruiterShell() {
           A `fixed` overlay over a long scroll always covers whatever row is at
           the bottom of the viewport, so the only real fix is to keep content out
           of its lane rather than to pad the end of the document. */}
-      <main className="md:pl-[15rem] md:pr-20">
+      <main className="md:pl-spine-collapsed xl:pl-spine md:pr-20">
         <Outlet />
       </main>
       {/* Background, one-time sync of real replica thumbnails into the intro's
