@@ -200,7 +200,7 @@ export default function PersonasPage() {
 
             <section className="space-y-4">
               <LayerTitle icon={<SquareUser size={13} strokeWidth={2.25} aria-hidden="true" />}>Identity</LayerTitle>
-              <Input label="Persona Name *" value={form.persona_name} onChange={e => setF('persona_name', e.target.value)} placeholder="e.g. Alex — TalbotIQ Senior Interviewer" />
+              <Input label="Persona Name *" value={form.persona_name} onChange={e => setF('persona_name', e.target.value)} placeholder="e.g. Alex — Senior Interviewer" />
               <ReplicaPicker label="Default Replica" replicas={replicas ?? []} value={form.default_replica_id ?? ''} onChange={id => setF('default_replica_id', id)} includeNone noneLabel="None — inherit at call time" loading={!replicas} hint="Used whenever a conversation doesn't name its own replica." />
               <Textarea label="System Prompt *" value={form.system_prompt} onChange={e => setF('system_prompt', e.target.value)} charLimit={4096} placeholder="You are Alex, a professional interviewer at TalbotIQ. Ask each question clearly and wait for the candidate's full response before proceeding. Maintain a warm, encouraging tone." className="min-h-[110px]" />
               <Textarea label="Context" value={form.context} onChange={e => setF('context', e.target.value)} placeholder="Additional context the avatar should know about the role, company, or candidate…" />

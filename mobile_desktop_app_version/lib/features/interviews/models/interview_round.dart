@@ -239,6 +239,12 @@ class InterviewRound {
   /// True when a recruiter ended this round rather than the clock closing it.
   bool get wasEndedManually => closedBy == RoundClosedBy.manual;
 
+  /// True when reopening this round would need a new deadline to have any
+  /// effect: its own deadline has already passed, so clearing `closedAt` alone
+  /// leaves the clock closing it again immediately.
+  bool reopenNeedsDeadline(DateTime now) =>
+      closesAt != null && !now.isBefore(closesAt!);
+
   /// True when the round has a deadline it has not yet passed — i.e. it will
   /// close on its own. Drives the "closes in 2d" hint.
   bool get willAutoClose =>
@@ -539,6 +545,27 @@ class RoundPipelineStatus {
   /// How many rounds have finished. Drives the progress reading.
   int get closedCount =>
       rounds.where((r) => r.stateAt(asOf) == RoundState.closed).length;
+
+  /// The last round that has finished, or null while none has.
+  ///
+  /// This is the round a decision is owed on: closing one is the moment the
+  /// recruiter has to say who moves on, and if two are closed it is the later
+  /// one that is waiting — the earlier one was settled to put anybody into this
+  /// one at all. Derived from the clock like everything else here, so a round
+  /// that closes on its deadline counts exactly like one closed by hand: that
+  /// asymmetry is why an auto-closed round used to sit undecided in silence.
+  int? get latestClosedIndex {
+    for (var i = rounds.length - 1; i >= 0; i--) {
+      if (rounds[i].stateAt(asOf) == RoundState.closed) return i;
+    }
+    return null;
+  }
+
+  /// The round from [latestClosedIndex], or null.
+  InterviewRound? get latestClosed {
+    final i = latestClosedIndex;
+    return i == null ? null : rounds[i];
+  }
 
   /// True for a test that is genuinely a pipeline. A single-round test is
   /// really just "an interview" and reads better without the round furniture.

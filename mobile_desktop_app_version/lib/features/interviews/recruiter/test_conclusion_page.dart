@@ -32,7 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/recruiter/candidate_grouping.dart';
@@ -62,22 +62,30 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   /// would be hostile.
   List<CandidateRun> _runs = const [];
 
-  /// How many rounds the test's timeline has, or 0 when it has none.
-  ///
-  /// Only used to caution that a ticked candidate finished fewer rounds than the
-  /// test holds — which is normal in a pipeline (they were never assigned the
-  /// rest) but is also exactly what a premature conclusion looks like.
-  int _roundCount = 0;
+  /// The test's timeline, so this screen knows whether the pipeline has actually
+  /// finished — and, if it has, what the last round decided.
+  List<InterviewRound> _rounds = const [];
 
+  /// Ticked = cleared the process. Pre-filled from the last round's own decision
+  /// (see [_prefill]) rather than left empty: by the time a recruiter is here,
+  /// the pipeline has already said who got through, and making them re-tick that
+  /// list by hand was both work and a chance to get it wrong.
   final Set<String> _selected = {};
 
-  TestOutcome _outcome = TestOutcome.cleared;
-  final _messageCtrl = TextEditingController();
+  /// Parked: neither cleared nor rejected. The rare case, kept because a
+  /// recruiter who has not decided must not be forced to pick one of two lies.
+  final Set<String> _onHold = {};
 
-  /// True once the recruiter has typed in the message box. Switching outcome
-  /// re-prefills the default only while this is false — replacing something they
-  /// wrote would lose it silently.
-  bool _messageEdited = false;
+  /// One message per group, because "we would like you to meet the team" and
+  /// "thank you for your time" are never the same sentence — the same reason
+  /// `round_notify_page.dart` keeps two.
+  final _clearedMsgCtrl = TextEditingController();
+  final _notSelectedMsgCtrl = TextEditingController();
+
+  /// True once the recruiter has moved anybody. The pre-fill is only applied
+  /// while this is false, so a reload after publishing cannot overwrite a
+  /// half-made decision.
+  bool _touched = false;
 
   bool _loading = true;
   bool _busy = false;
@@ -91,25 +99,18 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   @override
   void initState() {
     super.initState();
-    _messageCtrl.text = _outcome.defaultMessage(widget.test.title);
-    _messageCtrl.addListener(_onMessageChanged);
+    _clearedMsgCtrl.text =
+        TestOutcome.cleared.defaultMessage(widget.test.title);
+    _notSelectedMsgCtrl.text =
+        TestOutcome.notSelected.defaultMessage(widget.test.title);
     _load();
   }
 
   @override
   void dispose() {
-    _messageCtrl.removeListener(_onMessageChanged);
-    _messageCtrl.dispose();
+    _clearedMsgCtrl.dispose();
+    _notSelectedMsgCtrl.dispose();
     super.dispose();
-  }
-
-  void _onMessageChanged() {
-    if (_messageEdited) return;
-    // Compared against the current default rather than tracking keystrokes: the
-    // prefill itself fires this listener, and so does switching outcome.
-    if (_messageCtrl.text != _outcome.defaultMessage(widget.test.title)) {
-      _messageEdited = true;
-    }
   }
 
   Future<void> _load() async {
@@ -122,11 +123,14 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
       if (!mounted) return;
       setState(() {
         _runs = runsFor(assignments);
-        _roundCount = rounds.length;
+        _rounds = rounds;
+        _loading = false;
+        if (!_touched) _prefill();
         // Anyone who has since become ineligible drops out of the selection
         // rather than being published to invisibly.
-        _selected.removeWhere((email) => !_finished.any((r) => r.emailLower == email));
-        _loading = false;
+        final eligible = {for (final r in _finished) r.emailLower};
+        _selected.removeWhere((email) => !eligible.contains(email));
+        _onHold.removeWhere((email) => !eligible.contains(email));
       });
     } catch (e) {
       if (!mounted) return;
@@ -136,6 +140,51 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
       });
     }
   }
+
+  /// Starts the decision from the pipeline's own answer.
+  ///
+  /// Whoever the last round they sat ADVANCED is ticked as cleared; everybody
+  /// else who is finished is a rejection. That is not a guess — it is what the
+  /// recruiter already decided on the round screen, carried forward instead of
+  /// being asked for twice. Anybody already published keeps what they were told,
+  /// so re-opening this screen shows the state of the world rather than
+  /// proposing to change it.
+  void _prefill() {
+    _selected.clear();
+    _onHold.clear();
+    conclusionPrefill(_finished).forEach((email, outcome) {
+      switch (outcome) {
+        case TestOutcome.cleared:
+          _selected.add(email);
+        case TestOutcome.onHold:
+          _onHold.add(email);
+        case TestOutcome.notSelected:
+          break;
+      }
+    });
+  }
+
+  /// The last round of the timeline, or null for a test with no timeline.
+  InterviewRound? get _lastRound {
+    if (_rounds.isEmpty) return null;
+    final ordered = [..._rounds]..sort((a, b) => a.order.compareTo(b.order));
+    return ordered.last;
+  }
+
+  /// The final result is a statement that the process is over, so it waits for
+  /// the process to be over: while the last round is still open, people can
+  /// still submit and the recruiter has not decided that round yet.
+  ///
+  /// Null when there is nothing to wait for — no timeline, or the last round has
+  /// closed.
+  InterviewRound? get _blockingRound {
+    final last = _lastRound;
+    if (last == null) return null;
+    return last.stateAt(DateTime.now()) == RoundState.closed ? null : last;
+  }
+
+  /// How many rounds the test's timeline has, or 0 when it has none.
+  int get _roundCount => _rounds.length;
 
   /// Everyone who has been TOLD something, by outcome.
   ///
@@ -150,20 +199,73 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   List<CandidateRun> get _selectedCandidates =>
       _publishedWith(TestOutcome.cleared);
 
-  /// Candidates with nothing left to sit — see [CandidateRun.isFinished].
-  List<CandidateRun> get _finished =>
-      _runs.where((r) => r.isFinished).toList();
+  /// Candidates with nothing left to sit — see [CandidateRun.isFinishedAt].
+  ///
+  /// One clock for the whole getter, so two rows cannot disagree about whether a
+  /// deadline has passed while the list is being built.
+  List<CandidateRun> get _finished {
+    final now = DateTime.now();
+    return _runs.where((r) => r.isFinishedAt(now)).toList();
+  }
+
+  /// The three groups this screen publishes, in the order it shows them.
+  List<CandidateRun> get _clearedGroup =>
+      _finished.where((r) => _selected.contains(r.emailLower)).toList();
+
+  List<CandidateRun> get _notSelectedGroup => _finished
+      .where((r) =>
+          !_selected.contains(r.emailLower) && !_onHold.contains(r.emailLower))
+      .toList();
+
+  List<CandidateRun> get _onHoldGroup =>
+      _finished.where((r) => _onHold.contains(r.emailLower)).toList();
+
+  List<CandidateRun> _groupFor(TestOutcome outcome) => switch (outcome) {
+        TestOutcome.cleared => _clearedGroup,
+        TestOutcome.notSelected => _notSelectedGroup,
+        TestOutcome.onHold => _onHoldGroup,
+      };
+
+  /// Which group a candidate is currently in.
+  TestOutcome _outcomeOf(CandidateRun run) {
+    if (_selected.contains(run.emailLower)) return TestOutcome.cleared;
+    if (_onHold.contains(run.emailLower)) return TestOutcome.onHold;
+    return TestOutcome.notSelected;
+  }
+
+  /// The recruiter's own words for [outcome]. "On hold" has none: an email that
+  /// says only "we have not decided" is noise, and nothing is published for it
+  /// beyond the outcome itself.
+  String _messageFor(TestOutcome outcome) => switch (outcome) {
+        TestOutcome.cleared => _clearedMsgCtrl.text,
+        TestOutcome.notSelected => _notSelectedMsgCtrl.text,
+        TestOutcome.onHold => '',
+      };
+
+  void _setOutcomeOf(CandidateRun run, TestOutcome outcome) {
+    setState(() {
+      _touched = true;
+      _selected.remove(run.emailLower);
+      _onHold.remove(run.emailLower);
+      switch (outcome) {
+        case TestOutcome.cleared:
+          _selected.add(run.emailLower);
+        case TestOutcome.onHold:
+          _onHold.add(run.emailLower);
+        case TestOutcome.notSelected:
+          break;
+      }
+    });
+  }
 
   /// Still mid-run, so listing them would offer to conclude a test they are in
   /// the middle of. Counted in the footer instead.
   int get _stillRunning => _runs.length - _finished.length;
 
-  List<CandidateRun> get _chosen =>
-      _finished.where((r) => _selected.contains(r.emailLower)).toList();
-
-  /// Every document to write: each chosen candidate's rounds, flattened.
-  List<Interview> get _chosenAssignments =>
-      [for (final run in _chosen) ...run.rounds];
+  /// Everybody this screen is about to publish to: all three groups. The whole
+  /// finished set, because a final result that covered only the people who got
+  /// through is exactly the silence this screen exists to end.
+  List<CandidateRun> get _chosen => _finished;
 
   /// Chosen candidates who finished fewer rounds than the test has.
   ///
@@ -172,40 +274,46 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   /// rather than assumed either way.
   List<CandidateRun> get _shortOfFullPipeline => _roundCount <= 1
       ? const []
-      : _chosen.where((r) => r.rounds.length < _roundCount).toList();
+      : _clearedGroup.where((r) => r.rounds.length < _roundCount).toList();
 
-  void _setOutcome(TestOutcome outcome) {
-    setState(() {
-      _outcome = outcome;
-      if (!_messageEdited) {
-        _messageCtrl.text = outcome.defaultMessage(widget.test.title);
-      }
-    });
-  }
 
   // ── Publishing ────────────────────────────────────────────────────────────
 
+  /// Publishes every group at once, each with its own message.
+  ///
+  /// One action, not three: the decision is "here is how this pipeline ended",
+  /// and telling the people who got through while leaving the rest on "under
+  /// review" is the silence this screen was built to end. Groups that are empty
+  /// are simply skipped.
   Future<void> _publish() async {
     if (_busy || _chosen.isEmpty) return;
-    final chosen = _chosen;
-    final assignments = _chosenAssignments;
-    final replacing = chosen.where((r) => r.hasConclusion).length;
+    final cleared = _clearedGroup;
+    final rejected = _notSelectedGroup;
+    final held = _onHoldGroup;
+    final replacing = _chosen.where((r) => r.hasConclusion).length;
     final short = _shortOfFullPipeline;
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Tell ${chosen.length} candidate(s) "'
-            '${_outcome.candidateLabel}"?'),
+        title: Text('Publish the result to ${_chosen.length} candidate(s)?'),
         content: SingleChildScrollView(
           child: Text(
             [
+              [
+                if (cleared.isNotEmpty) '${cleared.length} cleared',
+                if (rejected.isNotEmpty) '${rejected.length} not selected',
+                if (held.isNotEmpty) '${held.length} on hold',
+              ].join(' · '),
               'They will see this on their interviews screen straight away, '
               'with your message and nothing else — no score, no ranking, and '
               'none of the AI write-up.',
-              if (_messageCtrl.text.trim().isEmpty)
-                'You have not written a message, so they will see the outcome '
-                    'on its own.',
+              if (cleared.isNotEmpty && _clearedMsgCtrl.text.trim().isEmpty)
+                'The cleared candidates have no message, so they will see the '
+                    'outcome on its own.',
+              if (rejected.isNotEmpty && _notSelectedMsgCtrl.text.trim().isEmpty)
+                'The not-selected candidates have no message, so they will see '
+                    'the outcome on its own.',
               if (replacing > 0)
                 '$replacing of them already have a conclusion. It will be '
                     'replaced.',
@@ -231,20 +339,29 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
 
     setState(() => _busy = true);
     try {
-      final written = await context.read<InterviewRepository>().publishConclusion(
-            assignments: assignments,
-            conclusion: TestConclusion(
-              outcome: _outcome,
-              message: _messageCtrl.text,
-              publishedByName: _recruiterDisplayName,
-            ),
-          );
+      final repo = context.read<InterviewRepository>();
+      var written = 0;
+      // Group by group, each carrying its own words. Sequential rather than
+      // concurrent: these are batched writes to the same collection, and a
+      // half-failed publish is easier to reason about in a known order.
+      for (final outcome in TestOutcome.values) {
+        final group = _groupFor(outcome);
+        if (group.isEmpty) continue;
+        written += await repo.publishConclusion(
+          assignments: [for (final run in group) ...run.rounds],
+          conclusion: TestConclusion(
+            outcome: outcome,
+            message: _messageFor(outcome),
+            publishedByName: _recruiterDisplayName,
+          ),
+        );
+      }
       if (!mounted) return;
       await _load();
       if (!mounted) return;
       setState(() => _busy = false);
       // Both numbers, because they differ: one candidate is several documents.
-      _toast('Published to ${chosen.length} candidate(s) '
+      _toast('Published to ${_chosen.length} candidate(s) '
           '($written round record(s) updated).');
     } catch (e) {
       if (!mounted) return;
@@ -304,9 +421,9 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
 
   // ── Emailing ──────────────────────────────────────────────────────────────
 
-  /// The template for the current outcome, or null when there is none to send.
-  String? get _templateId {
-    switch (_outcome) {
+  /// The template for [outcome], or null when there is none to send.
+  String? _templateFor(TestOutcome outcome) {
+    switch (outcome) {
       case TestOutcome.cleared:
         return kTestClearedTemplateId;
       case TestOutcome.notSelected:
@@ -316,9 +433,16 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
     }
   }
 
-  Future<void> _email() async {
-    final templateId = _templateId;
-    if (_busy || _chosen.isEmpty || templateId == null) return;
+  /// Emails ONE group, with that group's own message.
+  ///
+  /// One group per action, each confirmed on its own — the same rule
+  /// `round_notify_page.dart` follows. A single "email everybody" button would
+  /// send congratulations and rejections in one keystroke, and there is no undo
+  /// for either.
+  Future<void> _email(TestOutcome outcome) async {
+    final templateId = _templateFor(outcome);
+    final group = _groupFor(outcome);
+    if (_busy || group.isEmpty || templateId == null) return;
 
     if (!_mailer.isConfigured) {
       _toast('No mail server is configured, so nothing can be sent.');
@@ -329,14 +453,13 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
       return;
     }
 
-    final group = _chosen;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Email ${group.length} candidate(s)?'),
         content: Text(
-          'This sends the "${_outcome.recruiterLabel.toLowerCase()}" email now, '
-          'with your message inside it. It cannot be unsent.\n\n'
+          'This sends the "${outcome.recruiterLabel.toLowerCase()}" email now, '
+          'with that group\'s message inside it. It cannot be unsent.\n\n'
           'To: ${group.take(3).map((r) => r.email).join(', ')}'
           '${group.length > 3 ? ' and ${group.length - 3} more' : ''}',
         ),
@@ -363,7 +486,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
           'company': _recruiterDisplayName,
           // The same words they will read in the app, so the two cannot
           // disagree. Empty is fine — the template renders without it.
-          'recruiter_message': _messageCtrl.text.trim(),
+          'recruiter_message': _messageFor(outcome).trim(),
         },
         recipients: [
           for (final run in group)
@@ -430,8 +553,12 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
         ),
       ),
       body: _body(theme),
+      // No action bar while the pipeline is still running or there is nobody to
+      // conclude — a disabled row of buttons reads as something being broken.
       bottomNavigationBar:
-          _loading || _finished.isEmpty ? null : _actions(theme),
+          _loading || _blockingRound != null || _finished.isEmpty
+              ? null
+              : _actions(theme),
     );
   }
 
@@ -444,36 +571,115 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
         subtitle: '$_error',
       );
     }
+    // The gate. A final result is the statement that the process is over, so it
+    // waits for the last round to close: while it is open people can still
+    // submit, and the round itself has not been decided.
+    final blocking = _blockingRound;
+    if (blocking != null) {
+      return AppMessageState(
+        icon: Icons.lock_clock,
+        title: '"${blocking.title}" is still open',
+        subtitle: 'The final result is what you tell people once the pipeline '
+            'is over, so it unlocks when the last round closes — by its '
+            'deadline, or when you end it from the timeline.\n\n'
+            'Ending that round is also where you choose who advances, and this '
+            'screen starts from that decision.',
+      );
+    }
+
     final finished = _finished;
     if (finished.isEmpty) {
       return AppMessageState(
         icon: Icons.flag_outlined,
-        title: 'Nobody has finished yet',
+        title: 'Nobody to conclude yet',
         subtitle: _runs.isEmpty
-            ? 'Assign this pipeline to a candidate to get started.'
+            ? 'Add candidates to this pipeline to get started.'
             : '${_runs.length} candidate(s) are in this pipeline, but every one of '
-                'them still has a round to sit. A conclusion can be released '
-                'once somebody has nothing left to do.',
+                'them still has an open round to sit. A conclusion can be '
+                'released once somebody has nothing left to do.',
       );
     }
 
-    // The published results come FIRST, above the tick-list: after a publish this
+    // The published results come FIRST, above the decision: after a publish this
     // screen is read far more often than it is used, and the answer to "who got
     // through" should not be below a form.
+    //
+    // Then the three groups, each behind its own heading, in the order the
+    // recruiter thinks about them. Built as a flat list of widgets rather than
+    // an index-arithmetic builder: with three sections plus two message cards,
+    // the arithmetic is where the bugs live, and a finished pipeline is a
+    // page-sized list, not a thousand rows.
     final results = _resultsPanel(theme);
-    final offset = results == null ? 1 : 2;
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      itemCount: finished.length + offset + 1,
-      itemBuilder: (context, index) {
-        if (results != null && index == 0) return results;
-        if (index == offset - 1) return _explainer(theme, finished.length);
-        if (index == finished.length + offset) return _messageCard(theme);
-        return _candidateRow(theme, finished[index - offset]);
-      },
+      children: [
+        if (results != null) results,
+        _explainer(theme, finished.length),
+        for (final outcome in TestOutcome.values)
+          ..._section(theme, outcome),
+      ],
     );
   }
+
+  /// One group: its heading, its candidates, and its message box under them.
+  List<Widget> _section(ThemeData theme, TestOutcome outcome) {
+    final group = _groupFor(outcome);
+    // An empty "on hold" section is nothing to show. The other two are shown
+    // even when empty, because "0 cleared" is a fact the recruiter must see
+    // before publishing — an invisible section reads as one that does not exist.
+    if (group.isEmpty && outcome == TestOutcome.onHold) return const [];
+
+    return [
+      _sectionHeader(theme, outcome, group.length),
+      for (final run in group) _candidateRow(theme, run),
+      if (group.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, left: 4),
+          child: Text(
+            outcome == TestOutcome.cleared
+                ? 'Nobody is being cleared. Move somebody up if that is wrong.'
+                : 'Nobody is being turned down.',
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      if (outcome != TestOutcome.onHold && group.isNotEmpty)
+        _messageCard(theme, outcome),
+    ];
+  }
+
+  Widget _sectionHeader(ThemeData theme, TestOutcome outcome, int count) {
+    final color = _outcomeColor(theme, outcome);
+    return Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 8),
+      child: Row(
+        children: [
+          Container(width: 8, height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${outcome.recruiterLabel.toUpperCase()} · $count',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _outcomeColor(ThemeData theme, TestOutcome outcome) => switch (outcome) {
+        TestOutcome.cleared => theme.colorScheme.primary,
+        // Not error-red: this is a decision, not a fault.
+        TestOutcome.notSelected => theme.colorScheme.onSurfaceVariant,
+        TestOutcome.onHold => theme.colorScheme.secondary,
+      };
 
   /// Who has been told what, once anything has been published. Null before that.
   ///
@@ -576,6 +782,33 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
     _toast('Copied ${runs.length} email address(es).');
   }
 
+  /// Where the two groups came from, in words.
+  ///
+  /// Said explicitly because a pre-ticked list of people about to be told "not
+  /// selected" must never look like the app's own opinion: it is the recruiter's
+  /// own round decision, read back to them.
+  String get _prefillExplanation {
+    final last = _lastRound;
+    final advanced = _finished.where((r) => r.advancedFromLastRound).length;
+    if (last == null) {
+      return 'Everyone listed has nothing left to sit. Move anybody between the '
+          'groups, then publish.';
+    }
+    if (advanced == 0) {
+      return '"${last.title}" has not advanced anybody, so nobody starts as '
+          'cleared. Move whoever got through up, then publish.';
+    }
+    return 'Pre-filled from your own decision in "${last.title}": the '
+        '$advanced it advanced are cleared, everyone else is not selected. '
+        'Move anybody either way.';
+  }
+
+  /// Throws away the edits and goes back to what the rounds decided.
+  void _resetToPipeline() => setState(() {
+        _touched = false;
+        _prefill();
+      });
+
   Widget _explainer(ThemeData theme, int total) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: RecruiterPanel(
@@ -589,32 +822,19 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
                       size: 16, color: theme.colorScheme.primary),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text('${_selected.length} of $total selected',
+                    child: Text('${_selected.length} cleared of $total',
                         style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
                   TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                              if (_selected.length == total) {
-                                _selected.clear();
-                              } else {
-                                _selected
-                                  ..clear()
-                                  ..addAll(_finished.map((r) => r.emailLower));
-                              }
-                            }),
-                    child:
-                        Text(_selected.length == total ? 'Clear all' : 'Select all'),
+                    onPressed: _busy || !_touched ? null : _resetToPipeline,
+                    child: const Text('Reset'),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
               Text(
-                'Everyone listed has finished every round assigned to them. Tick '
-                'who this result is for — nobody is pre-selected, because there '
-                'is no rule that can decide this for you.',
+                _prefillExplanation,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
@@ -633,56 +853,62 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
       );
 
   Widget _candidateRow(ThemeData theme, CandidateRun run) {
-    final selected = _selected.contains(run.emailLower);
     final published = run.conclusion;
-    final rounds = run.rounds.length;
+    final current = _outcomeOf(run);
+    final sat = run.completedRounds;
+    final held = run.rounds.length;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: RecruiterPanel(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: CheckboxListTile(
-          value: selected,
-          onChanged: _busy
-              ? null
-              : (v) => setState(() {
-                    if (v == true) {
-                      _selected.add(run.emailLower);
-                    } else {
-                      _selected.remove(run.emailLower);
-                    }
-                  }),
-          controlAffinity: ListTileControlAffinity.leading,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
           title: Text(run.displayName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600)),
+          // Sat, not just held: with a closed round these differ, and "2 of 3
+          // rounds sat" is the honest reading for somebody who ran out of time.
           subtitle: Text(
-            '$rounds round${rounds == 1 ? '' : 's'} completed'
-            '${run.displayName == run.email ? '' : ' · ${run.email}'}',
+            sat == held
+                ? '$held round${held == 1 ? '' : 's'} sat'
+                : '$sat of $held rounds sat',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          // What they have ALREADY been told, so a second publish is a
-          // deliberate change rather than a surprise.
-          secondary: published == null
-              ? Icon(Icons.remove, size: 16, color: theme.colorScheme.outline)
-              : _outcomeChip(theme, published.outcome),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // What they have ALREADY been told, so a second publish is a
+              // deliberate change rather than a surprise.
+              if (published != null) _outcomeChip(theme, published.outcome),
+              PopupMenuButton<TestOutcome>(
+                tooltip: 'Move to another group',
+                enabled: !_busy,
+                icon: const Icon(Icons.swap_vert_rounded, size: 20),
+                onSelected: (o) => _setOutcomeOf(run, o),
+                itemBuilder: (_) => [
+                  for (final o in TestOutcome.values)
+                    if (o != current)
+                      PopupMenuItem(
+                        value: o,
+                        child: Text('Move to ${o.recruiterLabel.toLowerCase()}'),
+                      ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _outcomeChip(ThemeData theme, TestOutcome outcome) {
-    final color = switch (outcome) {
-      TestOutcome.cleared => theme.colorScheme.primary,
-      // Not error-red: this is a decision, not a fault.
-      TestOutcome.notSelected => theme.colorScheme.onSurfaceVariant,
-      TestOutcome.onHold => theme.colorScheme.secondary,
-    };
+    final color = _outcomeColor(theme, outcome);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -698,58 +924,52 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
     );
   }
 
-  Widget _messageCard(ThemeData theme) {
-    final short = _shortOfFullPipeline;
+  /// The words ONE group is sent, under that group's rows.
+  ///
+  /// Two boxes rather than one shared box and an outcome switch: the recruiter
+  /// is writing to two sets of people in the same sitting, and a single field
+  /// that re-prefilled itself when they changed groups lost whatever they had
+  /// already typed for the other one.
+  Widget _messageCard(ThemeData theme, TestOutcome outcome) {
+    final cleared = outcome == TestOutcome.cleared;
+    final short = cleared ? _shortOfFullPipeline : const <CandidateRun>[];
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: RecruiterPanel(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('What they are told',
+            Text('What the ${outcome.recruiterLabel.toLowerCase()} group is told',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 10),
-            // Scrollable rather than fixed: three labels this long overflow a
-            // narrow phone once the system font is scaled up, and an overflowing
-            // SegmentedButton hides the option on the end.
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<TestOutcome>(
-                segments: [
-                  for (final outcome in TestOutcome.values)
-                    ButtonSegment(
-                        value: outcome, label: Text(outcome.recruiterLabel)),
-                ],
-                selected: {_outcome},
-                onSelectionChanged: _busy ? null : (s) => _setOutcome(s.first),
-                showSelectedIcon: false,
-              ),
-            ),
             const SizedBox(height: 6),
             Text(
-              'They read this as "${_outcome.candidateLabel}".',
+              'They read the outcome as "${outcome.candidateLabel}".',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 14),
             TextField(
-              controller: _messageCtrl,
+              controller:
+                  cleared ? _clearedMsgCtrl : _notSelectedMsgCtrl,
               maxLines: 5,
               minLines: 3,
               enabled: !_busy,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Your message to them',
-                hintText: 'e.g. Congratulations — we will call you this week '
-                    'to arrange the final chat.',
+                hintText: cleared
+                    ? 'e.g. Congratulations — we will call you this week to '
+                        'arrange the final chat.'
+                    : 'e.g. Thank you for the time you gave us — we have '
+                        'decided not to go ahead this time.',
                 alignLabelWithHint: true,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               'Prefilled — edit it freely. It is shown as written, and it is the '
-              'only thing on the screen besides the outcome above.',
+              'only thing they see besides the outcome.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
@@ -783,7 +1003,8 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   Widget _actions(ThemeData theme) {
     final chosen = _chosen.length;
     final withdrawable = _chosen.where((r) => r.hasConclusion).length;
-    final canEmail = _templateId != null;
+    final cleared = _clearedGroup.length;
+    final rejected = _notSelectedGroup.length;
 
     return SafeArea(
       child: Padding(
@@ -802,36 +1023,49 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
                 onPressed: (_busy || chosen == 0) ? null : _publish,
                 icon: const Icon(Icons.publish_outlined, size: 18),
                 label: Text(chosen == 0
-                    ? 'Select candidates to publish to'
-                    : 'Publish to $chosen candidate(s)'),
+                    ? 'Nobody to publish to'
+                    : 'Publish the result · $cleared cleared, '
+                        '$rejected not selected'),
               ),
             ),
             const SizedBox(height: 10),
+            // One send per group, each confirmed on its own: a single button
+            // would put congratulations and rejections one keystroke apart, and
+            // neither can be unsent.
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed:
-                        (_busy || chosen == 0 || !canEmail) ? null : _email,
+                    onPressed: (_busy || cleared == 0)
+                        ? null
+                        : () => _email(TestOutcome.cleared),
                     icon: const Icon(Icons.mail_outline, size: 18),
-                    label: Text(canEmail
-                        ? 'Email them ($chosen)'
-                        : 'No email for "on hold"'),
+                    label: Text('Email cleared ($cleared)'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed:
-                        (_busy || withdrawable == 0) ? null : _withdraw,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
-                    icon: const Icon(Icons.undo, size: 18),
-                    label: Text('Withdraw ($withdrawable)'),
+                    onPressed: (_busy || rejected == 0)
+                        ? null
+                        : () => _email(TestOutcome.notSelected),
+                    icon: const Icon(Icons.mail_outline, size: 18),
+                    label: Text('Email the rest ($rejected)'),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: (_busy || withdrawable == 0) ? null : _withdraw,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                ),
+                icon: const Icon(Icons.undo, size: 18),
+                label: Text('Withdraw ($withdrawable)'),
+              ),
             ),
             const SizedBox(height: 6),
             Text(

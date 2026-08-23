@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/features/interviews/recruiter/advance_rule.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
@@ -36,37 +37,14 @@ import 'package:talbotiq/features/mailer/services/mailer_service.dart';
 import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 
+// The advance rule moved out to be shared with the end-round preview; kept
+// exported here because this page is where callers expect to find it.
+export 'package:talbotiq/features/interviews/recruiter/advance_rule.dart';
+
 /// Built-in templates for the two outcomes (see backend `app/templating.py`).
 const String kShortlistTemplateId = 'builtin:round_shortlist';
 const String kNotAdvancingTemplateId = 'builtin:round_not_advancing';
 
-/// Who [round]'s own advance rule would shortlist out of [ranked] (best first).
-///
-/// Public and pure so it can be tested without a widget tree: this decides whose
-/// name is pre-ticked on a screen that sends rejection emails, and an off-by-one
-/// here is a person wrongly told they did not get through.
-///
-/// `manual` returns nothing deliberately — the recruiter said they would pick, so
-/// pre-ticking names would be putting words in their mouth.
-List<Interview> shortlistFor(InterviewRound round, List<Interview> ranked) {
-  final advance = round.advance;
-  switch (advance.mode) {
-    case AdvanceMode.manual:
-      return const [];
-    case AdvanceMode.topN:
-      final n = (advance.value ?? 0).round();
-      if (n <= 0) return const [];
-      // `take` already clamps to the list length, so a top-20 rule on 5
-      // candidates selects all 5 rather than throwing.
-      return ranked.take(n).toList();
-    case AdvanceMode.threshold:
-      final bar = advance.value;
-      if (bar == null) return const [];
-      return ranked
-          .where((i) => ((i.result?['overallScore'] as num?) ?? -1) >= bar)
-          .toList();
-  }
-}
 
 class RoundNotifyPage extends StatefulWidget {
   final TestSummary test;
@@ -75,11 +53,28 @@ class RoundNotifyPage extends StatefulWidget {
   /// The round that follows, used only to name it in the shortlist email.
   final InterviewRound? nextRound;
 
+  /// A decision already made elsewhere — the end-round preview, where the
+  /// recruiter ticked names before closing the round. Replaces the advance
+  /// rule's pre-tick, because re-deriving it here would silently throw their
+  /// edits away between one screen and the next.
+  final Set<String>? preselectedIds;
+
+  /// Candidates to show on top of the scored, ranked ones: the people the
+  /// recruiter ticked in that preview who have NOT submitted.
+  ///
+  /// Only the ticked ones, never every unscored candidate. Somebody who simply
+  /// never took the round must not be swept into a batch that tells them they
+  /// did not get through — that is the whole reason this screen is
+  /// scored-candidates-only by default.
+  final List<Interview> extraCandidates;
+
   const RoundNotifyPage({
     super.key,
     required this.test,
     required this.round,
     this.nextRound,
+    this.preselectedIds,
+    this.extraCandidates = const [],
   });
 
   @override
@@ -152,13 +147,24 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
         roundId: widget.round.id,
       );
       if (!mounted) return;
+
+      // Ranked first, then anybody handed in who is not already there. Order
+      // matters: `applyRoundOutcomes` stamps rank from this list's positions, so
+      // an unscored candidate must never displace a scored one.
+      final loadedIds = {for (final i in page.items) i.id};
+      final extras = widget.extraCandidates
+          .where((i) => !loadedIds.contains(i.id))
+          .toList();
+
       setState(() {
         _ranked
           ..clear()
-          ..addAll(page.items);
+          ..addAll(page.items)
+          ..addAll(extras);
         _selected
           ..clear()
-          ..addAll(shortlistFor(widget.round, page.items).map((i) => i.id));
+          ..addAll(widget.preselectedIds ??
+              shortlistFor(widget.round, page.items).map((i) => i.id));
         _assigned = assigned;
         _loading = false;
       });
@@ -172,19 +178,11 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
   }
 
   String get _preselectExplanation {
-    final advance = widget.round.advance;
-    switch (advance.mode) {
-      case AdvanceMode.manual:
-        return 'This round advances candidates manually, so nobody is '
-            'pre-selected. Tick whoever moves on.';
-      case AdvanceMode.topN:
-        return 'Pre-selected: the top ${(advance.value ?? 0).round()} by score, '
-            'from this round\'s advance rule. Change it however you like.';
-      case AdvanceMode.threshold:
-        return 'Pre-selected: everyone scoring ${(advance.value ?? 0).round()} '
-            'or above, from this round\'s advance rule. Change it however you '
-            'like.';
+    if (widget.preselectedIds != null) {
+      return 'Carried over from the round you just ended — the names you '
+          'ticked there. Change it however you like.';
     }
+    return advanceRuleExplanation(widget.round);
   }
 
   List<Interview> get _shortlisted =>

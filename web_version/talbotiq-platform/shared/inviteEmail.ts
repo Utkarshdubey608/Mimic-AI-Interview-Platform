@@ -175,8 +175,8 @@ export function renderEmailShell(
   const accent = HEX.test(tpl.branding?.accentColor || '') ? tpl.branding.accentColor : '#6B2BE0'
   const logo = tpl.branding?.logoUrl
     ? `<img src="${escapeHtml(tpl.branding.logoUrl)}" alt="${escapeHtml(tpl.branding.companyName || '')}" style="max-height:40px;margin-bottom:8px" />`
-    : `<div style="font-weight:700;color:${accent};font-size:18px">${escapeHtml(tpl.branding?.companyName || 'TalbotIQ')}</div>`
-  const footer = escapeHtml(tpl.branding?.footer || 'Sent via TalbotIQ.')
+    : `<div style="font-weight:700;color:${accent};font-size:18px">${escapeHtml(tpl.branding?.companyName || 'Mimic')}</div>`
+  const footer = escapeHtml(tpl.branding?.footer || 'Sent via Mimic.')
 
   // Shell tones mirror the in-app violet system so the email preview in the
   // invite wizard and the delivered mail read as one surface. Figtree is the
@@ -262,7 +262,7 @@ export function defaultInviteEmailTemplate() {
   return {
     name: 'Default invite',
     isDefault: true,
-    sender: { verifiedSenderEmail: '', fromName: 'TalbotIQ', replyTo: '' },
+    sender: { verifiedSenderEmail: '', fromName: 'Mimic', replyTo: '' },
     subject: 'Interview invitation — {{role}}',
     bodyHtml:
       '<p>Hi {{candidate_name}},</p>' +
@@ -271,9 +271,9 @@ export function defaultInviteEmailTemplate() {
       '<p>{{interview_link}}</p>',
     cta: { text: 'Start your interview', color: '#6B2BE0' },
     branding: {
-      companyName: 'TalbotIQ',
+      companyName: 'Mimic',
       accentColor: '#6B2BE0',
-      footer: 'Sent via TalbotIQ.',
+      footer: 'Sent via Mimic.',
     } as { companyName: string; accentColor: string; footer?: string; logoUrl?: string },
     deadlineText: '',
   }
@@ -283,8 +283,8 @@ type EmailTemplateSeed = Omit<InviteEmailTemplate, 'id' | 'recruiterId' | 'creat
 
 /** Kind-appropriate default template. `defaultTemplateFor('invite')` === the invite default + kind. */
 export function defaultTemplateFor(kind: EmailKind): EmailTemplateSeed {
-  const sender = { verifiedSenderEmail: '', fromName: 'TalbotIQ', replyTo: '' }
-  const branding = { companyName: 'TalbotIQ', accentColor: '#6B2BE0', footer: 'Sent via TalbotIQ.' } as {
+  const sender = { verifiedSenderEmail: '', fromName: 'Mimic', replyTo: '' }
+  const branding = { companyName: 'Mimic', accentColor: '#6B2BE0', footer: 'Sent via Mimic.' } as {
     companyName: string; accentColor: string; footer?: string; logoUrl?: string
   }
   if (kind === 'advance') {

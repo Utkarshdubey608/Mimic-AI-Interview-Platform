@@ -130,7 +130,7 @@ export default function SetupPage() {
 
     const body: CreateConversationInput = {
       replica_id: f.replica_id,
-      conversation_name: `TalbotIQ — ${candidateName}`,
+      conversation_name: `Mimic — ${candidateName}`,
       conversational_context: ctx,
       custom_greeting: greeting,
     }
@@ -178,7 +178,7 @@ export default function SetupPage() {
     resetHumeState()
     store.setCurrentConversation({
       conversation_id: `demo-${Date.now()}`,
-      conversation_name: `TalbotIQ — ${name || 'Candidate'}`,
+      conversation_name: `Mimic — ${name || 'Candidate'}`,
       status: 'active', conversation_url: '',
       replica_id: '', created_at: new Date().toISOString(),
     })

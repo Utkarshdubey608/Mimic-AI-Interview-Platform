@@ -6,6 +6,7 @@ import { MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, Arrow
 } from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
 import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi } from '@/lib/api'
+import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
 import { ReviewSend } from './invite-email/ReviewSend'
@@ -203,8 +204,8 @@ function StepFooter({ left, hint, right }: { left: React.ReactNode; hint?: strin
  */
 const DEVICE_OPTIONS: { id: InterviewDevice; label: string; hint: string }[] = [
   { id: 'web',     label: 'Web browser', hint: 'Any computer or phone browser' },
-  { id: 'mobile',  label: 'Mobile app',  hint: 'The TalbotIQ app on a phone' },
-  { id: 'desktop', label: 'Desktop app', hint: 'The TalbotIQ app on a computer' },
+  { id: 'mobile',  label: 'Mobile app',  hint: 'The Mimic app on a phone' },
+  { id: 'desktop', label: 'Desktop app', hint: 'The Mimic app on a computer' },
 ]
 
 function DevicePicker({

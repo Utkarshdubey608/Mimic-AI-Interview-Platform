@@ -224,7 +224,7 @@ def default_interviewer_persona(
     who = (candidate_name or "").strip() or "the candidate"
     me = (ai_name or "").strip() or "Alex"
     return (
-        f"You are {me}, a Senior Talent Specialist at TalbotIQ conducting a screening "
+        f"You are {me}, a Senior Talent Specialist at Mimic conducting a screening "
         f"interview with {who}. You are warm, personable and encouraging. You put people "
         "at ease and sound genuinely interested in their answers."
     )

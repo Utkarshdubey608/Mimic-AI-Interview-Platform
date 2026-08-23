@@ -169,4 +169,69 @@ void main() {
     expect(s.stage, PipelineStage.complete);
     expect(s.closedCount, 1);
   });
+
+  group('the round a decision is owed on', () {
+    test('nothing is closed yet, so nothing is owed', () {
+      final s = RoundPipelineStatus.from([
+        _round(order: 0, closesAt: _now.add(const Duration(days: 2))),
+        _round(order: 1),
+      ], _now)!;
+
+      expect(s.latestClosedIndex, isNull);
+      expect(s.latestClosed, isNull);
+    });
+
+    test('a round past its deadline counts exactly like one closed by hand', () {
+      // The asymmetry this pins: nothing is written when a deadline passes, so
+      // an auto-closed round used to sit undecided in silence while a
+      // hand-closed one prompted.
+      final auto = RoundPipelineStatus.from([
+        _round(order: 0, closesAt: _now.subtract(const Duration(hours: 1))),
+      ], _now)!;
+      final byHand = RoundPipelineStatus.from([
+        _round(order: 0, closedAt: _now.subtract(const Duration(hours: 1))),
+      ], _now)!;
+
+      expect(auto.latestClosedIndex, 0);
+      expect(byHand.latestClosedIndex, 0);
+    });
+
+    test('with two rounds closed it is the LATER one that is waiting', () {
+      // Putting anybody into round 2 settles round 1, so round 1 is not what
+      // the recruiter is being asked about.
+      final s = RoundPipelineStatus.from([
+        _round(order: 0, closedAt: _now.subtract(const Duration(days: 3))),
+        _round(order: 1, closedAt: _now.subtract(const Duration(days: 1))),
+        _round(order: 2, opensAt: _now.add(const Duration(days: 1))),
+      ], _now)!;
+
+      expect(s.latestClosedIndex, 1);
+      expect(s.latestClosed?.id, 'r1');
+      // ...and the pipeline still reads as pending, not finished.
+      expect(s.stage, PipelineStage.upcoming);
+    });
+
+    test('a closed round is still the one owed while a LATER one is open', () {
+      // Round 2 opening does not settle round 1: candidates can be advanced
+      // into an already-open round, and whoever was not advanced is still
+      // waiting to be told.
+      final s = RoundPipelineStatus.from([
+        _round(order: 0, closedAt: _now.subtract(const Duration(days: 1))),
+        _round(order: 1, closesAt: _now.add(const Duration(days: 4))),
+      ], _now)!;
+
+      expect(s.latestClosedIndex, 0);
+      expect(s.currentIndex, 1, reason: 'the OPEN round is still the current one');
+    });
+
+    test('every round closed — the last one is the decision', () {
+      final s = RoundPipelineStatus.from([
+        for (var k = 0; k < 3; k++)
+          _round(order: k, closedAt: _now.subtract(Duration(days: 3 - k))),
+      ], _now)!;
+
+      expect(s.stage, PipelineStage.complete);
+      expect(s.latestClosedIndex, 2);
+    });
+  });
 }

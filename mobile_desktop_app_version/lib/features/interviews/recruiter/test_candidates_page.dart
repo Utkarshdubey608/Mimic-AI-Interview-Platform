@@ -32,6 +32,7 @@ import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/services/evaluation_retry_service.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
+import 'package:talbotiq/features/interviews/recruiter/widgets/add_candidates_sheet.dart';
 import 'package:talbotiq/features/interviews/recruiter/candidate_grouping.dart';
 import 'package:talbotiq/features/interviews/recruiter/create_interview_page.dart';
 import 'package:talbotiq/features/interviews/candidate/live_interview_page.dart';
@@ -78,6 +79,9 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
   /// A bulk re-score is in flight; `_retryProgress` is "3 of 12" for the overlay.
   bool _retrying = false;
   String _retryProgress = '';
+
+  /// Guards the add-candidates flow so a double tap cannot write two batches.
+  bool _adding = false;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
   String get _testId => widget.test.testId;
@@ -561,6 +565,15 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
 
     return RecruiterActionBar(
       actions: [
+        // First, and offered unconditionally: "add somebody" is the one thing a
+        // recruiter came here to do that this screen could not do at all. Its
+        // empty state told them to "assign this pipeline to a candidate email"
+        // with nothing anywhere that could.
+        RecruiterAction(
+          label: 'Add candidates',
+          icon: Icons.person_add_alt_1_outlined,
+          onPressed: _adding ? null : _addCandidates,
+        ),
         RecruiterAction(
           label: 'Leaderboard',
           icon: Icons.leaderboard_outlined,
@@ -627,6 +640,74 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
     );
   }
 
+  /// Adds candidates to a round of this pipeline — the round this screen is
+  /// scoped to, or one the recruiter picks when it is showing all of them.
+  Future<void> _addCandidates() async {
+    if (_adding) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final repo = context.read<InterviewRepository>();
+    setState(() => _adding = true);
+    try {
+      var target = widget.round;
+      if (target == null) {
+        final rounds = await repo.fetchRounds(
+          testId: widget.test.testId,
+          recruiterId: _uid,
+        );
+        if (!mounted) return;
+        if (rounds.isEmpty) {
+          // A pipeline with no timeline has nowhere to put anybody: its
+          // assignments carry no roundId, and inventing one here would split
+          // the pipeline in two.
+          messenger.showSnackBar(const SnackBar(
+            content: Text(
+              'This pipeline has no rounds yet — add one from '
+              'Rounds & schedule first.',
+            ),
+          ));
+          return;
+        }
+        target = rounds.length == 1
+            ? rounds.first
+            : await pickRoundForCandidates(
+                context,
+                rounds: rounds,
+                now: DateTime.now(),
+              );
+        if (target == null || !mounted) return;
+      }
+
+      final n = await addCandidatesToRound(
+        context,
+        repo: repo,
+        test: widget.test,
+        round: target,
+        recruiterId: _uid,
+        recruiterEmail: FirebaseAuth.instance.currentUser?.email ?? '',
+        recruiterName: FirebaseAuth.instance.currentUser?.displayName,
+      );
+      if (n == null || !mounted) return;
+
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          n == 0
+              ? 'Everyone you picked is already in "${target.title}".'
+              : '$n candidate(s) added to "${target.title}".',
+        ),
+      ));
+      // New assignments are new rows on this very list.
+      await _refresh();
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Could not add candidates: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
   Widget _body(ThemeData theme) {
     if (_error != null && _loaded.isEmpty) {
       return AppMessageState(
@@ -646,7 +727,8 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
             ? 'No candidates in this pipeline'
             : 'No matching candidates',
         subtitle: _query.isEmpty
-            ? 'Assign this pipeline to a candidate email to get started.'
+            ? 'Use "Add candidates" above to invite people — by email, or from '
+                'whoever is already in this pipeline.'
             : 'Try a different name or email.',
       );
     }
