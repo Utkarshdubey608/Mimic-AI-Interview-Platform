@@ -1,0 +1,16 @@
+{
+  "name": "talbotiq-desktop",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Talbotiq desktop application: the existing web app (web_version/talbotiq-platform) running inside an Electron shell, recruiter-only.",
+  "main": "main.js",
+  "scripts": {
+    "build:renderer": "npm --prefix ../web_version/talbotiq-platform run build",
+    "start": "electron .",
+    "dist": "npm run build:renderer && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  }
+}

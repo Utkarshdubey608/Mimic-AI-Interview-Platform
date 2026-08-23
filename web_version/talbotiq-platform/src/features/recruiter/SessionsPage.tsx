@@ -8,6 +8,7 @@ import {
   ExhibitTab, Citation, Modal, Toggle, cn,
 } from '@/components/ui'
 import { templatesApi, sessionsApi, settingsApi, describeFetchError } from '@/lib/api'
+import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { DecideRoundModal } from './DecideRoundModal'
 import { RecoverScoringModal } from './RecoverScoringModal'
@@ -91,7 +92,7 @@ export default function SessionsPage() {
       })
     },
     onSuccess: ({ id }) => {
-      const link = `${window.location.origin}/take/${id}`
+      const link = `${getCandidateLinkOrigin()}/take/${id}`
       setCreatedLink(link)
       qc.invalidateQueries({ queryKey: ['sessions'] })
       toast.success('Session created')
@@ -287,7 +288,7 @@ export default function SessionsPage() {
                       <div className="flex items-center justify-end gap-3 whitespace-nowrap">
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/take/${s.id}`)
+                            navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
                             toast.success('Candidate link copied')
                           }}
                           className="text-xs font-medium text-neutral-500 transition-colors duration-150 hover:text-primary-700"
@@ -346,7 +347,7 @@ export default function SessionsPage() {
                     : <Citation />}
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/take/${s.id}`)
+                      navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
                       toast.success('Candidate link copied')
                     }}
                     className="font-medium text-neutral-500 hover:text-primary-700"

@@ -497,7 +497,7 @@ export default function InviteWizard() {
         const pipeline = await pipelinesApi.create({ role: role.trim(), rounds: toRoundDefs(rounds) })
         const res = await pipelinesApi.inviteRound1(pipeline.id, {
           candidates: validCandidates,
-          origin: window.location.origin,
+          origin: getCandidateLinkOrigin(),
           emailConfig: emailConfigPayload(),
           sendEmails: true,
         })
@@ -551,7 +551,7 @@ export default function InviteWizard() {
   const retryOne = async (id: string) => {
     setRetrying((s) => new Set(s).add(id))
     try {
-      const r = await invitesApi.retry(id, { role: role.trim(), origin: window.location.origin, emailConfig: emailConfigPayload() })
+      const r = await invitesApi.retry(id, { role: role.trim(), origin: getCandidateLinkOrigin(), emailConfig: emailConfigPayload() })
       setResult((prev) => prev && ({
         ...prev,
         emailed: prev.emailed + (r.sent ? 1 : 0),
@@ -1153,7 +1153,7 @@ export default function InviteWizard() {
               onChange={setEmailDraft}
               role={role}
               sampleEmail={sampleEmail}
-              origin={window.location.origin}
+              origin={getCandidateLinkOrigin()}
             />
           </StepSection>
 
@@ -1169,7 +1169,7 @@ export default function InviteWizard() {
       {!result && step === 5 && (
         <div className="space-y-8">
           <StepSection title="Review & send" hint="Confirm the recipients and the email below, then send. Invitations go out immediately.">
-            <ReviewSend candidates={validCandidates} draft={emailDraft} role={role} origin={window.location.origin} />
+            <ReviewSend candidates={validCandidates} draft={emailDraft} role={role} origin={getCandidateLinkOrigin()} />
           </StepSection>
 
           <StepFooter
