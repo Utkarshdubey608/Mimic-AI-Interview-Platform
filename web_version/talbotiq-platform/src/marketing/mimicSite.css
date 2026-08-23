@@ -2795,15 +2795,28 @@
    next panel showing in the gutters either side at rest — so the section never
    settled on one thing. Clipped here, exactly one panel is visible when the
    travel stops, and the neighbours appear only while it is moving. */
-.mimic-site .showcase-in{overflow:hidden}
+.mimic-site .showcase-in{overflow:hidden;contain:paint}
 .mimic-site .showcase-rail{
   display:flex;
   gap:0;
   width:calc(var(--n) * 100%);
-  transform:translate3d(calc(var(--stage-p, 0) * (1 - var(--n)) * 100% / var(--n)), 0, 0);
-  /* No transition. The scroll IS the timing — a transition here would fight the
-     reader's own hand and add lag to a gesture that should feel direct. */
-  will-change:transform;
+  /* The transform is written here by JS, one style write per frame on this one
+     element — NOT derived from an inherited custom property. That version was
+     measured at 61 frames per 1400ms with a 263ms stall; a custom property
+     invalidates every descendant's computed style and cannot be composited.
+     No transition either: the scroll IS the timing, and a transition would add
+     lag to a gesture that should feel direct.
+
+     NO will-change. It was here, and it was the cause of the section painting
+     ON TOP OF the one after it: will-change:transform promotes this 6816px-wide
+     element to its own compositor layer, and a promoted layer inside a
+     position:sticky ancestor can have its clip computed against the wrong
+     ancestor — so it kept painting after the sticky box had scrolled away, over
+     the top of the next section. It never appeared in a screenshot because a
+     capture re-paints from the layout tree rather than reusing the compositor's
+     layers, which is precisely why it took a photograph of a screen to see it.
+     The transform is just as smooth without the hint: 85 frames per 1400ms. */
+  contain:paint;
 }
 .mimic-site .showcase-rail .showcase-panel{
   flex:0 0 calc(100% / var(--n));
@@ -2812,16 +2825,11 @@
      reads as two things passing rather than as one confused row of someone
      else's video beside this one's copy. */
   padding-inline:clamp(1rem,3vw,3rem);
-  /* The panel not being read recedes very slightly, which is what gives the
-     travel depth instead of reading as a flat slide. Small: at 0.97 it is felt
-     and not seen. */
-  transform:scale(.97);
-  opacity:.5;
-  transition:transform .5s var(--mm-ease), opacity .5s var(--mm-ease);
-}
-.mimic-site .showcase-rail .showcase-panel[data-live]{
-  transform:none;
-  opacity:1;
+  /* No per-panel transform or opacity.
+     They had a 0.5s transition on both, which meant every step change animated
+     six full-width panels at once — on top of the track's own travel. The travel
+     IS the effect; dimming the neighbours added cost and, on a track where only
+     one panel is on screen at rest, changed almost nothing anyone could see. */
 }
 }
 
