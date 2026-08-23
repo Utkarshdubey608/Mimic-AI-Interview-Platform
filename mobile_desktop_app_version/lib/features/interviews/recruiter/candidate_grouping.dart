@@ -107,7 +107,7 @@ class CandidateRun {
   int get completedRounds =>
       rounds.where((i) => i.status == InterviewStatus.completed).length;
 
-  /// True when there is nothing left for this candidate to sit.
+  /// True when there is nothing left for this candidate to sit, at [now].
   ///
   /// "Everything ASSIGNED to them", not "every round the test has" — those come
   /// apart in the normal case. A pipeline assigns round 2 only to the people who
@@ -116,9 +116,39 @@ class CandidateRun {
   /// the process or were quietly dropped from it is the recruiter's decision, and
   /// this flag deliberately does not guess: it only says the recruiter can make
   /// one without cutting a round short.
-  bool get isFinished =>
+  ///
+  /// Completed OR out of time. That second half is the fix for a real dead end:
+  /// this used to require every round COMPLETED, so a round that closed with
+  /// people who never submitted left them permanently unfinished — and a
+  /// pipeline whose last round closed with nobody submitting showed the final
+  /// result screen as "nobody has finished yet", with no way forward at all.
+  /// A closed round is over for everybody in it, submitted or not.
+  ///
+  /// Expiry is read off the assignment rather than the round, because that is
+  /// where a round's close lands: `InterviewRound.assignTo` copies `closesAt`
+  /// onto it, and `InterviewRepository.endRound` stamps the moment of an early
+  /// close. So both ways a round can close are covered by one check.
+  bool isFinishedAt(DateTime now) =>
       rounds.isNotEmpty &&
-      rounds.every((i) => i.status == InterviewStatus.completed);
+      rounds.every((i) =>
+          i.status == InterviewStatus.completed ||
+          (i.expiresAt != null && now.isAfter(i.expiresAt!)));
+
+  /// [isFinishedAt] against the wall clock.
+  bool get isFinished => isFinishedAt(DateTime.now());
+
+  /// What the LAST round they hold decided about them.
+  ///
+  /// The pipeline's own answer to "did this person get to the end": each round's
+  /// outcome is written when the recruiter reviews it, so the newest one is
+  /// where they stopped. `pending` means the round they last sat has not been
+  /// decided yet — not that they were rejected.
+  RoundOutcome get latestOutcome =>
+      rounds.isEmpty ? RoundOutcome.pending : rounds.last.outcome;
+
+  /// True when the pipeline advanced them out of their last round — i.e. they
+  /// cleared everything that was put in front of them.
+  bool get advancedFromLastRound => latestOutcome == RoundOutcome.selected;
 
   /// The published conclusion, from whichever round carries it.
   ///
@@ -137,6 +167,30 @@ class CandidateRun {
 
   bool get hasConclusion => conclusion != null;
 }
+
+/// The final result a pipeline's own rounds already imply, as email → outcome.
+///
+/// The recruiter decided who advanced when they reviewed each round; asking them
+/// to re-tick that same list on the final screen was both work and a chance to
+/// get it wrong. So this reads it back:
+///
+///   * Already published? Keep what they were told. Re-opening the screen shows
+///     the state of the world, it does not propose to change it.
+///   * Advanced out of their last round → cleared: they got through everything
+///     that was put in front of them.
+///   * Anything else → not selected. Including `pending`: a candidate whose last
+///     round was never decided did not get through it, and the screen says out
+///     loud where the pre-fill came from so this can be corrected in one tap.
+///
+/// Pure so the rule can be tested without Firebase — the screen that uses it
+/// needs FirebaseAuth to build at all.
+Map<String, TestOutcome> conclusionPrefill(Iterable<CandidateRun> finished) => {
+      for (final run in finished)
+        run.emailLower: run.conclusion?.outcome ??
+            (run.advancedFromLastRound
+                ? TestOutcome.cleared
+                : TestOutcome.notSelected),
+    };
 
 /// Groups a test's assignments into one [CandidateRun] per person.
 ///

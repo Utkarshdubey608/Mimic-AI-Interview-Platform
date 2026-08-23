@@ -57,7 +57,7 @@ export function EmailPreview({
   const subject = renderTemplate(draft.subject, { ...vars, interview_link: sampleLink }) || '(no subject)'
   const fromLine = draft.sender.verifiedSenderEmail
     ? `${draft.sender.fromName || ''} <${draft.sender.verifiedSenderEmail}>`.trim()
-    : `${draft.sender.fromName || 'TalbotIQ'} (server default sender)`
+    : `${draft.sender.fromName || 'Mimic'} (server default sender)`
 
   // Scale the fixed-width email to fit the inline column (CSS zoom keeps layout height).
   const boxRef = useRef<HTMLDivElement>(null)

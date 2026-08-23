@@ -38,7 +38,7 @@ export function ReviewSend({
     candidate_name: sampleName(first),
     role: candidates[0]?.role || role || 'the role',
     recruiter_name: recruiterName,
-    company: draft.branding.companyName || 'TalbotIQ',
+    company: draft.branding.companyName || 'Mimic',
     deadline: draft.deadlineText || '—',
   }
   const fromLine = draft.sender.verifiedSenderEmail

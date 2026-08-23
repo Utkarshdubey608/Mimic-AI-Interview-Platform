@@ -209,7 +209,8 @@ export default function ResultsPage() {
   const humeNoData = !humeResult && !humeIsProcessing
 
   // ── Gemini ATS analysis trigger ───────────────────────────────────────────
-  // Candidate name is embedded in the Tavus conversation_name ("TalbotIQ — Name").
+  // Candidate name is embedded in the Tavus conversation_name ("Mimic — Name").
+  // Split on the dash, not the prefix, so older "TalbotIQ — " records still work.
   const candidateName = (conv?.conversation_name ?? '').split('—').pop()?.trim() || 'Candidate'
   const jobRole = 'the interviewed role'
 
@@ -252,7 +253,7 @@ export default function ResultsPage() {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TalbotIQ Report</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Archivo,system-ui,sans-serif;color:#0E1420;background:#EEF0F4;padding:48px}h1{font-size:28px;font-weight:800;letter-spacing:-0.03em;color:#0E1420;margin-bottom:4px}.meta{font-size:13px;color:#5C6879;margin-bottom:32px}table{width:100%;border-collapse:collapse;font-size:13px;background:#ffffff}td,th{padding:10px 14px;border:1px solid #E3E6ED;text-align:left}th{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:#5C6879;background:#F8F9FB}.score{font-size:48px;font-weight:800;letter-spacing:-0.03em;color:#0E1420;font-variant-numeric:tabular-nums}</style></head><body><h1>TalbotIQ AI Interview Report</h1><p class="meta">Session: ${conv?.conversation_id ?? 'demo'} · Generated: ${new Date().toLocaleString()}</p><p class="score">${overall}<span style="font-size:20px;color:#5C6879">/100</span></p><p style="margin:12px 0 32px;display:inline-block;background:#E2E8F6;color:#152E76;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;border:1px solid #C6D2ED">${verdict}</p><table><tr><th>Dimension</th><th>Score</th><th>Grade</th></tr>${rows}</table></body></html>`
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
-    a.download = `TalbotIQ-Report-${conv?.conversation_id ?? 'demo'}.html`
+    a.download = `Mimic-Report-${conv?.conversation_id ?? 'demo'}.html`
     document.body.appendChild(a); a.click(); document.body.removeChild(a)
     toast.success('Report downloaded')
   }
@@ -261,7 +262,7 @@ export default function ResultsPage() {
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
       <PageHeader
         kicker="Interview Complete"
-        title={conv?.conversation_name ?? 'Interview Assessment'}
+        title={conv?.conversation_name ?? 'Interview assessment'}
         description="Comprehensive candidate intelligence powered by conversational AI and behavioral analytics."
         action={
           <div className="text-right">
@@ -700,7 +701,7 @@ export default function ResultsPage() {
           <div role="dialog" aria-modal="true" aria-label="AI offer recommendation" className="bg-white rounded-2xl shadow-xl border border-border p-8 w-full max-w-lg animate-slide-up" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-xl font-extrabold tracking-[-0.03em] text-neutral-900 mb-4">AI Offer Recommendation</h3>
             <pre className="bg-neutral-50 border border-border rounded-xl p-4 text-xs text-neutral-700 font-mono leading-relaxed whitespace-pre-wrap">
-{`OFFER RECOMMENDATION — TalbotIQ AI
+{`OFFER RECOMMENDATION — MIMIC AI
 Session: ${conv?.conversation_id ?? 'demo'}
 Score: ${overall}/100  |  Confidence: ${hiringConf}%
 

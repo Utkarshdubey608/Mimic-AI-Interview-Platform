@@ -113,11 +113,11 @@ async def round_questions(request: Request, round_def: dict) -> list[str]:
 
 
 def _company(template: dict) -> str:
-    return (template.get("branding") or {}).get("companyName") or "TalbotIQ"
+    return (template.get("branding") or {}).get("companyName") or "Mimic"
 
 
 def _from_name(template: dict) -> str:
-    return (template.get("sender") or {}).get("fromName") or "TalbotIQ"
+    return (template.get("sender") or {}).get("fromName") or "Mimic"
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────

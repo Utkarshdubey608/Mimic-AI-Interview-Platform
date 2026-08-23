@@ -755,6 +755,7 @@ class _TestCounts extends StatefulWidget {
     int total,
     int completed,
     RoundPipelineStatus? pipeline,
+    RoundDecisionTally? decision,
   ) builder;
   const _TestCounts({required this.test, required this.builder});
 
@@ -766,6 +767,10 @@ class _TestCountsState extends State<_TestCounts> {
   int _total = -1;
   int _completed = -1;
   RoundPipelineStatus? _pipeline;
+
+  /// How much of the latest CLOSED round has been decided, once known. Null for
+  /// a pipeline with no closed round — nothing can be waiting yet.
+  RoundDecisionTally? _decision;
 
   @override
   void initState() {
@@ -792,18 +797,32 @@ class _TestCountsState extends State<_TestCounts> {
     if (!mounted) return;
 
     final rounds = results[2] as List<InterviewRound>;
+    // Derived once here against a single instant, rather than per rebuild: a row
+    // that rebuilds while scrolling should not re-date its countdown.
+    final pipeline = RoundPipelineStatus.from(rounds, DateTime.now());
     setState(() {
       _total = results[0] as int;
       _completed = results[1] as int;
-      // Derived once here against a single instant, rather than per rebuild:
-      // a row that rebuilds while scrolling should not re-date its countdown.
-      _pipeline = RoundPipelineStatus.from(rounds, DateTime.now());
+      _pipeline = pipeline;
     });
+
+    // A second trip, and only for a pipeline that has actually closed a round:
+    // the dashboard's job here is to say "this one is waiting on you", and with
+    // nothing closed there is nothing it could be waiting for.
+    final closed = pipeline?.latestClosed;
+    if (closed == null) return;
+    final decision = await repo.countRoundDecision(
+      recruiterId: uid,
+      testId: widget.test.testId,
+      roundId: closed.id,
+    );
+    if (!mounted) return;
+    setState(() => _decision = decision);
   }
 
   @override
   Widget build(BuildContext context) =>
-      widget.builder(context, _total, _completed, _pipeline);
+      widget.builder(context, _total, _completed, _pipeline, _decision);
 }
 
 /// The Soft Pastel Accent Card (Featured Action - Yellow Planning Card style).
@@ -943,6 +962,63 @@ class _FilterPillRow extends StatelessWidget {
 /// Compact List Row matching the reference design language:
 /// ○ Title
 ///   Metadata (candidates, date)                 ›
+/// "12 waiting on you" — a pipeline whose closed round nobody has decided.
+///
+/// On the dashboard rather than only inside the pipeline, because the recruiter
+/// has no reason to open a test that looks finished: a round closing on its own
+/// deadline is invisible until something says so here. Tapping it goes to the
+/// timeline, where the review sits behind one button.
+class _DecisionPendingChip extends StatelessWidget {
+  final int count;
+  final String roundTitle;
+  final VoidCallback onTap;
+
+  const _DecisionPendingChip({
+    required this.count,
+    required this.roundTitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = StatusTone.pending(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm + 2, vertical: 5),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(color: tone.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.how_to_reg_outlined, size: 13, color: tone),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  '$count waiting on you · $roundTitle',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: tone,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CompactTestRow extends StatelessWidget {
   final TestSummary test;
 
@@ -967,7 +1043,7 @@ class _CompactTestRow extends StatelessWidget {
 
     return _TestCounts(
       test: test,
-      builder: (context, total, completed, pipeline) {
+      builder: (context, total, completed, pipeline, decision) {
         // A pipeline worth showing: present, and genuinely more than one round.
         final p = pipeline?.isMultiRound == true ? pipeline : null;
 
@@ -1048,6 +1124,18 @@ class _CompactTestRow extends StatelessWidget {
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        if (decision?.hasPending == true &&
+                            pipeline?.latestClosed != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: _DecisionPendingChip(
+                              count: decision!.pending,
+                              roundTitle: pipeline!.latestClosed!.title,
+                              onTap: onOpenTimeline,
+                            ),
                           ),
                         ],
                       ],
@@ -1326,7 +1414,7 @@ class _DesktopInterviewCardState extends State<_DesktopInterviewCard> {
   Widget build(BuildContext context) {
     return _TestCounts(
       test: widget.test,
-      builder: (context, total, completed, pipeline) {
+      builder: (context, total, completed, pipeline, decision) {
         final p = pipeline?.isMultiRound == true ? pipeline : null;
         final theme = Theme.of(context);
         final scheme = theme.colorScheme;
@@ -1434,6 +1522,21 @@ class _DesktopInterviewCardState extends State<_DesktopInterviewCard> {
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
                             fontSize: 11)),
+                  ],
+                  // Shown for a single-round test too: "who got through" is a
+                  // decision there as well, and that card has no stage line to
+                  // carry it.
+                  if (decision?.hasPending == true &&
+                      pipeline?.latestClosed != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: _DecisionPendingChip(
+                        count: decision!.pending,
+                        roundTitle: pipeline!.latestClosed!.title,
+                        onTap: widget.onOpenTimeline,
+                      ),
+                    ),
                   ],
                 ],
               ),

@@ -13,6 +13,8 @@ import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/core/utils/validators.dart';
 import 'package:talbotiq/shared/widgets/custom_buttons.dart';
 import 'package:talbotiq/shared/widgets/custom_inputs.dart';
+import 'package:talbotiq/shared/widgets/mimic_mark.dart';
+import 'package:talbotiq/shared/widgets/mimic_wordmark.dart';
 import 'package:talbotiq/features/auth/app_role.dart';
 import 'package:talbotiq/features/auth/auth_service.dart';
 
@@ -163,20 +165,21 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1.0,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                // The sign-in lockup: the drawn mark beside the wordmark, the
+                // same pair as web's MimicLockup. FittedBox rather than a bare
+                // Row so a large system font scale shrinks the lockup instead
+                // of overflowing the column.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const TextSpan(text: 'talbot'),
-                      TextSpan(
-                          text: 'iq',
-                          style: TextStyle(color: theme.colorScheme.primary)),
+                      const MimicMark(size: 44),
+                      const SizedBox(width: 12),
+                      DefaultTextStyle(
+                        style: TextStyle(color: theme.colorScheme.onSurface),
+                        child: const MimicWordmark(fontSize: 34),
+                      ),
                     ],
                   ),
                 ),

@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     # --- App ---
-    app_name: str = "TalbotIQ Mailer"
+    app_name: str = "Mimic Mailer"
     # Comma-separated list of allowed CORS origins. "*" allows any (dev only).
     cors_origins: str = "*"
 
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     dry_run: bool = True
 
     # Display name used on the "From" header.
-    from_name: str = "TalbotIQ"
+    from_name: str = "Mimic"
     # The Gmail address mail is sent from. Needed by both modes below.
     email_user: str = ""
 

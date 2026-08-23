@@ -18,6 +18,8 @@ import 'package:talbotiq/features/recruiter/store/recruiter_store.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 import 'package:talbotiq/shared/widgets/desktop_page_container.dart';
 import 'package:talbotiq/shared/widgets/logout_button.dart';
+import 'package:talbotiq/shared/widgets/mimic_mark.dart';
+import 'package:talbotiq/shared/widgets/mimic_wordmark.dart';
 import 'package:talbotiq/shared/widgets/section_header.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/test_conclusion.dart';
@@ -1229,22 +1231,19 @@ class _Wordmark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        RichText(
-          text: TextSpan(
-            style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
-            children: [
-              const TextSpan(text: 'talbot'),
-              TextSpan(
-                  text: 'iq',
-                  style: TextStyle(color: theme.colorScheme.primary)),
-            ],
-          ),
-        ),
+        const MimicMark(size: 30),
+        const SizedBox(width: 10),
+        const MimicWordmark(),
         const SizedBox(width: 8),
-        Text('· $subtitle',
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        // Flexible so the subtitle ellipsises rather than overflowing the app
+        // bar: the mark and wordmark ahead of it are fixed-width.
+        Flexible(
+          child: Text('· $subtitle',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ),
       ],
     );
   }

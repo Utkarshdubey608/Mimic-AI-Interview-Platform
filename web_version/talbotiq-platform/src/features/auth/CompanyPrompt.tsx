@@ -67,7 +67,7 @@ export function CompanyPrompt() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && value.trim() && !busy) void submit()
               }}
-              placeholder="e.g. TalbotIQ"
+              placeholder="e.g. Acme Inc"
               aria-label="Company"
               className="input-base flex-1"
               autoFocus

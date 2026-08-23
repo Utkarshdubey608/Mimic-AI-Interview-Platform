@@ -233,7 +233,7 @@ export default function SettingsPage() {
             Multi-tenant and compliance configuration.
           </PanelHead>
           <div className="divide-y divide-border px-6 py-2">
-            <Toggle checked={whiteLabelMode} onChange={setWhiteLabelMode} label="White-label mode" description="Remove TalbotIQ branding from candidate-facing screens" />
+            <Toggle checked={whiteLabelMode} onChange={setWhiteLabelMode} label="White-label mode" description="Remove Mimic branding from candidate-facing screens" />
             <Toggle checked={gdprAuto} onChange={setGdprAuto} label="GDPR auto-purge" description="Automatically delete video and biometric data after 30 days" />
             <Toggle checked={multiLang} onChange={setMultiLang} label="Multi-language avatar" description="Enable multilingual question delivery via Tavus" />
           </div>

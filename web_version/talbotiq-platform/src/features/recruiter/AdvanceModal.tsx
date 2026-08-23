@@ -110,8 +110,8 @@ export function AdvanceModal({
   const sampleVars = {
     candidate_name: sampleCandidate?.candidateName || sampleCandidate?.candidateEmail.split('@')[0] || 'there',
     role: '',
-    recruiter_name: draft?.sender.fromName || 'TalbotIQ',
-    company: draft?.branding.companyName || 'TalbotIQ',
+    recruiter_name: draft?.sender.fromName || 'Mimic',
+    company: draft?.branding.companyName || 'Mimic',
     round_name: targetRoundName,
     score: sampleCandidate?.score != null ? String(sampleCandidate.score) : '',
   }

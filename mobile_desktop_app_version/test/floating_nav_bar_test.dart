@@ -7,10 +7,11 @@
 // only a few pixels over budget before it starts painting the yellow-and-black
 // stripes.
 //
-// The bar paints icons only — no text labels. Each destination's name is still
-// carried by a tooltip and a Semantics label, so these tests assert through
-// the semantics tree rather than through find.text: dropping the visible label
-// must not mean dropping the accessible name.
+// The bar paints icons, plus a label on the SELECTED destination when the width
+// is there for it in full. Every destination's name is also carried by a
+// tooltip and a Semantics label, so these tests assert through the semantics
+// tree rather than through find.text: a label that is dropped for want of room
+// must not take the accessible name with it — and must not be half-drawn.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -295,6 +296,63 @@ void main() {
       expect(para.didExceedMaxLines, isFalse,
           reason: 'label truncated at ${size.width}dp');
     }
+  });
+
+  testWidgets('the selected label is drawn at its full width, not squeezed',
+      (tester) async {
+    // The shipped bug this pins: every slot was Flexible, so the Row handed
+    // each destination an EQUAL share of the bar rather than what it needed,
+    // and the selected pill's label was cut mid-word ("Settings" as "Setti")
+    // on a 412dp phone with 90px spare either side of the bar.
+    //
+    // The test above cannot see that, because clipping — unlike ellipsising —
+    // never sets didExceedMaxLines. This one compares the label as drawn
+    // against its own unconstrained width, which is the only thing that
+    // distinguishes "laid out in full" from "laid out in what was left over".
+    tester.view.physicalSize = const Size(412, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_harness(index: 0, action: _action()));
+    await tester.pumpAndSettle();
+
+    final para = tester.renderObject<RenderParagraph>(find.descendant(
+      of: find.byType(FloatingNavBar),
+      matching: find.text('Home'),
+    ));
+    final natural = (TextPainter(
+      text: para.text,
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout())
+        .width;
+
+    expect(para.size.width, closeTo(natural, 0.5),
+        reason: 'drawn ${para.size.width} of $natural');
+  });
+
+  testWidgets('a label that will not fit is dropped, never half-drawn',
+      (tester) async {
+    // At 320dp four destinations plus the create action leave no room for a
+    // label at all. The rule is all-or-nothing: an icon-only pill still names
+    // its destination through the tooltip and the semantics label, whereas
+    // "Setti" names nothing.
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+        _harness(index: 0, items: _fourItems, action: _action()));
+    await tester.pumpAndSettle();
+
+    final align = tester.widget<AnimatedAlign>(find.ancestor(
+      of: find.text('Home'),
+      matching: find.byType(AnimatedAlign),
+    ));
+    expect(align.widthFactor, 0.0);
+    expect(tester.takeException(), isNull);
+    // ...and the destination is still named.
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
   });
 
   testWidgets('the create action does not report a tab selection',

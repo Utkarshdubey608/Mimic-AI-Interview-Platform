@@ -153,6 +153,63 @@ class InterviewRepository {
     }
   }
 
+  /// Who in [roundId] has been scored, and how many of those have been decided.
+  ///
+  /// The gap between the two is the work the recruiter still owes: a closed
+  /// round with scored candidates and no outcome on them is a decision nobody
+  /// has made. Counted rather than read — three count() aggregates instead of
+  /// pulling a round's worth of documents into a dashboard row.
+  ///
+  /// SCORED, not completed, is the denominator on purpose: it is exactly who
+  /// `round_notify_page.dart` can act on, so "12 waiting" always matches the 12
+  /// rows the recruiter is then shown. Counting completed-but-unscored people
+  /// in would leave a badge nothing could ever clear.
+  ///
+  /// Both -1s propagate as [RoundDecisionTally.unknown] rather than as zero: an
+  /// offline device or a missing index must read as "not known", never as
+  /// "nothing to decide".
+  Future<RoundDecisionTally> countRoundDecision({
+    required String recruiterId,
+    required String testId,
+    required String roundId,
+  }) async {
+    if (recruiterId.isEmpty || testId.isEmpty || roundId.isEmpty) {
+      return const RoundDecisionTally.unknown();
+    }
+
+    Query<Map<String, dynamic>> base() => _col
+        .where('recruiterId', isEqualTo: recruiterId)
+        .where('testId', isEqualTo: testId)
+        .where('roundId', isEqualTo: roundId);
+
+    Future<int> countOf(Query<Map<String, dynamic>> q) async {
+      try {
+        final agg = await q.count().get();
+        return agg.count ?? 0;
+      } catch (e) {
+        debugPrint('InterviewRepository.countRoundDecision failed: $e');
+        return -1;
+      }
+    }
+
+    // Scores are 0-100, so `>= 0` excludes nothing real and reuses the
+    // leaderboard's index. The two outcome counts are equality-only, which
+    // Firestore serves without a composite index of their own.
+    final results = await Future.wait([
+      countOf(base().where('result.overallScore', isGreaterThanOrEqualTo: 0)),
+      countOf(base()
+          .where('result.outcome', isEqualTo: RoundOutcome.selected.wire)),
+      countOf(base()
+          .where('result.outcome', isEqualTo: RoundOutcome.notSelected.wire)),
+    ]);
+
+    if (results.any((n) => n < 0)) return const RoundDecisionTally.unknown();
+    return RoundDecisionTally(
+      scored: results[0],
+      decided: results[1] + results[2],
+    );
+  }
+
   /// One page of a round's candidates, best score first.
   ///
   /// Only SCORED candidates are ranked — an unscored candidate has no rank — so
@@ -993,6 +1050,50 @@ class InterviewRepository {
     );
   }
 
+  /// The undo for "End round now" — reopens a closed round.
+  ///
+  /// Clearing `closedAt` is not enough on its own, twice over:
+  ///
+  ///   1. [endRound] stamped `expiresAt = now` onto every unfinished assignment,
+  ///      and that is the only thing a candidate's device checks. Without
+  ///      propagating the restored window they stay locked out of a round the
+  ///      recruiter can see is open again.
+  ///   2. A round whose `closesAt` is already in the PAST is closed by the clock
+  ///      whatever the flags say. So reopening one of those has to move the
+  ///      deadline or drop it, and the caller has to say which — silently
+  ///      wiping a deadline would change the round's design behind their back.
+  ///      [newClosesAt] sets a new one; [clearDeadline] drops it; neither leaves
+  ///      the existing deadline alone, which is right for undoing an early end
+  ///      and wrong for anything else. [reopenNeedsDeadline] says which case a
+  ///      round is in.
+  ///
+  /// Nothing here touches outcomes. A decision already published stays
+  /// published: reopening a round is "let them keep going", not "unsay what the
+  /// candidates were told".
+  Future<void> reopenRound(
+    InterviewRound round, {
+    DateTime? newClosesAt,
+    bool clearDeadline = false,
+  }) async {
+    final deadline = newClosesAt ?? (clearDeadline ? null : round.closesAt);
+
+    await _roundsOf(round.testId).doc(round.id).update({
+      'closedAt': null,
+      'closedBy': null,
+      if (newClosesAt != null || clearDeadline)
+        'closesAt': deadline == null ? null : Timestamp.fromDate(deadline),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _propagateWindow(
+      recruiterId: round.recruiterId,
+      testId: round.testId,
+      roundId: round.id,
+      availableFrom: round.opensAt,
+      expiresAt: deadline,
+    );
+  }
+
   /// Copies a round's window onto its candidates' assignments.
   ///
   /// [expiresAt] is `dynamic` so callers can pass either a concrete `DateTime`
@@ -1194,6 +1295,33 @@ class InterviewRepository {
     }).toList();
   }
 
+  /// Who is already in [roundId], as lower-cased emails.
+  ///
+  /// Read so the add-candidates picker can show them as locked rather than
+  /// silently dropping them: [assignCandidatesToRound] skips them anyway, and a
+  /// picker that hid them would report "12 candidates" for what is really 3
+  /// additions.
+  Future<Set<String>> fetchRoundCandidateEmails({
+    required String recruiterId,
+    required String testId,
+    required String roundId,
+  }) async {
+    if (recruiterId.isEmpty || testId.isEmpty || roundId.isEmpty) return {};
+    final snap = await _col
+        .where('recruiterId', isEqualTo: recruiterId)
+        .where('testId', isEqualTo: testId)
+        .where('roundId', isEqualTo: roundId)
+        .get();
+    return {
+      for (final doc in snap.docs)
+        ((doc.data()['candidateEmailLower'] as String?) ??
+                (doc.data()['candidateEmail'] as String?)
+                    ?.trim()
+                    .toLowerCase() ??
+                '')
+    }..removeWhere((e) => e.isEmpty);
+  }
+
   /// Assigns [candidates] (`emailLower → name`) to [round], skipping anyone
   /// already in it. Returns how many assignments were created.
   ///
@@ -1375,6 +1503,38 @@ class InterviewRepository {
 }
 
 /// One page of interviews plus the cursor needed to fetch the next.
+/// How much of one round has been decided — see
+/// [InterviewRepository.countRoundDecision].
+class RoundDecisionTally {
+  /// Candidates in the round with a score. -1 when the counts could not be read.
+  final int scored;
+
+  /// How many of [scored] carry an outcome, whether "moving forward" or not.
+  final int decided;
+
+  const RoundDecisionTally({required this.scored, required this.decided});
+
+  /// The counts could not be read. Distinct from a real zero, because a
+  /// dashboard must not claim there is nothing to do when it does not know.
+  const RoundDecisionTally.unknown() : scored = -1, decided = -1;
+
+  bool get isKnown => scored >= 0 && decided >= 0;
+
+  /// Scored candidates with no outcome yet — the decision the recruiter owes.
+  /// Zero when unknown, so callers read [isKnown] before showing a number.
+  int get pending {
+    if (!isKnown) return 0;
+    final n = scored - decided;
+    return n > 0 ? n : 0;
+  }
+
+  /// Somebody is waiting on a decision, and we know it.
+  bool get hasPending => isKnown && pending > 0;
+
+  @override
+  String toString() => 'RoundDecisionTally(scored: $scored, decided: $decided)';
+}
+
 class PagedInterviews {
   final List<Interview> items;
 

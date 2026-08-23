@@ -313,7 +313,7 @@ async def _tell_candidate(
             candidate_email=str(interview.get("candidateEmail") or ""),
             role=str(interview.get("role") or ""),
             recruiter_name=str((template or {}).get("sender", {}).get("fromName") or ""),
-            company=str((template or {}).get("branding", {}).get("companyName") or "TalbotIQ"),
+            company=str((template or {}).get("branding", {}).get("companyName") or "Mimic"),
             round_name=round_name,
             # A string, and empty when absent rather than "0": a candidate reading
             # "your score: 0" for an interview nobody managed to score is worse than

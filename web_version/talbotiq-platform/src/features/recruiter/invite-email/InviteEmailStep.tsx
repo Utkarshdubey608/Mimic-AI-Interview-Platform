@@ -80,7 +80,7 @@ export function InviteEmailStep({
     candidate_name: sampleName(sampleEmail),
     role: role || 'the role',
     recruiter_name: recruiterName,
-    company: draft.branding.companyName || 'TalbotIQ',
+    company: draft.branding.companyName || 'Mimic',
     deadline: draft.deadlineText || '—',
   }
 

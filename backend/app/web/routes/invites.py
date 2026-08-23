@@ -309,7 +309,7 @@ async def create_invites(
 
     recruiter_name = await users.get_display_name(settings, user.uid)
     from_name = recruiter_name or user.email or "A recruiter"
-    company = (template.get("branding") or {}).get("companyName") or "TalbotIQ"
+    company = (template.get("branding") or {}).get("companyName") or "Mimic"
     deadline = template.get("deadlineText") or ""
 
     origin = str(body.get("origin") or "").strip()
@@ -419,7 +419,7 @@ async def test_invite(
             stored_template = found
 
     template = resolve_template(body, user.uid, stored_template)
-    company = (template.get("branding") or {}).get("companyName") or "TalbotIQ"
+    company = (template.get("branding") or {}).get("companyName") or "Mimic"
     origin = str(body.get("origin") or "").strip()
 
     invite = await interview_invite.send_invite_email(
@@ -486,7 +486,7 @@ async def retry_invite(
             stored_template = found
 
     template = resolve_template(body, user.uid, stored_template)
-    company = (template.get("branding") or {}).get("companyName") or "TalbotIQ"
+    company = (template.get("branding") or {}).get("companyName") or "Mimic"
     origin = str(body.get("origin") or "").strip()
     previous_attempts = int((interview.get("invite") or {}).get("attempts") or 0)
 
