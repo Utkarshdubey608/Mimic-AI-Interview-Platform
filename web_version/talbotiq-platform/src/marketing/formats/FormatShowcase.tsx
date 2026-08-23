@@ -470,6 +470,15 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
      travelling through all six loads none of them on the way. */
   const [settled, setSettled] = useState(0)
 
+  /* The live panel index, for the wheel handler. Held in a ref rather than closed
+     over, so the listener is bound once per pin instead of once per step — a
+     re-bind would reset the gesture state below and let a flick's own inertia
+     advance a second panel. */
+  const liveCur = useRef(cur)
+  liveCur.current = cur
+  /** When the last wheel event arrived, and when the next gesture may act. */
+  const gesture = useRef({ at: 0, until: 0 })
+
   /* The driving flag, and the clean-up that has to happen the moment it goes
      false. The inline styles the driver writes are stronger than the stylesheet,
      so leaving them behind would strand five panels at `visibility:hidden` in a
@@ -512,6 +521,84 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
   /* Unmount, in whatever state the pin was in. The effect above only runs its
      clean-up when `pinned` goes false; navigating away while pinned skips it. */
   useEffect(() => stop, [stop])
+
+  /**
+   * ONE GESTURE, ONE PANEL.
+   *
+   * The settle can only decide where a scroll LANDS; it cannot decide how far a
+   * scroll goes. A trackpad flick or a spin of the wheel carries an arbitrary
+   * distance, and no amount of lengthening the travel changes that — at the
+   * lengths that would, the section becomes a corridor. So while the deck is
+   * actually held on screen, it takes the gesture: each flick advances exactly
+   * one panel and the rest of that flick's momentum is discarded.
+   *
+   * Taking it from the scroll engine is possible because of where the engine
+   * listens. Lenis binds its wheel handler on `window` WITHOUT capture, so it
+   * runs in the bubble phase; a wheel event targets the element under the cursor,
+   * so the capture phase at window runs first. `preventDefault` alone would not be
+   * enough — Lenis calls that itself and then scrolls programmatically — but
+   * stopping propagation in the capture phase means its handler never runs at all.
+   *
+   * WHAT KEEPS THIS FROM BEING A TRAP, which is the failure mode this pattern is
+   * rightly disliked for:
+   *
+   *  · At the last panel, scrolling down is not intercepted. At the first,
+   *    scrolling up is not. The reader leaves in the direction they were already
+   *    going, with the gesture they already made, on the first try.
+   *  · It only applies while the section is genuinely stuck to the viewport.
+   *    `pinned` is true for as long as the section merely FITS — PinnedStage
+   *    decides it from the viewport and the content, never from the scroll
+   *    position — so without the rect test below this would have been swallowing
+   *    wheel events over the entire page.
+   *  · Keyboard scrolling is deliberately left alone. Intercepting keys risks
+   *    trapping the one group who cannot flick past a mistake, and the settle
+   *    already lands a keyboard reader squarely on a panel.
+   *  · The rail underneath jumps straight to any panel, so nobody has to travel
+   *    through five to reach the sixth.
+   *
+   * The cost is real and worth stating: from the middle of the deck it now takes
+   * one flick per panel to reach the end of the section. That is what was asked
+   * for, and it is what the rail is there to shortcut.
+   */
+  useEffect(() => {
+    if (!pinned) return
+    const host = slides.current.find(Boolean)?.closest('.mm-formats') as HTMLElement | null
+    if (!host) return
+    const last = MODES.length - 1
+
+    /* Stuck to the viewport, not merely present. */
+    const stuck = () => {
+      const r = host.getBoundingClientRect()
+      return r.top <= 0 && r.bottom >= window.innerHeight
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (!stuck()) return
+      const dir = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0
+      if (!dir) return
+
+      const at = liveCur.current
+      // The way out, in the direction they are already going.
+      if ((dir > 0 && at >= last) || (dir < 0 && at <= 0)) return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      /* A flick is one gesture however many events it fires. Inertia arrives as a
+         stream roughly a frame apart, so a gap counts as the start of a new one —
+         which is the whole mechanism: the first event of a flick advances a panel
+         and every event after it is swallowed. */
+      const now = performance.now()
+      const fresh = now - gesture.current.at > 140
+      gesture.current.at = now
+      if (!fresh || now < gesture.current.until) return
+      gesture.current.until = now + 420
+      goToStep(at + dir)
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    return () => window.removeEventListener('wheel', onWheel, { capture: true })
+  }, [pinned, goToStep, slides])
 
   /* Off-stage panels are inert while the deck is driving: not focusable, not in
      the accessibility tree, not clickable. Without it, Tab walked into the five

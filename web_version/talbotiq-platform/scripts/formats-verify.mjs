@@ -239,17 +239,32 @@ async function laptop(browser, size) {
      and sampling on the way is both harder to pass and the thing readers do. */
   let maxLit = 0, tall = 0, moved = 0, samples = 0
   const deck0 = mid.deck
-  await settle(page, geom.top - 300)
+  await settle(page, geom.top + 40)
   await page.mouse.move(Math.round(size.w / 2), Math.round(size.h / 2))
-  for (let k = 0; k < 120; k++) {
+  /* One notch per panel, sampled all the way ACROSS each transition.
+     Two earlier versions of this loop tested nothing, each for its own reason, and
+     both are worth recording. Jumping to fixed positions and reading at rest
+     stopped working when the deck learned to settle onto a panel — the sample
+     always landed on a settled panel and mid-travel was never observed. Then
+     wheeling 120 notches back to back stopped working when the deck learned to
+     take one gesture at a time: a burst with no gaps in it IS one gesture, so the
+     whole loop advanced a single panel.
+     A notch, a gap long enough to count as a gesture of its own, then a dozen
+     reads through the eased travel it starts. That is where the invariants have to
+     hold, and it is what a reader actually does. */
+  for (let step = 0; step < PANELS - 1; step++) {
     await page.mouse.wheel(0, 120)
-    const s = await page.evaluate(readDeck)
-    samples++
-    const lit = onStage(s)
-    if (lit.length > maxLit) maxLit = lit.length
-    for (const x of lit) if (x.top < s.deck.top - 1 || x.bottom > s.deck.bottom + 1) tall++
-    if (Math.abs((s.deck.bottom - s.deck.top) - (deck0.bottom - deck0.top)) > 1
-      || Math.abs(s.deck.left - deck0.left) > 1) moved++
+    for (let k = 0; k < 12; k++) {
+      const s = await page.evaluate(readDeck)
+      samples++
+      const lit = onStage(s)
+      if (lit.length > maxLit) maxLit = lit.length
+      for (const x of lit) if (x.top < s.deck.top - 1 || x.bottom > s.deck.bottom + 1) tall++
+      if (Math.abs((s.deck.bottom - s.deck.top) - (deck0.bottom - deck0.top)) > 1
+        || Math.abs(s.deck.left - deck0.left) > 1) moved++
+      await page.waitForTimeout(25)
+    }
+    await page.waitForTimeout(900)   // the gap that makes the next notch its own gesture
   }
   check(`never more than two panels on stage across ${samples} live samples`, maxLit <= 2, `${maxLit} at once`)
   check('no panel reaches past the deck vertically', tall === 0, `${tall} of ${samples} samples`)
