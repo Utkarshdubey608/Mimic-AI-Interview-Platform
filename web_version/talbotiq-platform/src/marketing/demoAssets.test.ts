@@ -10,7 +10,7 @@ function assert(label: string, cond: boolean, extra = '') {
   if (!cond) failures++
 }
 
-// The five advertised formats, and ONLY those. The sixth track (`video`) is
+// The six advertised formats, and ONLY those. The unadvertised `video` track is
 // deliberately unadvertised — see MimicSite.tsx and audit-marketing-claims.ts.
 assert('exactly six demo tracks', DEMO_TRACKS.length === 6, `got ${DEMO_TRACKS.length}`)
 assert('recorded video is not advertised', !(DEMO_TRACKS as readonly string[]).includes('video'))

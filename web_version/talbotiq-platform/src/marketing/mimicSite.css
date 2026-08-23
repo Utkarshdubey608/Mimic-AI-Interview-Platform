@@ -2596,19 +2596,24 @@
    quiet and the ordered side carries the accent, which is the argument: order is
    the thing being sold, so order is the brighter half. */
 .mimic-site .section.problem.on-dark .noise-side{
-  /* Opaque enough to sit ON the field rather than in it, and blurred behind, so
-     the lattice reads as depth BEHIND the cards instead of texture across them.
-     At .035 the field showed through the card and the card's own bars — which
-     are the content — were competing with a background that speaks the same
-     visual language. */
-  background:rgb(14 20 32 / .72);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
+  /* The hero rail's ground, verbatim — `.airail` is the same object seen
+     earlier in the page, so the two are lit identically rather than each
+     inventing its own dark. Still opaque enough to sit ON the field rather
+     than in it: at .035 the field showed through and the card's own bars,
+     which are the content, competed with a background speaking the same
+     visual language. The rail carries no backdrop blur, so neither does this. */
+  background:color-mix(in srgb, var(--mm-on-ink-card) 82%, transparent);
   border-color:var(--mm-on-ink-line);
 }
+/* Same ground for both sides now. The ordered card is marked by its edge and
+   its cyan bars, not by being a different shade of dark. */
 .mimic-site .section.problem.on-dark .noise-side.is-ordered{
-  background:rgb(14 20 32 / .78);
   border-color:color-mix(in srgb, var(--mm-on-ink-accent) 38%, transparent);
+  /* The light-ground rule lifts this card on an inset ink stripe and a pair of
+     ink drop shadows. Both were invisible against the old .72 ink fill and are
+     not against this one — the stripe reads as a dark bar across the top edge.
+     The hero rail carries no shadow at all, so neither does this. */
+  box-shadow:none;
 }
 .mimic-site .section.problem.on-dark .noise-label{color:var(--mm-on-ink-2)}
 .mimic-site .section.problem.on-dark .noise-foot{color:var(--mm-on-ink-2)}
@@ -2701,9 +2706,13 @@
    reveal — so the reader sees the rubric fill rather than arriving filled. */
 .mimic-site .is-ordered .noise-v{color:var(--mm-on-ink-accent);font-weight:500}
 .mimic-site .noise-bar{
+  /* The machine cyan, not the accent: at 2px the periwinkle accent read dark
+     next to the value it belongs to, and these bars are the model's own marks
+     — the same light the hero rail's KPI bars use. */
+  --bar:var(--mm-ai);
   grid-column:1 / -1;
   height:2px;border-radius:2px;
-  background:color-mix(in srgb, var(--mm-on-ink-accent) 22%, transparent);
+  background:color-mix(in srgb, var(--bar) 22%, transparent);
   position:relative;overflow:hidden;
   margin-top:.375rem;
 }
@@ -2711,7 +2720,7 @@
   content:"";position:absolute;inset:0;
   transform-origin:left center;
   transform:scaleX(0);
-  background:var(--mm-on-ink-accent);
+  background:var(--bar);
   transition:transform .8s var(--mm-ease);
   transition-delay:calc(var(--i) * 70ms + 160ms);
 }

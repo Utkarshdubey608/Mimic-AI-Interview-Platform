@@ -40,14 +40,18 @@ import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
 import { HOME_SEO } from './content'
 import { Ico } from './icons'
 
-/* ── Interview formats. Five advertised tracks; the sixth card states the rule
-      the other five obey, so it spans the row rather than repeating the pattern.
+/* ── Interview formats. Six advertised tracks; the statement card states the
+      rule they obey, so it spans the row rather than repeating the pattern.
 
       The product also has a one-way `video` track, which the site deliberately
       does not advertise — it has no nav entry and no platform page, so listing
-      it here sent buyers looking for a page that was never written. Adding it
-      back means writing that page and restoring the count in scripts/
-      audit-marketing-claims.ts, which pins the advertised number to five. */
+      it here sent buyers looking for a page that was never written.
+
+      `mcq` was in that same position until today and is not any more: it has a
+      page now (/platform/assessments), so it is advertised as Assessments, the
+      name the product's own nav uses. The advertised count is pinned by the
+      assertion in demoAssets.test.ts — NOT by scripts/audit-marketing-claims.ts,
+      which this comment used to cite and which does not exist. */
 /* No per-track colour here any more.
    These five entries used to carry a `bg`/`fg` pair each — teal, indigo, pink,
    sky and amber — applied as an inline style to the icon chip. That is the same
@@ -75,6 +79,13 @@ const TRACKS = [
   { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
     desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
     meta: ['Timer on every question', 'Integrity checks'] },
+  /* `calc` rather than a clipboard glyph: icons.tsx has no clipboard, and
+     arithmetic is the honest metaphor for a paper that is marked rather than
+     judged. Do not invent an icon key — Ico renders nothing for an unknown one
+     and the card would ship with an empty chip. */
+  { name: 'Assessments', tag: 'Async', icon: 'calc' as const, track: 'mcq' as const,
+    desc: 'A timed multiple-choice paper, marked the moment it is submitted. For knowledge you can check rather than discuss.',
+    meta: ['Marked on submission', 'Server-side timing'] },
 ]
 
 /* Five cards do not divide into the 3-column grid, so the last one widens to
@@ -88,7 +99,7 @@ const WIDEN_LAST = TRACKS.length % 3 === 2
 const STEPS = [
   { t: 'Configure once', r: 'Templates',
     b: 'Pick the format, where questions come from, the rubric weights and the timing. Save it as a template your whole team reuses.',
-    d: ['Five interview formats on one configuration', 'Weighted criteria you define, rescaled automatically', 'Branding and integrity rules per template'] },
+    d: ['Six interview formats on one configuration', 'Weighted criteria you define, rescaled automatically', 'Branding and integrity rules per template'] },
   { t: 'Invite in bulk', r: 'Sessions → Invite candidates',
     b: 'Drop in a spreadsheet or an ATS export. Mimic reads every address, personalises each email and sends a link bound to that candidate.',
     d: ['CSV, Excel, PDF, DOCX or plain text', 'Each link opens only for the address it was sent to', 'Test the exact email on yourself before sending'] },
@@ -695,7 +706,7 @@ export default function MimicSite() {
           <div className="wrap">
             <div className="sec-head">
               <span className="eyebrow">Interview formats</span>
-              <h2 className="h2" id="tr-h">Five ways to meet a candidate.</h2>
+              <h2 className="h2" id="tr-h">Six ways to meet a candidate.</h2>
               <p className="lede">
                 Pick the format that fits the role. Every one of them reads the candidate’s resume
                 first and scores against the same rubric, so results compare directly across formats.

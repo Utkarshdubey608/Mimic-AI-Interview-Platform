@@ -191,10 +191,10 @@ const HUBS: MktPage[] = [
     slug: 'platform', section: 'Platform', sectionTo: '/platform', tier: 'hub',
     kicker: 'Platform', h1: 'One platform. Every way to interview a candidate.',
     metaTitle: 'Mimic Platform, AI interview tracks & workflow',
-    metaDesc: 'Five interview formats, bulk invitations, templates, pipelines and one rubric, plus reports, analytics and the Mimic Guide assistant.',
+    metaDesc: 'Six interview formats, bulk invitations, templates, pipelines and one rubric, plus reports, analytics and the Mimic Guide assistant.',
     intro: 'Mimic interviews candidates five different ways, runs the whole workflow from invite to shortlist, and turns every answer into a score backed by evidence. Explore the pieces.',
     sections: [
-      { h2: 'One rubric, five ways to interview', body: 'This is the idea the whole platform rests on. You write down what a good candidate looks like for a role, criteria and weights, and every applicant is measured against exactly that, whether they typed their answers, spoke them, answered on camera, or sat in a live call with one of your interviewers.', blocks: [
+      { h2: 'One rubric, six ways to interview', body: 'This is the idea the whole platform rests on. You write down what a good candidate looks like for a role, criteria and weights, and every applicant is measured against exactly that, whether they typed their answers, spoke them, answered on camera, or sat in a live call with one of your interviewers.', blocks: [
         { kind: 'p', text: 'The consequence is that format becomes a logistics decision rather than a scoring one. You can run a text round for volume and a live round for the shortlist, and the two results sit side by side and mean the same thing.' },
       ] },
       { h2: 'How a screen actually runs', body: '', blocks: [
@@ -207,7 +207,7 @@ const HUBS: MktPage[] = [
         ] },
         { kind: 'flow', steps: ['Template', 'Bulk invite', 'Interview', 'Scored + evidenced', 'Human decision'], caption: 'The middle three steps run unattended; the two ends stay yours.' },
       ] },
-      { h2: 'What makes it different', body: 'Three things, and they are structural rather than features on a comparison grid.', bullets: ['Comparability across formats, five ways to interview, one rubric, so results are genuinely interchangeable', 'Evidence attached to every number. A score you can trace to the answer that produced it, not a confidence percentage', 'Honest degradation, every dependent feature has a defined behaviour when its key is missing, and the interface says it is running in a reduced mode rather than degrading silently'] },
+      { h2: 'What makes it different', body: 'Three things, and they are structural rather than features on a comparison grid.', bullets: ['Comparability across formats, six ways to interview, one rubric, so results are genuinely interchangeable', 'Evidence attached to every number. A score you can trace to the answer that produced it, not a confidence percentage', 'Honest degradation, every dependent feature has a defined behaviour when its key is missing, and the interface says it is running in a reduced mode rather than degrading silently'] },
     ],
     cta: { title: 'See the platform on your roles', sub: 'Book a 30-minute walkthrough, no card required.' },
   },
@@ -218,7 +218,7 @@ const HUBS: MktPage[] = [
     metaDesc: 'See how Mimic screens candidates for high volume, campus, technical and frontline hiring, and what changes for recruiters, hiring managers and RPOs.',
     intro: 'Mimic is one platform, but the job it does looks different depending on who you are hiring and who is doing the hiring. Start with the use case closest to yours.',
     sections: [
-      { h2: 'How to choose a format', body: 'The five interview formats are not a quality ladder. They are different trade-offs between depth of signal and how many of your applicants can actually complete the round. Picking well is the single biggest decision here.', blocks: [
+      { h2: 'How to choose a format', body: 'The six interview formats are not a quality ladder. They are different trade-offs between depth of signal and how many of your applicants can actually complete the round. Picking well is the single biggest decision here.', blocks: [
         { kind: 'spec', caption: 'Depth against reach', rows: [
           { k: 'Conversational chat', v: 'Widest reach. Finishes on a phone, needs no quiet room or bandwidth. The default for volume.' },
           { k: 'Timed Q&A', v: 'Same reach, plus a fixed clock, for roles where speed of judgement is the skill.' },
@@ -228,7 +228,7 @@ const HUBS: MktPage[] = [
         ] },
         { kind: 'note', tone: 'info', title: 'Reach is a fairness decision', text: 'Requiring video does not raise the bar; it filters for candidates with good bandwidth and a private room. Because every format scores against the same rubric, choosing a lighter one costs you nothing in comparability.' },
       ] },
-      { h2: 'A common pattern', body: 'Run a light asynchronous format across every applicant, then a richer format, or a live round, for the shortlist that survives. Interview pipelines are built for exactly this, and because one rubric spans all five formats the rounds stack into a single comparable picture rather than three incompatible opinions.' },
+      { h2: 'A common pattern', body: 'Run a light asynchronous format across every applicant, then a richer format, or a live round, for the shortlist that survives. Interview pipelines are built for exactly this, and because one rubric spans the formats it scores the rounds stack into a single comparable picture rather than three incompatible opinions.' },
       { h2: 'On the industry pages', body: 'They describe how the product is applied in a sector, not a product specific to a sector. Mimic ships six general KPI criteria as a starting point and no industry rubric packs. A rubric for a clinical role or a trading desk is a judgement your team writes down. Where a sector carries its own regulatory obligations, the industry page points at the Trust section rather than implying clearance we do not have.' },
     ],
     cta: { title: 'See Mimic on your roles', sub: 'Book a 30-minute walkthrough on your own open reqs.' },
@@ -241,7 +241,7 @@ const HUBS: MktPage[] = [
     intro: 'In AI hiring, the deal blocker is rarely price. It is the security, legal and DEI review. This section answers those questions directly, before they land in your procurement queue.',
     sections: [
       { h2: 'The seven facts that usually decide a review', body: 'If your reviewers read nothing else in this section, these are the ones that matter.', blocks: [
-        { kind: 'bullets', items: ['No hiring decision is automated, advance, reject and override are human actions, each written to an audit history per candidate', 'Every score cites the answer it came from, and the full transcript ships with the report', 'One rubric per role, authored by you, applied identically across all five interview formats', 'Candidates are told they are interviewing with AI and consent before starting', 'Mimic holds no demographic data, so it cannot discriminate on it, and equally cannot audit itself for adverse impact', 'Delivery signals on voice and video are reported beside the content score, never folded into it', 'Where a dependency is missing the product degrades visibly and says so'] },
+        { kind: 'bullets', items: ['No hiring decision is automated, advance, reject and override are human actions, each written to an audit history per candidate', 'Every score cites the answer it came from, and the full transcript ships with the report', 'One rubric per role, authored by you, applied identically across every interview format it scores', 'Candidates are told they are interviewing with AI and consent before starting', 'Mimic holds no demographic data, so it cannot discriminate on it, and equally cannot audit itself for adverse impact', 'Delivery signals on voice and video are reported beside the content score, never folded into it', 'Where a dependency is missing the product degrades visibly and says so'] },
       ] },
       { h2: 'What this section will not do', body: 'It will not tell you that using Mimic makes you compliant. No product can, and a vendor claiming otherwise is telling you something about themselves rather than about the regulation. Each compliance page maps a requirement to the capability that supports it, then states plainly what remains yours, determining what applies, assigning competent people to exercise oversight, issuing notices on your own timeline, and retaining records for the periods your counsel specifies.' },
       { h2: 'The open items, stated up front', body: 'A trust section that only lists strengths is not useful to a reviewer.', blocks: [
@@ -337,7 +337,7 @@ const SOLUTION_PAGES: MktPage[] = [
           { k: 'Voice screening', v: 'Where communication is the job. Needs a quiet space, so expect lower completion than chat.' },
           { k: 'Video avatar', v: 'The heaviest format. Excellent signal, but bandwidth and device constraints will exclude some applicants at the volume end.' },
         ] },
-        { kind: 'note', tone: 'info', title: 'A practical pattern', text: 'Run a light async format for round one across everyone, then a richer format, or a live two-way call, for the shortlist that survives. Because all five score against the same rubric, the rounds stack into one comparable picture.' },
+        { kind: 'note', tone: 'info', title: 'A practical pattern', text: 'Run a light async format for round one across everyone, then a richer format, or a live two-way call, for the shortlist that survives. Because every scored format shares one rubric, the rounds stack into one comparable picture.' },
       ] },
       { h2: 'Watching the funnel', body: 'Analytics reports interviews created, completion rate, average score and duration, and results broken down by role, template and interview track, plus integrity flags. At volume the completion rate is the number to watch: if it drops for one role, the format or the timings are excluding people, and that is a fixable problem.', blocks: [NO_METRICS_NOTE] },
       { h2: 'What changes for your team', body: 'Recruiters stop being the bottleneck and start working a ranked shortlist with the evidence attached. Hiring managers see the answers behind a score rather than a resume and a recruiter\'s recollection. And because the rubric is written down before anyone is assessed, the standard is explicit, which is worth having whether or not volume was ever the problem.' },
@@ -529,7 +529,7 @@ const SOLUTION_BRIEFS: MktPage[] = [
   [
     { q: 'How do we build the business case without your metrics?', a: 'Model it on your own numbers: recruiter minutes per first round screen, screens per week, and the share of applicants who currently never get one. We do not publish benchmark figures because we do not have verified customer data to support them.' },
     { q: 'Does this replace recruiters?', a: 'It replaces the scheduling and the first round call. Every decision that affects a candidate remains a recruiter action, and the judgement work (calibrating the rubric, reading evidence, handling offers), grows in importance.' },
-    { q: 'How do we keep quality consistent across a large team?', a: 'The rubric is defined per role rather than per recruiter, and applied identically across all five interview formats. Override rates then tell you where calibration is drifting.' },
+    { q: 'How do we keep quality consistent across a large team?', a: 'The rubric is defined per role rather than per recruiter, and applied identically across every interview format it scores. Override rates then tell you where calibration is drifting.' },
   ],
   [
     { label: 'Recruiter analytics', to: '/platform/recruiter-analytics' },
@@ -605,7 +605,7 @@ const SOLUTION_BRIEFS: MktPage[] = [
   [
     { q: 'Can each client have their own branding?', a: 'Yes, company name, logo and accent colour are set per template and appear on candidate screens and emails.' },
     { q: 'Can we give a client access to their own results?', a: 'The operational detail of client access is marked for the team to confirm rather than assumed here.' },
-    { q: 'How do we keep quality consistent across consultants?', a: 'The rubric belongs to the role, not the consultant, and applies identically across all five interview formats. Override rates then show where calibration is drifting.' },
+    { q: 'How do we keep quality consistent across consultants?', a: 'The rubric belongs to the role, not the consultant, and applies identically across every interview format it scores. Override rates then show where calibration is drifting.' },
   ],
   [
     { label: 'Interview templates', to: '/platform/interview-templates' },
@@ -798,7 +798,7 @@ const TRUST_PAGES: MktPage[] = [
       { h2: 'The five steps between an answer and a number', body: '', blocks: [
         { kind: 'steps', items: [
           { t: 'You define the rubric', d: 'A set of criteria and their weights. Mimic ships six default KPI criteria as a starting point; you can edit them, add your own, or replace them entirely. Weights normalise to 100%, so the arithmetic is always explicit.' },
-          { t: 'The candidate answers', d: 'In whichever of the five formats you chose. The format changes how the answer is captured (typed, spoken, on video), not how it is judged.' },
+          { t: 'The candidate answers', d: 'In whichever of the six formats you chose. The format changes how the answer is captured (typed, spoken, on video), not how it is judged.' },
           { t: 'Answers are scored per criterion', d: 'Each criterion is scored separately against what the candidate actually said. There is no single opaque model verdict; there is a set of criterion scores you can inspect one at a time.' },
           { t: 'Criteria are weighted into a total', d: 'The weighted total is simple arithmetic over the criterion scores, using the weights you set. You can reproduce it by hand.' },
           { t: 'A recommendation is attached, and a human decides', d: 'The result is presented as a recommendation with its evidence. A recruiter reads it and makes the call.' },
@@ -859,7 +859,7 @@ const TRUST_PAGES: MktPage[] = [
         { kind: 'flow', steps: ['Mimic outcomes', 'Your category data', 'Join', 'Selection rates', 'Review the rubric'], caption: 'Mimic supplies one side of the join, and never sees the other.' },
       ] },
       { h2: 'What makes the analysis worth running', body: 'An audit of an inconsistent process measures noise. The value of a structured tool is that it makes the thing being audited well-defined in the first place.', blocks: [
-        { kind: 'bullets', items: ['One rubric per role, applied identically to every candidate, so a selection rate reflects the criteria rather than which recruiter someone drew', 'Scores for each criterion, so a disparity can be traced to a specific criterion instead of an overall average', 'Evidence attached to every score, so a flagged criterion can be read and understood', 'An audit history per candidate, so the human decisions are visible alongside the recommendations', 'The same rubric across all five formats, so format choice is not a hidden variable'] },
+        { kind: 'bullets', items: ['One rubric per role, applied identically to every candidate, so a selection rate reflects the criteria rather than which recruiter someone drew', 'Scores for each criterion, so a disparity can be traced to a specific criterion instead of an overall average', 'Evidence attached to every score, so a flagged criterion can be read and understood', 'An audit history per candidate, so the human decisions are visible alongside the recommendations', 'The same rubric across every format it scores, so format choice is not a hidden variable'] },
       ] },
       { h2: 'Independent review', body: 'Where the law requires an independent audit, NYC Local Law 144 is the clearest example, the audit is conducted on your deployment, by an auditor you engage.', blocks: [
         { kind: 'note', tone: 'placeholder', title: 'No published audit today', text: 'Mimic does not currently publish a completed bias audit by a third party. The team should confirm here whether one is planned, its intended scope and cadence, and whether results will be published. Until then this page states the position rather than implying a review that has not happened.' },
@@ -1008,7 +1008,7 @@ const TRUST_PAGES: MktPage[] = [
           { k: 'Meaningful human oversight', v: 'Advance, reject and override are human actions. No candidate is removed from a process automatically.' },
           { k: 'Record keeping', v: 'An audit history per candidate, recording each action, when it happened and who took it.' },
           { k: 'Traceability of outputs', v: 'Every criterion score cites the answer or transcript span it was derived from; the full transcript ships with the report.' },
-          { k: 'Consistency of application', v: 'One rubric per role, applied identically to every candidate and across all five interview formats.' },
+          { k: 'Consistency of application', v: 'One rubric per role, applied identically to every candidate and across every interview format it scores.' },
           { k: 'Technical documentation', v: '[PLACEHOLDER: the team must confirm what model and system documentation is published, and link it here.]' },
         ] },
       ] },
@@ -1148,7 +1148,7 @@ const TRUST_PAGES: MktPage[] = [
       ] },
       { h2: 'What Mimic contributes', body: 'Two things, and it is worth being exact about both.', blocks: [
         { kind: 'split', items: [
-          { t: 'A consistently applied procedure', d: 'One rubric per role, applied identically to every candidate and across all five formats. A procedure that varies by interviewer cannot be meaningfully validated; one that does not, can.' },
+          { t: 'A consistently applied procedure', d: 'One rubric per role, applied identically to every candidate and across every format it scores. A procedure that varies by interviewer cannot be meaningfully validated; one that does not, can.' },
           { t: 'Traceable outcomes for each criterion', d: 'A score for each criterion with the evidence behind it, plus an audit history of the human decisions. If a criterion turns out to drive a disparity, you can find it and read why.' },
         ] },
       ] },
@@ -1183,7 +1183,7 @@ const TRUST_PAGES: MktPage[] = [
         ] },
       ] },
       { h2: 'The short version for a reviewer in a hurry', body: 'If you read nothing else, these are the facts that usually decide the review.', blocks: [
-        { kind: 'bullets', items: ['No hiring decision is automated, advance, reject and override are human actions, each written to the audit history for that candidate', 'Every score cites the answer it came from, and the full transcript ships with the report', 'One rubric per role, authored by you, applied identically across all five interview formats', 'Candidates are told they are interviewing with AI and consent before starting', 'Mimic holds no demographic data, which means it cannot discriminate on it, and equally cannot self audit for adverse impact', 'Delivery signals on voice and video are reported beside the content score, never folded into it', 'Where a dependency is missing the product degrades visibly and says so, rather than silently'] },
+        { kind: 'bullets', items: ['No hiring decision is automated, advance, reject and override are human actions, each written to the audit history for that candidate', 'Every score cites the answer it came from, and the full transcript ships with the report', 'One rubric per role, authored by you, applied identically across every interview format it scores', 'Candidates are told they are interviewing with AI and consent before starting', 'Mimic holds no demographic data, which means it cannot discriminate on it, and equally cannot self audit for adverse impact', 'Delivery signals on voice and video are reported beside the content score, never folded into it', 'Where a dependency is missing the product degrades visibly and says so, rather than silently'] },
       ] },
       { h2: 'What is not yet established', body: 'A trust centre that only lists strengths is not useful. These are the open items, and they are marked as such on the pages themselves rather than omitted.', blocks: [
         { kind: 'note', tone: 'placeholder', text: 'No external security certification or bias audit is currently published. Retention periods, deletion request routes and timeframes, subprocessor contracting entities and regions, and model documentation are all still to be confirmed by the team. Mimic runs as a single instance without multi-region replication or HA failover. Reviewers should treat each of these as an open question to raise, not as an omission to infer around.' },
@@ -1441,7 +1441,7 @@ const RESOURCE_PAGES: MktPage[] = [
   page('resources/rubric-templates', 'B', 'Learn · Rubrics', 'Rubric templates you can start from.', 'Rubric Templates | Mimic', 'Mimic ships six general purpose KPI criteria as a starting point. Here is how to turn them into a rubric that actually fits your role.', 'A good rubric is the difference between a defensible score and a gut call. This page explains how to build one, not a library of ones already written.',
     [
       { h2: 'What actually ships', body: 'Six general purpose KPI criteria, as a starting point. Mimic does **not** ship rubric packs for specific roles, and it is worth being blunt about why: a rubric for a paediatric nurse, a trading desk hire or a backend engineer encodes a judgement your team holds and a vendor does not. Handing you a seemingly plausible template for a role we have never hired would be worse than handing you a blank one.', blocks: [
-        { kind: 'note', tone: 'info', title: 'What the product gives you instead', text: 'Somewhere to write that judgement down, weight it, apply it identically to every candidate across all five interview formats, and attach the evidence to every score. That is the part software can do.' },
+        { kind: 'note', tone: 'info', title: 'What the product gives you instead', text: 'Somewhere to write that judgement down, weight it, apply it identically to every candidate across every format it scores, and attach the evidence to every score. That is the part software can do.' },
       ] },
       { h2: 'Building one that works', body: '', blocks: [
         { kind: 'steps', items: [
@@ -1596,7 +1596,7 @@ const RESOURCE_PAGES: MktPage[] = [
         { kind: 'spec', caption: 'Setup, in order', rows: [
           { k: '1. Build a rubric', v: 'Criteria and weights for the role. Six general KPI criteria ship as a starting point. See Rubrics & scoring.' },
           { k: '2. Decide where questions come from', v: 'A fixed set you author, or generated from each candidate\'s resume (1–25). See Question sets.' },
-          { k: '3. Choose a format and timings', v: 'One of five interview formats, with prep and answer windows (30s / 120s by default, overridable per question). See Interview templates.' },
+          { k: '3. Choose a format and timings', v: 'One of six interview formats, with prep and answer windows (30s / 120s by default, overridable per question). See Interview templates.' },
           { k: '4. Invite', v: 'Upload a candidate list up to 10 MB, preview the email, do a dry run of the batch, send. See Bulk invitations.' },
         ] },
       ] },
@@ -1629,7 +1629,7 @@ const RESOURCE_PAGES: MktPage[] = [
         { kind: 'steps', items: [
           { t: 'Export candidates from your ATS', d: 'A CSV or Excel export is the usual route. PDF, DOCX and TXT candidate lists are also parsed, up to 10 MB.' },
           { t: 'Invite them in bulk', d: 'The wizard runs in five steps. It validates every row, lets you preview the rendered email, and offers a dry run before anything sends.' },
-          { t: 'Candidates interview and are scored', d: 'Against the rubric on your template, in whichever of the five formats you chose.' },
+          { t: 'Candidates interview and are scored', d: 'Against the rubric on your template, in whichever of the six formats you chose.' },
           { t: 'Take the results back', d: 'Individual reports export as PDF; pipeline data exports per role with names, emails and scores by round.' },
         ] },
         { kind: 'flow', steps: ['ATS export', 'Bulk invite', 'Interview + score', 'Export results', 'Update ATS'], caption: 'Your ATS remains the system of record throughout.' },
@@ -1702,7 +1702,7 @@ const COMPANY_PAGES: MktPage[] = [
       { h2: 'The problem we started with', body: 'The first round of hiring is where the process breaks. Good candidates wait weeks for a call that may never come, recruiters spend their most valuable hours on screens that take twenty minutes, and because those screens are unstructured no two candidates get the same interview, so the results were never comparable in the first place.', blocks: [
         { kind: 'p', text: 'The industry\'s usual answer is to filter harder on the resume. That controls the queue but selects for people who write good CVs, which is rarely the job. Mimic exists because interviewing everyone is the better answer, and it only became practical once the scheduling and the recruiter hours came out of the first round.' },
       ] },
-      { h2: 'What we build', body: 'Mimic interviews and scores candidates across five interview formats (timed Q&A, conversational chat, live voice, AI video avatar and a live two-way call), all against one rubric you author. Fast enough for volume, structured enough to defend when someone asks why a candidate was rejected.' },
+      { h2: 'What we build', body: 'Mimic interviews and scores candidates across six interview formats (timed Q&A, conversational chat, live voice, AI video avatar, a live two-way call and timed assessments), all against one rubric you author. Fast enough for volume, structured enough to defend when someone asks why a candidate was rejected.' },
       { h2: 'What we believe', body: 'These are the product principles, and each one costs us something a competitor would happily ship.', blocks: [
         { kind: 'bullets', items: ['Never fabricate proof, no statistic, customer, certification or quotation appears unless it is real and cleared. An empty proof slot is acceptable; an invented one is not', 'A score is a recommendation with its evidence attached, and a human makes every decision that affects a candidate', 'One rubric, applied identically, comparability is the core value, and anything that breaks it breaks the product', 'Degrade honestly and visibly, when a dependency is missing the product keeps working and says so', 'The candidate is a user, not a subject, disclosure is explicit, it works on a phone, progress is never lost, and scores are never shown to them'] },
         { kind: 'note', tone: 'info', title: 'Where you can check this', text: 'The Trust section documents the mechanisms and lists the open items, including the unflattering ones. Certifications we do not hold are named as not held; customer stories we cannot verify are absent rather than invented.' },
@@ -1738,7 +1738,7 @@ const COMPANY_PAGES: MktPage[] = [
         { kind: 'note', tone: 'info', title: 'An offer', text: 'We will answer specific questions about how the product works, including unflattering ones. The Trust section already lists what we do not have (no certifications, no published audit, no customer stories), so those are not gotchas.' },
       ] },
       { h2: 'Facts you can safely attribute', body: 'Everything here is verifiable from the product or from this site, and none of it is embargoed.', blocks: [
-        { kind: 'bullets', items: ['Mimic is built by TalbotIQ; the product conducts and scores first round interviews across five formats against one rubric a recruiter authors', 'It holds no demographic data on candidates and does not infer protected characteristics', 'It publishes no security certification and no bias audit by a third party, both are listed as open items', 'No customer stories or performance statistics are published, because none have been verified with the named customer', 'Two real client logos appear on the site: Total IT Global and Aisling'] },
+        { kind: 'bullets', items: ['Mimic is built by TalbotIQ; the product conducts and scores first round interviews across six formats, five of them against one rubric a recruiter authors', 'It holds no demographic data on candidates and does not infer protected characteristics', 'It publishes no security certification and no bias audit by a third party, both are listed as open items', 'No customer stories or performance statistics are published, because none have been verified with the named customer', 'Two real client logos appear on the site: Total IT Global and Aisling'] },
         { kind: 'note', tone: 'info', title: 'What we will not do', text: 'Supply a statistic on request that does not already appear on this site. If a figure is not here, it is because it is not verified, and it will not become verified because a deadline is close.' },
       ] },
       { h2: 'Press contact', body: '', blocks: [
@@ -1798,7 +1798,7 @@ const COMPANY_PAGES: MktPage[] = [
         { kind: 'p', text: 'Rather than invite applications into a process that does not exist, here is what a reseller would actually be selling today, stated plainly enough to judge.' },
       ] },
       { h2: 'What the product does well for an agency', body: '', blocks: [
-        { kind: 'bullets', items: ['Branding, question sets and rubrics for each client, all set on templates, so each client account carries its own standard and identity', 'Five interview formats scoring against one rubric, so results are comparable across clients and roles', 'Evidence attached to every score, which makes a submittal something a client can check rather than take on trust', 'The first round stops scaling with recruiter headcount, which is where agency margin actually comes from'] },
+        { kind: 'bullets', items: ['Branding, question sets and rubrics for each client, all set on templates, so each client account carries its own standard and identity', 'Six interview formats, five of them scoring against one rubric, so results are comparable across clients and roles', 'Evidence attached to every score, which makes a submittal something a client can check rather than take on trust', 'The first round stops scaling with recruiter headcount, which is where agency margin actually comes from'] },
       ] },
       { h2: 'What you would have to be able to answer', body: 'A reseller inherits the product\'s gaps as well as its strengths, and these will come up in a client\'s procurement review.', bullets: ['No direct ATS connectors, integration is export and import', 'No published security certification or bias audit by a third party', 'Single instance architecture: no multi-region replication or HA failover', 'An open decision on the emotion inference features, which are prohibited for EU candidates under AI Act Art 5(1)(f)', 'Retention periods and deletion SLAs not yet published'] },
       { h2: 'Talk to us anyway', body: 'If reselling Mimic is genuinely interesting, the conversation is more useful than the page, and it would help shape a programme that does not exist yet.' },
@@ -1846,7 +1846,7 @@ const COMPANY_PAGES: MktPage[] = [
 /* Which platform pages carry a recording, keyed by the bare slug.
  *
  * Looked up inside plat() rather than passed as a tenth positional argument, so
- * the fourteen call sites below need no change: only the five interview tracks
+ * the call sites below need no change: only the interview tracks
  * have footage, and the workflow and intelligence pages correctly get
  * `undefined`. Copy comes from demoAssets.ts, so a caption cannot drift between
  * the home page's card and the page the card links to. */
@@ -1932,7 +1932,7 @@ const PLATFORM_PAGES: MktPage[] = [
       { q: 'How long does it take a candidate?', a: 'It depends on how many questions you set and your prep/answer timings. With the defaults (30 seconds prep, 120 seconds to answer), a short set finishes in minutes rather than the half hour a phone screen costs.' },
       { q: 'Can a candidate go back and change an earlier answer?', a: 'No. Once they continue, that question is closed, and the interface tells them so before they move on. Every candidate works under the same constraint, which is what keeps the comparison fair.' },
       { q: 'What happens if their connection drops mid-answer?', a: 'Drafts are saved as they type, so the answer in progress is not lost. They reopen the link and continue.' },
-      { q: 'Is a chat interview really comparable to a voice or video round?', a: 'Yes, because all five interview formats are scored against the same rubric you defined. That is the point of the design: results from different formats sit next to each other and mean the same thing.' },
+      { q: 'Is a chat interview really comparable to a voice or video round?', a: 'Yes, because the conversational formats are all scored against the same rubric you defined. That is the point of the design: results from different formats sit next to each other and mean the same thing.' },
       { q: 'Does it read the resume, or just ask generic questions?', a: 'It reads the resume first and writes its questions and follow-ups around what that resume claims, unless you have pinned a fixed question set, in which case it asks exactly those.' },
     ],
     [
@@ -2035,7 +2035,7 @@ const PLATFORM_PAGES: MktPage[] = [
       { h2: 'What the candidate experiences', body: 'A real conversation on their own schedule, with the terms made explicit up front.', bullets: ['Told it is AI, and asked to consent, before anything records', 'Camera and microphone requested explicitly, with a recovery path if blocked', 'No app to install. It runs in the browser', 'They never see scores, reports or another candidate\'s data'] },
       { h2: 'Limits and honest degradation', body: '', blocks: [
         { kind: 'note', tone: 'limit', text: 'Video avatar interviews require a configured avatar provider key. Without one the feature reports itself as unavailable rather than silently degrading. A candidate is never dropped into a broken round. ' + RESUME_LIMITS },
-        { kind: 'note', tone: 'info', title: 'Bandwidth and devices', text: 'This is the most demanding of the five formats. Where candidates are likely to be on constrained connections or older phones, conversational chat or timed Q&A will reach more of them.' },
+        { kind: 'note', tone: 'info', title: 'Bandwidth and devices', text: 'This is the most demanding of the six formats. Where candidates are likely to be on constrained connections or older phones, conversational chat or timed Q&A will reach more of them.' },
       ] },
     ],
     [
@@ -2105,7 +2105,7 @@ const PLATFORM_PAGES: MktPage[] = [
         { kind: 'p', text: 'Timing an interview by hand is unfair almost by definition: one candidate gets interrupted, another gets a lenient interviewer. Timed Q&A applies the identical constraint to everyone, automatically, and records how each performed within it.' },
       ] },
       { h2: 'What it is', body: 'A structured written interview where every question carries its own preparation window and answer window. The candidate reads, thinks, and answers inside the same limits as everyone else, then the answers are scored against your rubric.', blocks: [
-        { kind: 'p', text: 'It is the most controlled of the five formats, which is what makes it the fairest comparison when speed itself is the skill being assessed.' },
+        { kind: 'p', text: 'It is the most controlled format that still asks for an answer in the candidate’s own words, which is what makes it the fairest comparison when speed itself is the skill being assessed.' },
       ] },
       { h2: 'How it works', body: '', blocks: [
         { kind: 'steps', items: [
@@ -2197,7 +2197,7 @@ const PLATFORM_PAGES: MktPage[] = [
       { h2: 'Why configuration belongs in one object', body: 'Consistency is the product\'s core value: scores only compare if every candidate met the same interview. That is impossible if each recruiter assembles a round from scratch, so everything that shapes an interview lives on a template, and the template, not the recruiter, is what gets reused.' },
       { h2: 'What a template holds', body: '', blocks: [
         { kind: 'spec', caption: 'One object, every setting', rows: [
-          { k: 'Interview format', v: 'Which of the five tracks the candidate takes, conversational chat, voice, video avatar, timed Q&A or live two-way.' },
+          { k: 'Interview format', v: 'Which of the six tracks the candidate takes, conversational chat, voice, video avatar, timed Q&A, live two-way or an assessment.' },
           { k: 'Question source', v: 'A fixed question set you maintain, or questions generated from the candidate\'s own resume (1–25).' },
           { k: 'Preparation time', v: 'Default 30 seconds, overridable on any individual question.' },
           { k: 'Answer time', v: 'Default 120 seconds, overridable on any individual question.' },
@@ -2210,7 +2210,7 @@ const PLATFORM_PAGES: MktPage[] = [
         ] },
       ] },
       { h2: 'How teams actually use them', body: 'The useful pattern is one template per role type rather than one per requisition. A "support agent" template carries the questions, timings and rubric that role needs; every support req reuses it, so results across six months of hiring remain comparable.', blocks: [
-        { kind: 'bullets', items: ['Duplicate a template to create a variant rather than editing a live one', 'Change the format without changing the rubric. The same criteria apply across all five tracks', 'Timing overrides on individual questions let one scenario question breathe without loosening the whole round', 'Branding is per template, which is what lets an agency run a client\'s identity on the candidate experience'] },
+        { kind: 'bullets', items: ['Duplicate a template to create a variant rather than editing a live one', 'Change the format without changing the rubric. The same criteria apply across every track the rubric scores', 'Timing overrides on individual questions let one scenario question breathe without loosening the whole round', 'Branding is per template, which is what lets an agency run a client\'s identity on the candidate experience'] },
       ] },
       { h2: 'Editing a template mid-hire', body: 'Templates are editable, and that has a consequence worth understanding: changing a rubric changes the standard. Candidates already scored were assessed against the previous criteria.', blocks: [
         { kind: 'note', tone: 'info', title: 'A practical rule', text: 'Once a requisition is live, duplicate rather than edit. Keeping the rubric fixed for the duration of a role is what makes the comparison, and any later audit of it, actually hold.' },
@@ -2218,7 +2218,7 @@ const PLATFORM_PAGES: MktPage[] = [
     ],
     [
       { q: 'Can different recruiters use different templates for the same role?', a: 'They can, but it defeats the purpose. Comparability depends on one rubric per role applied identically, so the template should belong to the role, not the recruiter.' },
-      { q: 'Does changing the format mean rebuilding the rubric?', a: 'No. The same rubric applies across all five interview formats, which is what lets a chat round and a voice round produce comparable results.' },
+      { q: 'Does changing the format mean rebuilding the rubric?', a: 'No. The same rubric applies across every format it scores, which is what lets a chat round and a voice round produce comparable results.' },
       { q: 'Can we brand the candidate experience?', a: 'Yes, company name, logo and accent colour are set per template and carry through to candidate screens and the invitation email.' },
       { q: 'What happens to candidates already interviewed if we edit a template?', a: 'They were scored against the criteria in force at the time. For a live requisition, duplicate the template instead of editing it.' },
     ],
@@ -2313,7 +2313,7 @@ const PLATFORM_PAGES: MktPage[] = [
           { t: 'Criteria combine into a total', d: 'A weighted sum you can reproduce by hand. There is no hidden term.' },
           { t: 'Evidence is attached', d: 'Each criterion cites the answer or transcript span behind it, and the full transcript ships with the report.' },
         ] },
-        { kind: 'flow', steps: ['Criteria + weights', 'Scores per criterion', 'Weighted total', 'Recommendation', 'Human decides'], caption: 'The same rubric applies across all five interview formats.' },
+        { kind: 'flow', steps: ['Criteria + weights', 'Scores per criterion', 'Weighted total', 'Recommendation', 'Human decides'], caption: 'The same rubric applies across every format it scores.' },
       ] },
       { h2: 'Writing criteria that work', body: 'The difference between a rubric that produces useful rankings and one that produces noise is usually specificity.', bullets: ['Describe observable behaviour in an answer, not a personality trait, "structures an answer around a concrete example" beats "communication skills"', 'Avoid criteria every candidate passes; they add weight but no separation, and should be replaced', 'Keep the set small enough that each criterion carries real weight, a dozen criteria at 8% each dilutes everything', 'Pilot on people already doing the job well, and check whether the rubric ranks them highly', 'Revisit it when recruiters override often; that is the clearest signal it does not match what the team values'] },
       { h2: 'What the rubric deliberately excludes', body: '', blocks: [
@@ -2377,7 +2377,7 @@ const PLATFORM_PAGES: MktPage[] = [
           { k: 'Completion rate', v: 'The share of invited candidates who finished.' },
           { k: 'Average duration', v: 'Overall, and average time per question.' },
           { k: 'Average score', v: 'Across scored interviews.' },
-          { k: 'By interview track', v: 'Sessions, average score and completion for each of the five formats.' },
+          { k: 'By interview track', v: 'Sessions, average score and completion for each of the six formats.' },
           { k: 'By role and template', v: 'The same measures sliced per position and per configuration.' },
           { k: 'Recommendations', v: 'The distribution of outcomes across scored interviews.' },
           { k: 'Integrity flags', v: 'The share of scored interviews carrying one.' },
