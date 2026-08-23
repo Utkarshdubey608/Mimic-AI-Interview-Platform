@@ -301,7 +301,7 @@ export function McqStage({
                     className={cn(
                       'flex h-6 w-6 flex-shrink-0 items-center justify-center border transition-colors duration-fast',
                       isMulti ? 'rounded-md' : 'rounded-full',
-                      on ? 'border-action bg-action text-on-action' : 'border-rule-input text-transparent',
+                      on ? 'border-action bg-action text-action-ink' : 'border-rule-input text-transparent',
                     )}
                     aria-hidden="true"
                   >
@@ -338,7 +338,7 @@ export function McqStage({
                 type="button"
                 onClick={() => void submit()}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-on-action transition-colors duration-fast hover:bg-action-hover disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover disabled:opacity-60"
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                 Submit assessment
@@ -347,7 +347,7 @@ export function McqStage({
               <button
                 type="button"
                 onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
-                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-on-action transition-colors duration-fast hover:bg-action-hover"
+                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover"
               >
                 Next
               </button>

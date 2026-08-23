@@ -486,6 +486,12 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
   /* Which panel is settled on, and so worth holding a video for. Debounced:
      travelling through all six loads none of them on the way. */
   const [settled, setSettled] = useState(0)
+  /* The pending arm, shared by BOTH observers below. It has to be shared: the
+     per-panel one schedules 400ms out, and without a handle the section-level one
+     could set "none" and then have that stale timer fire behind it and re-attach a
+     film the reader has already scrolled away from. That is exactly what the
+     harness caught — one film still armed after the section was above the fold. */
+  const armTimer = useRef(0)
 
   /* The live panel index, for the wheel handler. Held in a ref rather than closed
      over, so the listener is bound once per pin instead of once per step — a
@@ -679,7 +685,9 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
     const host = slides.current.find(Boolean)?.closest('.mm-formats')
     if (!host || typeof IntersectionObserver === 'undefined') return
     const io = new IntersectionObserver((es) => {
-      if (es.some((e) => !e.isIntersecting)) setSettled(-1)
+      if (!es.some((e) => !e.isIntersecting)) return
+      window.clearTimeout(armTimer.current)
+      setSettled(-1)
     }, { rootMargin: '200px' })
     io.observe(host)
     return () => io.disconnect()
@@ -693,7 +701,6 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
   useEffect(() => {
     const els = slides.current.filter(Boolean) as HTMLElement[]
     if (!els.length || typeof IntersectionObserver === 'undefined') return
-    let timer = 0
     const io = new IntersectionObserver((entries) => {
       // At or above the threshold, not merely intersecting. A panel LEAVING also
       // fires a callback, and it is still partly intersecting when it does — so
@@ -706,11 +713,11 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
       if (!best) return
       const idx = els.indexOf(best.target as HTMLElement)
       if (idx < 0) return
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => setSettled(idx), 400)
+      window.clearTimeout(armTimer.current)
+      armTimer.current = window.setTimeout(() => setSettled(idx), 400)
     }, { threshold: 0.6 })
     for (const el of els) io.observe(el)
-    return () => { io.disconnect(); window.clearTimeout(timer) }
+    return () => { io.disconnect(); window.clearTimeout(armTimer.current) }
   }, [slides])
 
   return (
@@ -755,6 +762,7 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
                   alt={m.video.alt}
                   disclosure={m.video.disclosure}
                   contentAspect={m.video.contentAspect}
+                  startAt={m.video.startAt ?? 0}
                   /* Held unless this is the panel being read. DemoVideo's arm
                      observer uses a 600px margin — right for a page you scroll
                      down, wrong here, where every neighbour sits permanently

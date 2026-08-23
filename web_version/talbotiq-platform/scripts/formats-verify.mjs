@@ -111,9 +111,6 @@ const readDeck = () => ({
   armed: Array.from(document.querySelectorAll('.fmt-stage video')).filter((v) => !!v.getAttribute('src')).length,
 })
 
-/** deckHead, duplicated here on purpose: the harness must not import the thing it checks. */
-const head = (p, n) => (n < 2 ? 0 : Math.min(1, Math.max(0, (p * n - 0.5) / (n - 1))) * (n - 1))
-
 /**
  * Which panels the reader can actually see.
  *
@@ -174,9 +171,15 @@ const quiet = (page) => page.evaluate(() => new Promise((done) => {
  * with nothing pending.
  */
 const settle = async (page, y) => {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  /* Five attempts, not three, and 650ms of patience rather than 420.
+     The section's travel grew from 280vh to 388vh when a step was lengthened to
+     match one scroll gesture, which made every eased scroll in it correspondingly
+     longer — and a settle that gives up too early reads the page mid-journey and
+     reports the wrong panel. It failed at one step per viewport, at a different
+     step each time, which is the signature of a race rather than an off-by-one. */
+  for (let attempt = 0; attempt < 5; attempt++) {
     await page.evaluate((to) => window.scrollTo(0, to), y)
-    await page.waitForTimeout(420)   // longer than the velocity decay
+    await page.waitForTimeout(650)   // longer than the velocity decay AND the settle
     await quiet(page)
     const at = await page.evaluate(() => window.scrollY)
     if (Math.abs(at - y) < 4) return

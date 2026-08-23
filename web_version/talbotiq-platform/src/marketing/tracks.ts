@@ -31,27 +31,29 @@
    users, clock already say which format each card is, and a glyph is
    information where a hue with no legend is decoration. The one colour event
    per card is the accent arriving under the pointer. */
+/* The ORDER here is the order the deck shows them in, and it is a decision, not
+   the order they were built in. Video first, because a face on camera is the
+   fastest thing to understand and the most persuasive; then voice; then the paper,
+   which is the cheapest to run; then text; then the clock; and the live call last,
+   because it is the one that needs a person's time and so the one to ask for
+   after the others have made the case. */
 export const TRACKS = [
-  { name: 'Conversational chat', tag: 'Async', icon: 'chat' as const, track: 'chatbot' as const,
-    desc: 'A text interview candidates finish on a phone in minutes. Best for hourly and high volume roles.',
-    meta: ['No scheduling', 'Mobile first'] },
-  { name: 'Voice screening', tag: 'Async', icon: 'mic' as const, track: 'voice' as const,
-    desc: 'A spoken conversation with an AI interviewer. Answers are transcribed, then scored on content and delivery together.',
-    meta: ['Live transcript', 'Interruptible'] },
   { name: 'AI video avatar', tag: 'Async', icon: 'video' as const, track: 'video_avatar' as const,
     desc: 'A configured presenter asks each question on camera, reacts to the answer, and follows up when one is thin.',
     meta: ['Personas', 'Replicas'] },
-  { name: 'Live two-way call', tag: 'Live', icon: 'users' as const, track: 'two_way' as const,
-    desc: 'Your interviewer leads a real video call. Mimic records it with consent, transcribes it and scores the same rubric.',
-    meta: ['Host room', 'Star rating'] },
-  { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
-    desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
-    meta: ['Timer on every question', 'Integrity checks'] },
-  /* `calc` rather than a clipboard glyph: icons.tsx has no clipboard, and
-     arithmetic is the honest metaphor for a paper that is marked rather than
-     judged. Do not invent an icon key — Ico renders nothing for an unknown one
-     and the card would ship with an empty chip. */
+  { name: 'Voice screening', tag: 'Async', icon: 'mic' as const, track: 'voice' as const,
+    desc: 'A spoken conversation with an AI interviewer. Answers are transcribed, then scored on content and delivery together.',
+    meta: ['Live transcript', 'Interruptible'] },
   { name: 'Assessments', tag: 'Async', icon: 'calc' as const, track: 'mcq' as const,
     desc: 'A timed multiple-choice paper, marked the moment it is submitted. For knowledge you can check rather than discuss.',
     meta: ['Marked on submission', 'Server-side timing'] },
+  { name: 'Conversational chat', tag: 'Async', icon: 'chat' as const, track: 'chatbot' as const,
+    desc: 'A text interview candidates finish on a phone in minutes. Best for hourly and high volume roles.',
+    meta: ['No scheduling', 'Mobile first'] },
+  { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
+    desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
+    meta: ['Timer on every question', 'Integrity checks'] },
+  { name: 'Live two-way call', tag: 'Live', icon: 'users' as const, track: 'two_way' as const,
+    desc: 'Your interviewer leads a real video call. Mimic records it with consent, transcribes it and scores the same rubric.',
+    meta: ['Host room', 'Star rating'] },
 ]

@@ -38,6 +38,7 @@ import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { HOME_SEO } from './content'
 import { Ico } from './icons'
+import { AdFilm } from './AdFilm'
 import { FormatShowcase } from './formats/FormatShowcase'
 
 
@@ -380,80 +381,33 @@ export default function MimicSite() {
           </div>
         </section>
 
-        {/* ── THE PROBLEM ──
-            The narrative beat the page was missing. It went straight from "here
-            are our customers" to "here is how our scoring works", which answers
-            a question the reader has not been given a reason to ask yet.
+        {/* ── HOW IT WORKS, AS A FILM ──
+            The slot the problem section used to hold. A reader who has just seen
+            who else screens with Mimic is at the point of asking what the thing
+            actually does, and a film answers that faster than any section on this
+            page — so it is offered here, and OFFERED rather than played: the file
+            is 12.7MB, which is not something to spend on a visitor's behalf.
 
-            The composition is deliberately NOT three cards. It is the argument
-            itself, drawn: on the left, the same role screened five times by
-            five people — ragged, each line a different length, each asking
-            something different. On the right, the same five candidates against
-            one set of criteria. Nothing here depicts a product interface, so it
-            cannot be mistaken for one; it is a diagram of the difference. */}
-        {/* The page's dark beat.
-            This section states the problem, and it was on the light record
-            ground like everything around it — so the one moment the page admits
-            something is broken looked exactly like the moments where it is
-            explaining how things work. The site already alternates light record
-            sections with dark ink fields (the CTA, the process stage, the
-            footer); this is now one of them. It is also the only way the field
-            and the ink below can exist at all: cyan light needs a dark ground.
-
-            Two layers, all enhancements, all absent without WebGL:
-              Field         the site's own ambient ink light
-              InkTrail      the same advected dye the hero uses */}
-        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h">
-          <Field seed={17} />
-          <InkTrail />
+            Deliberately not DemoVideo. That component arms itself from an observer
+            as the reader approaches, which is right for a one-or-two megabyte
+            product capture and wrong for this — it would fetch twelve megabytes for
+            anybody who merely scrolled past. AdFilm shows the poster and fetches
+            nothing at all until the play control is pressed. */}
+        <section className="section film-sec" aria-labelledby="film-h">
           <div className="wrap">
             <div className="sec-head">
-              <span className="eyebrow">The problem</span>
-              <h2 className="h2" id="problem-h">Five interviewers, five interviews.</h2>
+              <h2 className="h2" id="film-h">How it works.</h2>
               <p className="lede">
-                Screening at volume means different people asking different questions on different
-                days, writing notes in their own shorthand. The scores that come out the other end
-                were never measuring the same thing, so comparing them is guesswork with a number
-                attached.
+                The product doing the job, end to end — an invite going out, a candidate
+                answering, a scored report coming back.
               </p>
             </div>
-
-            <Reveal>
-              <div className="noise" aria-hidden="true">
-                <div className="noise-side">
-                  <span className="noise-label">Unstructured screening</span>
-                  <div className="noise-kpis">
-                    {RUBRIC.map((c, i) => (
-                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
-                        <span className="noise-k">{c.k}</span>
-                        <span className={UNSTRUCTURED[i] ? 'noise-v is-mixed' : 'noise-v is-absent'}>
-                          {UNSTRUCTURED[i] ?? 'not asked'}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                  <span className="noise-foot">Six criteria, four scales, two gaps — nothing to compare</span>
-                </div>
-
-                <span className="noise-arrow">
-                  <Ico n="arrow" />
-                </span>
-
-                <div className="noise-side is-ordered">
-                  <span className="noise-label">One rubric, applied identically</span>
-                  <div className="noise-kpis">
-                    {RUBRIC.map((c, i) => (
-                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
-                        <span className="noise-k">{c.k}</span>
-                        <span className="noise-v">{c.v}</span>
-                        <span className="noise-bar" style={{ '--v': c.v / 100 } as React.CSSProperties} />
-                      </span>
-                    ))}
-                  </div>
-                  <span className="noise-foot">Six criteria, one scale, every answer — directly comparable</span>
-                </div>
-              </div>
-            </Reveal>
+            <AdFilm
+              src="/mimic-shots/how-it-works.mp4"
+              poster="/mimic-shots/how-it-works-poster.jpg"
+              label="Play the walkthrough"
+              caption="The full round, from invite to scored shortlist."
+            />
           </div>
         </section>
 
@@ -691,6 +645,92 @@ export default function MimicSite() {
                 exists today and what does not.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* ── THE PROBLEM, MOVED ──
+            This used to sit third, immediately after the logos. It reads better
+            here, right before the shelf whose first column is "Build your first
+            round": the argument for why one rubric matters lands while the reader
+            is looking at the thing that would let them build one, instead of four
+            screens earlier where it was an abstraction about somebody else.
+            The light/dark rhythm survives the move — the workspace card and the
+            trust band before it are both light, and the CTA after the resources
+            shelf is the next dark beat. */}
+        {/* ── THE PROBLEM ──
+            The narrative beat the page was missing. It went straight from "here
+            are our customers" to "here is how our scoring works", which answers
+            a question the reader has not been given a reason to ask yet.
+
+            The composition is deliberately NOT three cards. It is the argument
+            itself, drawn: on the left, the same role screened five times by
+            five people — ragged, each line a different length, each asking
+            something different. On the right, the same five candidates against
+            one set of criteria. Nothing here depicts a product interface, so it
+            cannot be mistaken for one; it is a diagram of the difference. */}
+        {/* The page's dark beat.
+            This section states the problem, and it was on the light record
+            ground like everything around it — so the one moment the page admits
+            something is broken looked exactly like the moments where it is
+            explaining how things work. The site already alternates light record
+            sections with dark ink fields (the CTA, the process stage, the
+            footer); this is now one of them. It is also the only way the field
+            and the ink below can exist at all: cyan light needs a dark ground.
+
+            Two layers, all enhancements, all absent without WebGL:
+              Field         the site's own ambient ink light
+              InkTrail      the same advected dye the hero uses */}
+        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h">
+          <Field seed={17} />
+          <InkTrail />
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">The problem</span>
+              <h2 className="h2" id="problem-h">Five interviewers, five interviews.</h2>
+              <p className="lede">
+                Screening at volume means different people asking different questions on different
+                days, writing notes in their own shorthand. The scores that come out the other end
+                were never measuring the same thing, so comparing them is guesswork with a number
+                attached.
+              </p>
+            </div>
+
+            <Reveal>
+              <div className="noise" aria-hidden="true">
+                <div className="noise-side">
+                  <span className="noise-label">Unstructured screening</span>
+                  <div className="noise-kpis">
+                    {RUBRIC.map((c, i) => (
+                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
+                        <span className="noise-k">{c.k}</span>
+                        <span className={UNSTRUCTURED[i] ? 'noise-v is-mixed' : 'noise-v is-absent'}>
+                          {UNSTRUCTURED[i] ?? 'not asked'}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                  <span className="noise-foot">Six criteria, four scales, two gaps — nothing to compare</span>
+                </div>
+
+                <span className="noise-arrow">
+                  <Ico n="arrow" />
+                </span>
+
+                <div className="noise-side is-ordered">
+                  <span className="noise-label">One rubric, applied identically</span>
+                  <div className="noise-kpis">
+                    {RUBRIC.map((c, i) => (
+                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
+                        <span className="noise-k">{c.k}</span>
+                        <span className="noise-v">{c.v}</span>
+                        <span className="noise-bar" style={{ '--v': c.v / 100 } as React.CSSProperties} />
+                      </span>
+                    ))}
+                  </div>
+                  <span className="noise-foot">Six criteria, one scale, every answer — directly comparable</span>
+                </div>
+              </div>
+            </Reveal>
           </div>
         </section>
 

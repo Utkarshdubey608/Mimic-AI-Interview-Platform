@@ -57,7 +57,7 @@ export const DEMO_TRACKS: readonly DemoTrack[] = ['chatbot', 'voice', 'video_ava
  * else needs to change — the hero, the cards and the platform pages all read
  * this.
  */
-export const RECORDED_TRACKS: readonly DemoTrack[] = ['chatbot', 'voice', 'video_avatar', 'chat']
+export const RECORDED_TRACKS: readonly DemoTrack[] = ['chatbot', 'voice', 'video_avatar', 'chat', 'mcq']
 
 /** Does this format have footage to play? */
 export const hasDemo = (t: DemoTrack): boolean => RECORDED_TRACKS.includes(t)
@@ -125,8 +125,8 @@ export const DEMO_COPY: Record<DemoTrack, {
     alt: 'A Mimic live two-way interview from the candidate’s side: the recruiter’s video tile, the candidate’s own tile, and the live call controls showing the call is being recorded.',
   },
   mcq: {
-    caption: 'A timed assessment paper, answered one question at a time and marked on submission.',
-    alt: 'A Mimic assessment in progress: one multiple-choice question on screen with its options, a per-question timer counting down beside it, the candidate selecting an answer and moving to the next question, and the paper submitting for marking at the end.',
+    caption: 'A four-question paper, answered one question at a time and marked the moment it is submitted.',
+    alt: 'A Mimic assessment paper being sat: one multiple-choice question at a time with lettered options, a progress rail and an answers-saved tick above it, the candidate choosing an answer and moving on, a warning on the last question that one is still unanswered, and a confirmation once the paper is submitted.',
   },
   chat: {
     caption: 'The preparation timer, the STAR prompt, and the answer box that unlocks when the clock starts.',

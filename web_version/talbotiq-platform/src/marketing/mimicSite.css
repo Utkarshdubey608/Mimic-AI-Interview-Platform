@@ -2739,6 +2739,64 @@
 .mimic-site .noise{align-items:start}
 
 
+/* ── The walkthrough film ────────────────────────────────────────────────
+   One film, offered rather than played. The frame carries the same treatment as
+   the product captures beside it — the document-on-a-desk border, radius and
+   shadow — so it reads as the same kind of object and not as an advert dropped
+   into the page.
+
+   The play control is the one place on this page that gets a glass surface. It
+   sits ON the image, where a solid button would either fight the picture or
+   disappear into it, and a translucent one with a blur behind it stays legible
+   over any frame the poster happens to be. */
+.mimic-site .adfilm{margin:0}
+.mimic-site .adfilm-frame{
+  position:relative;overflow:hidden;
+  border:1px solid var(--mm-line);border-radius:var(--mm-r-card);
+  background:var(--mm-desk);box-shadow:var(--mm-shadow-lg);
+  aspect-ratio:16 / 9
+}
+.mimic-site .adfilm-frame img,
+.mimic-site .adfilm-frame video{
+  display:block;width:100%;height:100%;object-fit:cover;background:var(--mm-desk)
+}
+/* Bottom-left, not centred. The poster is the film's own title card and the
+   centre of it is a sentence; a control parked there covers the one thing the
+   still exists to say. Anchored to a corner it reads as chrome on the frame
+   rather than an obstruction in the picture. */
+.mimic-site .adfilm-play{
+  position:absolute;left:var(--mm-s-4);bottom:var(--mm-s-4);
+  display:inline-flex;align-items:center;gap:.7rem;
+  padding:.85rem 1.5rem .85rem 1.25rem;border-radius:999px;cursor:pointer;
+  font:inherit;font-size:var(--mm-t-body);font-weight:650;letter-spacing:-.005em;
+  color:var(--mm-ink);
+  background:rgb(255 255 255 / .82);
+  border:1px solid rgb(255 255 255 / .5);
+  box-shadow:0 10px 34px rgb(14 20 32 / .28);
+  backdrop-filter:blur(14px) saturate(160%);
+  transition:transform .22s var(--mm-ease-out), background-color .22s var(--mm-ease)
+}
+.mimic-site .adfilm-play svg{width:17px;height:17px;fill:currentColor}
+.mimic-site .adfilm-play:hover{background:#fff;transform:scale(1.03)}
+.mimic-site .adfilm-play:active{transform:scale(.985);transition-duration:.08s}
+.mimic-site .adfilm figcaption{
+  display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
+  margin-top:var(--mm-s-2);font-size:var(--mm-t-footnote);letter-spacing:.003em;
+  color:var(--mm-muted);max-width:var(--mm-measure)
+}
+/* Someone who asked for less transparency gets a solid control, and someone who
+   asked for more contrast gets an edge on it. Same calls the nav's material makes. */
+@media (prefers-reduced-transparency:reduce){
+  .mimic-site .adfilm-play{background:#fff;backdrop-filter:none}
+}
+@media (prefers-contrast:more){
+  .mimic-site .adfilm-play{background:#fff;border-color:var(--mm-ink);backdrop-filter:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .adfilm-play{transition:none}
+  .mimic-site .adfilm-play:hover{transform:none}
+}
+
 /* ── Interview formats: six ways, one at a time ─────────────────────────────
    REBUILT, and the first thing to know is why the old one failed. It called
    itself `.showcase`, and `.mimic-site .showcase` was ALREADY TAKEN — it is the

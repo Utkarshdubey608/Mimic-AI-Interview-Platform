@@ -34,8 +34,30 @@ for (const m of MODES.filter((x) => !x.video)) {
   assert(`${m.name} explains why there is no footage`, noFilmReason(m.href).length > 40)
 }
 
+/* The order is a decision, so it is worth a test: it is the one property of this
+   list a refactor can quietly reverse. */
+assert('the deck opens on video and ends on the live call',
+  MODES.map((m) => m.name).join(' | ')
+  === 'AI video avatar | Voice screening | Assessments | Conversational chat | Timed Q&A | Live two-way call',
+  MODES.map((m) => m.name).join(' | '))
+
+/* Two-way's footage is the file named after the avatar, because that file IS the
+   live call — see TRIMMED in modes.ts. Pinned here so that nobody "corrects" the
+   path back to a mode-two_way.webm that does not exist, and so that the head of
+   the file, which is the candidate's face check, stays skipped. */
 const twoWay = MODES.find((m) => m.href.includes('live-two-way'))
-assert('live two-way carries no footage', twoWay?.video === null)
+assert('live two-way carries footage', !!twoWay?.video)
+assert('and it is the file the live call is actually in',
+  twoWay?.video?.src === '/mimic-shots/mode-video_avatar.webm', twoWay?.video?.src)
+assert('and it starts after the face check', (twoWay?.video?.startAt ?? 0) >= 3,
+  String(twoWay?.video?.startAt))
+assert('every startAt is inside the file', MODES.every((m) => (m.video?.startAt ?? 0) < 27))
+
+const mcq = MODES.find((m) => m.href.includes('assessments'))
+assert('assessments has its recording now', !!mcq?.video)
+assert('and it is its own file', mcq?.video?.src === '/mimic-shots/mode-mcq.webm', mcq?.video?.src)
+assert('every one of the six has footage', MODES.every((m) => !!m.video),
+  MODES.filter((m) => !m.video).map((m) => m.name).join(', '))
 
 console.log(failures === 0 ? '\n✅ ALL FORMAT MODE TESTS PASSED' : `\n❌ ${failures} FORMAT MODE TEST(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)
