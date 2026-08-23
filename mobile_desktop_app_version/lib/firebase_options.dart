@@ -52,12 +52,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDuzvsiUZcIOSJUairCLZpwOEwUYK8HQZw',
-    appId: '1:473028554722:android:37ac70b8d6316b37b713bb',
+    appId: '1:473028554722:android:0eea71e6a072af23b713bb',
     messagingSenderId: '473028554722',
     projectId: 'talbotiq-9cc4e',
     storageBucket: 'talbotiq-9cc4e.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBPXGuAzCKRVszCFdJm3OEKYqb-q9QlKIs',
     appId: '1:473028554722:ios:aae697aede50212db713bb',

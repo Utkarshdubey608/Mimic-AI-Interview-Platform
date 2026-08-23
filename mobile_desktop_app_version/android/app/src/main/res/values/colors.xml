@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
-    <!-- Android 12+ system splash background (light mode). -->
-    <color name="splash_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#141210</color>
+    <!-- Android 12+ system splash background (light mode). The app's light
+         ground (TokenGroundLight.ground), not pure white, so the system splash
+         hands over to the Flutter splash without a flash of a different white. -->
+    <color name="splash_background">#F6F3EE</color>
 </resources>

@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.talbotiq_app"
+    namespace = "com.talbotiq.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -24,7 +24,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.talbotiq_app"
+        applicationId = "com.talbotiq.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Firebase 5.x (auth/firestore) and record 6.x require API 23+.

@@ -134,7 +134,7 @@ class _CompanyDialogState extends State<_CompanyDialog> {
             onSubmitted: (_) => _saving ? null : _save(),
             decoration: const InputDecoration(
               labelText: 'Company',
-              hintText: 'e.g. TalbotIQ',
+              hintText: 'e.g. Acme Inc',
             ),
           ),
           const SizedBox(height: 8),

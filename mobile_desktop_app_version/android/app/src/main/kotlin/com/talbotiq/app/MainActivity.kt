@@ -1,4 +1,4 @@
-package com.example.talbotiq_app
+package com.talbotiq.app
 
 import io.flutter.embedding.android.FlutterActivity
 
