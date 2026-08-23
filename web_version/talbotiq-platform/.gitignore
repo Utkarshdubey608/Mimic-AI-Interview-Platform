@@ -29,3 +29,6 @@ test-results/
 marketing-verify/
 look/
 shots-final/
+# Before/after comparison captures for the redesign record.
+before/
+after/

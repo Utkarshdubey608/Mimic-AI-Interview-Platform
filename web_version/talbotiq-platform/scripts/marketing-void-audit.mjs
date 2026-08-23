@@ -38,6 +38,11 @@ for (const route of ROUTES.length ? ROUTES : ['/']) {
       const right = box.right - parseFloat(cs.paddingRight || 0)
       const width = right - left
       if (width < 400) continue
+      /* A single line of text is not a layout block. The breadcrumb is short
+         because it says "Mimic / Trust", and reporting it on every inner page
+         made the audit something you had to mentally filter — which is the same
+         as not having it. Anything under two lines tall is a label. */
+      if (box.height < 44) continue
       // Union of the children that actually occupy space.
       let cl = Infinity, cr = -Infinity
       for (const el of wrap.querySelectorAll('*')) {
