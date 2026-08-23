@@ -99,6 +99,13 @@ class _ConversationRunnerPageState extends State<ConversationRunnerPage> {
 
   @override
   Widget build(BuildContext context) {
+    // One theme over every stage this page renders. Each stage below builds
+    // its own Scaffold, so installing it per stage would be five chances to
+    // miss one.
+    return RecruiterTheme(child: _buildStages(context));
+  }
+
+  Widget _buildStages(BuildContext context) {
     final c = _c!;
     return PopScope(
       // Block back-out while the interview is running AND while it is being
@@ -218,7 +225,7 @@ class _WelcomeScreen extends StatelessWidget {
                   Text(template.branding.companyName.toUpperCase(),
                       style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.secondary,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 1.5)),
                   const SizedBox(height: 10),
                   Text('$hello — welcome',
@@ -736,7 +743,7 @@ class _ChatStage extends StatelessWidget {
                 .withValues(alpha: isDark ? 0.35 : 0.5),
           ],
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
             color: theme.colorScheme.primary.withValues(alpha: 0.18)),
       ),
@@ -764,12 +771,12 @@ class _ChatStage extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.secondary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text('FOLLOW-UP',
                       style: theme.textTheme.labelSmall?.copyWith(
                           fontSize: 9,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 1,
                           color: theme.colorScheme.secondary)),
                 ),
@@ -840,8 +847,8 @@ class _ChatStage extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
+            topLeft: const Radius.circular(20),
+            topRight: const Radius.circular(20),
             bottomLeft: Radius.circular(isInterviewer ? 4 : 16),
             bottomRight: Radius.circular(isInterviewer ? 16 : 4),
           ),
@@ -855,7 +862,7 @@ class _ChatStage extends StatelessWidget {
                 child: Text('FOLLOW-UP',
                     style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.secondary,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 1)),
               ),
             Text(
@@ -882,10 +889,10 @@ class _ChatStage extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.secondary.withValues(alpha: 0.12),
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
             bottomLeft: Radius.circular(4),
-            bottomRight: Radius.circular(16),
+            bottomRight: Radius.circular(20),
           ),
         ),
         child: Row(
@@ -998,7 +1005,7 @@ class _TimerPill extends StatelessWidget {
           Text('${thinking ? 'Think' : 'Answer'} · ${remaining}s',
               style: TextStyle(
                   fontFeatures: const [FontFeature.tabularFigures()],
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: color)),
         ],
       ),
@@ -1058,7 +1065,7 @@ class _OverallCountdownBadgeState extends State<_OverallCountdownBadge> {
             '$m:${s.toString().padLeft(2, '0')} left',
             style: TextStyle(
               fontFeatures: const [FontFeature.tabularFigures()],
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: color,
             ),
           ),
@@ -1253,7 +1260,7 @@ class _ChatInputBarState extends State<_ChatInputBar> {
                         thinking ? 'Thinking time…' : 'Type or speak your answer…',
                     filled: true,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
                     ),
                   ),

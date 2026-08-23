@@ -9,6 +9,7 @@ import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/shared/widgets/desktop_webview.dart';
 import 'package:talbotiq/shared/widgets/iframe_host_allowlist.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 Widget buildIframe(String url) {
   // webview_flutter (used by _MobileWebView below) has no Windows/macOS/Linux
@@ -143,7 +144,7 @@ class _MobileWebViewState extends State<_MobileWebView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.videocam_off, color: Colors.redAccent, size: 40),
+              const Icon(Icons.videocam_off, color: AppColors.danger, size: 40),
               const SizedBox(height: 12),
               Text(
                 _error!,

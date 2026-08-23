@@ -1,24 +1,13 @@
 // lib/features/interviews/recruiter/widgets/round_step_tile.dart
 //
-// One step of a test's timeline, drawn the same way everywhere it appears:
-//
-//   * the create form's timeline builder (drafts, not yet saved),
-//   * the edit form's "rounds in this test" list,
-//   * the timeline screen that runs a live test.
-//
-// One widget for all three so a round LOOKS like the same thing wherever a
-// recruiter meets it. The variable parts are passed in rather than branched on
-// internally: [trailing] carries whatever actions that screen offers, and [now]
-// is optional because a draft round has no lifecycle to report yet.
-//
-// The numbered badge plus the connector beneath it is what makes a list of these
-// read as a sequence rather than as unrelated cards.
+// One step of a test's timeline, styled with minimal dark design language.
 
 import 'package:flutter/material.dart';
-
+import 'package:talbotiq/core/constants/colors.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 /// The icon for a round kind. Shared so the same kind never shows two icons.
 IconData roundKindIcon(RoundKind kind) {
@@ -26,7 +15,7 @@ IconData roundKindIcon(RoundKind kind) {
     case RoundKind.resume:
       return Icons.description_outlined;
     case RoundKind.chat:
-      return Icons.chat_bubble_outline;
+      return Icons.chat_bubble_outline_rounded;
     case RoundKind.video:
       return Icons.videocam_outlined;
     case RoundKind.voice:
@@ -60,8 +49,7 @@ class RoundStepTile extends StatelessWidget {
   /// Draws the connector down to the next step. False on the last one.
   final bool showConnector;
 
-  /// Emphasises this step — round 1 in the builder (the only one candidates get
-  /// on save), or the round an assignment being edited belongs to.
+  /// Emphasises this step.
   final bool highlight;
 
   /// Short reason for the emphasis, e.g. "assigned on save".
@@ -71,8 +59,7 @@ class RoundStepTile extends StatelessWidget {
   final String? stateLabel;
   final Color? stateColor;
 
-  /// Assigned candidates. Negative hides it — used while a count is in flight,
-  /// or where the number is meaningless (an unsaved draft).
+  /// Assigned candidates. Negative hides it.
   final int assignedCount;
 
   /// This screen's actions: a menu, a drag handle, a remove button.
@@ -98,14 +85,10 @@ class RoundStepTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = isDark ? AppColors.pastelMintText : theme.colorScheme.primary;
 
     final questions = (round.config['questions'] as List?)?.length ?? 0;
-    // `usesAiInterviewer`, not `isInterview`. A question count is only meaningful
-    // for a round with a SCRIPT — an MCQ round's questions live on the paper it
-    // references, so counting `config['questions']` would report zero on a full
-    // forty-question assessment, and a two-way round's list is never read by
-    // anyone.
     final detail = round.kind.usesAiInterviewer
         ? '${round.kind.label} · $questions question(s)'
         : round.kind == RoundKind.mcq && (round.config['mcqSetId'] as String?)?.isNotEmpty == true
@@ -120,134 +103,155 @@ class RoundStepTile extends StatelessWidget {
           Column(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 26,
+                height: 26,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: highlight ? 0.2 : 0.1),
+                  color: WarmSurfaces.surfaceHigh(context),
                   shape: BoxShape.circle,
-                  border: highlight
-                      ? Border.all(
-                          color: cs.primary.withValues(alpha: 0.6), width: 1.5)
-                      : null,
+                  border: Border.all(
+                    color: highlight
+                        ? accentColor
+                        : (WarmSurfaces.stroke(context)),
+                    width: highlight ? 1.5 : 1,
+                  ),
                 ),
-                child: Text('$position',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: cs.primary,
-                    )),
+                child: Text(
+                  '$position',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: highlight ? accentColor : (isDark ? AppColors.textLight : theme.colorScheme.onSurface),
+                  ),
+                ),
               ),
               if (showConnector)
                 Expanded(
                   child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: cs.primary.withValues(alpha: 0.18),
+                    width: 1.5,
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    color: WarmSurfaces.separator(context),
                   ),
                 ),
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: showConnector ? 10 : 0),
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.18),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: highlight
-                          ? cs.primary.withValues(alpha: 0.45)
-                          : cs.outline.withValues(alpha: 0.12),
+              padding: EdgeInsets.only(bottom: showConnector ? 8 : 0),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: WarmSurfaces.surface(context),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: highlight
+                            ? accentColor.withValues(alpha: 0.5)
+                            : (WarmSurfaces.stroke(context)),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(roundKindIcon(round.kind),
-                          size: 16, color: cs.onSurfaceVariant),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    round.title.isEmpty
-                                        ? 'Untitled round'
-                                        : round.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                                if (highlightLabel != null) ...[
-                                  const SizedBox(width: 6),
-                                  Text('· $highlightLabel',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        fontSize: 10,
-                                        color: cs.primary,
-                                      )),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              'Step $position of $total · $detail',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: cs.onSurfaceVariant),
-                            ),
-                            Row(
-                              children: [
-                                Icon(Icons.schedule,
-                                    size: 11, color: cs.onSurfaceVariant),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    roundWindowLabel(round),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontSize: 10,
-                                      color: cs.onSurfaceVariant,
+                    child: Row(
+                      children: [
+                        Icon(
+                          roundKindIcon(round.kind),
+                          size: 16,
+                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      round.title.isEmpty ? 'Untitled round' : round.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            if (stateLabel != null || assignedCount >= 0) ...[
-                              const SizedBox(height: 6),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 4,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  if (stateLabel != null)
-                                    _chip(theme, stateLabel!,
-                                        stateColor ?? cs.primary),
-                                  if (assignedCount >= 0)
-                                    Text('$assignedCount candidate(s)',
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                                fontSize: 10,
-                                                color: cs.onSurfaceVariant)),
+                                  if (highlightLabel != null) ...[
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '· $highlightLabel',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: accentColor,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Step $position of $total · $detail',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 11,
+                                    color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      roundWindowLabel(round),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (stateLabel != null || assignedCount >= 0) ...[
+                                const SizedBox(height: 5),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (stateLabel != null)
+                                      _chip(theme, stateLabel!, stateColor ?? accentColor),
+                                    if (assignedCount >= 0)
+                                      Text(
+                                        '$assignedCount candidate(s)',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
-                      if (trailing != null) trailing!,
-                    ],
+                        if (trailing != null) trailing!,
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -259,14 +263,20 @@ class RoundStepTile extends StatelessWidget {
   }
 
   Widget _chip(ThemeData theme, String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.14),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
-          borderRadius: BorderRadius.circular(20),
+          color: color.withValues(alpha: 0.12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(text,
-            style: TextStyle(
-                color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       );
 }
+

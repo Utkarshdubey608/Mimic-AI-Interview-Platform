@@ -31,6 +31,7 @@ import 'package:talbotiq/features/recruiter/analytics/analytics_page.dart';
 import 'package:talbotiq/features/recruiter/views/management/recruiter_library_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/recruiter_home.dart';
 import 'package:talbotiq/features/auth/company_prompt.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 
 class RecruiterShell extends StatefulWidget {
   const RecruiterShell({super.key});
@@ -69,10 +70,13 @@ class _RecruiterShellState extends State<RecruiterShell> {
         label: 'Settings'),
   ];
 
-  static const _mobilePages = [
-    RecruiterHome(),
-    AnalyticsPage(),
-    _RecruiterSettingsTab(),
+  /// Lets the bottom bar's "+" invoke RecruiterHome's own create flow.
+  final _homeKey = GlobalKey<RecruiterHomeState>();
+
+  late final List<Widget> _mobilePages = [
+    RecruiterHome(key: _homeKey),
+    const AnalyticsPage(),
+    const _RecruiterSettingsTab(),
   ];
 
   static const _desktopNavItems = [
@@ -100,11 +104,27 @@ class _RecruiterShellState extends State<RecruiterShell> {
 
   @override
   Widget build(BuildContext context) {
+    // The whole recruiter section wears the warm theme: this covers the nav
+    // bar, the settings tab and every tab body. Pages that also install it via
+    // RecruiterScaffold just re-install the same values, which is a no-op — but
+    // they still need to, because a route they PUSH builds under MaterialApp
+    // and would not inherit from here.
+    return RecruiterTheme(child: _buildShell(context));
+  }
+
+  Widget _buildShell(BuildContext context) {
     if (!isDesktopPlatform) {
       return AdaptiveNavScaffold(
         currentIndex: _index,
         onSelect: (i) => setState(() => _index = i),
         items: _mobileItems,
+        // Available from every tab: an IndexedStack keeps Home mounted, so
+        // its state is there to drive whichever tab you are looking at.
+        action: FloatingNavAction(
+          icon: Icons.add_rounded,
+          tooltip: 'Create interview test',
+          onPressed: () => _homeKey.currentState?.createInterview(),
+        ),
         body: IndexedStack(index: _index, children: _mobilePages),
       );
     }

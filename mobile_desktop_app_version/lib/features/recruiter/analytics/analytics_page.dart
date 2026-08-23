@@ -12,6 +12,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
 import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 import 'package:talbotiq/shared/widgets/desktop_card.dart';
@@ -25,6 +27,8 @@ import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/recruiter/evaluate_interview_page.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/features/recruiter/analytics/analytics_service.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -120,29 +124,29 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       prefixIcon: Icon(icon, size: 18),
       isDense: true,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderSide: BorderSide(color: AppBorders.strokeColor(context)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderSide: BorderSide(color: AppBorders.strokeColor(context)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md + 2, vertical: AppSpacing.md + 1),
     );
   }
 
   void _openFilterSheet(BuildContext context, List<TestOption> testOptions) {
-    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28.0)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (sheetContext) {
         return StatefulBuilder(
@@ -163,8 +167,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Filter Analytics',
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          'Filter analytics',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.3,
+                            color: AppSurfaces.text(context),
+                          ),
                         ),
                         if (_activeFilterCount > 0)
                           TextButton(
@@ -173,7 +182,14 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                               setSheetState(() {});
                               Navigator.pop(sheetContext);
                             },
-                            child: const Text('Clear All'),
+                            child: Text(
+                              'Clear all',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppSurfaces.muted(context),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -274,13 +290,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                      ),
+                    RecruiterPrimaryButton(
+                      label: 'Apply filters',
+                      expand: true,
                       onPressed: () => Navigator.pop(sheetContext),
-                      child: const Text('Apply Filters'),
                     ),
                   ],
                 ),
@@ -338,21 +351,28 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     if (chips.isEmpty) return const SizedBox.shrink();
 
     return SizedBox(
-      height: 44,
+      height: 38,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page, AppSpacing.xs, AppSpacing.page, AppSpacing.xs),
         children: [
           ...chips,
-          const SizedBox(width: 8),
           TextButton(
             style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             onPressed: _clearFilters,
-            child: const Text('Clear All', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Clear all',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: AppSurfaces.muted(context),
+              ),
+            ),
           ),
         ],
       ),
@@ -361,7 +381,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final repo = context.read<InterviewRepository>();
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     final desktop = isDesktopPlatform;
@@ -405,35 +424,33 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Clean Header with filter trigger button
+            // Minimal header: the page's own heading plus one supporting line,
+            // with the filter as a compact pill rather than a filled slab.
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page, 0, AppSpacing.page, AppSpacing.md),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Text(
-                      'Dashboard Overview',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.2,
+                      '${summary.totals.total} '
+                      '${summary.totals.total == 1 ? 'interview' : 'interviews'}'
+                      ' · ${_dateRangeLabel()}',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppSurfaces.muted(context),
                       ),
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () => _openFilterSheet(context, testOptions),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: theme.colorScheme.primaryContainer,
-                      foregroundColor: theme.colorScheme.onPrimaryContainer,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      minimumSize: Size.zero,
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.filter_list_rounded, size: 16),
-                    label: Text(
-                      _activeFilterCount > 0 ? 'Filters ($_activeFilterCount)' : 'Filter',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
+                  const SizedBox(width: AppSpacing.md),
+                  RecruiterFilterPill(
+                    label: _activeFilterCount > 0
+                        ? 'Filters · $_activeFilterCount'
+                        : 'Filters',
+                    icon: Icons.tune_rounded,
+                    selected: _activeFilterCount > 0,
+                    onTap: () => _openFilterSheet(context, testOptions),
                   ),
                 ],
               ),
@@ -457,11 +474,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
     if (desktop) return streamBuilder;
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
-        actions: const [LogoutButton(), SizedBox(width: 4)],
+        titleSpacing: AppSpacing.page,
+        toolbarHeight: 52,
+        actions: const [LogoutButton(), SizedBox(width: AppSpacing.xs)],
       ),
       body: streamBuilder,
     );
@@ -540,20 +558,46 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InputChip(
-        label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100),
-          side: BorderSide(color: theme.colorScheme.outline.withValues(alpha: 0.15)),
+      padding: const EdgeInsets.only(right: AppSpacing.sm),
+      child: Container(
+        padding: const EdgeInsets.only(
+          left: AppSpacing.md - 2,
+          right: AppSpacing.xs,
+          top: AppSpacing.xs + 1,
+          bottom: AppSpacing.xs + 1,
         ),
-        backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        onDeleted: onDeleted,
-        deleteIcon: const Icon(Icons.close, size: 14),
+        decoration: BoxDecoration(
+          color: AppSurfaces.card(context),
+          borderRadius: AppRadius.all(AppRadius.sm),
+          border: Border.all(color: AppBorders.strokeColor(context)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: AppSurfaces.muted(context),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            InkWell(
+              onTap: onDeleted,
+              borderRadius: BorderRadius.circular(AppRadius.xs),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 13,
+                  color: AppSurfaces.subtle(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -578,12 +622,14 @@ class _DateFieldSheet extends StatelessWidget {
     final hasValue = value != null;
     return InkWell(
       onTap: onPick,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md + 2, vertical: AppSpacing.md),
         decoration: BoxDecoration(
-          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
-          borderRadius: BorderRadius.circular(16),
+          color: AppSurfaces.elevated(context),
+          border: Border.all(color: AppBorders.strokeColor(context)),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
           children: [
@@ -602,7 +648,7 @@ class _DateFieldSheet extends StatelessWidget {
                   Text(
                     hasValue ? _fmtDay(value!) : 'Select Date',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: hasValue ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: hasValue ? FontWeight.w600 : FontWeight.normal,
                       color: hasValue ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -630,37 +676,57 @@ class _Dashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final avg = summary.averageOverallScore;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        AppSpacing.navClearance,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SectionTitle('Funnel Status'),
-          const SizedBox(height: 12),
+          // The same hero block the dashboard's home tab uses: one large
+          // figure carrying the peach block, everything below it monochrome.
+          RecruiterHeroBlock(
+            kicker: 'Pipeline',
+            value: '${(summary.completionRate * 100).round()}%',
+            unit: 'completed',
+            caption: avg == null
+                ? '${summary.totals.completed} of ${summary.totals.total} '
+                    'interviews · no scores yet'
+                : '${summary.totals.completed} of ${summary.totals.total} '
+                    'interviews · avg ${avg.toStringAsFixed(1)}',
+          ),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('Funnel'),
+          const SizedBox(height: AppSpacing.md),
           _FunnelCards(totals: summary.totals),
-          const SizedBox(height: 28),
-          _SectionTitle('Key Performance Indicators'),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('Key indicators'),
+          const SizedBox(height: AppSpacing.md),
           _KpiRow(summary: summary),
-          const SizedBox(height: 28),
-          _SectionTitle('Score Distribution'),
-          const SizedBox(height: 12),
-          _Panel(child: _ScoreDistributionChart(summary: summary)),
-          const SizedBox(height: 28),
-          _SectionTitle('AI Candidate Recommendations'),
-          const SizedBox(height: 12),
-          _Panel(child: _RecommendationChart(summary: summary)),
-          const SizedBox(height: 28),
-          _SectionTitle('Analytics By Track Type'),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('Score distribution'),
+          const SizedBox(height: AppSpacing.md),
+          RecruiterPanel(child: _ScoreDistributionChart(summary: summary)),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('AI recommendations'),
+          const SizedBox(height: AppSpacing.md),
+          RecruiterPanel(child: _RecommendationChart(summary: summary)),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('By track'),
+          const SizedBox(height: AppSpacing.md),
           _ByTypeCards(byType: summary.byType),
-          const SizedBox(height: 28),
-          _SectionTitle('Average Performance Trend (Scores Over Time)'),
-          const SizedBox(height: 12),
-          _Panel(child: _TrendChart(trend: summary.trend)),
-          const SizedBox(height: 28),
-          _SectionTitle('Top Scoring Candidates'),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('Score trend'),
+          const SizedBox(height: AppSpacing.md),
+          RecruiterPanel(child: _TrendChart(trend: summary.trend)),
+          const SizedBox(height: AppSpacing.xxl),
+          _SectionTitle('Top candidates'),
+          const SizedBox(height: AppSpacing.md),
           _TopCandidatesList(candidates: summary.topCandidates),
         ],
       ),
@@ -674,52 +740,62 @@ class _FunnelCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final cards = <Widget>[
-      _StatCard(
-        label: 'Total',
-        value: '${totals.total}',
-        icon: Icons.analytics_outlined,
-        color: scheme.primary,
-      ),
-      _StatCard(
-        label: 'Assigned',
-        value: '${totals.assigned}',
-        icon: Icons.assignment_ind_outlined,
-        color: scheme.outline,
-      ),
-      _StatCard(
-        label: 'In Progress',
-        value: '${totals.inProgress}',
-        icon: Icons.pending_outlined,
-        color: Colors.orange,
-      ),
-      _StatCard(
-        label: 'Completed',
-        value: '${totals.completed}',
-        icon: Icons.task_alt_rounded,
-        color: Colors.green,
-      ),
-      _StatCard(
-        label: 'Published',
-        value: '${totals.published}',
-        icon: Icons.verified_user_outlined,
-        color: scheme.secondary,
-      ),
+    final stages = <(String, int, Color)>[
+      ('Total', totals.total, AppColors.pastelCyanText),
+      ('Assigned', totals.assigned, AppColors.textMuted),
+      ('In progress', totals.inProgress, AppColors.pastelPeach),
+      ('Completed', totals.completed, AppColors.pastelMintText),
+      ('Published', totals.published, AppColors.pastelLavenderText),
     ];
-    return SizedBox(
-      height: 125, // Height to fit card content without clipping
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        itemCount: cards.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          return SizedBox(
-            width: 145, // Consistent width for slider look
-            child: cards[index],
-          );
-        },
+
+    return RecruiterPanel(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+      child: Column(
+        children: [
+          for (var k = 0; k < stages.length; k++) ...[
+            if (k > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: AppBorders.separatorColor(context),
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md - 1),
+              child: Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: stages[k].$3,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Text(
+                      stages[k].$1,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: AppSurfaces.muted(context),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${stages[k].$2}',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
+                      color: AppSurfaces.text(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -742,58 +818,12 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return _Panel(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 18, color: color),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
-          ),
-          if (footnote != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              footnote!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ],
-      ),
+    return RecruiterStatCard(
+      icon: icon,
+      label: label,
+      value: value,
+      footnote: footnote,
+      color: color,
     );
   }
 }
@@ -804,27 +834,23 @@ class _KpiRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final avg = summary.averageOverallScore;
-    return _ResponsiveGrid(
-      children: [
-        _StatCard(
-          label: 'Completion Rate',
+    return RecruiterMetricStrip(
+      metrics: [
+        RecruiterMetric(
           value: '${(summary.completionRate * 100).round()}%',
-          icon: Icons.pie_chart_outline_rounded,
-          color: scheme.primary,
+          label: 'Completion',
+          color: AppColors.pastelCyanText,
         ),
-        _StatCard(
-          label: 'Avg. Score',
+        RecruiterMetric(
           value: avg == null ? '—' : avg.toStringAsFixed(1),
-          icon: Icons.stars_rounded,
-          color: scheme.secondary,
+          label: 'Avg. score',
+          color: AppColors.pastelLavenderText,
         ),
-        _StatCard(
-          label: 'Evaluated Candidates',
+        RecruiterMetric(
           value: '${summary.scoredCount}',
-          icon: Icons.checklist_rtl_rounded,
-          color: Colors.green,
+          label: 'Evaluated',
+          color: AppColors.pastelMintText,
         ),
       ],
     );
@@ -850,7 +876,7 @@ class _ScoreDistributionChart extends StatelessWidget {
     final maxY = (maxCount == 0 ? 1 : maxCount).toDouble();
 
     return SizedBox(
-      height: 220,
+      height: 190,
       child: BarChart(
         BarChartData(
           alignment: BarChartAlignment.spaceAround,
@@ -881,24 +907,35 @@ class _ScoreDistributionChart extends StatelessWidget {
                   if (value != value.roundToDouble()) {
                     return const SizedBox.shrink();
                   }
-                  return Text('${value.round()}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 10));
+                  return Text(
+                    '${value.round()}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppSurfaces.subtle(context),
+                    ),
+                  );
                 },
               ),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 28,
+                reservedSize: 26,
                 getTitlesWidget: (value, meta) {
                   final idx = value.round();
                   if (idx < 0 || idx >= buckets.length) {
                     return const SizedBox.shrink();
                   }
                   return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(buckets[idx].label,
-                        style: theme.textTheme.labelSmall?.copyWith(fontSize: 9, fontWeight: FontWeight.bold)),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
+                    child: Text(
+                      buckets[idx].label,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppSurfaces.muted(context),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -909,7 +946,7 @@ class _ScoreDistributionChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: _niceInterval(maxY),
             getDrawingHorizontalLine: (_) => FlLine(
-              color: scheme.outlineVariant.withValues(alpha: 0.3),
+              color: AppBorders.separatorColor(context),
               strokeWidth: 1,
             ),
           ),
@@ -921,10 +958,11 @@ class _ScoreDistributionChart extends StatelessWidget {
                 barRods: [
                   BarChartRodData(
                     toY: buckets[k].count.toDouble(),
-                    color: scheme.primary,
-                    width: 20,
+                    color: WarmSurfaces.blockSecondary(context)
+                        .withValues(alpha: 0.9),
+                    width: 13,
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(6), // Rounded tops!
+                      top: Radius.circular(3),
                     ),
                   ),
                 ],
@@ -950,15 +988,13 @@ class _RecommendationChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final dist = summary.recommendationDistribution;
     final colors = <String, Color>{
-      'strong_yes': Colors.green,
-      'yes': Colors.lightGreen,
-      'maybe': Colors.orange,
-      'no': Colors.redAccent,
-      'unknown': scheme.outline,
+      'strong_yes': AppColors.pastelMint,
+      'yes': AppColors.pastelCyan,
+      'maybe': AppColors.blockPeach,
+      'no': AppColors.danger,
+      'unknown': AppColors.textSubtle,
     };
     final total = dist.values.fold<int>(0, (sum, v) => sum + v);
 
@@ -973,27 +1009,27 @@ class _RecommendationChart extends StatelessWidget {
     return Column(
       children: [
         SizedBox(
-          height: 180,
+          height: 156,
           child: PieChart(
             PieChartData(
-              sectionsSpace: 3,
-              centerSpaceRadius: 55, // Clean, spacious donut hole
+              sectionsSpace: 2,
+              centerSpaceRadius: 52,
               sections: [
                 for (final k in entries)
                   PieChartSectionData(
                     value: (dist[k] ?? 0).toDouble(),
                     color: colors[k],
-                    radius: 24, // Thinner, modern slices
-                    showTitle: false, // Don't overflow slice text, read Legend instead
+                    radius: 14, // Thin ring — the legend carries the reading.
+                    showTitle: false,
                   ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpacing.lg),
         Wrap(
-          spacing: 16,
-          runSpacing: 10,
+          spacing: AppSpacing.lg,
+          runSpacing: AppSpacing.sm,
           alignment: WrapAlignment.center,
           children: [
             for (final k in AnalyticsService.recommendationDisplayKeys)
@@ -1001,7 +1037,7 @@ class _RecommendationChart extends StatelessWidget {
                 color: colors[k]!,
                 label: '${_labels[k]} · ${dist[k] ?? 0}',
                 muted: (dist[k] ?? 0) == 0,
-                textColor: scheme.onSurface,
+                textColor: AppSurfaces.muted(context),
               ),
           ],
         ),
@@ -1030,17 +1066,18 @@ class _LegendDot extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle, // Circular legend dots!
-            ),
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm - 2),
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textColor),
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+            ),
           ),
         ],
       ),
@@ -1054,18 +1091,18 @@ class _ByTypeCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
-      height: 145, // Height to fit card + footnote safely
+      height: 162,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        clipBehavior: Clip.none,
+        padding: const EdgeInsets.only(right: AppSpacing.xxl),
         itemCount: byType.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
         itemBuilder: (context, index) {
           final t = byType[index];
           return SizedBox(
-            width: 165,
+            width: 158,
             child: _StatCard(
               label: t.label,
               value: t.averageScore == null
@@ -1073,7 +1110,7 @@ class _ByTypeCards extends StatelessWidget {
                   : '${t.count} · avg ${t.averageScore!.toStringAsFixed(1)}',
               footnote: '${(t.completionRate * 100).round()}% completed',
               icon: _iconFor(t.type),
-              color: scheme.primary,
+              color: _trackColor(t.type),
             ),
           );
         },
@@ -1084,11 +1121,23 @@ class _ByTypeCards extends StatelessWidget {
   static IconData _iconFor(InterviewType type) {
     switch (type) {
       case InterviewType.video:
-        return Icons.videocam_rounded;
+        return Icons.videocam_outlined;
       case InterviewType.chat:
-        return Icons.chat_bubble_rounded;
+        return Icons.chat_bubble_outline_rounded;
       case InterviewType.voice:
-        return Icons.mic_rounded;
+        return Icons.mic_none_rounded;
+    }
+  }
+
+  /// One pastel per track, matching how the dashboard's test rows tint by type.
+  static Color _trackColor(InterviewType type) {
+    switch (type) {
+      case InterviewType.video:
+        return AppColors.pastelCyanText;
+      case InterviewType.chat:
+        return AppColors.pastelLavenderText;
+      case InterviewType.voice:
+        return AppColors.pastelPeach;
     }
   }
 }
@@ -1109,7 +1158,7 @@ class _TrendChart extends StatelessWidget {
     const gridInterval = 20.0;
 
     return SizedBox(
-      height: 200,
+      height: 176,
       child: LineChart(
         LineChartData(
           minY: 0,
@@ -1137,7 +1186,7 @@ class _TrendChart extends StatelessWidget {
             drawVerticalLine: false,
             horizontalInterval: gridInterval,
             getDrawingHorizontalLine: (_) => FlLine(
-              color: scheme.outlineVariant.withValues(alpha: 0.3),
+              color: AppBorders.separatorColor(context),
               strokeWidth: 1,
             ),
           ),
@@ -1153,15 +1202,20 @@ class _TrendChart extends StatelessWidget {
                   if (value != value.roundToDouble()) {
                     return const SizedBox.shrink();
                   }
-                  return Text('${value.round()}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontSize: 10));
+                  return Text(
+                    '${value.round()}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppSurfaces.subtle(context),
+                    ),
+                  );
                 },
               ),
             ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 28,
+                reservedSize: 26,
                 interval: _bottomInterval(trend.length),
                 getTitlesWidget: (value, meta) {
                   final idx = value.round();
@@ -1169,9 +1223,14 @@ class _TrendChart extends StatelessWidget {
                     return const SizedBox.shrink();
                   }
                   return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(_fmtDayShort(trend[idx].day),
-                        style: theme.textTheme.labelSmall?.copyWith(fontSize: 9)),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs + 2),
+                    child: Text(
+                      _fmtDayShort(trend[idx].day),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: AppSurfaces.subtle(context),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -1184,20 +1243,22 @@ class _TrendChart extends StatelessWidget {
                 for (var k = 0; k < trend.length; k++)
                   FlSpot(k.toDouble(), trend[k].averageScore),
               ],
-              isCurved: true, // Smooth curved line!
-              color: scheme.primary,
-              barWidth: 4,
-              dotData: FlDotData(show: trend.length <= 12),
+              isCurved: true,
+              color: WarmSurfaces.blockSecondary(context),
+              barWidth: 2,
+              dotData: FlDotData(
+                show: trend.length <= 12,
+                getDotPainter: (spot, pct, bar, i) => FlDotCirclePainter(
+                  radius: 2.5,
+                  color: WarmSurfaces.blockSecondary(context),
+                  strokeWidth: 0,
+                ),
+              ),
+              // A whisper of fill, not a gradient slab.
               belowBarData: BarAreaData(
                 show: true,
-                gradient: LinearGradient(
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.25),
-                    scheme.primary.withValues(alpha: 0.0),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ), // Premium gradient fill!
+                color:
+                    WarmSurfaces.blockSecondary(context).withValues(alpha: 0.08),
               ),
             ),
           ],
@@ -1219,26 +1280,34 @@ class _TopCandidatesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     if (candidates.isEmpty) {
-      return _Panel(
+      return RecruiterPanel(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Center(
             child: Text(
               'No scored candidates yet.',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppSurfaces.muted(context),
+              ),
             ),
           ),
         ),
       );
     }
-    return Column(
-      children: [
-        for (var k = 0; k < candidates.length; k++)
-          _CandidateRow(rank: k + 1, candidate: candidates[k]),
-      ],
+    // One panel holding thin-separated rows, rather than a card per candidate:
+    // the leaderboard reads as a single object, which is the point of a ranking.
+    return RecruiterPanel(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
+        children: [
+          for (var k = 0; k < candidates.length; k++) ...[
+            if (k > 0) const RecruiterRowSeparator(indent: 56),
+            _CandidateRow(rank: k + 1, candidate: candidates[k]),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1276,110 +1345,107 @@ class _CandidateRowState extends State<_CandidateRow> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    Color rankBg;
-    Color rankText;
-    if (widget.rank == 1) {
-      rankBg = Colors.amber.shade700;
-      rankText = Colors.white;
-    } else if (widget.rank == 2) {
-      rankBg = Colors.grey.shade400;
-      rankText = Colors.white;
-    } else if (widget.rank == 3) {
-      rankBg = Colors.brown.shade400;
-      rankText = Colors.white;
-    } else {
-      rankBg = scheme.primaryContainer.withValues(alpha: 0.3);
-      rankText = scheme.primary;
+    // The top three read as medals; everything below is just a number, so it
+    // gets the same muted chip the rest of the language uses.
+    final Color rankTint;
+    switch (widget.rank) {
+      case 1:
+        rankTint = WarmSurfaces.block(context);
+        break;
+      case 2:
+        rankTint = AppColors.pastelCyanText;
+        break;
+      case 3:
+        rankTint = AppColors.pastelPeach;
+        break;
+      default:
+        rankTint = AppColors.textMuted;
     }
+    final score = widget.candidate.score;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(100), // Fully pill-shaped rows!
-          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3), width: 1.0),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(100),
-          onTap: _open,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: rankBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${widget.rank}',
-                      style: TextStyle(
-                        color: rankText,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _open,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md + 2,
+            vertical: AppSpacing.md - 2,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: AppSurfaces.elevated(context),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: rankTint.withValues(alpha: 0.35)),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.candidate.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.candidate.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
+                child: Center(
                   child: Text(
-                    '${widget.candidate.score}',
+                    '${widget.rank}',
                     style: TextStyle(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      color: rankTint,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11.5,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: _loading
-                      ? const CircularProgressIndicator(strokeWidth: 2)
-                      : Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: scheme.onSurfaceVariant,
-                        ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      widget.candidate.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                        color: AppSurfaces.text(context),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.candidate.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: AppSurfaces.muted(context),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                '$score',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.4,
+                  color: scoreColor(context, score),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: _loading
+                    ? const CircularProgressIndicator(strokeWidth: 2)
+                    : Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppSurfaces.subtle(context),
+                      ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1394,64 +1460,8 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, top: 12),
-      child: Text(
-        text,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-  const _Panel({
-    required this.child,
-    this.padding = const EdgeInsets.all(20),
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(28), // 28.0 Roundness
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.3), width: 1.0),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _ResponsiveGrid extends StatelessWidget {
-  final List<Widget> children;
-  const _ResponsiveGrid({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxW = constraints.maxWidth;
-        var perRow = (maxW / 170).floor();
-        if (perRow < 2) perRow = 2;
-        if (perRow > 5) perRow = 5;
-        const spacing = 12.0;
-        final tileW = (maxW - spacing * (perRow - 1)) / perRow;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final c in children)
-              SizedBox(width: tileW, child: c),
-          ],
-        );
-      },
+      padding: const EdgeInsets.only(left: 2),
+      child: RecruiterSectionTitle(text),
     );
   }
 }
@@ -1462,19 +1472,22 @@ class _EmptyChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return SizedBox(
-      height: 160,
+      height: 132,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.analytics_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-            const SizedBox(height: 12),
+            Icon(
+              Icons.show_chart_rounded,
+              size: 28,
+              color: AppSurfaces.subtle(context),
+            ),
+            const SizedBox(height: AppSpacing.md),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 12.5, color: AppSurfaces.muted(context)),
             ),
           ],
         ),
@@ -1549,7 +1562,7 @@ class _DesktopDashboard extends StatelessWidget {
               label: 'Evaluated Candidates',
               value: '${summary.scoredCount}',
               icon: Icons.checklist_rtl_rounded,
-              color: Colors.green,
+              color: AppColors.pastelMintText,
             ),
             MetricCard(
               label: 'Published',
@@ -1618,8 +1631,8 @@ class _FunnelPanel extends StatelessWidget {
     final rows = <(String, int, Color)>[
       ('Total', totals.total, scheme.primary),
       ('Assigned', totals.assigned, scheme.outline),
-      ('In Progress', totals.inProgress, Colors.orange),
-      ('Completed', totals.completed, Colors.green),
+      ('In Progress', totals.inProgress, AppColors.pastelPeach),
+      ('Completed', totals.completed, AppColors.pastelMintText),
       ('Published', totals.published, scheme.secondary),
     ];
     final base = totals.total == 0 ? 1 : totals.total;

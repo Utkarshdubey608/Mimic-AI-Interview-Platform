@@ -2,46 +2,90 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Material Design 3 Restrained Dark Palette - Premium Neutrals
-  static const Color background = Color(0xFF000000);       // Pitch black app background
-  static const Color backgroundDarker = Color(0xFF0A0B0E); // Tonal surface (inputs / elevated)
-  static const Color backgroundBlack = Color(0xFF000000);  // Deepest black for contrast
+  // Material Design 3 Minimal Dark Palette - Near-Black & Restrained Pastels
+  static const Color background = Color(0xFF0F0F12);       // Near-black primary background
+  static const Color backgroundDarker = Color(0xFF141418); // Darker surface / inputs
+  static const Color backgroundBlack = Color(0xFF0A0A0D);  // Deepest background
 
-  // Clean border and cards
-  static const Color cardBg = Color(0xFF0C0D12);           // Darker slate card background
-  static const Color border = Color(0xFF1C1F29);           // Very subtle dark border
-  static const Color borderLight = Color(0x14FFFFFF);      // Translucent light border
+  // Flat surfaces and clean hairline borders
+  static const Color cardBg = Color(0xFF18181D);           // Flat dark surface
+  static const Color surfaceElevated = Color(0xFF202026);   // Slightly lighter dark surface
+  static const Color surfaceOverlay = Color(0xFF26262E);    // Layered surface
+  static const Color border = Color(0x1AFFFFFF);           // Subtle 10% hairline border
+  static const Color borderLight = Color(0x0EFFFFFF);      // Ultra-subtle 6% border
+  static const Color separator = Color(0x14FFFFFF);        // Thin list separator
   
-  // Brand accents (Refined Emerald Green & Premium Indigo)
-  static const Color primary = Color(0xFF10B981);         // Radiant modern Emerald
-  static const Color primaryHover = Color(0xFF34D399);     // Lighter emerald for hover
-  static const Color primaryLight = Color(0xFF064E3B);     // Deep pine container
-  static const Color accent = Color(0xFF6366F1);           // Vibrant Indigo Accent (Apple/Linear feel)
-  static const Color accentLight = Color(0x206366F1);      // Subtle translucent Indigo
+  // Soft Pastel Accents (Reference Design Language)
+  static const Color pastelYellow = Color(0xFFFEF08A);     // Soft Pastel Yellow (Planning/Accent Card)
+  static const Color pastelYellowDark = Color(0xFF1C1917); // Dark contrast text on pastel yellow
+  static const Color pastelMint = Color(0xFF86EFAC);       // Soft Mint / Light Green
+  static const Color pastelMintBg = Color(0x1F86EFAC);     // Translucent Mint Tint
+  static const Color pastelMintText = Color(0xFF86EFAC);   // Mint text
+  static const Color pastelCyan = Color(0xFF7DD3FC);       // Light Cyan
+  static const Color pastelCyanBg = Color(0x1F7DD3FC);     // Translucent Cyan Tint
+  static const Color pastelCyanText = Color(0xFF7DD3FC);   // Cyan text
+  static const Color pastelLavender = Color(0xFFDDD6FE);   // Soft Purple / Lavender
+  static const Color pastelLavenderBg = Color(0x1FDDD6FE); // Translucent Lavender Tint
+  static const Color pastelLavenderText = Color(0xFFC4B5FD);
+  static const Color pastelPeach = Color(0xFFFDBA74);      // Muted Orange / Peach
+  static const Color pastelPeachBg = Color(0x1FFDBA74);    // Translucent Peach Tint
+
+  // Brand accents (Clean modern emerald & indigo)
+  static const Color primary = Color(0xFF86EFAC);         // Restrained soft mint/emerald
+  static const Color primaryHover = Color(0xFF4ADE80);
+  static const Color primaryLight = Color(0xFF064E3B);
+  static const Color accent = Color(0xFF818CF8);           // Soft Indigo Accent
+  static const Color accentLight = Color(0x20818CF8);
   
-  // Feedback colors (M3 aligned)
-  static const Color success = Color(0xFF10B981);          // Aligned success green
+  // Feedback colors
+  static const Color success = Color(0xFF86EFAC);          // Success mint
   static const Color successBg = Color(0xFF064E3B);
   static const Color successBorder = Color(0xFF047857);
   
-  static const Color warning = Color(0xFFF59E0B);          // Amber warnings
+  static const Color warning = Color(0xFFFDE047);          // Soft Yellow warnings
   static const Color warningBg = Color(0xFF78350F);
   static const Color warningBorder = Color(0xFFB45309);
   
-  static const Color danger = Color(0xFFEF4444);           // M3 Clean Error Red
+  static const Color danger = Color(0xFFF87171);           // Soft Red
   static const Color dangerBg = Color(0xFF7F1D1D);
   static const Color dangerBorder = Color(0xFF991B1B);
   
   // Grays / Neutral text
-  static const Color textLight = Color(0xFFF3F4F6);        // Clean near-white
-  static const Color textMuted = Color(0xFF9CA3AF);        // Muted gray
-  static const Color textDark = Color(0xFF111827);         // Rich light-mode text
+  static const Color textLight = Color(0xFFF4F4F6);        // Crisp off-white (Primary)
+  static const Color textMuted = Color(0xFF8A8A93);        // Muted gray (Secondary)
+  static const Color textSubtle = Color(0xFF52525B);       // Subtle gray (Tertiary)
+  static const Color textDark = Color(0xFF0F172A);         // Deep text
   
-  // Analytics panel accents (Restrained M3 Teal)
-  static const Color analyticsBase = Color(0xFF12141C);
-  static const Color analyticsCard = Color(0xFF1A1D29);
-  static const Color analyticsBorder = Color(0xFF2E3347);
-  static const Color analyticsText = Color(0xFFF3F4F6);
-  static const Color analyticsMuted = Color(0xFF9CA3AF);
-  static const Color analyticsTeal = Color(0xFF2DD4BF);        // Radiant premium teal
+  // ── Recruiter surfaces + solid pastel blocks ────────────────────────────
+  // Dark mode is TRUE BLACK, not a tinted near-black: on an OLED panel the
+  // page disappears and only the pastel blocks and cards read, which is the
+  // whole effect. Light mode stays warm cream, matching the reference's light
+  // screen. Kept as their own names so this cannot shift the candidate side's
+  // neutrals.
+  static const Color warmBackground = Color(0xFF000000);   // Pure black ground
+  static const Color warmSurface = Color(0xFF101010);      // Card, just off black
+  static const Color warmSurfaceHigh = Color(0xFF1C1C1C);  // Nested surface
+  // A hairline needs more presence on pure black than on a tinted ground,
+  // otherwise a card has no edge at all.
+  static const Color warmBorder = Color(0x1FFFFFFF);       // ~12% white hairline
+
+  // The bottom bar is dark in BOTH themes — a black pill carrying a light
+  // selected chip, per the reference. On the black page it is lifted just
+  // enough to read as a floating element.
+  static const Color navBarDark = Color(0xFF141414);
+  static const Color navBarOnDark = Color(0xFFF3EFE7);
+
+  // Solid pastel blocks — painted at full strength, with near-black ink on top.
+  static const Color blockPeach = Color(0xFFF5C9A8);       // Apricot hero block
+  static const Color blockLavender = Color(0xFFB9AEE8);    // Periwinkle block
+  static const Color blockCream = Color(0xFFF3EFE7);       // Off-white block
+  static const Color blockInk = Color(0xFF141210);         // Ink used on any block
+
+  // Analytics panel accents
+  static const Color analyticsBase = Color(0xFF0F0F12);
+  static const Color analyticsCard = Color(0xFF18181D);
+  static const Color analyticsBorder = Color(0x1AFFFFFF);
+  static const Color analyticsText = Color(0xFFF4F4F6);
+  static const Color analyticsMuted = Color(0xFF8A8A93);
+  static const Color analyticsTeal = Color(0xFF2DD4BF);
 }

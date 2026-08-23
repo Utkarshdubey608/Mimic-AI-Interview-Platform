@@ -6,6 +6,7 @@
 // a segmented control. Everything reads from the active [ThemeData] so it works
 // in both light and dark mode.
 import 'package:flutter/material.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 // ── Large title ─────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ class AppleGroup extends StatelessWidget {
           height: 1,
           thickness: 0.7,
           indent: dividerIndent,
-          color: theme.colorScheme.outline.withOpacity(0.5),
+          color: theme.colorScheme.outline.withValues(alpha: 0.5),
         ));
       }
     }
@@ -127,8 +128,8 @@ class AppleGroup extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: theme.colorScheme.outline.withOpacity(0.6)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.6)),
           ),
           child: Column(children: rows),
         ),
@@ -139,7 +140,7 @@ class AppleGroup extends StatelessWidget {
               footer!,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: 12,
-                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.9),
+                color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
               ),
             ),
           ),
@@ -172,8 +173,8 @@ class AppleSectionCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.6)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.6)),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -236,7 +237,17 @@ class AppleIconBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.28),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: Colors.white, size: size * 0.6),
+      // The glyph follows the fill's brightness rather than always being white.
+      // The language's fills are light pastels, on which a white glyph is
+      // effectively invisible — and this widget is handed a caller's colour, so
+      // it cannot assume either way.
+      child: Icon(
+        icon,
+        color: ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : AppColors.blockInk,
+        size: size * 0.6,
+      ),
     );
   }
 }
@@ -345,7 +356,7 @@ class AppleDisclosureRow extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Icon(Icons.chevron_right,
-              size: 20, color: theme.colorScheme.onSurfaceVariant.withOpacity(0.6)),
+              size: 20, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6)),
         ],
       ),
     );
@@ -404,7 +415,7 @@ Future<T?> showAppleOptions<T>(
     showDragHandle: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (ctx) {
       final theme = Theme.of(ctx);
@@ -427,7 +438,7 @@ Future<T?> showAppleOptions<T>(
                   height: 1,
                   thickness: 0.7,
                   indent: 20,
-                  color: theme.colorScheme.outline.withOpacity(0.5),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.5),
                 ),
                 itemBuilder: (_, i) {
                   final opt = options[i];
@@ -477,7 +488,7 @@ class AppleSegmented extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.6),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -495,7 +506,7 @@ class AppleSegmented extends StatelessWidget {
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(9),
                     border: i == selectedIndex
-                        ? Border.all(color: theme.colorScheme.outline.withOpacity(0.6))
+                        ? Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.6))
                         : null,
                   ),
                   child: Row(

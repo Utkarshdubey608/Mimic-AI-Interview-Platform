@@ -437,9 +437,9 @@ class _DurationNotice extends StatelessWidget {
       right: 16,
       child: Material(
         color: Colors.black.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
-          borderRadius: BorderRadius.circular(100),
+          borderRadius: BorderRadius.circular(18),
           onTap: onDismiss,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

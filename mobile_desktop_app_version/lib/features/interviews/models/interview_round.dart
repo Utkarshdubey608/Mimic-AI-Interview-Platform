@@ -19,6 +19,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 
 // [RoundKind] itself lives in `interview.dart`, beside [InterviewType] — the
@@ -441,5 +442,144 @@ class InterviewRound {
       // and a candidate mid-assessment cannot have it swapped under them.
       mcqSetId: (c['mcqSetId'] as String?)?.trim() ?? '',
     );
+  }
+}
+
+// ── Pipeline status ─────────────────────────────────────────────────────────
+
+/// Where a whole multi-round test currently stands.
+enum PipelineStage {
+  /// A round is accepting submissions right now.
+  active,
+
+  /// Nothing is open yet, but a round is scheduled to open.
+  upcoming,
+
+  /// Every round has closed — the pipeline is finished.
+  complete,
+}
+
+/// A test's timeline reduced to the one line a recruiter needs at a glance:
+/// which round it is on, out of how many, and what that round is doing.
+///
+/// Derived from the rounds and the clock, never stored — same reasoning as
+/// [InterviewRound.stateAt]. Lives here rather than in the dashboard widget so
+/// it can be unit-tested without pumping a frame, because the interesting part
+/// is the ordering rules, not the pixels:
+///
+///  * The current round is the FIRST open one. A recruiter who left round 1
+///    open by mistake while round 2 also opened should be pointed at round 1 —
+///    that is the one with a stale deadline.
+///  * With nothing open, the next SCHEDULED round is what matters ("opens in
+///    2d"), so the timeline reads as pending rather than as finished.
+///  * Only when no round is open or scheduled is the pipeline complete.
+class RoundPipelineStatus {
+  /// Every round in the test, in timeline order.
+  final List<InterviewRound> rounds;
+
+  /// Index into [rounds] of the round being reported. Always in range when
+  /// [rounds] is non-empty.
+  final int currentIndex;
+
+  final PipelineStage stage;
+
+  /// The instant this status was derived against.
+  final DateTime asOf;
+
+  const RoundPipelineStatus._({
+    required this.rounds,
+    required this.currentIndex,
+    required this.stage,
+    required this.asOf,
+  });
+
+  /// Reduces [rounds] to a status at [now]. Returns null for a test with no
+  /// rounds at all — a legacy single-interview test, which has no pipeline to
+  /// describe and should not be dressed up as one.
+  static RoundPipelineStatus? from(List<InterviewRound> rounds, DateTime now) {
+    if (rounds.isEmpty) return null;
+
+    // Never trust the caller's ordering: the query orders by `order`, but a
+    // reorder that half-applied would otherwise mislabel "round 2 of 4".
+    final ordered = [...rounds]..sort((a, b) => a.order.compareTo(b.order));
+
+    final openIndex = ordered.indexWhere((r) => r.stateAt(now) == RoundState.open);
+    if (openIndex != -1) {
+      return RoundPipelineStatus._(
+        rounds: ordered,
+        currentIndex: openIndex,
+        stage: PipelineStage.active,
+        asOf: now,
+      );
+    }
+
+    final scheduledIndex =
+        ordered.indexWhere((r) => r.stateAt(now) == RoundState.scheduled);
+    if (scheduledIndex != -1) {
+      return RoundPipelineStatus._(
+        rounds: ordered,
+        currentIndex: scheduledIndex,
+        stage: PipelineStage.upcoming,
+        asOf: now,
+      );
+    }
+
+    return RoundPipelineStatus._(
+      rounds: ordered,
+      currentIndex: ordered.length - 1,
+      stage: PipelineStage.complete,
+      asOf: now,
+    );
+  }
+
+  int get total => rounds.length;
+
+  InterviewRound get current => rounds[currentIndex];
+
+  /// How many rounds have finished. Drives the progress reading.
+  int get closedCount =>
+      rounds.where((r) => r.stateAt(asOf) == RoundState.closed).length;
+
+  /// True for a test that is genuinely a pipeline. A single-round test is
+  /// really just "an interview" and reads better without the round furniture.
+  bool get isMultiRound => total > 1;
+
+  /// Human position, e.g. "Round 2 of 4".
+  String get positionLabel => 'Round ${currentIndex + 1} of $total';
+
+  /// The current round's state as a short word, with its deadline when it has
+  /// one — "Open · 2d left", "Opens in 3d", "All rounds closed".
+  ///
+  /// Both durations are measured against [asOf], NOT against the wall clock.
+  /// [InterviewRound.timeUntilClose] and its siblings read `DateTime.now()`
+  /// internally, so using them here would date the countdown from a different
+  /// instant than the one the stage was decided at — invisible in production,
+  /// where they are microseconds apart, and wrong the moment anything renders
+  /// against a fixed clock.
+  String get stateLabel {
+    switch (stage) {
+      case PipelineStage.active:
+        final closesAt = current.closesAt;
+        if (current.closedAt != null ||
+            closesAt == null ||
+            !asOf.isBefore(closesAt)) {
+          return 'Open';
+        }
+        return 'Open · ${formatDurationShort(closesAt.difference(asOf))} left';
+      case PipelineStage.upcoming:
+        final opensAt = current.opensAt;
+        if (opensAt == null || !asOf.isBefore(opensAt)) return 'Scheduled';
+        return 'Opens in ${formatDurationShort(opensAt.difference(asOf))}';
+      case PipelineStage.complete:
+        return 'All rounds closed';
+    }
+  }
+
+  /// The whole line shown under a test's title on the dashboard.
+  String get summaryLabel {
+    if (stage == PipelineStage.complete) {
+      return '$total ${total == 1 ? 'round' : 'rounds'} · $stateLabel';
+    }
+    return '$positionLabel · ${current.title} · $stateLabel';
   }
 }

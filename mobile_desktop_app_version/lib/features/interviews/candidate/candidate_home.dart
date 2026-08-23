@@ -33,6 +33,9 @@ import 'package:talbotiq/features/interviews/candidate/video_launch.dart';
 import 'package:talbotiq/features/interviews/candidate/voice_launch.dart';
 import 'package:talbotiq/features/interviews/candidate/feedback_prompt.dart';
 import 'package:talbotiq/features/interviews/candidate/mcq/mcq_paper_page.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
+import 'package:talbotiq/core/theme/status_tones.dart';
 
 class CandidateHome extends StatefulWidget {
   const CandidateHome({super.key});
@@ -138,6 +141,20 @@ class _CandidateHomeState extends State<CandidateHome> {
   /// `type: chat`. Routing on `type` would drop a candidate into a chat
   /// interview with no questions.
   Future<void> _open(Interview interview) async {
+    // Whether finishing this counts as "just did an interview", decided BEFORE
+    // opening anything.
+    //
+    // The prompt used to fire after every _open, so re-opening an already
+    // submitted round asked "how was that?" again on the way back — and so did
+    // tapping a closed round, where nothing opened at all. Both conditions are
+    // exactly what the launchers below already guard on, so they can be read
+    // once here rather than threaded back out of seven code paths.
+    //
+    // Known gap: launching a fresh interview and backing out without finishing
+    // still asks. That is the pre-existing behaviour and a far rarer case; the
+    // launchers would each have to report completion to close it.
+    final worthAsking =
+        interview.isAccessible && interview.status != InterviewStatus.completed;
     // MCQ is routed on `mode`, not on `type`, and cannot be folded into the switch
     // below. An MCQ invite reaches here as `type: chat` with an EMPTY questions list —
     // the paper is referenced by id and resolved server-side, so the answer key never
@@ -147,7 +164,9 @@ class _CandidateHomeState extends State<CandidateHome> {
     // This used to show "open this one in a browser". It no longer has to.
     if (interview.effectiveMode == 'mcq') {
       await _launchMcq(interview);
-      if (mounted) await promptForFeedback(context, interviewId: interview.id);
+      if (mounted && worthAsking) {
+        await promptForFeedback(context, interviewId: interview.id);
+      }
       return;
     }
 
@@ -176,7 +195,9 @@ class _CandidateHomeState extends State<CandidateHome> {
     // Ask what it was like. Skippable, and its failure is swallowed — see
     // feedback_prompt.dart. The prompt existed only in the browser until now, so a
     // candidate who interviewed on the phone was never asked at all.
-    if (mounted) await promptForFeedback(context, interviewId: interview.id);
+    if (mounted && worthAsking) {
+      await promptForFeedback(context, interviewId: interview.id);
+    }
   }
 
   /// A two-way round: a live call with a human interviewer.
@@ -720,26 +741,32 @@ class _ConclusionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = switch (conclusion.outcome) {
-      TestOutcome.cleared => theme.colorScheme.primary,
-      // Never error-red — see candidate_conclusion_page.dart.
-      TestOutcome.notSelected => theme.colorScheme.onSurfaceVariant,
-      TestOutcome.onHold => theme.colorScheme.secondary,
-    };
+    // This is the one thing a candidate opens this screen to find, so it is the
+    // screen's single solid block. A "cleared" result takes the accent; the
+    // other outcomes stay on a neutral surface — painting a rejection in the
+    // brand's celebratory colour would be tone-deaf.
+    final cleared = conclusion.outcome == TestOutcome.cleared;
+    final block = WarmSurfaces.block(context);
+
     final icon = switch (conclusion.outcome) {
       TestOutcome.cleared => Icons.emoji_events_outlined,
       TestOutcome.notSelected => Icons.info_outline,
       TestOutcome.onHold => Icons.hourglass_empty,
     };
 
+    final titleColour =
+        cleared ? WarmSurfaces.onBlock : WarmSurfaces.ink(context);
+    final bodyColour = cleared
+        ? WarmSurfaces.onBlock.withValues(alpha: 0.75)
+        : WarmSurfaces.inkMuted(context);
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: Material(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(28),
+        color: cleared ? block : WarmSurfaces.surface(context),
+        borderRadius: BorderRadius.circular(AppRadius.card + 4),
         child: InkWell(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(AppRadius.card + 4),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => CandidateConclusionPage(
               testTitle: title,
@@ -748,15 +775,17 @@ class _ConclusionCard extends StatelessWidget {
             ),
           )),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg + 2),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: color.withValues(alpha: 0.35)),
+              borderRadius: BorderRadius.circular(AppRadius.card + 4),
+              border: cleared
+                  ? null
+                  : Border.all(color: WarmSurfaces.stroke(context)),
             ),
             child: Row(
               children: [
-                Icon(icon, color: color, size: 26),
-                const SizedBox(width: 14),
+                Icon(icon, color: titleColour, size: 26),
+                const SizedBox(width: AppSpacing.md + 2),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -764,10 +793,14 @@ class _ConclusionCard extends StatelessWidget {
                     children: [
                       Text(
                         conclusion.outcome.candidateLabel,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold, color: color),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                          color: titleColour,
+                        ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         // A preview, not the message: the full text is one tap
                         // away and truncating somebody's rejection mid-sentence
@@ -777,15 +810,17 @@ class _ConclusionCard extends StatelessWidget {
                             : conclusion.message,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: bodyColour,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right,
-                    size: 20, color: theme.colorScheme.onSurfaceVariant),
+                const SizedBox(width: AppSpacing.sm),
+                Icon(Icons.chevron_right_rounded, size: 20, color: bodyColour),
               ],
             ),
           ),
@@ -854,7 +889,7 @@ class _AssignedCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(100), // Pill-shaped!
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Text(
         text,
@@ -867,6 +902,203 @@ class _AssignedCard extends StatelessWidget {
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final completed = interview.status == InterviewStatus.completed;
+    final accessible = interview.isAccessible;
+    final published = interview.resultPublished && interview.result != null;
+    final awaiting =
+        interview.status == InterviewStatus.completed && !published;
+
+    final typeIcon = switch (interview.effectiveRoundKind) {
+      RoundKind.resume => Icons.description_outlined,
+      RoundKind.video => Icons.videocam_outlined,
+      RoundKind.voice => Icons.record_voice_over_outlined,
+      RoundKind.chat => Icons.chat_bubble_outline,
+      RoundKind.twoWay => Icons.groups_outlined,
+      RoundKind.mcq => Icons.fact_check_outlined,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      decoration: WarmSurfaces.card(context, radius: AppRadius.card),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // The card body means "show me this"; only the button means "do this".
+        //
+        // It used to launch whenever the window was open, so tapping a round
+        // you had already submitted dropped you back into the session — which
+        // greets you with "Answer submitted" — instead of showing the result
+        // sitting right there on the card. Re-taking is still possible, but it
+        // now takes a deliberate press on the button.
+        onTap: published
+            ? () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => CandidateResultPage(interview: interview),
+                  ),
+                )
+            : (accessible && !completed ? onLaunch : null),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  // Solid pastel disc, as every row in the language carries.
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: WarmSurfaces.block(context),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(typeIcon,
+                        color: WarmSurfaces.onBlock, size: 21),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  // The title gets the row to itself. It used to share the row
+                  // with the action button, which left "Round 1 · resume
+                  // screen" truncated to "Round 1 · resume …" on a phone.
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          step == null
+                              ? interview.title
+                              : 'Round $step · ${interview.title}',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.2,
+                            color: WarmSurfaces.ink(context),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'from ${interview.recruiterName?.isNotEmpty == true ? interview.recruiterName : interview.recruiterEmail}',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: WarmSurfaces.inkMuted(context),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              // Status first, then the action — reading order matches what a
+              // candidate needs: what state is this in, then what can I do.
+              Wrap(
+                spacing: AppSpacing.sm - 2,
+                runSpacing: AppSpacing.xs + 2,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (published && interview.showsOwnOutcome)
+                    _outcomeChip(theme),
+                  _buildStatusBadge(
+                    context,
+                    '${interview.questions.length} Qs · ${interview.durationMinutes} min',
+                    WarmSurfaces.surfaceHigh(context),
+                    WarmSurfaces.inkMuted(context),
+                  ),
+                  if (published)
+                    _buildStatusBadge(
+                      context,
+                      'Results available',
+                      StatusTone.ready(context).withValues(alpha: 0.15),
+                      StatusTone.ready(context),
+                    )
+                  else if (awaiting)
+                    _buildStatusBadge(
+                      context,
+                      'Awaiting evaluation',
+                      StatusTone.pending(context).withValues(alpha: 0.15),
+                      StatusTone.pending(context),
+                    )
+                  else if (interview.isExpired)
+                    _buildStatusBadge(
+                      context,
+                      'Expired',
+                      StatusTone.failed(context).withValues(alpha: 0.15),
+                      StatusTone.failed(context),
+                    )
+                  else if (interview.isNotYetAvailable)
+                    _buildStatusBadge(
+                      context,
+                      'Scheduled',
+                      StatusTone.pending(context).withValues(alpha: 0.15),
+                      StatusTone.pending(context),
+                    )
+                  else if (!interview.hasAttemptsLeft)
+                    _buildStatusBadge(
+                      context,
+                      'No attempts left',
+                      StatusTone.failed(context).withValues(alpha: 0.15),
+                      StatusTone.failed(context),
+                    )
+                  else if (interview.maxAttempts != null)
+                    _buildStatusBadge(
+                      context,
+                      '${interview.attemptsRemaining} left',
+                      StatusTone.pending(context).withValues(alpha: 0.15),
+                      StatusTone.pending(context),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: _buildActionButton(
+                  context,
+                  theme,
+                  published,
+                  awaiting,
+                  accessible,
+                  completed,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A non-action state, where a disabled button would misrepresent what the
+  /// candidate can do.
+  Widget _stateChip(BuildContext context, String label) => Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: WarmSurfaces.surfaceHigh(context),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: WarmSurfaces.inkMuted(context),
+          ),
+        ),
+      );
+
+  /// The one thing this card lets the candidate do, or a state chip when there
+  /// is nothing.
+  ///
+  /// Order matters, and the closed-round case has to be tested BEFORE the
+  /// "already submitted, so offer Replace" case — otherwise a résumé round that
+  /// the recruiter has closed still offers to swap a CV they may already have
+  /// read.
   Widget _buildActionButton(
     BuildContext context,
     ThemeData theme,
@@ -875,13 +1107,14 @@ class _AssignedCard extends StatelessWidget {
     bool accessible,
     bool completed,
   ) {
+    // 1. There is a result to read. Nothing else matters.
     if (published) {
       return FilledButton(
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -897,226 +1130,49 @@ class _AssignedCard extends StatelessWidget {
           ],
         ),
       );
-    } else if (awaiting && !accessible) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          'Pending',
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      );
-    } else {
-      return FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: accessible
-              ? theme.colorScheme.primary
-              : theme.colorScheme.outline.withValues(alpha: 0.1),
-          foregroundColor: accessible
-              ? theme.colorScheme.onPrimary
-              : theme.colorScheme.onSurfaceVariant,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-        ),
-        onPressed: accessible ? onLaunch : null,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // "Launch" is wrong for a résumé round: nothing starts, a file is
-            // handed over.
-            Text(_isResume
-                ? (completed ? 'Replace' : 'Upload')
-                : (completed ? 'Re-take' : 'Launch')),
-            const SizedBox(width: 4),
-            Icon(
-              completed
-                  ? Icons.refresh
-                  : (_isResume ? Icons.upload_file : Icons.play_arrow),
-              size: 14,
-            ),
-          ],
-        ),
+    }
+
+    // 2. The round is shut — ended by the recruiter, or past its deadline
+    //    (ending pulls `expiresAt` back, so both arrive here identically).
+    //    A disabled button would still read as "this is the thing you do
+    //    here", so there is no button at all.
+    if (!accessible) {
+      return _stateChip(
+        context,
+        completed
+            ? 'Submitted'
+            : (interview.isNotYetAvailable ? 'Not open yet' : 'Closed'),
       );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final completed = interview.status == InterviewStatus.completed;
-    final accessible = interview.isAccessible;
-    final published =
-        interview.resultPublished && interview.result != null;
-    final awaiting =
-        interview.status == InterviewStatus.completed && !published;
-
-    final typeIcon = switch (interview.effectiveRoundKind) {
-      RoundKind.resume => Icons.description_outlined,
-      RoundKind.video => Icons.videocam_outlined,
-      RoundKind.voice => Icons.record_voice_over_outlined,
-      RoundKind.chat => Icons.chat_bubble_outline,
-      RoundKind.twoWay => Icons.groups_outlined,
-      RoundKind.mcq => Icons.fact_check_outlined,
-    };
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28.0), // More rounded!
-        side: BorderSide(
-          color: theme.colorScheme.outline.withValues(alpha: 0.3),
-          width: 1.0,
-        ),
+    // 3. Open, and already submitted: re-taking or replacing is legitimate
+    //    while the window is still open, but only from a deliberate press —
+    //    the card body no longer launches.
+    // 4. Open and untouched: the normal case.
+    return FilledButton(
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28.0), // More rounded!
-        onTap: accessible
-            ? onLaunch
-            : (published
-                ? () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            CandidateResultPage(interview: interview),
-                      ),
-                    )
-                : null),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color:
-                      theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                  shape: BoxShape.circle, // Fully circular shape!
-                ),
-                child: Icon(
-                  typeIcon,
-                  color: theme.colorScheme.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      step == null
-                          ? interview.title
-                          : 'Round $step · ${interview.title}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    // The outcome, once published — the thing that tells a
-                    // candidate whether the next card is theirs. Without it a new
-                    // round simply appeared with no explanation.
-                    //
-                    // Suppressed for an undecided round of a run that has been
-                    // concluded: it would say "Under review" directly under a
-                    // banner saying the process is over. See
-                    // `Interview.showsOwnOutcome`.
-                    if (published && interview.showsOwnOutcome) ...[
-                      const SizedBox(height: 4),
-                      _outcomeChip(theme),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      'from ${interview.recruiterName?.isNotEmpty == true ? interview.recruiterName : interview.recruiterEmail}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        _buildStatusBadge(
-                          context,
-                          '${interview.questions.length} Qs · ${interview.durationMinutes} min',
-                          theme.colorScheme.surfaceContainerHighest,
-                          theme.colorScheme.onSurfaceVariant,
-                        ),
-                        if (published) ...[
-                          _buildStatusBadge(
-                            context,
-                            'Results Available',
-                            Colors.green.withValues(alpha: 0.15),
-                            Colors.green,
-                          ),
-                        ] else if (awaiting) ...[
-                          _buildStatusBadge(
-                            context,
-                            'Awaiting Evaluation',
-                            Colors.orange.withValues(alpha: 0.15),
-                            Colors.orange,
-                          ),
-                        ] else if (interview.isExpired) ...[
-                          _buildStatusBadge(
-                            context,
-                            'Expired',
-                            theme.colorScheme.error.withValues(alpha: 0.15),
-                            theme.colorScheme.error,
-                          ),
-                        ] else if (interview.isNotYetAvailable) ...[
-                          _buildStatusBadge(
-                            context,
-                            'Scheduled',
-                            theme.colorScheme.secondary.withValues(alpha: 0.15),
-                            theme.colorScheme.secondary,
-                          ),
-                        ] else if (!interview.hasAttemptsLeft) ...[
-                          _buildStatusBadge(
-                            context,
-                            'No Attempts Left',
-                            theme.colorScheme.error.withValues(alpha: 0.15),
-                            theme.colorScheme.error,
-                          ),
-                        ] else ...[
-                          if (interview.maxAttempts != null)
-                            _buildStatusBadge(
-                              context,
-                              '${interview.attemptsRemaining} left',
-                              theme.colorScheme.primary.withValues(alpha: 0.1),
-                              theme.colorScheme.primary,
-                            ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildActionButton(
-                context,
-                theme,
-                published,
-                awaiting,
-                accessible,
-                completed,
-              ),
-            ],
+      onPressed: onLaunch,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // "Launch" is wrong for a résumé round: nothing starts, a file is
+          // handed over.
+          Text(_isResume
+              ? (completed ? 'Replace' : 'Upload')
+              : (completed ? 'Re-take' : 'Launch')),
+          const SizedBox(width: 4),
+          Icon(
+            completed
+                ? Icons.refresh
+                : (_isResume ? Icons.upload_file : Icons.play_arrow),
+            size: 14,
           ),
-        ),
+        ],
       ),
     );
   }
@@ -1129,31 +1185,30 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 16, 4, 12),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: WarmSurfaces.block(context),
+              shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 16,
-              color: theme.colorScheme.primary,
-            ),
+            child: Icon(icon, size: 15, color: WarmSurfaces.onBlock),
           ),
-          const SizedBox(width: 10),
-          Text(
-            label.toUpperCase(),
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.8,
-              fontSize: 12,
-              color: theme.colorScheme.primary,
+          const SizedBox(width: AppSpacing.md - 2),
+          Expanded(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 2,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                fontSize: 11.5,
+                color: WarmSurfaces.inkSubtle(context),
+              ),
             ),
           ),
         ],

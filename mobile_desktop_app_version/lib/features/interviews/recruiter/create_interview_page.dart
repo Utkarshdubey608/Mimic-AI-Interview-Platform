@@ -39,6 +39,8 @@ import 'package:talbotiq/features/recruiter/store/mcq_sets_store.dart';
 import 'package:talbotiq/features/mailer/models/email_template.dart';
 import 'package:talbotiq/features/mailer/services/mailer_service.dart';
 import 'package:talbotiq/features/mailer/widgets/notify_candidates_card.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 class CreateInterviewPage extends StatefulWidget {
   /// When provided, the page edits this interview instead of creating a new one.
@@ -1345,7 +1347,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: Text(_appBarTitle),
         elevation: 0,
@@ -1368,7 +1370,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: theme.colorScheme.error,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1655,7 +1657,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   'You have not written an assessment yet. Create one under '
@@ -2008,7 +2010,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               padding: const EdgeInsets.symmetric(vertical: 20),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: theme.colorScheme.outline.withValues(alpha: 0.2),
                 ),
@@ -2111,32 +2113,53 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     required Widget child,
   }) {
     final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: theme.colorScheme.primary, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.2,
-                    ),
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = isDark ? AppColors.pastelMintText : theme.colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: WarmSurfaces.surface(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: WarmSurfaces.stroke(context),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: WarmSurfaces.surfaceHigh(context),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: accentColor.withValues(alpha: 0.25),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            child,
-          ],
-        ),
+                child: Icon(icon, color: accentColor, size: 15),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                    color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
@@ -2151,52 +2174,80 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     required Widget child,
   }) {
     final theme = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: InkWell(
-        onTap: onToggle,
-        borderRadius: BorderRadius.circular(24.0),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: theme.colorScheme.primary, size: 22),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: -0.2,
-                          ),
+    final isDark = theme.brightness == Brightness.dark;
+    final accentColor = isDark ? AppColors.pastelMintText : theme.colorScheme.primary;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: WarmSurfaces.surface(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: WarmSurfaces.stroke(context),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onToggle,
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: WarmSurfaces.surfaceHigh(context),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: accentColor.withValues(alpha: 0.25),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                      ),
+                      child: Icon(icon, color: accentColor, size: 15),
                     ),
-                  ),
-                  Icon(
-                    isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                              color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 20,
+                      color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+                if (isExpanded) ...[
+                  const SizedBox(height: 16),
+                  child,
                 ],
-              ),
-              if (isExpanded) ...[
-                const SizedBox(height: 20),
-                child,
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -2276,7 +2327,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               color: selected
                   ? cs.primary.withValues(alpha: 0.12)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color:
                     selected ? cs.primary : cs.outline.withValues(alpha: 0.12),
@@ -2295,7 +2346,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight:
-                          selected ? FontWeight.bold : FontWeight.w600,
+                          selected ? FontWeight.w600 : FontWeight.w600,
                       color: selected ? cs.primary : cs.onSurface,
                     )),
               ],
@@ -2358,7 +2409,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               color: selected
                   ? cs.primary.withValues(alpha: 0.12)
                   : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: selected
                     ? cs.primary
@@ -2377,7 +2428,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight:
-                          selected ? FontWeight.bold : FontWeight.w600,
+                          selected ? FontWeight.w600 : FontWeight.w600,
                       color: selected ? cs.primary : cs.onSurface,
                     )),
                 const SizedBox(height: 2),
@@ -2621,10 +2672,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
             decoration: BoxDecoration(
-              color: selected ? cs.primary.withOpacity(0.12) : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
+              color: selected ? cs.primary.withValues(alpha: 0.12) : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: selected ? cs.primary : cs.outline.withOpacity(0.12),
+                color: selected ? cs.primary : cs.outline.withValues(alpha: 0.12),
                 width: 1.5,
               ),
             ),
@@ -2644,7 +2695,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                         label,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w600,
                           color: selected ? cs.primary : cs.onSurface,
                         ),
                       ),
@@ -2652,7 +2703,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                         desc,
                         style: TextStyle(
                           fontSize: 9,
-                          color: selected ? cs.primary.withOpacity(0.8) : cs.onSurfaceVariant,
+                          color: selected ? cs.primary.withValues(alpha: 0.8) : cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -2781,10 +2832,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         else if (_replicas.isNotEmpty)
           Container(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.12),
+                color: theme.colorScheme.outline.withValues(alpha: 0.12),
               ),
             ),
             child: AvatarStrip(
@@ -2797,10 +2848,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: theme.colorScheme.outline.withOpacity(0.12),
+                color: theme.colorScheme.outline.withValues(alpha: 0.12),
               ),
             ),
             child: Text(
@@ -2849,10 +2900,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(16),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: theme.colorScheme.outline.withOpacity(0.12),
+              color: theme.colorScheme.outline.withValues(alpha: 0.12),
             ),
           ),
           padding: const EdgeInsets.all(12),
@@ -2964,7 +3015,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           label.toUpperCase(),
           style: theme.textTheme.labelSmall?.copyWith(
             color: theme.colorScheme.primary,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w600,
             letterSpacing: 1.0,
           ),
         ),
@@ -3080,10 +3131,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: theme.colorScheme.outline.withOpacity(0.08),
+                  color: theme.colorScheme.outline.withValues(alpha: 0.08),
                 ),
               ),
               child: Row(
@@ -3129,10 +3180,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withOpacity(0.08),
+                    color: theme.colorScheme.outline.withValues(alpha: 0.08),
                   ),
                 ),
                 child: Column(
@@ -3193,11 +3244,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.15),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
         border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.12),
+          color: theme.colorScheme.outline.withValues(alpha: 0.12),
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
@@ -3325,7 +3376,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     final isLast = on && _allowedDevices.length == 1;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       onTap: isLast
           ? null
           : () => setState(() {
@@ -3339,13 +3390,13 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: on
-              ? theme.colorScheme.primary.withOpacity(0.08)
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: on
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.3),
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
           ),
         ),
         child: Column(
@@ -3385,12 +3436,12 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     Widget btn(IconData icon, bool enabled, VoidCallback onTap) {
       return Material(
         color: enabled
-            ? cs.surfaceContainerHighest.withOpacity(0.3)
-            : cs.surfaceContainerHighest.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
+            ? cs.surfaceContainerHighest.withValues(alpha: 0.3)
+            : cs.surfaceContainerHighest.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             width: 36,
             height: 36,
@@ -3398,7 +3449,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             child: Icon(
               icon,
               size: 18,
-              color: enabled ? cs.primary : cs.onSurfaceVariant.withOpacity(0.3),
+              color: enabled ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.3),
             ),
           ),
         ),
@@ -3420,7 +3471,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           child: Text(
             '$value$suffix',
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: cs.onSurface,
             ),
           ),

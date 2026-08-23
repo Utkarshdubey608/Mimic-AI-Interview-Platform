@@ -23,6 +23,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:talbotiq/core/constants/colors.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
@@ -40,6 +41,9 @@ import 'package:talbotiq/features/interviews/recruiter/round_leaderboard_page.da
 import 'package:talbotiq/features/interviews/recruiter/round_timeline_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/test_conclusion_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/widgets/recruiter_action_bar.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 class TestCandidatesPage extends StatefulWidget {
   final TestSummary test;
@@ -356,8 +360,7 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final round = widget.round;
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
         title: Text(round?.title ?? widget.test.title),
         // Scoped to a round, name the test underneath so it is clear which
@@ -450,30 +453,70 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
         children: [
           _actionBar(theme),
           const SizedBox(height: 12),
-          TextField(
-            controller: _searchCtrl,
-            onChanged: _onSearchChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search this test by name or email',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              suffixIcon: _searchCtrl.text.isEmpty
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      tooltip: 'Clear search',
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        _onSearchChanged('');
-                      },
-                    ),
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: WarmSurfaces.surface(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: WarmSurfaces.stroke(context)),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? AppColors.textLight
+                    : theme.colorScheme.onSurface,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                filled: false,
+                hintText: 'Search this test by name or email...',
+                hintStyle: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.textSubtle
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  size: 18,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.textMuted
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+                prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                suffixIcon: _searchCtrl.text.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _onSearchChanged('');
+                        },
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(label,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? AppColors.textMuted
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ],
       ),
     );
@@ -726,28 +769,27 @@ class _InterviewCard extends StatelessWidget {
 
 
   /// The small pill on the right of a candidate row: score, or why there isn't
-  /// one. One builder so a failure and a score can never be styled as though they
-  /// were the same kind of thing.
+  /// one.
   Widget _pill(ThemeData theme, String text, Color color, {IconData? icon}) =>
       Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.35)),
-          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 11, color: color),
-              const SizedBox(width: 4),
+              Icon(icon, size: 10.5, color: color),
+              const SizedBox(width: 3.5),
             ],
             Text(
               text,
               style: TextStyle(
                 fontSize: 10,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: color,
               ),
             ),
@@ -758,16 +800,16 @@ class _InterviewCard extends StatelessWidget {
   Widget _buildDetailBadge(
       BuildContext context, String text, Color bgColor, Color textColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(100), // Pill shape!
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
           color: textColor,
         ),
       ),
@@ -777,6 +819,7 @@ class _InterviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final name = interview.candidateName?.isNotEmpty == true
         ? interview.candidateName!
         : interview.candidateEmail;
@@ -785,16 +828,11 @@ class _InterviewCard extends StatelessWidget {
     final roundLabel = interview.hasRound ? _roundLabel(interview) : null;
     final conclusion = interview.testConclusion;
     final qs = interview.questions.length;
-    // A continuation row leads with the round, since the person is named on the
-    // row above it.
     final titleText =
         continuation ? (roundLabel ?? interview.title) : name;
     final subtitleText = [
       if (!continuation && hasName) interview.candidateEmail,
       if (!continuation && showRound && roundLabel != null) roundLabel,
-      // An MCQ or résumé round genuinely has no questions on the assignment —
-      // its paper lives elsewhere — so "0 Qs" was reading as a broken row.
-      // Name what the round IS when there is nothing to count.
       if (qs > 0)
         '$qs Qs'
       else if (roundLabel == null)
@@ -803,143 +841,150 @@ class _InterviewCard extends StatelessWidget {
 
     final score = interview.result != null ? interview.result!['overallScore'] : null;
 
-    return Card(
-      // Indented and flush with the card above, so a candidate's later rounds
-      // hang off their first row instead of standing as their own entries.
+    return Container(
       margin: continuation
-          ? const EdgeInsets.only(left: 28)
+          ? const EdgeInsets.only(left: 20)
           : EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(28.0), // More rounded!
-        side: BorderSide(
-          color: theme.colorScheme.outline
-              .withValues(alpha: continuation ? 0.18 : 0.3),
-          width: 1.0,
-        ),
+      decoration: BoxDecoration(
+        color: continuation
+            ? (WarmSurfaces.surfaceHigh(context).withValues(alpha: 0.3))
+            : (WarmSurfaces.surface(context)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: WarmSurfaces.stroke(context)),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(28.0), // More rounded!
-        onTap: () => _showDetail(context, interview),
-        child: Padding(
-          padding: EdgeInsets.all(continuation ? 12 : 16),
-          child: Row(
-            children: [
-              if (continuation)
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Center(
-                    child: Icon(
-                      Icons.subdirectory_arrow_right,
-                      size: 18,
-                      color: theme.colorScheme.onSurfaceVariant,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showDetail(context, interview),
+          child: Padding(
+            padding: EdgeInsets.all(continuation ? 10 : 13),
+            child: Row(
+              children: [
+                if (continuation)
+                  SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: Center(
+                      child: Icon(
+                        Icons.subdirectory_arrow_right,
+                        size: 16,
+                        color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                )
-              else
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color:
-                        theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
-                    shape: BoxShape.circle, // Circular shape!
-                  ),
-                  child: Center(
-                    child: Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : 'C',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                        fontSize: 16,
+                  )
+                else
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: WarmSurfaces.surfaceHigh(context),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isDark ? AppColors.pastelCyan.withValues(alpha: 0.3) : theme.colorScheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'C',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.pastelCyanText : theme.colorScheme.primary,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              SizedBox(width: continuation ? 10 : 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      titleText,
-                      style: continuation
-                          ? theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)
-                          : theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (subtitleText.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                SizedBox(width: continuation ? 8 : 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        subtitleText,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        titleText,
+                        style: TextStyle(
+                          fontSize: continuation ? 13.5 : 14.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (subtitleText.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitleText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _StatusChip(status: interview.status),
+                    if (interview.evaluationFailed) ...[
+                      const SizedBox(height: 5),
+                      _pill(
+                        theme,
+                        'Scoring failed',
+                        AppColors.danger,
+                        icon: Icons.error_outline,
+                      ),
+                    ] else if (interview.awaitingRecruiterReview) ...[
+                      const SizedBox(height: 5),
+                      _pill(
+                        theme,
+                        'Awaiting score',
+                        AppColors.warning,
+                        icon: Icons.star_outline,
+                      ),
+                    ] else if (interview.awaitingEvaluation) ...[
+                      const SizedBox(height: 5),
+                      _pill(
+                        theme,
+                        'Not scored',
+                        isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ] else if (score != null) ...[
+                      const SizedBox(height: 5),
+                      _pill(
+                        theme,
+                        'Score: $score',
+                        isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+                      ),
+                    ],
+                    if (!continuation && conclusion != null) ...[
+                      const SizedBox(height: 5),
+                      _pill(
+                        theme,
+                        conclusion.outcome.recruiterLabel,
+                        conclusion.outcome == TestOutcome.cleared
+                            ? (isDark ? AppColors.pastelMintText : theme.colorScheme.primary)
+                            : (isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant),
+                        icon: Icons.flag_outlined,
+                      ),
                     ],
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _StatusChip(status: interview.status),
-                  // A failed evaluation is called out as a FAILURE rather than
-                  // shown as a score or left blank. It used to arrive here as a
-                  // heuristic number labelled like a real AI result.
-                  if (interview.evaluationFailed) ...[
-                    const SizedBox(height: 6),
-                    _pill(
-                      theme,
-                      'Scoring failed',
-                      theme.colorScheme.error,
-                      icon: Icons.error_outline,
-                    ),
-                  ] else if (interview.awaitingRecruiterReview) ...[
-                    const SizedBox(height: 6),
-                    // Nothing failed — a human simply has not scored it yet.
-                    _pill(theme, 'Awaiting your score',
-                        theme.colorScheme.secondary,
-                        icon: Icons.star_outline),
-                  ] else if (interview.awaitingEvaluation) ...[
-                    const SizedBox(height: 6),
-                    _pill(theme, 'Not scored', theme.colorScheme.onSurfaceVariant),
-                  ] else if (score != null) ...[
-                    const SizedBox(height: 6),
-                    _pill(theme, 'Score: $score',
-                        theme.colorScheme.onSurfaceVariant),
-                  ],
-                  // The end of this candidate's whole run at the test, so it is
-                  // shown once per PERSON rather than repeated on each of their
-                  // rounds — every round carries the same copy.
-                  if (!continuation && conclusion != null) ...[
-                    const SizedBox(height: 6),
-                    _pill(
-                      theme,
-                      conclusion.outcome.recruiterLabel,
-                      conclusion.outcome == TestOutcome.cleared
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
-                      icon: Icons.flag_outlined,
-                    ),
-                  ],
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
 
   void _showDetail(BuildContext context, Interview initialInterview) {
     final theme = Theme.of(context);
@@ -975,7 +1020,7 @@ class _InterviewCard extends StatelessWidget {
                         Text(
                           'Candidate ${activeIndex + 1} of ${groupInterviews.length}',
                           style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                             color: theme.colorScheme.primary,
                           ),
                         ),
@@ -990,7 +1035,7 @@ class _InterviewCard extends StatelessWidget {
                     const Divider(height: 16),
                   ],
                   Text(i.title,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -1039,14 +1084,14 @@ class _InterviewCard extends StatelessWidget {
                   if (i.result != null && i.result!['overallScore'] != null)
                     _kv(sheetContext, 'Overall Score', '${i.result!['overallScore']}/100'),
                   const Divider(height: 24),
-                  Text('Prompt', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Prompt', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20), // More rounded!
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
                     ),
                     child: Text(
@@ -1055,14 +1100,14 @@ class _InterviewCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Questions', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                  Text('Questions', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(20), // More rounded!
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
                     ),
                     child: Column(
@@ -1078,7 +1123,7 @@ class _InterviewCard extends StatelessWidget {
                                       Text(
                                         '${e.key + 1}. ',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w600,
                                           color: theme.colorScheme.primary,
                                         ),
                                       ),
@@ -1104,10 +1149,6 @@ class _InterviewCard extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100)),
-                        ),
                         onPressed: () {
                           Navigator.pop(sheetContext);
                           Navigator.of(context).push(MaterialPageRoute(
@@ -1126,10 +1167,6 @@ class _InterviewCard extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100)),
-                        ),
                         onPressed: () {
                           Navigator.pop(sheetContext);
                           _openTwoWayReview(context, i);
@@ -1147,9 +1184,6 @@ class _InterviewCard extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                        ),
                         onPressed: () {
                           Navigator.pop(sheetContext);
                           Navigator.of(context).push(MaterialPageRoute(
@@ -1172,10 +1206,6 @@ class _InterviewCard extends StatelessWidget {
                       height: 48,
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(100)),
-                        ),
                         // Clears the answers/report but keeps the candidate
                         // assigned, so they can retake — unlike "Delete", which
                         // removes them from the test entirely.
@@ -1192,9 +1222,6 @@ class _InterviewCard extends StatelessWidget {
                         child: SizedBox(
                           height: 48,
                           child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                            ),
                             onPressed: () {
                               Navigator.pop(sheetContext);
                               Navigator.of(context).push(MaterialPageRoute(
@@ -1215,7 +1242,6 @@ class _InterviewCard extends StatelessWidget {
                             style: OutlinedButton.styleFrom(
                               foregroundColor: theme.colorScheme.error,
                               side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                             ),
                             icon: const Icon(Icons.delete_outline, size: 18),
                             label: const Text('Delete'),
@@ -1323,28 +1349,36 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    Color bg;
+    final isDark = theme.brightness == Brightness.dark;
+    Color color;
     switch (status) {
       case InterviewStatus.completed:
-        bg = Colors.green;
+        color = isDark ? AppColors.pastelMintText : AppColors.success;
         break;
       case InterviewStatus.inProgress:
-        bg = Colors.orange;
+        color = isDark ? AppColors.pastelCyanText : AppColors.accent;
         break;
       case InterviewStatus.assigned:
-        bg = theme.colorScheme.outline;
+        color = isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant;
         break;
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
-        color: bg.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(100), // Pill-shaped!
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withValues(alpha: 0.25),
+          width: 1,
+        ),
       ),
       child: Text(
         status.label,
         style: TextStyle(
-            fontSize: 11, fontWeight: FontWeight.w600, color: bg),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
       ),
     );
   }

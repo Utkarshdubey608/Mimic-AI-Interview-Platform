@@ -96,12 +96,12 @@ class _McqSetsPageState extends State<McqSetsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(title: const Text('Assessments')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: RecruiterFab(
         onPressed: () => _openEditor(),
-        icon: const Icon(Icons.add),
-        label: const Text('New assessment'),
+        icon: Icons.add,
+        tooltip: 'New assessment',
       ),
       body: SafeArea(
         child: AnimatedBuilder(

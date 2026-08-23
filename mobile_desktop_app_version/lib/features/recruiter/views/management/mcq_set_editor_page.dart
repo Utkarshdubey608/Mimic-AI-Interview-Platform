@@ -28,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'package:talbotiq/features/recruiter/models/mcq_set.dart';
 import 'package:talbotiq/features/recruiter/store/mcq_sets_store.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 import 'mcq_generate_sheet.dart';
 
 /// Ids minted client-side for new rows.
@@ -211,16 +212,18 @@ class _McqSetEditorPageState extends State<McqSetEditorPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const RecruiterScaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
     if (_error != null && _questions.isEmpty) {
-      return Scaffold(
+      return RecruiterScaffold(
         appBar: AppBar(),
         body: AppErrorState(title: 'Could not open this assessment', detail: _error!),
       );
     }
 
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: Text(_isNew ? 'New assessment' : 'Edit assessment'),
         actions: [
@@ -337,7 +340,7 @@ class _Banner extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         border: Border.all(color: color.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -414,8 +414,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Final result'),
         bottom: PreferredSize(
@@ -504,7 +503,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
                   child: Text(
                     'Selected · ${selected.length}',
                     style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
                 if (selected.isNotEmpty)
@@ -592,7 +591,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
                   Expanded(
                     child: Text('${_selected.length} of $total selected',
                         style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+                            ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
                   TextButton(
                     onPressed: _busy
@@ -688,13 +687,13 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(100),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Text(
         outcome.recruiterLabel,
         style: TextStyle(
-            fontSize: 10, fontWeight: FontWeight.bold, color: color),
+            fontSize: 10, fontWeight: FontWeight.w600, color: color),
       ),
     );
   }
@@ -710,7 +709,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
           children: [
             Text('What they are told',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             // Scrollable rather than fixed: three labels this long overflow a
             // narrow phone once the system font is scaled up, and an overflowing

@@ -13,6 +13,9 @@ import 'package:talbotiq/shared/widgets/custom_buttons.dart';
 import 'package:talbotiq/shared/widgets/custom_inputs.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 
 class EvaluateInterviewPage extends StatefulWidget {
   final Interview interview;
@@ -340,13 +343,12 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final i = _current;
     final evaluatedBy = (i.result?['evaluatedBy'] as String?) ?? '';
     final leftAppCount =
         ((i.result?['integrity'] as Map?)?['leftAppCount'] as num?)?.toInt() ??
             0;
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Evaluate'),
         actions: [
@@ -372,7 +374,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
             Center(
               child: Text(
                 '${_currentIndex + 1} / ${widget.groupInterviews!.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  color: AppSurfaces.muted(context),
+                ),
               ),
             ),
             IconButton(
@@ -399,73 +405,56 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.xs,
+              AppSpacing.page, AppSpacing.xxxl),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(i.candidateName ?? i.candidateEmail,
-                      style: theme.textTheme.titleLarge),
+                  Text(
+                    i.candidateName ?? i.candidateEmail,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                      color: AppSurfaces.text(context),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   // `effectiveRoundKind`, not `type`: an MCQ assignment carries
                   // `type: chat` (the server's buckets are video|chat) and would
                   // otherwise be labelled "Chat Interview" on the one screen
                   // whose job is to say what was taken. A legacy document derives
                   // the same label from `type` anyway, so nothing regresses.
                   Text(
-                      '${i.effectiveRoundKind.label} · ${i.candidateEmail}'
-                      '${_scorerNote(evaluatedBy)}',
-                      style: theme.textTheme.bodySmall),
+                    '${i.effectiveRoundKind.label} · ${i.candidateEmail}'
+                    '${_scorerNote(evaluatedBy)}',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppSurfaces.muted(context),
+                    ),
+                  ),
                   if (_published)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.visibility,
-                              size: 16, color: theme.colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Text('Visible to candidate',
-                              style: TextStyle(color: theme.colorScheme.primary)),
-                        ],
-                      ),
+                    const _StatusNote(
+                      icon: Icons.visibility_outlined,
+                      text: 'Visible to candidate',
+                      color: AppColors.pastelMintText,
                     ),
                   if (leftAppCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded,
-                              size: 16, color: theme.colorScheme.error),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Integrity: left the app $leftAppCount '
-                              'time${leftAppCount == 1 ? '' : 's'} during the interview',
-                              style: TextStyle(color: theme.colorScheme.error),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StatusNote(
+                      icon: Icons.warning_amber_rounded,
+                      text: 'Integrity: left the app $leftAppCount '
+                          'time${leftAppCount == 1 ? '' : 's'} during the interview',
+                      color: AppColors.pastelPeach,
                     ),
                   if (_evaluationError.isNotEmpty && evaluatedBy.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 16, color: theme.colorScheme.error),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'AI evaluation failed: $_evaluationError. Use '
-                              '"Regenerate Results" below to try again.',
-                              style: TextStyle(color: theme.colorScheme.error),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StatusNote(
+                      icon: Icons.error_outline_rounded,
+                      text: 'AI evaluation failed: $_evaluationError. Use '
+                          '"Regenerate results" below to try again.',
+                      color: AppColors.danger,
                     ),
                   // The per-question breakdown, from the SHARED report document.
                   // Shown above the raw answers because it is the reviewed view of the
@@ -493,22 +482,66 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.auto_awesome, size: 18),
-                      label: const Text('Regenerate Results (Gemini)'),
+                      label: const Text('Regenerate results'),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  Text('Overall score: $_score / 100',
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  Slider(
-                    value: _score.toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    label: '$_score',
-                    onChanged: (v) => setState(() => _score = v.round()),
+                  const SizedBox(height: AppSpacing.xxl),
+                  const RecruiterLabel('Overall score'),
+                  const SizedBox(height: AppSpacing.sm),
+                  RecruiterPanel(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                        AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '$_score',
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -1,
+                                height: 1,
+                                color: scoreColor(context, _score),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              '/ 100',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppSurfaces.subtle(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            activeTrackColor: scoreColor(context, _score),
+                            inactiveTrackColor: AppSurfaces.elevated(context),
+                            thumbColor: scoreColor(context, _score),
+                            overlayShape: const RoundSliderOverlayShape(
+                                overlayRadius: 14),
+                            thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 7),
+                          ),
+                          child: Slider(
+                            value: _score.toDouble(),
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            label: '$_score',
+                            onChanged: (v) => setState(() => _score = v.round()),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.lg),
                   CustomSelectDropdown<String>(
                     label: 'Recommendation',
                     value: _recommendation,
@@ -564,6 +597,41 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   }
 }
 
+/// One advisory line under the candidate's name — published state, an
+/// integrity flag, or a failed evaluation. Same shape for all three so the
+/// header reads as a list of facts rather than three different alerts.
+class _StatusNote extends StatelessWidget {
+  const _StatusNote({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: AppSpacing.sm - 2),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12.5, height: 1.35, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Read-only list of the candidate's raw per-question responses, shown above
 /// the editable score fields so the recruiter reads the actual answers before
 /// scoring/regenerating.
@@ -580,68 +648,90 @@ class _PerQuestionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Per-question breakdown',
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 8),
+        const RecruiterLabel('Per-question breakdown'),
+        const SizedBox(height: AppSpacing.sm),
         if (loading)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: SizedBox(
-              width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           )
         else
-          for (final row in rows)
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.15)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          row.question,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      // Absent rather than 0 when the scorer gave none — a 0 reads as
-                      // "answered badly" where the truth is "not scored".
-                      if (row.score != null) ...[
-                        const SizedBox(width: 8),
-                        Text(
-                          '${row.score}',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (row.feedback.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      row.feedback,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+          // One panel of thin-separated rows: the breakdown is a single
+          // reading of one interview, not a stack of unrelated cards.
+          RecruiterPanel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var k = 0; k < rows.length; k++) ...[
+                  if (k > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppBorders.separatorColor(context),
                     ),
-                  ],
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md + 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                rows[k].question,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                  color: AppSurfaces.text(context),
+                                ),
+                              ),
+                            ),
+                            // Absent rather than 0 when the scorer gave none —
+                            // a 0 reads as "answered badly" where the truth is
+                            // "not scored".
+                            if (rows[k].score != null) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(
+                                '${rows[k].score}',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
+                                  color: scoreColor(context, rows[k].score!),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (rows[k].feedback.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs + 2),
+                          Text(
+                            rows[k].feedback,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              color: AppSurfaces.muted(context),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
+          ),
       ],
     );
   }
@@ -655,47 +745,63 @@ class _ResponsesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Candidate Responses',
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          if (approximate)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Voice interviews pair answers to questions by order only — '
-                'attribution may not be exact.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-          const SizedBox(height: 12),
-          for (var idx = 0; idx < responses.length; idx++) ...[
-            if (idx > 0) const Divider(height: 20),
-            Text('Q${idx + 1}. ${responses[idx]['question'] ?? ''}',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(
-              (responses[idx]['answer'] as String?)?.isNotEmpty == true
-                  ? responses[idx]['answer'] as String
-                  : '(no answer captured)',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const RecruiterLabel('Candidate responses'),
+        const SizedBox(height: AppSpacing.sm),
+        RecruiterPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (approximate) ...[
+                Text(
+                  'Voice interviews pair answers to questions by order only — '
+                  'attribution may not be exact.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: AppColors.pastelPeach,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              for (var idx = 0; idx < responses.length; idx++) ...[
+                if (idx > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md + 2),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppBorders.separatorColor(context),
+                    ),
+                  ),
+                Text(
+                  'Q${idx + 1}. ${responses[idx]['question'] ?? ''}',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: AppSurfaces.text(context),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs + 2),
+                Text(
+                  (responses[idx]['answer'] as String?)?.isNotEmpty == true
+                      ? responses[idx]['answer'] as String
+                      : '(no answer captured)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.45,
+                    color: AppSurfaces.muted(context),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

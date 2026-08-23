@@ -25,6 +25,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:talbotiq/core/constants/colors.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
@@ -37,6 +38,8 @@ import 'package:talbotiq/features/interviews/recruiter/test_candidates_page.dart
 import 'package:talbotiq/features/interviews/recruiter/test_conclusion_page.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 /// Which round of [rounds] the pipeline is currently on, at [now].
 ///
@@ -402,8 +405,7 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Timeline'),
         bottom: PreferredSize(
@@ -449,14 +451,12 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
     // fixed once candidates are in it.
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-      // One extra row: the end of the pipeline is a step too, and the only one
-      // that used not to exist — a recruiter who closed the last round had
-      // nowhere in the app to tell anybody the process was over.
       itemCount: rounds.length + 1,
       itemBuilder: (context, i) {
         if (i == rounds.length) return _finalStep(theme);
         final r = rounds[i];
         final closed = r.stateAt(now) == RoundState.closed;
+        final isDark = theme.brightness == Brightness.dark;
         return Padding(
           key: ValueKey(r.id),
           padding: EdgeInsets.zero,
@@ -464,19 +464,16 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
             round: r,
             position: i + 1,
             total: rounds.length,
-            // The connector is what turns a column of cards into a timeline.
             showConnector: i < rounds.length - 1,
             stateLabel: roundStateLabel(r, now),
             stateColor: switch (r.stateAt(now)) {
-              RoundState.open => theme.colorScheme.primary,
-              RoundState.scheduled => theme.colorScheme.secondary,
-              RoundState.closed => theme.colorScheme.onSurfaceVariant,
+              RoundState.open => isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+              RoundState.scheduled => isDark ? AppColors.pastelCyanText : theme.colorScheme.secondary,
+              RoundState.closed => isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
             },
             assignedCount: _counts[r.id] ?? -1,
             highlight: r.id == activeId,
             highlightLabel: r.id == activeId ? 'current round' : null,
-            // Tapping the step configures it — the primary action, and the same
-            // one the create form offers on its draft rounds.
             onTap: () => _configureRound(r),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -503,8 +500,6 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                     }
                   },
                   itemBuilder: (ctx) => [
-                    // Only a two-way round has a call to open, and only while it
-                    // is not closed.
                     if (r.kind == RoundKind.twoWay && !closed)
                       const PopupMenuItem(
                           value: 'live', child: Text('Join live interview')),
@@ -512,23 +507,19 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                         value: 'configure', child: Text('Configure')),
                     const PopupMenuItem(
                         value: 'leaderboard', child: Text('Leaderboard')),
-                    // Always available, not only right after closing: a recruiter
-                    // who chose "Not now" needs a way back, and results are often
-                    // reviewed before anyone is told.
                     const PopupMenuItem(
                         value: 'notify', child: Text('Notify candidates…')),
                     const PopupMenuItem(
                         value: 'assign', child: Text('Add candidates')),
                     const PopupMenuItem(
                         value: 'candidates', child: Text('View candidates')),
-                    // Nothing to end on a round that is already closed.
                     if (!closed)
                       const PopupMenuItem(
                           value: 'end', child: Text('End round now')),
                   ],
                 ),
                 Icon(Icons.chevron_right,
-                    size: 18, color: theme.colorScheme.onSurfaceVariant),
+                    size: 18, color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant),
               ],
             ),
           ),
@@ -538,55 +529,70 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   }
 
   /// The last step of the timeline: release the final result.
-  ///
-  /// Placed here rather than only in the candidate list's action bar because
-  /// this is where a recruiter runs the pipeline, and "what happens after the
-  /// last round" is a question the timeline should answer where it ends.
-  Widget _finalStep(ThemeData theme) => Padding(
-        padding: const EdgeInsets.only(top: 8),
+  Widget _finalStep(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(16),
           onTap: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => TestConclusionPage(test: widget.test),
           )),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
+              color: WarmSurfaces.surface(context),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                color: WarmSurfaces.stroke(context),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.flag_outlined,
-                    size: 22, color: theme.colorScheme.primary),
-                const SizedBox(width: 14),
+                Icon(
+                  Icons.flag_outlined,
+                  size: 20,
+                  color: isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Final result',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      Text(
+                        'Final result',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        'Tell the candidates who have finished how it ended, in '
-                        'your own words.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                        'Tell the candidates who have finished how it ended, in your own words.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right,
-                    size: 20, color: theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 
   Widget _emptyState(ThemeData theme) => Center(
         child: ConstrainedBox(
@@ -601,7 +607,7 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                 const SizedBox(height: 16),
                 Text('This test has no rounds',
                     style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                        ?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Text(
                   'It runs as a single stage, which is fine — its schedule and '

@@ -19,6 +19,7 @@ import 'package:talbotiq/features/interviews/candidate/results/widgets/ats_asses
 import 'package:talbotiq/features/interviews/candidate/results/widgets/dimension_scores_panel.dart';
 import 'package:talbotiq/features/interviews/candidate/results/widgets/strengths_watchpoints_panel.dart';
 import 'package:talbotiq/features/interviews/candidate/results/widgets/results_stats_widgets.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
@@ -216,7 +217,7 @@ class _ResultsPageState extends State<ResultsPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Unable to fetch transcript from Tavus: $e'),
-              backgroundColor: Colors.amber,
+              backgroundColor: AppColors.pastelPeach,
             ),
           );
         }
@@ -260,7 +261,7 @@ class _ResultsPageState extends State<ResultsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unable to transcribe recording: $e'),
-            backgroundColor: Colors.amber,
+            backgroundColor: AppColors.pastelPeach,
           ),
         );
       }

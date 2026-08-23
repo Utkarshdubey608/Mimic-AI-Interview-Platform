@@ -255,9 +255,6 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -268,9 +265,6 @@ class _VoicePickerSheetState extends State<_VoicePickerSheet> {
                       onPressed: () => Navigator.of(context).pop(_config),
                       style: FilledButton.styleFrom(
                         minimumSize: const Size.fromHeight(48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100),
-                        ),
                       ),
                       child: const Text('Use voice'),
                     ),
@@ -418,20 +412,20 @@ class _PersonaTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: selected
-            ? scheme.primary.withOpacity(0.10)
-            : scheme.surfaceContainerHighest.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(14),
+            ? scheme.primary.withValues(alpha: 0.10)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: selected
                     ? scheme.primary
-                    : scheme.outline.withOpacity(0.4),
+                    : scheme.outline.withValues(alpha: 0.4),
                 width: selected ? 1.5 : 1,
               ),
             ),
@@ -501,22 +495,22 @@ class _VoiceDropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: value,
       isExpanded: true,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(20),
       decoration: InputDecoration(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withOpacity(0.35),
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.outline.withOpacity(0.4)),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.outline.withOpacity(0.4)),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: scheme.outline.withValues(alpha: 0.4)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
       ),
@@ -604,9 +598,9 @@ class _VoiceSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withOpacity(0.25),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outline.withOpacity(0.3)),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -777,7 +771,7 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: scheme.primary.withOpacity(0.12),
+        color: scheme.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(100),
       ),
       child: Text(

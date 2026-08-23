@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:talbotiq/shared/widgets/custom_buttons.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 class SystemCheckPage extends StatefulWidget {
   /// Called once camera + microphone are both granted and the candidate taps
@@ -173,7 +174,7 @@ class _SystemCheckPageState extends State<SystemCheckPage>
       ThemeData theme, IconData icon, String label, PermissionStatus? status) {
     final granted = status?.isGranted ?? false;
     final cs = theme.colorScheme;
-    final color = granted ? Colors.green : cs.onSurfaceVariant;
+    final color = granted ? AppColors.pastelMintText : cs.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -192,7 +193,7 @@ class _SystemCheckPageState extends State<SystemCheckPage>
           ),
           Icon(
             granted ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: granted ? Colors.green : cs.onSurfaceVariant.withOpacity(0.5),
+            color: granted ? AppColors.pastelMintText : cs.onSurfaceVariant.withOpacity(0.5),
             size: 22,
           ),
         ],
