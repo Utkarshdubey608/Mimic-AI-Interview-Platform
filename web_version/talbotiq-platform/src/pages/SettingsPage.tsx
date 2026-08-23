@@ -8,6 +8,7 @@ import { settingsApi } from '@/lib/api'
 import type { AvatarSettingsStatus } from '@shared/types'
 import { httpBase } from '@/lib/apiOrigin'
 import { GeminiKeyCard } from '@/features/recruiter/GeminiKeyCard'
+import { SchemePicker } from '@/features/theme/SchemePicker'
 
 /**
  * Settings — AI Avatar Screening credentials, hybrid model.
@@ -158,6 +159,21 @@ export default function SettingsPage() {
       />
 
       <div className="space-y-6">
+        {/* APPEARANCE, first. Everything below it is a credential or a provider —
+            things a recruiter reads once and rarely touches. This is the one card
+            on the page anybody actually comes here to change, so it is the one at
+            the top. */}
+        <Card className="divide-y divide-rule overflow-hidden">
+          <PanelHead title="Appearance">
+            Applies to this browser only, for every screen you see — the entry, the candidate
+            lobby and the workspace. Nothing here is sent to the server, and it changes
+            nothing for anybody else on the team.
+          </PanelHead>
+          <div className="px-5 py-5">
+            <SchemePicker />
+          </div>
+        </Card>
+
         {/* Tavus status — READ-ONLY.
             This was a box for a Tavus API key, with a "test connection" button and a
             save that applied it "everywhere at once". It was one of three ways to

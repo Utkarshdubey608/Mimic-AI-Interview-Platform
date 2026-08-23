@@ -39,7 +39,7 @@ const BTN_VARIANTS: Record<ButtonVariant, string> = {
   // public site uses blue only for links and focus, so a blue primary button
   // made the product read as a different brand from its own home page.
   primary:
-    'bg-action text-action-ink hover:bg-action-hover shadow-primary-sm hover:shadow-primary-md',
+    'bg-action text-action-ink border border-action-edge hover:bg-action-hover shadow-primary-sm hover:shadow-primary-md',
   secondary:
     'bg-surface text-ink border border-rule-input hover:border-ink-faint hover:bg-surface-hover active:bg-surface-sunk',
   ghost:
