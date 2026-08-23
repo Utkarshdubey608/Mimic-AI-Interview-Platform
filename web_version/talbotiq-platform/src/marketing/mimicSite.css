@@ -2739,178 +2739,213 @@
 .mimic-site .noise{align-items:start}
 
 
-/* ══════════════════════════════════════════════════════════════════════════
-   THE FORMAT SHOWCASE — six formats, one at a time.
+/* ── Interview formats: six ways, one at a time ─────────────────────────────
+   REBUILT, and the first thing to know is why the old one failed. It called
+   itself `.showcase`, and `.mimic-site .showcase` was ALREADY TAKEN — it is the
+   white bordered card around the workspace screenshots, four hundred lines up
+   at the top of this file. So the section quietly inherited `background:#fff`,
+   a border, a border-radius, a shadow and `overflow:hidden`. That single
+   collision is the whole of what looked like three separate bugs: a dark
+   section rendering white, a rounded corner cutting across the join, and
+   content from this section appearing over the next one.
 
-   Two layouts from one markup, chosen by whether PinnedStage pinned:
+   Nothing below shares a name with anything else in this stylesheet. The
+   namespace is `mm-formats` on the host and `fmt-` on everything inside it, and
+   both were checked against the file before a line of this was written.
 
-   STAGED (`.is-staged`, above 1081px, motion allowed). Panels share one grid
-   cell and only the live one is visible. Movement is HORIZONTAL — the outgoing
-   panel leaves to the left, the incoming one arrives from the right — because
-   the reader is advancing along a set of six, and left-to-right is what that
-   feels like. Depth carries the rest: the parked panels sit back and blur, so
-   the change reads as travel through a stack rather than a slide swap.
+   TWO MODES, and the CSS decides which, not JavaScript:
 
-   IN FLOW (everything else). The same panels as an ordinary vertical stack. No
-   transform, no blur, nothing hidden. A phone and a reduced-motion visitor get
-   all six formats as readable blocks — the fallback is the content, not a
-   degraded version of the effect.
-   ══════════════════════════════════════════════════════════════════════════ */
-.mimic-site .showcase-in{position:relative;z-index:1}
-.mimic-site .showcase .sec-head{margin-bottom:var(--mm-s-6)}
+   · LIST — the default, and everything below 1081px, under reduced motion, or
+     on a viewport too short to hold a panel. Six formats stacked, read in
+     order. No transforms, nothing hidden, no dependence on scroll running.
+   · DECK — the media query at the bottom. The six panels stack into ONE grid
+     cell and travel sideways as the reader scrolls, driven by transforms
+     written straight onto the elements from FormatShowcase.tsx.
 
-/* ── In flow: a stack. ───────────────────────────────────────────────────── */
-.mimic-site .showcase-rail{display:grid;gap:var(--mm-s-7)}
-.mimic-site .showcase-panel{
-  display:grid;
-  grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);
-  gap:clamp(1.5rem,4vw,3.5rem);
-  align-items:center;
-}
-@media (max-width:900px){
-  .mimic-site .showcase-panel{grid-template-columns:minmax(0,1fr);gap:var(--mm-s-4)}
-}
+   The media query mirrors PinnedStage's own conditions (min-width 1081px, not
+   reduced motion) plus a height floor, so the CSS and the pin agree about which
+   mode is in force. When they disagreed, the six panels stacked with nothing
+   driving them — all six painted on top of each other, which is exactly the
+   mess this rebuild exists to end. */
 
-/* ── The track: scroll-linked horizontal travel ──────────────────────────────
-   The six panels sit side by side on one track, and the track translates by
-   `--stage-p` — the raw 0‥1 scroll progress PinnedStage publishes every frame.
-   So the movement is continuous and always mid-flight while the reader scrolls,
-   and it stops exactly where they stop. A stepped version was built first, with
-   discrete states and a CSS transition between them, and it read as a slideshow
-   snapping: the transition was only visible for its own 720ms and never under
-   the reader's control.
+/* The heading is a section of its own so the stage has nothing above the deck
+   inside its sticky box: PinnedStage refuses to pin content taller than the
+   viewport, and a heading plus a panel plus the rail was taller than an 800px
+   laptop. Its bottom air is the stage's job — the sticky box centres the deck
+   in a full viewport, which is air enough. */
+.mimic-site .formats-head{padding-bottom:0}
 
-   Travel is (n − 1) panel widths, from `--n` on the element, so a seventh format
-   needs no change here.
+/* The same ground as the process stage next door, so the two dark sections read
+   as one continuous field rather than two bands with a seam.
 
-   Applied by media query rather than by a class, and that is load-bearing:
-   PinnedStage decides whether to pin by measuring its content, and a rail that
-   stacks six panels measures six panels tall and can never fit a viewport. As a
-   track it is one panel tall. The breakpoint is PinnedStage's own 1081px, so the
-   layout and the pin decision agree by construction. Below it, and under reduced
-   motion, the rail is the vertical stack defined above. */
-@media (min-width:1081px) and (prefers-reduced-motion:no-preference){
-/* Clip the track to the article width, not to the viewport. The sticky box is
-   full-bleed and already hides overflow, which left a sliver of the previous and
-   next panel showing in the gutters either side at rest — so the section never
-   settled on one thing. Clipped here, exactly one panel is visible when the
-   travel stops, and the neighbours appear only while it is moving. */
-.mimic-site .showcase-in{overflow:hidden;contain:paint}
-.mimic-site .showcase-rail{
-  display:flex;
-  gap:0;
-  width:calc(var(--n) * 100%);
-  /* The transform is written here by JS, one style write per frame on this one
-     element — NOT derived from an inherited custom property. That version was
-     measured at 61 frames per 1400ms with a 263ms stall; a custom property
-     invalidates every descendant's computed style and cannot be composited.
-     No transition either: the scroll IS the timing, and a transition would add
-     lag to a gesture that should feel direct.
-
-     NO will-change. It was here, and it was the cause of the section painting
-     ON TOP OF the one after it: will-change:transform promotes this 6816px-wide
-     element to its own compositor layer, and a promoted layer inside a
-     position:sticky ancestor can have its clip computed against the wrong
-     ancestor — so it kept painting after the sticky box had scrolled away, over
-     the top of the next section. It never appeared in a screenshot because a
-     capture re-paints from the layout tree rather than reusing the compositor's
-     layers, which is precisely why it took a photograph of a screen to see it.
-     The transform is just as smooth without the hint: 85 frames per 1400ms. */
-  contain:paint;
-}
-.mimic-site .showcase-rail .showcase-panel{
-  flex:0 0 calc(100% / var(--n));
-  min-width:0;
-  /* A gutter inside each panel, so mid-travel the boundary between two panels
-     reads as two things passing rather than as one confused row of someone
-     else's video beside this one's copy. */
-  padding-inline:clamp(1rem,3vw,3rem);
-  /* No per-panel transform or opacity.
-     They had a 0.5s transition on both, which meant every step change animated
-     six full-width panels at once — on top of the track's own travel. The travel
-     IS the effect; dimming the neighbours added cost and, on a track where only
-     one panel is on screen at rest, changed almost nothing anyone could see. */
-}
-}
-
-/* ── The copy column ────────────────────────────────────────────────────── */
-.mimic-site .showcase-copy{min-width:0}
-.mimic-site .showcase-n{
-  display:block;
-  font-family:'Chivo Mono',ui-monospace,monospace;
-  font-variant-numeric:tabular-nums;
-  font-size:var(--mm-t-caption);letter-spacing:.04em;
-  color:var(--mm-on-ink-2);margin-bottom:var(--mm-s-2);
-}
-/* The slash is quieter than the numbers either side of it. */
-.mimic-site .showcase-n i{font-style:normal;opacity:.45;margin:0 .35em}
-.mimic-site .showcase-copy h3{
-  font-size:var(--mm-t-d4);line-height:1.06;letter-spacing:-.032em;
-  color:#fff;margin-bottom:var(--mm-s-2);
-}
-.mimic-site .showcase-copy .tag{color:var(--mm-on-ink-2);margin-bottom:var(--mm-s-3)}
-.mimic-site .showcase-copy p{color:var(--mm-on-ink);max-width:44ch}
-.mimic-site .showcase-copy .meta{margin:var(--mm-s-3) 0 var(--mm-s-5);color:var(--mm-on-ink-2)}
-
-/* ── The stage column ───────────────────────────────────────────────────── */
-.mimic-site .showcase-stage{min-width:0}
-/* A format with no footage says so. A bordered, quiet panel — deliberately not
-   a player-shaped box, because a box that looks like a player and never plays
-   is worse than a sentence. */
-.mimic-site .showcase-nofilm{
-  border:1px dashed var(--mm-on-ink-line);
-  border-radius:var(--mm-r-card);
-  padding:var(--mm-s-5);
-  background:rgb(255 255 255 / .02);
-}
-.mimic-site .showcase-nofilm .lbl{color:var(--mm-on-ink-2);display:block;margin-bottom:var(--mm-s-2)}
-.mimic-site .showcase-nofilm p{color:var(--mm-on-ink-2);font-size:var(--mm-t-callout);max-width:46ch}
-
-/* ── The jump nav ───────────────────────────────────────────────────────── */
-.mimic-site .showcase-nav{
-  display:flex;flex-wrap:wrap;gap:var(--mm-s-1);
-  margin-top:var(--mm-s-6);
-  padding-top:var(--mm-s-4);
-  border-top:1px solid var(--mm-on-ink-line);
-}
-.mimic-site .showcase-nav button{
-  appearance:none;background:none;border:0;cursor:pointer;
-  font-family:inherit;font-size:var(--mm-t-footnote);
-  padding:.4375rem var(--mm-s-2);border-radius:999px;
-  color:var(--mm-on-ink-2);
-  transition:color var(--mm-dur-1) var(--mm-ease),background var(--mm-dur-1) var(--mm-ease);
-}
-.mimic-site .showcase-nav button:hover{color:var(--mm-on-ink)}
-.mimic-site .showcase-nav button:active{color:#fff}
-.mimic-site .showcase-nav button[data-on]{
-  color:var(--mm-ink);background:var(--mm-on-ink);
-}
-.mimic-site .showcase-nav button:focus-visible{outline:2px solid var(--mm-on-ink-accent);outline-offset:2px}
-
-@media (prefers-reduced-motion:reduce){
-  /* PinnedStage does not pin here, so the rail is already a stack. This only
-     removes the transition from anything that still has one. */
-  .mimic-site .showcase-panel{transition:none}
-}
-
-
-/* ── The stage's own ground ───────────────────────────────────────────────
-   PinnedStage renders `<section class="showcase on-dark mm-stage">` — note what
-   is NOT there: `section`. So `.section.on-dark`, which is what gives every
-   other dark band its ink ground, never matched and the stage rendered white
-   with light text on it. The process stage never hit this because it carries its
-   own `.process.on-dark` rule; this is the equivalent, and it is why that rule
-   exists rather than being a duplicate of the shared one. */
-.mimic-site .showcase.on-dark{
+   Deliberately NOT `.section.on-dark`: that rule carries vertical section
+   padding, and padding inside a pinned host shortens the distance the sticky
+   box travels without shortening the travel PinnedStage measures — the same
+   trap documented at the process stage. `on-dark` alone is still on the
+   element, for the descendant type colours and the accent focus ring. */
+.mimic-site .mm-formats{
   background:var(--mm-ink);color:var(--mm-on-ink);
-  padding:var(--mm-s-6) 0;
+  position:relative;isolation:isolate;
+  padding-bottom:var(--mm-sec-y)
 }
-.mimic-site .showcase.on-dark .wrap{position:relative;z-index:1}
+.mimic-site .mm-formats .fmt-in{position:relative;z-index:1;width:100%}
+/* `.on-dark a` paints every link with the accent. On the white button that is
+   3.1:1 against its own ground, so the button keeps ink. */
+.mimic-site .mm-formats .btn-light{color:var(--mm-ink)}
 
-/* The heading band above the stage, and the stage's own accessible name. */
-.mimic-site .section.showcase-head{padding:var(--mm-sec-y) 0 0;background:var(--mm-ink)}
-.mimic-site .section.showcase-head .sec-head{margin-bottom:0}
-.mimic-site .showcase-sr{
-  position:absolute;width:1px;height:1px;overflow:hidden;
-  clip-path:inset(50%);white-space:nowrap;margin:0;
+/* ── List mode ─────────────────────────────────────────────────────────── */
+.mimic-site .fmt-deck{display:grid;gap:var(--mm-s-7)}
+.mimic-site .fmt-slide{display:grid;gap:var(--mm-s-4);align-content:center}
+.mimic-site .fmt-copy{display:flex;flex-direction:column;align-items:flex-start;gap:var(--mm-s-2)}
+.mimic-site .fmt-copy h3{color:#fff;font-size:var(--mm-t-h3)}
+.mimic-site .fmt-copy p{color:var(--mm-on-ink);max-width:var(--mm-measure)}
+.mimic-site .fmt-copy .tag{color:var(--mm-on-ink-2)}
+.mimic-site .fmt-copy .meta{margin-top:0;padding-top:var(--mm-s-1);color:var(--mm-on-ink-2)}
+.mimic-site .fmt-copy .btn{margin-top:var(--mm-s-3)}
+/* The phone rule that stretches every button to full width is right for a page's
+   call to action and wrong for six of them in a row: six full-width white slabs
+   down a dark section read as six primary actions competing with each other, when
+   each is just the way into one format's page. Sized to its label instead. */
+.mimic-site .mm-formats .fmt-copy .btn{width:auto}
+
+/* The panel number, as a ledger reference rather than a step count: this is a
+   list of six things, not a six-stage process, so it reads "03/06" and never
+   implies an order the reader has to follow. Tabular figures, so the digits do
+   not shift as the deck travels. */
+.mimic-site .fmt-n{
+  font-size:var(--mm-t-caption);font-weight:600;letter-spacing:.08em;
+  color:var(--mm-on-ink-2);font-variant-numeric:tabular-nums
+}
+.mimic-site .fmt-n i{
+  font-style:normal;margin:0 .15em;
+  /* Was --mm-on-ink-line, which is a 1.4:1 hairline colour: the counter read as
+     "01 06". Dimmer than the digits, still legible as a separator. */
+  color:color-mix(in srgb, var(--mm-on-ink-2) 60%, transparent)
+}
+
+/* Two of the six have no recording, and the panel says so in place of the film
+   rather than leaving a hole or showing a still from a different format. */
+.mimic-site .fmt-nofilm{
+  border:1px solid var(--mm-on-ink-line);border-radius:var(--mm-r-card);
+  background:var(--mm-on-ink-card);padding:var(--mm-s-5);
+  display:flex;flex-direction:column;gap:var(--mm-s-2)
+}
+.mimic-site .fmt-nofilm .lbl{color:var(--mm-on-ink-2)}
+.mimic-site .fmt-nofilm p{color:var(--mm-on-ink-2);font-size:var(--mm-t-footnote);max-width:44ch}
+
+/* The film's own chrome is authored for the white page: a white chip, a white
+   button and a grey caption. On this ground those are three light objects on
+   dark. Restyled here rather than in the deck-mode query, because the section is
+   ink in list mode too — a phone would otherwise get a white pill floating under
+   the film. Scoped to this section, so the workspace frames further down the page
+   keep the light treatment they were designed for. */
+.mimic-site .mm-formats .shot figcaption{color:var(--mm-on-ink-2)}
+.mimic-site .mm-formats .shot .ph{
+  background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);color:var(--mm-on-ink-2)
+}
+.mimic-site .mm-formats .shot-toggle{
+  background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);color:#fff
+}
+.mimic-site .mm-formats .shot-toggle:hover{background:#22262E;border-color:#3A3F47}
+
+/* The rail and the screen-reader list both belong to deck mode only. In list
+   mode every panel is already on the page in order, so a rail would scroll to
+   content the reader can already see and the hidden list would duplicate it. */
+.mimic-site .fmt-nav,
+.mimic-site .fmt-sr{display:none}
+
+/* ── Deck mode ───────────────────────────────────────────────────────────
+   The height floor matters as much as the width one. The panels stack into a
+   single grid cell here, and a panel is roughly 400px of copy — on a 480px
+   window that does not fit, PinnedStage correctly refuses to pin, and an
+   undriven stack is six panels painted on top of each other. 600px is measured
+   against the tallest the copy column gets, with the film capped in vh below so
+   it shrinks with the window instead of setting the floor. */
+@media (min-width:1081px) and (min-height:600px) and (prefers-reduced-motion:no-preference){
+  .mimic-site .mm-formats{padding-bottom:0}
+
+  /* ONE grid cell, six panels in it. Not `position:absolute`, which would leave
+     the deck with no height of its own and force a hard-coded one; as a grid
+     cell it is exactly as tall as its tallest panel, at every window size and
+     font size, with nothing to keep in sync.
+
+     `overflow:clip`, not `overflow:hidden`. Both clip, but `hidden` also makes
+     the deck a scroll container — and the browser scrolls a container to reveal
+     a focused descendant, so one Tab into an off-stage panel would have shunted
+     the whole deck sideways and left it there. `clip` cannot scroll. */
+  .mimic-site .fmt-deck{
+    display:grid;grid-template-columns:100%;gap:0;
+    overflow:hidden;overflow:clip;
+    /* Paint containment, and NOT `will-change:transform`. The promoted layer was
+       the bug: inside a `position:sticky` ancestor its clip is computed against
+       the wrong box, so it kept painting over the section below and ghosted its
+       own last position. translate3d promotes for the duration of the movement
+       on its own, which is all this needs. */
+    contain:paint
+  }
+
+  .mimic-site .fmt-slide{
+    grid-area:1/1;
+    grid-template-columns:minmax(0,23rem) minmax(0,1fr);
+    gap:var(--mm-s-7);align-items:center;align-content:center;
+    /* No transition. The position IS the scroll position — a transition would
+       chase a target that moves every frame, which reads as lag on the way in
+       and as drift when the reader stops.
+       Hidden by default, and the driver in FormatShowcase.tsx shows the two or
+       three panels that are actually on stage. So if the media query is in force
+       but the pin is not, one panel shows rather than six overlapping. */
+    backface-visibility:hidden;
+    visibility:hidden
+  }
+  .mimic-site .fmt-slide[data-live]{visibility:visible}
+
+  .mimic-site .fmt-copy{gap:var(--mm-s-3)}
+  /* The description gets a short measure so it reads as a paragraph beside the
+     film rather than a wide slab. NOT the meta line, which is also a `p`: at 34ch
+     "Marked on submission · Server-side timing" broke in two and left the middot
+     leading the second line, reading as a bullet on an orphan. */
+  .mimic-site .fmt-copy p{max-width:34ch}
+  .mimic-site .fmt-copy p.meta{max-width:none}
+
+  /* The film is capped in vh so the panel shrinks with the window instead of
+     outgrowing it — this is what keeps the fit test passing, and with it the
+     agreement between this media query and the pin. */
+  .mimic-site .fmt-stage{justify-self:end;width:100%;max-width:41rem}
+  .mimic-site .fmt-stage .shot video,
+  .mimic-site .fmt-stage .shot img{max-height:min(23rem,40vh);object-fit:cover}
+
+  /* The rail: six labels under the deck, the current one underlined by a
+     hairline that draws left to right. It is the section's table of contents and
+     its position indicator in one, and every entry is a real button — so the
+     deck can be read by clicking as well as by scrolling, which is the
+     difference between a scroll effect and a control. */
+  .mimic-site .fmt-nav{display:flex;gap:var(--mm-s-2);margin-top:var(--mm-s-6)}
+  .mimic-site .fmt-nav button{
+    position:relative;flex:1 1 0;min-width:0;text-align:left;
+    appearance:none;background:none;border:0;border-top:1px solid var(--mm-on-ink-line);
+    padding:var(--mm-s-2) 0 0;margin:0;cursor:pointer;
+    font:inherit;font-size:var(--mm-t-caption);letter-spacing:.01em;
+    color:var(--mm-on-ink-2);
+    transition:color .25s var(--mm-ease)
+  }
+  .mimic-site .fmt-nav button::before{
+    content:"";position:absolute;left:0;top:-1px;width:100%;height:1px;
+    background:var(--mm-ai);transform:scaleX(0);transform-origin:0 50%;
+    transition:transform .55s var(--mm-ease-out)
+  }
+  .mimic-site .fmt-nav button:hover{color:#fff}
+  .mimic-site .fmt-nav button[data-on]{color:#fff}
+  .mimic-site .fmt-nav button[data-on]::before{transform:scaleX(1)}
+  .mimic-site .fmt-nav button span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* Deck mode makes five of the six panels inert, which takes them out of the
+     accessibility tree as well as out of the tab order. That is right for the
+     panels — an invisible panel should not be readable — but it would leave a
+     screen reader with one format out of six on a page whose heading promises
+     six. So the six names and links are also present as a plain list, which in
+     this mode is the complete, ordered content of the section. */
+  .mimic-site .fmt-sr{
+    display:block;position:absolute;width:1px;height:1px;overflow:hidden;
+    clip-path:inset(50%);white-space:nowrap;margin:0
+  }
 }

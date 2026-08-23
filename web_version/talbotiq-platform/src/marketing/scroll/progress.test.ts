@@ -3,7 +3,7 @@
  *   npx tsx src/features/marketing/scroll/progress.test.ts
  * Pure — no DOM, no React.
  */
-import { clamp01, easeInOutCubic, stepProgress, sectionProgress, canPinStage } from './progress'
+import { clamp01, deckHead, easeInOutCubic, stepProgress, sectionProgress, canPinStage } from './progress'
 
 let failures = 0
 function assert(label: string, cond: boolean, extra = '') {
@@ -51,6 +51,21 @@ assert('reduced motion never pins', !canPinStage({ ...fits, reduced: true }))
 assert('narrow never pins', !canPinStage({ ...fits, wide: false }))
 assert('unmeasured content does not pin', !canPinStage({ ...fits, contentH: 0 }))
 assert('viewportless environment does not pin', !canPinStage({ ...fits, viewportH: 0 }))
+
+// deckHead — the format deck's travel. Six panels, five transitions between them.
+assert('deck starts held on the first panel', deckHead(0, 6) === 0)
+assert('deck stays held through the opening half-band', deckHead(0.5 / 6, 6) === 0)
+assert('deck ends held on the last panel', deckHead(1, 6) === 5)
+assert('deck is still held at the closing half-band', deckHead(5.5 / 6, 6) === 5)
+// Every rail click has to land on a whole panel: goToStep scrolls to (i + .5) / steps.
+for (let i = 0; i < 6; i++) {
+  assert(`rail click ${i} centres panel ${i}`, Math.abs(deckHead((i + 0.5) / 6, 6) - i) < 1e-9)
+}
+assert('the middle of the travel sits between two panels', Math.abs(deckHead(0.5, 6) - 2.5) < 1e-9)
+assert('deck never overshoots the last panel', deckHead(1.9, 6) === 5)
+assert('deck never undershoots the first', deckHead(-0.9, 6) === 0)
+assert('a one-panel deck degenerates safely', deckHead(0.42, 1) === 0)
+assert('a zero-panel deck does not divide by zero', Number.isFinite(deckHead(0.42, 0)))
 
 console.log(`\n${failures === 0 ? '✅ ALL SCROLL-MATH TESTS PASSED' : `❌ ${failures} ASSERTION(S) FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

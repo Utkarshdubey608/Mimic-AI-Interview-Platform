@@ -1,14 +1,18 @@
 /**
- * The showcase's panels, derived from the format cards.
+ * The six interview formats, as showcase panels.
  *
- * Derived, not duplicated: `TRACKS` in MimicSite.tsx is where a format's name,
- * tag, description and meta already live, and a second hand-maintained list is
- * how a seventh format gets added to one of them and not the other.
+ * Derived from `TRACKS` rather than duplicating it: that is where a format's
+ * name, tag, description and meta already live, and a second hand-kept list is
+ * how a seventh format gets added to one and not the other.
  *
- * Footage is resolved through `hasDemo`, so a format with nothing on disk gets
- * `video: null` and the panel states that plainly. Two formats are in that
- * position today for different reasons: `two_way` runs live and there is no
- * captured session to show, and `mcq` is advertised but not yet recorded.
+ * Footage resolves through `hasDemo`, so a format with nothing on disk gets
+ * `video: null` and its panel says why. Two are in that position, for different
+ * reasons — `two_way` is a live call with no captured session, and `mcq` is
+ * advertised but not yet recorded.
+ *
+ * React-free and CSS-free on purpose: `npm test` runs plain tsx in Node with no
+ * DOM, so anything reached through a component module drags a CSS import in and
+ * cannot be tested at all.
  */
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from '../demoAssets'
 import { TRACKS } from '../tracks'
@@ -18,9 +22,7 @@ export type Mode = {
   tag: string
   desc: string
   meta: readonly string[]
-  /** The format's own platform page. */
   href: string
-  /** null when there is no footage — the panel shows why instead of a player. */
   video: {
     src: string
     poster: string
@@ -31,7 +33,7 @@ export type Mode = {
   } | null
 }
 
-/** Track → platform page. The pages exist; routes.test.ts proves the links resolve. */
+/** Track → its platform page. routes.test.ts proves these resolve. */
 const HREF: Record<string, string> = {
   chatbot: '/platform/conversational-chat',
   voice: '/platform/voice-screening',
@@ -43,8 +45,8 @@ const HREF: Record<string, string> = {
 
 /** Why a format has no footage. Shown on the panel rather than left blank. */
 const NO_FILM: Record<string, string> = {
-  two_way: 'This format is a live call between your interviewer and the candidate, so there is no captured session to replay here. The walkthrough covers it.',
-  mcq: 'This format is newly advertised and its recording has not been captured yet. The page covers what it does.',
+  two_way: 'A live call between your interviewer and the candidate, so there is no captured session to replay. The page walks through it.',
+  mcq: 'Newly advertised, and its recording has not been captured yet. The page covers what it does.',
 }
 
 export const MODES: readonly Mode[] = TRACKS.map((t) => ({
@@ -65,7 +67,6 @@ export const MODES: readonly Mode[] = TRACKS.map((t) => ({
     : null,
 }))
 
-/** The sentence a footage-less panel shows. */
 export const noFilmReason = (href: string): string => {
   const track = Object.keys(HREF).find((k) => HREF[k] === href)
   return (track && NO_FILM[track]) || 'No recording of this format has been captured yet.'

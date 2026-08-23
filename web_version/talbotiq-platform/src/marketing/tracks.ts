@@ -3,7 +3,7 @@
  *
  * Its own module, and free of React and CSS on purpose. This list is data that
  * two very different consumers need — the format cards in MimicSite.tsx and the
- * scroll showcase in showcase/modes.ts — and `npm test` runs plain tsx in Node
+ * scroll deck in formats/modes.ts — and `npm test` runs plain tsx in Node
  * with no DOM, so anything that reaches this through a component module drags a
  * CSS import in with it and cannot be tested at all. That is exactly how it
  * failed the first time.

@@ -38,7 +38,7 @@ import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { HOME_SEO } from './content'
 import { Ico } from './icons'
-import { ModeShowcase } from './showcase/ModeShowcase'
+import { FormatShowcase } from './formats/FormatShowcase'
 
 
 /* ── The five steps of the real workflow, with the actual route each lives on. */
@@ -570,7 +570,7 @@ export default function MimicSite() {
         </section>
 
         {/* ── FORMATS ── */}
-        <ModeShowcase />
+        <FormatShowcase />
 
         <PinnedStage
           steps={STEPS.length} onStep={setStep} id="process"

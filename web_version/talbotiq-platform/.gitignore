@@ -32,3 +32,6 @@ shots-final/
 # Before/after comparison captures for the redesign record.
 before/
 after/
+# Same rule for the format deck's harness: scripts/formats-verify.mjs IS
+# committed, its screenshots are not.
+.artifacts/
