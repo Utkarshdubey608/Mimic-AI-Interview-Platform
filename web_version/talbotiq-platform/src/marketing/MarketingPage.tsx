@@ -6,6 +6,7 @@ import { DemoVideo } from './DemoVideo'
 import { demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { RoiCalculator } from './RoiCalculator'
 import { Field } from './Field'
+import { InkTrail } from './ink/InkTrail'
 import { Blocks, Related } from './sections'
 import { Ico } from './icons'
 
@@ -201,6 +202,7 @@ export default function MarketingPage() {
             `display:grid`, so this style has been inert since it was written. */}
         <section className="cta cta-page">
           <Field seed={11} />
+          <InkTrail />
           <div className="wrap cta-in cta-in-page">
             <div>
               <h2>{cta.title}</h2>

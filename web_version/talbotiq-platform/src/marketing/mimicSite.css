@@ -2572,3 +2572,158 @@
 @media (prefers-reduced-motion:reduce){ .mimic-site .mm-ink{display:none} }
 @media (prefers-reduced-transparency:reduce){ .mimic-site .mm-ink{display:none} }
 @media (prefers-contrast:more){ .mimic-site .mm-ink{display:none} }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The problem section, as the page's dark beat.
+
+   It was on the light record ground like everything round it, so the one moment
+   the page admits something is broken looked exactly like the moments where it
+   explains how things work. The site already alternates record sections with ink
+   fields — the CTA, the process stage, the footer — and this is now one of them.
+   It is also the only way the lattice and the ink can exist: cyan light needs a
+   dark ground to be light at all.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .section.problem.on-dark{
+  position:relative;isolation:isolate;
+  background:var(--mm-ink);
+  color:var(--mm-on-ink);
+  overflow:hidden;
+}
+.mimic-site .section.problem.on-dark > .wrap{position:relative;z-index:1}
+
+/* The two cards read against ink now, not against paper. The ragged side stays
+   quiet and the ordered side carries the accent, which is the argument: order is
+   the thing being sold, so order is the brighter half. */
+.mimic-site .section.problem.on-dark .noise-side{
+  /* Opaque enough to sit ON the field rather than in it, and blurred behind, so
+     the lattice reads as depth BEHIND the cards instead of texture across them.
+     At .035 the field showed through the card and the card's own bars — which
+     are the content — were competing with a background that speaks the same
+     visual language. */
+  background:rgb(14 20 32 / .72);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  border-color:var(--mm-on-ink-line);
+}
+.mimic-site .section.problem.on-dark .noise-side.is-ordered{
+  background:rgb(14 20 32 / .78);
+  border-color:color-mix(in srgb, var(--mm-on-ink-accent) 38%, transparent);
+}
+.mimic-site .section.problem.on-dark .noise-label{color:var(--mm-on-ink-2)}
+.mimic-site .section.problem.on-dark .noise-foot{color:var(--mm-on-ink-2)}
+.mimic-site .section.problem.on-dark .noise-row{background:rgb(255 255 255 / .13)}
+.mimic-site .section.problem.on-dark .is-ordered .noise-row{background:var(--mm-on-ink-accent)}
+.mimic-site .section.problem.on-dark .noise-arrow{
+  color:var(--mm-on-ink-2);
+  border-color:var(--mm-on-ink-line);
+  background:rgb(255 255 255 / .04);
+}
+
+/* ── The lattice ──────────────────────────────────────────────────────────
+   The argument as a field: scattered on the left, ranked on the right,
+   resolving as the reader scrolls into it. Sits above the ambient ink field and
+   below the content, and it is `screen` blended for the same reason the trail
+   is — the ground is near-black and the field is light. */
+.mimic-site .mm-lattice{
+  position:absolute;inset:0;z-index:0;
+  display:block;width:100%;height:100%;
+  pointer-events:none;
+  mix-blend-mode:screen;
+  opacity:0;
+  transition:opacity 1s var(--mm-ease);
+}
+.mimic-site .mm-lattice.is-lit{opacity:1}
+
+@media (prefers-reduced-motion:reduce){ .mimic-site .mm-lattice{display:none} }
+@media (prefers-reduced-transparency:reduce){ .mimic-site .mm-lattice{display:none} }
+@media (prefers-contrast:more){
+  /* More contrast wants edges, not atmosphere — and the cards need to be read,
+     not admired. */
+  .mimic-site .mm-lattice{display:none}
+  .mimic-site .section.problem.on-dark .noise-side{background:none;border-color:var(--mm-on-ink)}
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The problem cards, as criteria rather than bars.
+
+   They were abstract grey lines, which made the point but said nothing about
+   what Mimic actually measures. Both columns now list the product's six real
+   default criteria, and the difference between the columns is the state of the
+   numbers: four different scales and two gaps on the left, one scale and six
+   values on the right.
+
+   Values are Chivo Mono with tabular figures, because they are machine values
+   and because a column of numbers that does not line up is a column of numbers
+   nobody can compare — which would undercut the whole argument.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .noise-kpis{
+  display:flex;flex-direction:column;
+  gap:var(--mm-s-1);
+  margin:var(--mm-s-3) 0 var(--mm-s-4);
+}
+.mimic-site .noise-kpi{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:baseline;
+  gap:var(--mm-s-2);
+  padding:.4375rem 0;
+  border-bottom:1px solid var(--mm-on-ink-line);
+}
+.mimic-site .noise-kpi:last-child{border-bottom:0}
+.mimic-site .noise-k{
+  font-size:var(--mm-t-caption);
+  color:var(--mm-on-ink-2);
+  letter-spacing:-.004em;
+  min-width:0;
+}
+.mimic-site .noise-v{
+  font-family:'Chivo Mono',ui-monospace,monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:var(--mm-t-footnote);
+  letter-spacing:-.01em;
+  color:var(--mm-on-ink);
+  white-space:nowrap;
+}
+/* A mark on a scale nobody else used. Muted, because its problem is not that it
+   is wrong — it is that it cannot be put next to the others. */
+.mimic-site .noise-v.is-mixed{color:var(--mm-on-ink-2)}
+/* The gap. Italic and quiet: an absence, not a value. */
+.mimic-site .noise-v.is-absent{
+  font-family:inherit;
+  font-style:italic;
+  font-size:var(--mm-t-caption);
+  color:var(--mm-faint);
+}
+
+/* The ordered side gets the accent, and a bar under each value that draws in on
+   reveal — so the reader sees the rubric fill rather than arriving filled. */
+.mimic-site .is-ordered .noise-v{color:var(--mm-on-ink-accent);font-weight:500}
+.mimic-site .noise-bar{
+  grid-column:1 / -1;
+  height:2px;border-radius:2px;
+  background:color-mix(in srgb, var(--mm-on-ink-accent) 22%, transparent);
+  position:relative;overflow:hidden;
+  margin-top:.375rem;
+}
+.mimic-site .noise-bar::after{
+  content:"";position:absolute;inset:0;
+  transform-origin:left center;
+  transform:scaleX(0);
+  background:var(--mm-on-ink-accent);
+  transition:transform .8s var(--mm-ease);
+  transition-delay:calc(var(--i) * 70ms + 160ms);
+}
+.mimic-site .reveal.in .noise-bar::after{transform:scaleX(var(--v))}
+
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .noise-bar::after{transition:none;transform:scaleX(var(--v))}
+}
+
+
+/* The two problem cards top-align. With the ordered side carrying a bar under
+   every value it is the taller of the two, and the grid was centring the
+   shorter one — so the comparison the whole section rests on started at two
+   different heights. */
+.mimic-site .noise{align-items:start}

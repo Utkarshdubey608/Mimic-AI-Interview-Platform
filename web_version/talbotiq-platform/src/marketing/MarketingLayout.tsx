@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { Ico } from './icons'
 import { ScrollProgress, useSectionCues, useSmoothScroll } from './motion'
 import { Field } from './Field'
+import { InkTrail } from './ink/InkTrail'
 import './mimicSite.css'
 
 const Mark = () => (
@@ -187,6 +188,9 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
             Its own seed again, so the three fields on the homepage read as three
             surfaces rather than one repeated loop. */}
         <Field seed={23} />
+        {/* The footer is an ink field on every page, so the ink belongs here
+            too — it is the last dark surface the reader passes through. */}
+        <InkTrail />
         <div className="wrap">
           <div className="foot-grid">
             <div className="foot-brand">

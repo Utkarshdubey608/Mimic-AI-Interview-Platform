@@ -25,50 +25,59 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { parseColor } from '../field/tokens'
+import { readGate, watchGate } from './gate'
 import type { InkFluid } from './inkFluid'
 
 export function InkTrail({ hostRef }: {
-  /** The panel the ink lives in. Pointer is tracked relative to this. */
-  hostRef: React.RefObject<HTMLElement | null>
-}) {
+  /**
+   * Optional. By default the ink takes its own parent as the host, because the
+   * canvas is always rendered as a direct child of the section it belongs to —
+   * which means mounting it anywhere is `<InkTrail />` with no ref to thread
+   * through, and one less thing for a future call site to get wrong. Pass a ref
+   * only when the intended host is not the immediate parent.
+   */
+  hostRef?: React.RefObject<HTMLElement | null>
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const [enhance, setEnhance] = useState(false)
   const [lit, setLit] = useState(false)
   const litRef = useRef(false)
 
-  /* ── Gate ─────────────────────────────────────────────────────────────── */
+  /* ── Gate ───────────────────────────────────────────────────────────────
+     Shared with the lattice field. The CSS hides this layer under reduced
+     motion, reduced transparency and more-contrast; the gate makes sure it is
+     never built in the first place, because a display:none canvas still holds a
+     GL context and still runs its loop. */
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    /* A trail needs something to trail. Coarse pointers get nothing. */
-    const fine = window.matchMedia('(hover: hover) and (pointer: fine)')
     let cancelled = false
     let idle = 0
 
     const sync = () => {
-      if (reduced.matches || !fine.matches) { setEnhance(false); litRef.current = false; setLit(false); return }
+      const g = readGate()
+      if (!g.allowed || !g.finePointer) { setEnhance(false); litRef.current = false; setLit(false); return }
       const ric = (window as unknown as {
         requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number
       }).requestIdleCallback
       const arm = () => {
-        if (cancelled || reduced.matches || !fine.matches) return
+        if (cancelled) return
+        const g2 = readGate()
+        if (!g2.allowed || !g2.finePointer) return
         void import('@/features/intro/tier')
           .then(({ detectTier }) => {
-            if (cancelled || reduced.matches) return
+            if (cancelled || !readGate().allowed) return
             setEnhance(detectTier() !== 'low')
           })
-          .catch(() => { /* hero stands as-is */ })
+          .catch(() => { /* section stands as-is */ })
       }
       if (ric) idle = ric(arm, { timeout: 2500 })
       else idle = window.setTimeout(arm, 1200)
     }
 
     sync()
-    reduced.addEventListener('change', sync)
-    fine.addEventListener('change', sync)
+    const stop = watchGate(sync)
     return () => {
       cancelled = true
-      reduced.removeEventListener('change', sync)
-      fine.removeEventListener('change', sync)
+      stop()
       const cic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
       if (idle) { if (cic) cic(idle); else window.clearTimeout(idle) }
     }
@@ -77,9 +86,10 @@ export function InkTrail({ hostRef }: {
   /* ── The loop ─────────────────────────────────────────────────────────── */
   useEffect(() => {
     if (!enhance) return
-    const host = hostRef.current
     const canvas = canvasRef.current
-    if (!host || !canvas) return
+    if (!canvas) return
+    const host = hostRef?.current ?? canvas.parentElement
+    if (!host) return
 
     /* The cyan comes from the stylesheet, so this cannot drift from the palette. */
     const color = parseColor(getComputedStyle(host).getPropertyValue('--mm-ai'))

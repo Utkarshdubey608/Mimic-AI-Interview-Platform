@@ -123,7 +123,7 @@ void main(){
   carried *= exp(-uDt * 1.75);
 
   /* Splat. */
-  float add = exp(-dSeg * 42.0) * uForce;
+  float add = exp(-dSeg * 62.0) * uForce;
   carried.r += add;
   carried.g = max(carried.g * exp(-uDt * 0.6), add);
 
@@ -148,13 +148,13 @@ void main(){
 
   /* Two responses: a tight wet core, and a wide soft bloom. The core follows
      the cursor; the bloom is what makes it read as liquid rather than as a line. */
-  float core = smoothstep(0.10, 0.72, ink);
-  float halo = smoothstep(0.02, 0.48, ink) * 0.34;
+  float core = smoothstep(0.14, 0.78, ink);
+  float halo = smoothstep(0.03, 0.52, ink) * 0.24;
   /* Fresh ink is brighter; old ink falls back toward the ground rather than
      turning grey, so the tail dies into the room instead of onto it. */
   float fresh = clamp(age * 2.2, 0.0, 1.0);
   vec3 col = uColor * (0.5 + fresh * 0.9);
-  float a = (core * 0.42 + halo) * uFade;
+  float a = (core * 0.3 + halo) * uFade;
   outColor = vec4(col * a, a);
 }
 `

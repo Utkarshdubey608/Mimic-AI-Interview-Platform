@@ -34,6 +34,7 @@ import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
 import { InkTrail } from './ink/InkTrail'
+import { LatticeStage } from './ink/LatticeStage'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
 import { HOME_SEO } from './content'
@@ -104,6 +105,37 @@ const STEPS = [
 
 /* ── The rubric, dramatised. These are the product's six real default criteria
       with their real default weights; the answer and scores are synthetic. */
+/* ── The problem section's two cards, populated with the REAL rubric ───────
+      Both columns list the product's six real default criteria — the same six
+      RUBRIC holds, so there is one source of truth on this page for what Mimic
+      measures.
+
+      What differs is the STATE of the numbers, which is the entire argument:
+
+      LEFT, unstructured. Five interviewers, five interviews. Some criteria were
+      never asked about, some were scored on whatever scale that interviewer
+      happens to use, and the coverage is different for every candidate. The
+      marks below are those shapes — a letter grade, a five-point scale, a
+      percentage, a blank. Nothing here is a Mimic output; it is what a stack of
+      unstructured screens looks like when you try to compare it.
+
+      RIGHT, one rubric. The same six criteria, every one of them scored, on one
+      scale, with the values RUBRIC already discloses as a dramatisation.
+
+      NO OUTCOME STATISTICS. There is no time-to-hire, no cost-per-hire and no
+      completion rate anywhere in here, because none has been verified — see
+      PRODUCT.md, Evidence on Hand, and the note on CountUp in motion.tsx. A
+      diagram of what gets measured is honest; a number about how well it works
+      is not, until someone has cleared one. */
+const UNSTRUCTURED: readonly (string | null)[] = [
+  'B+',      // a letter, from the interviewer who grades
+  null,      // never asked
+  '4 / 5',   // a five-point scale, from the next interviewer
+  '82%',     // a percentage, from the one who scores out of a hundred
+  null,      // never asked
+  'Strong',  // a word
+]
+
 const RUBRIC = [
   { k: 'Communication Clarity',      v: 88 },
   { k: 'Relevance to Question',      v: 91 },
@@ -276,7 +308,7 @@ function TrackCard({ t, wide }: { t: (typeof TRACKS)[number]; wide: boolean }) {
 export default function MimicSite() {
   // Drives the scoring sequence on the rubric card once it reaches the viewport.
   const [scoreRef, scored] = useInView<HTMLDivElement>(0.3)
-  const heroRoomRef = useRef<HTMLDivElement | null>(null)
+  const problemRef = useRef<HTMLElement | null>(null)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({})
@@ -371,7 +403,7 @@ export default function MimicSite() {
             disclosed dramatisation the scoring section uses. */}
         <section className="hero room" aria-labelledby="hero-h1">
           <div className="wrap">
-            <div className="hero-room" ref={heroRoomRef}>
+            <div className="hero-room">
               {/* The ink field built for the site's dark surfaces — layered
                   light, WebGL when the device can afford it, CSS when not. */}
               <Field seed={7} />
@@ -383,7 +415,7 @@ export default function MimicSite() {
                   instead of fading dot by dot. Enhancement only — pointer
                   devices, no reduced motion, after first paint, and the loop
                   parks itself once the ink has run down. */}
-              <InkTrail hostRef={heroRoomRef} />
+              <InkTrail />
               <div className="hero-room-in">
                 <div className="hero-copy">
                   <span className="eyebrow">AI native interview screening</span>
@@ -476,7 +508,25 @@ export default function MimicSite() {
             something different. On the right, the same five candidates against
             one set of criteria. Nothing here depicts a product interface, so it
             cannot be mistaken for one; it is a diagram of the difference. */}
-        <section className="section problem" id="problem" aria-labelledby="problem-h">
+        {/* The page's dark beat.
+            This section states the problem, and it was on the light record
+            ground like everything around it — so the one moment the page admits
+            something is broken looked exactly like the moments where it is
+            explaining how things work. The site already alternates light record
+            sections with dark ink fields (the CTA, the process stage, the
+            footer); this is now one of them. It is also the only way the field
+            and the ink below can exist at all: cyan light needs a dark ground.
+
+            Three layers, all enhancements, all absent without WebGL:
+              Field         the site's own ambient ink light
+              LatticeStage  the argument as a field — a 3D lattice that is
+                            scattered on the left and ranked on the right, and
+                            that resolves as the reader scrolls into it
+              InkTrail      the same advected dye the hero uses */}
+        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h" ref={problemRef}>
+          <Field seed={17} />
+          <LatticeStage hostRef={problemRef} />
+          <InkTrail />
           <div className="wrap">
             <div className="sec-head">
               <span className="eyebrow">The problem</span>
@@ -493,16 +543,17 @@ export default function MimicSite() {
               <div className="noise" aria-hidden="true">
                 <div className="noise-side">
                   <span className="noise-label">Unstructured screening</span>
-                  <div className="noise-rows">
-                    {[92, 46, 74, 58, 84, 38, 66, 51].map((w, i) => (
-                      <span
-                        key={i}
-                        className="noise-row"
-                        style={{ '--w': `${w}%`, '--i': i } as React.CSSProperties}
-                      />
+                  <div className="noise-kpis">
+                    {RUBRIC.map((c, i) => (
+                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
+                        <span className="noise-k">{c.k}</span>
+                        <span className={UNSTRUCTURED[i] ? 'noise-v is-mixed' : 'noise-v is-absent'}>
+                          {UNSTRUCTURED[i] ?? 'not asked'}
+                        </span>
+                      </span>
                     ))}
                   </div>
-                  <span className="noise-foot">No two candidates asked the same thing</span>
+                  <span className="noise-foot">Six criteria, four scales, two gaps — nothing to compare</span>
                 </div>
 
                 <span className="noise-arrow">
@@ -511,12 +562,16 @@ export default function MimicSite() {
 
                 <div className="noise-side is-ordered">
                   <span className="noise-label">One rubric, applied identically</span>
-                  <div className="noise-rows">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                      <span key={i} className="noise-row" style={{ '--i': i } as React.CSSProperties} />
+                  <div className="noise-kpis">
+                    {RUBRIC.map((c, i) => (
+                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
+                        <span className="noise-k">{c.k}</span>
+                        <span className="noise-v">{c.v}</span>
+                        <span className="noise-bar" style={{ '--v': c.v / 100 } as React.CSSProperties} />
+                      </span>
                     ))}
                   </div>
-                  <span className="noise-foot">Every answer measured against the same criteria</span>
+                  <span className="noise-foot">Six criteria, one scale, every answer — directly comparable</span>
                 </div>
               </div>
             </Reveal>
@@ -708,7 +763,7 @@ export default function MimicSite() {
         <PinnedStage
           steps={STEPS.length} onStep={setStep} id="process"
           className="process on-dark" labelledBy="pr-h"
-          backdrop={<Field seed={0} />}
+          backdrop={<><Field seed={0} /><InkTrail /></>}
         >
           {({ goToStep }) => (
           <div className="wrap">
@@ -889,6 +944,7 @@ export default function MimicSite() {
               two surfaces catching the same light rather than one mechanism
               driving both in lockstep. */}
           <Field seed={11} />
+          <InkTrail />
           <div className="wrap cta-in">
             <div>
               <h2 id="cta-h">Give the first round back to your recruiters.</h2>
