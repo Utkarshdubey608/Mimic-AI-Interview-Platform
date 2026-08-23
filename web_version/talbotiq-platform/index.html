@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/talbotiq-logo.png" />
+    <!-- 64px, 3.2KB. This pointed at /talbotiq-logo.png, which is 157KB — the
+         full-resolution wordmark, fetched on every page load of both the site
+         and the app to fill a 16px slot in a browser tab. The logo file itself
+         is untouched; the customer row on the home page still uses it. -->
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Mimic — AI Interview Platform</title>

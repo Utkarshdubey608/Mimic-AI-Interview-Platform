@@ -35,6 +35,7 @@ import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
+import { HOME_SEO } from './content'
 import { Ico } from './icons'
 
 /* ── Interview formats. Five advertised tracks; the sixth card states the rule
@@ -285,8 +286,10 @@ export default function MimicSite() {
   // title/meta/OG/canonical + JSON-LD on mount and restore on unmount.
   useEffect(() => {
     const prevTitle = document.title
-    document.title = 'Mimic by TalbotIQ, AI Interviews for Every Candidate'
-    const desc = 'Mimic interviews and scores every applicant the day they apply (across chat, voice, AI video and live rounds), on one rubric, with the evidence attached. Book a demo.'
+    // Both strings come from HOME_SEO, because the build prerenders the same
+    // two into dist/index.html and a second copy here is how they drift apart.
+    document.title = HOME_SEO.metaTitle
+    const desc = HOME_SEO.metaDesc
     const added: HTMLElement[] = []
     const meta = (sel: string, attr: string, key: string, content: string) => {
       let el = document.head.querySelector<HTMLMetaElement>(sel)

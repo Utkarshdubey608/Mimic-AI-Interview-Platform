@@ -2474,6 +2474,23 @@ const PLATFORM_PAGES: MktPage[] = [
     ]),
 ]
 
+/* ── The home route's metadata, in one place ───────────────────────────────
+   MimicSite sets the home page's title, description, OG tags, canonical and
+   JSON-LD itself, on mount — it always did, and it does it well. What it could
+   not do is put any of that in the FIRST response, which is all a link unfurler
+   ever reads.
+
+   So the two strings live here, where both the component and the build-time
+   prerender (scripts/prerender-marketing-seo.ts) read them. Adding a second
+   mechanism instead — passing `seo` down to MarketingLayout — would have had
+   two effects writing the same <title> with different text, and the parent's
+   would have won. */
+export const HOME_SEO = {
+  metaTitle: 'Mimic by TalbotIQ, AI Interviews for Every Candidate',
+  metaDesc:
+    'Mimic interviews and scores every applicant the day they apply (across chat, voice, AI video and live rounds), on one rubric, with the evidence attached. Book a demo.',
+}
+
 export const PAGES: MktPage[] = [...HUBS, ...PLATFORM_PAGES, ...SOLUTION_PAGES, ...SOLUTION_BRIEFS, ...TRUST_PAGES, ...RESOURCE_PAGES, ...COMPANY_PAGES]
 export const PAGE_BY_SLUG: Record<string, MktPage> = Object.fromEntries(PAGES.map((p) => [p.slug, p]))
 export { DEMO }
