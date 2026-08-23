@@ -71,6 +71,7 @@ export const NAV: NavGroup[] = [
         { label: 'AI video avatar', to: '/platform/ai-video-avatar' },
         { label: 'Live two-way call', to: '/platform/live-two-way' },
         { label: 'Timed Q&A', to: '/platform/timed-qa' },
+        { label: 'Assessments', to: '/platform/assessments' },
       ]},
       { title: 'Workflow', links: [
         { label: 'Bulk invitations', to: '/platform/bulk-invitations' },
@@ -1855,6 +1856,7 @@ const ALL_TRACK_DEMOS: Record<string, PageDemo> = {
   'ai-video-avatar':     { track: 'video_avatar', ...DEMO_COPY.video_avatar },
   'live-two-way':        { track: 'two_way',      ...DEMO_COPY.two_way },
   'timed-qa':            { track: 'chat',         ...DEMO_COPY.chat },
+  'assessments':         { track: 'mcq',          ...DEMO_COPY.mcq },
 }
 
 /* Only the formats that have footage. A page whose format has not been recorded
@@ -2471,6 +2473,42 @@ const PLATFORM_PAGES: MktPage[] = [
       { label: 'Recruiter analytics', to: '/platform/recruiter-analytics' },
       { label: 'Human in the loop', to: '/trust/human-in-the-loop' },
       { label: 'For recruiters', to: '/solutions/recruiters' },
+    ]),
+  /* Assessments — the sixth advertised format, and the only one that is marked
+     rather than judged. Every claim here is mechanism the product implements:
+     the paper is a question set, the timing is server-side (the same guarantee
+     timed-qa makes), and a multiple-choice answer is scored arithmetically with
+     no model in the loop. No outcome figures, per PRODUCT.md. */
+  plat('assessments', 'A', 'Interview tracks · Async', 'A timed assessment, marked the moment it is submitted.',
+    'Multiple-Choice Assessments | Mimic', 'Send a timed multiple-choice paper, marked automatically on submission, with the same per-question timing for every candidate and the result on the same report as every other format.',
+    'Some things are faster to check than to discuss. An assessment asks a fixed set of questions with a clock on each one, marks the paper the moment it is submitted, and puts the result alongside every other format on the same candidate record.',
+    [
+      { h2: 'One paper, one clock, every candidate', body: 'You author the questions once and every candidate answers the same set in the same order with the same time on each. Timing is measured on the server, so it cannot be extended by reloading the page.', blocks: [
+        { kind: 'bullets', items: [
+          'Per-question timers, identical for everyone sitting the paper',
+          'Progress survives a refresh or a dropped connection',
+          'The paper is marked on submission, with no model in the loop',
+        ] },
+      ] },
+      { h2: 'Where the questions come from', body: 'An assessment is authored as a question set in the workspace, the same place the other formats draw from, so a paper can be reused across roles and corrected in one place rather than per invitation.', blocks: [
+        { kind: 'flow', steps: ['Author the paper', 'Attach it to a template', 'Invite candidates', 'Marked on submit', 'Result on the report'], caption: 'The assessment path, end to end. The marking step is arithmetic, which is what makes it instant.' },
+      ] },
+      { h2: 'Marked, not judged', body: 'A multiple-choice question has a correct answer, so the score is a count rather than a reading. That is the real difference between this format and the other five, and the report says which it is.', blocks: [
+        { kind: 'note', tone: 'info', title: 'What an assessment does not measure', text: 'It measures recall and applied knowledge. It cannot read communication, structure or delivery — those need an answer in the candidate’s own words, which is what the conversational, voice, avatar, timed and live formats are for.' },
+      ] },
+      { h2: 'When to reach for it', body: 'Use it where the answer is checkable and the volume is high: safety knowledge, regulatory basics, tooling familiarity, certification recall. Pair it with a conversational or voice round in a pipeline when you also need to hear reasoning.' },
+    ],
+    [
+      { q: 'Is an assessment scored by the AI?', a: 'No. A multiple-choice paper is marked against its correct answers arithmetically. The language model is not in the loop for this format, and the report shows the result as a mark rather than a rubric reading.' },
+      { q: 'Can a candidate reload to get more time?', a: 'No. Timing is held on the server, so a reload returns the paper exactly where it was left with the clock where it was.' },
+      { q: 'Can I combine an assessment with an interview?', a: 'Yes. Send it as its own round in a pipeline, then advance the candidates who clear it into a conversational, voice, avatar or live round.' },
+      { q: 'Can I reuse one paper across several roles?', a: 'Yes. The questions live in a question set, and a set can be attached to as many templates as you need.' },
+    ],
+    [
+      { label: 'Question sets', to: '/platform/question-sets' },
+      { label: 'Timed Q&A', to: '/platform/timed-qa' },
+      { label: 'Interview pipelines', to: '/platform/pipelines' },
+      { label: 'How Mimic scores', to: '/trust/how-mimic-scores' },
     ]),
 ]
 
