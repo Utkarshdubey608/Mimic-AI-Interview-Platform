@@ -33,7 +33,6 @@ import { CursorLight, Magnetic, Parallax, Reveal, Tilt, useInView } from './moti
 import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
-import { HeroStage } from './hero3d/HeroStage'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
 import { HOME_SEO } from './content'
@@ -276,7 +275,6 @@ function TrackCard({ t, wide }: { t: (typeof TRACKS)[number]; wide: boolean }) {
 export default function MimicSite() {
   // Drives the scoring sequence on the rubric card once it reaches the viewport.
   const [scoreRef, scored] = useInView<HTMLDivElement>(0.3)
-  const heroRoomRef = useRef<HTMLDivElement | null>(null)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({})
@@ -371,23 +369,13 @@ export default function MimicSite() {
             disclosed dramatisation the scoring section uses. */}
         <section className="hero room" aria-labelledby="hero-h1">
           <div className="wrap">
-            <div className="hero-room" ref={heroRoomRef}>
+            <div className="hero-room">
               {/* The ink field built for the site's dark surfaces — layered
                   light, WebGL when the device can afford it, CSS when not. */}
               <Field seed={7} />
               {/* The room answers the visitor's hand: a faint light tracks the
                   cursor across the panel. Atmosphere, not information. */}
               <CursorLight />
-              {/* The cinematic layer: a 3D signal structure, an advected ink
-                  trail under the cursor, and lighting driven by the SAME three
-                  machine states the rail below the footage is showing.
-
-                  It is an enhancement in the strict sense — it arms on an idle
-                  callback after first paint, only on a wide viewport, only when
-                  WebGL and the device tier allow, and never under reduced
-                  motion. Everything above and below it renders identically
-                  without it. */}
-              <HeroStage hostRef={heroRoomRef} />
               <div className="hero-room-in">
                 <div className="hero-copy">
                   <span className="eyebrow">AI native interview screening</span>
