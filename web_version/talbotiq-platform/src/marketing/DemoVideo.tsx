@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react'
  *    system for less motion should not be handed a play button as a consolation
  *    — the still frame carries the same information.
  */
-export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synthetic candidates', contentAspect, startAt = 0, priority = false, hold = false }: {
+export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synthetic candidates', contentAspect, startAt = 0, priority = false, hold = false, posterEager = false }: {
   src: string
   poster: string
   still: string
@@ -56,6 +56,23 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
    * worst case — identical to the section next door.
    */
   hold?: boolean
+  /**
+   * Attach the poster now, without waiting to be armed.
+   *
+   * The default is not to, for the reason on the attribute below: a poster is
+   * fetched the moment the attribute exists, so two below-fold demos were pulling
+   * their stills into the initial payload for a video nobody had scrolled to.
+   *
+   * The format deck needs the opposite trade. Six panels share one frame there and
+   * only one is on stage, so a panel that has not armed yet has nothing to show
+   * but the video element's own background — a grey rectangle, for as long as it
+   * takes the source to attach and buffer. That grey is the gap the deck was
+   * reported for. The caller turns this on once the SECTION is on screen, so the
+   * stills are still out of the initial payload; they arrive together, shortly
+   * before anyone can look at them, and every switch after shows a real frame at
+   * once.
+   */
+  posterEager?: boolean
   /**
    * The provenance chip beside the caption. Defaults to "Synthetic candidates",
    * which is true of every recording scripts/record-mode-demos.mjs produces —
@@ -197,7 +214,7 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
           // below-the-fold demos were pulling their posters into the initial
           // payload for a video nobody had scrolled to yet. That was the 4 kB
           // that put the page over budget.
-          poster={armed ? poster : undefined}
+          poster={armed || posterEager ? poster : undefined}
           muted
           playsInline
           preload={priority ? 'metadata' : 'none'}

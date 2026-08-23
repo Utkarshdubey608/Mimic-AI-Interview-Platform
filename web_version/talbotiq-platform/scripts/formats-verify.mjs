@@ -30,8 +30,10 @@
  *  5. THE RAIL AGREES WITH THE PICTURE. The marked rail entry names the panel
  *     actually centre stage. `deckHead` and `stepProgress` divide the same
  *     travel differently, and the rail followed the wrong one for half a scroll.
- *  6. ONE FILM AT A TIME. At most one video element holds a source; four live
- *     decoders is what made the scroll stall.
+ *  6. TWO FILMS AT MOST, AND NONE ONCE THE SECTION IS GONE. The panel being read
+ *     and the one after it hold sources — the second is what makes a switch
+ *     instant instead of a second of grey. Four did make the scroll stall, and a
+ *     third here would mean the release has stopped working.
  *  7. THE PHONE GETS A LIST. Below the breakpoint all six panels are visible, in
  *     order, untransformed, with no rail — the content, not a broken effect.
  */
@@ -228,7 +230,13 @@ async function laptop(browser, size) {
     check(`step ${i}: data-live is on panel ${i}`, s.panels.filter((p) => p.live).length === 1 && s.panels[i].live)
     check(`step ${i}: the other five are inert`, s.panels.filter((p) => p.inert).length === PANELS - 1,
       `${s.panels.filter((p) => p.inert).length} inert`)
-    check(`step ${i}: at most one film holds a source`, s.armed <= 1, `${s.armed} armed`)
+    /* TWO, not one. The deck deliberately buffers the panel after the one being
+       read, because it is the one a gesture is about to ask for — that is what
+       took a switch from about a second of grey down to single-digit
+       milliseconds. Two buffers, still one decoder: the play observer only starts
+       a film that is actually on screen. Three would mean the release is not
+       working. */
+    check(`step ${i}: at most two films hold a source`, s.armed <= 2, `${s.armed} armed`)
   }
 
   // 3 + 4. The whole travel, in 41 samples: never a third panel, never a panel

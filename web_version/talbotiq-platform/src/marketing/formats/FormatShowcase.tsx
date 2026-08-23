@@ -714,7 +714,12 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
       const idx = els.indexOf(best.target as HTMLElement)
       if (idx < 0) return
       window.clearTimeout(armTimer.current)
-      armTimer.current = window.setTimeout(() => setSettled(idx), 400)
+      /* 80ms, down from 400. The debounce exists so travelling through the deck
+         does not arm every film on the way, and 400 was sized for a reader
+         scrolling freely across all six. They cannot any more — a gesture moves the
+         deck exactly one panel and then it settles — so the only thing 400ms was
+         still buying was a fifth of a second of grey on every switch. */
+      armTimer.current = window.setTimeout(() => setSettled(idx), 80)
     }, { threshold: 0.6 })
     for (const el of els) io.observe(el)
     return () => { io.disconnect(); window.clearTimeout(armTimer.current) }
@@ -763,11 +768,26 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
                   disclosure={m.video.disclosure}
                   contentAspect={m.video.contentAspect}
                   startAt={m.video.startAt ?? 0}
-                  /* Held unless this is the panel being read. DemoVideo's arm
-                     observer uses a 600px margin — right for a page you scroll
-                     down, wrong here, where every neighbour sits permanently
-                     inside it and all four films armed at once. */
-                  hold={i !== settled}
+                  /* The still arrives as soon as the SECTION does, so a panel
+                     coming on stage shows a frame of the product instead of the
+                     grey of an empty video element. That grey was the gap. */
+                  posterEager={settled >= 0}
+                  /* Held unless this is the panel being read OR THE NEXT ONE.
+                     DemoVideo's own arm observer uses a 600px margin, right for a
+                     page you scroll down and wrong here, where every neighbour
+                     sits permanently inside it — that armed all of them at once
+                     and cost a 157ms stall.
+                     Two rather than one: the deck is read in order, so the next
+                     panel is the one about to be wanted, and buffering it while
+                     the reader is on this one is the whole difference between a
+                     switch that plays and a switch that waits. It stays paused —
+                     the play observer only starts a film that is on screen — so
+                     this is two buffers and one decoder, not two decoders.
+                     The `settled < 0` guard is not defensive padding. `settled` is
+                     -1 when the section is off screen, and -1 + 1 is 0, so without
+                     it panel ONE stayed armed for the rest of the visit every time
+                     the reader scrolled away — which the harness caught. */
+                  hold={settled < 0 || (i !== settled && i !== settled + 1)}
                 />
               ) : (
                 <div className="fmt-nofilm">

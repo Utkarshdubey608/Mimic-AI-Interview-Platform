@@ -57,8 +57,10 @@ export function AdFilm({ src, poster, label, caption }: {
               onClick={() => setPlaying(true)}
               aria-label={label}
             >
+              {/* The triangle alone. A control this size on a title card does not
+                  need to say what it is, and the word was the only thing on the
+                  button competing with the film's own words. */}
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.2v13.6L19 12z" /></svg>
-              <span>Play</span>
             </button>
           </>
         )}
