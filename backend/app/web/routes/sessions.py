@@ -178,6 +178,18 @@ async def _pending_invites(settings, email: str, already_listed: set[str]) -> li
                     # round is scored from what they submitted, not from a session.
                     "outcome": interviews.candidate_result_view(data),
                     "roundKind": data.get("roundKind") or None,
+                    # How the whole pipeline ended, once a recruiter has released
+                    # it. Allow-listed like the round result — see interviews.py.
+                    "conclusion": interviews.candidate_conclusion_view(data),
+                    # Which pipeline this round belongs to, and where in it.
+                    #
+                    # Without these the browser can only show a candidate a flat
+                    # list of unrelated invitations — the exact confusion the
+                    # Flutter client fixed with groupByTest. `testId` is the
+                    # stored key; the clients call it a pipeline.
+                    "pipelineId": data.get("testId") or None,
+                    "roundOrder": data.get("roundOrder"),
+                    "roundTitle": data.get("roundTitle") or None,
                 }
             )
         return rows
@@ -563,6 +575,20 @@ async def mine(request: Request, user: AuthedUser = WebUser) -> list[dict]:
             # other client.
             "roundKind": (assigned.get(session.get("id") or "") or {}).get("roundKind")
             or None,
+            "conclusion": interviews.candidate_conclusion_view(
+                assigned.get(session.get("id") or "") or {}
+            ),
+            # Pipeline membership, so the browser can group a candidate's rounds
+            # the way the phone does. See the note on the other mapper.
+            "pipelineId": (assigned.get(session.get("id") or "") or {}).get("testId")
+            or None,
+            "roundOrder": (assigned.get(session.get("id") or "") or {}).get("roundOrder"),
+            "roundTitle": (assigned.get(session.get("id") or "") or {}).get("roundTitle")
+            or None,
+            # The ROUND's format, which on a multi-round pipeline can differ from
+            # the session's own `track` — a chat round followed by a video one.
+            "roundKind": (assigned.get(session.get("id") or "") or {}).get("roundKind")
+            or None,
         }
         for session in sessions
     ]
@@ -611,6 +637,14 @@ async def list_sessions(request: Request, user: AuthedUser = WebUser) -> list[di
             # to hang off. Read from the shared assignment, because a web session does
             # not carry it.
             "testId": (assigned.get(session.get("id") or "") or {}).get("testId") or None,
+            # Where in the pipeline this row sits. The recruiter list stores one
+            # row per candidate PER ROUND, so without an order the same person
+            # appears several times, scattered by createdAt, with nothing on the
+            # row naming which round it was — the confusion the Flutter client
+            # fixed with groupRoundsByCandidate.
+            "roundOrder": (assigned.get(session.get("id") or "") or {}).get("roundOrder"),
+            "roundTitle": (assigned.get(session.get("id") or "") or {}).get("roundTitle")
+            or None,
             "templateId": session.get("templateId"),
             "templateName": (by_id.get(session.get("templateId") or "") or {}).get("name")
             or DELETED_TEMPLATE,

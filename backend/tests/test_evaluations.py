@@ -26,7 +26,7 @@ import httpx  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import evaluation, interviews  # noqa: E402
+from app import evaluation, interviews, voice  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.interviews import Interview  # noqa: E402
 from app.main import create_app  # noqa: E402
@@ -256,6 +256,37 @@ def test_an_empty_body_is_refused_by_the_schema(client):
     assert client.post(
         "/api/interviews/int-1/evaluate", json={"responses": []}
     ).status_code == 422
+
+
+def test_all_blank_answers_are_refused_without_writing_a_result(client):
+    """A client must wait for Tavus/ASR instead of saving blank placeholders."""
+    response = submit(client, [
+        {"question": "Tell me about yourself.", "answer": ""},
+        {"question": "Describe a hard bug.", "answer": "   "},
+    ])
+
+    assert response.status_code == 409
+    assert "transcription" in response.json()["detail"].lower()
+    assert client.state["sent"] == []
+    assert client.state["saved"] == []
+
+
+def test_voice_vad_allows_a_thinking_pause_before_committing_an_answer():
+    """A 500ms pause cut mobile candidates off in the middle of answers."""
+    setup = voice.build_live_setup(make_interview(), model="models/live")
+    detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
+
+    assert detection["silenceDurationMs"] == voice.THINKING_PAUSE_MS
+    assert detection["silenceDurationMs"] >= 1200
+    assert setup["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
+
+
+def test_voice_setup_pins_the_recruiters_language_for_live_transcription():
+    setup = voice.build_live_setup(
+        make_interview(language="English"), model="models/live"
+    )
+
+    assert setup["generationConfig"]["speechConfig"]["languageCode"] == "en-US"
 
 
 # --- access control -------------------------------------------------------

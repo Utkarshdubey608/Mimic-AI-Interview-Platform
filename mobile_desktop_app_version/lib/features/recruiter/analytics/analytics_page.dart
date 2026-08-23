@@ -55,12 +55,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   AnalyticsFilter get _filter => AnalyticsFilter(
-        track: _track,
-        testId: _testId,
-        roleQuery: _roleController.text,
-        dateFrom: _dateFrom,
-        dateTo: _dateTo,
-      );
+    track: _track,
+    testId: _testId,
+    roleQuery: _roleController.text,
+    dateFrom: _dateFrom,
+    dateTo: _dateTo,
+  );
 
   bool get _hasActiveFilter => _filter.isActive;
 
@@ -117,7 +117,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   static InputDecoration _inputDecoration(
-      BuildContext context, String label, IconData icon) {
+    BuildContext context,
+    String label,
+    IconData icon,
+  ) {
     final theme = Theme.of(context);
     return InputDecoration(
       labelText: label,
@@ -136,7 +139,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.5),
       ),
       contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md + 2, vertical: AppSpacing.md + 1),
+        horizontal: AppSpacing.md + 2,
+        vertical: AppSpacing.md + 1,
+      ),
     );
   }
 
@@ -198,11 +203,21 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     DropdownButtonFormField<InterviewType?>(
                       initialValue: _track,
                       isExpanded: true,
-                      decoration: _inputDecoration(context, 'Track', Icons.tune_outlined),
+                      decoration: _inputDecoration(
+                        context,
+                        'Track',
+                        Icons.tune_outlined,
+                      ),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('All tracks')),
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('All tracks'),
+                        ),
                         for (final t in InterviewType.values)
-                          DropdownMenuItem(value: t, child: Text(_trackLabel(t))),
+                          DropdownMenuItem(
+                            value: t,
+                            child: Text(_trackLabel(t)),
+                          ),
                       ],
                       onChanged: (val) {
                         setState(() => _track = val);
@@ -214,9 +229,16 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     DropdownButtonFormField<String?>(
                       initialValue: _testId,
                       isExpanded: true,
-                      decoration: _inputDecoration(context, 'Test', Icons.folder_copy_outlined),
+                      decoration: _inputDecoration(
+                        context,
+                        'Pipeline',
+                        Icons.folder_copy_outlined,
+                      ),
                       items: [
-                        const DropdownMenuItem(value: null, child: Text('All tests')),
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('All pipelines'),
+                        ),
                         for (final o in testOptions)
                           DropdownMenuItem(
                             value: o.testId,
@@ -241,18 +263,23 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         setState(() {});
                         setSheetState(() {});
                       },
-                      decoration: _inputDecoration(context, 'Role / title', Icons.search).copyWith(
-                        suffixIcon: _roleController.text.isEmpty
-                            ? null
-                            : IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
-                                onPressed: () {
-                                  _roleController.clear();
-                                  setState(() {});
-                                  setSheetState(() {});
-                                },
-                              ),
-                      ),
+                      decoration:
+                          _inputDecoration(
+                            context,
+                            'Role / title',
+                            Icons.search,
+                          ).copyWith(
+                            suffixIcon: _roleController.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 16),
+                                    onPressed: () {
+                                      _roleController.clear();
+                                      setState(() {});
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                          ),
                     ),
                     const SizedBox(height: 16),
                     // Date pickers in a Row
@@ -260,7 +287,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       children: [
                         Expanded(
                           child: _DateFieldSheet(
-                            label: 'From Date',
+                            label: 'From date',
                             value: _dateFrom,
                             onPick: () async {
                               await _pickDate(isFrom: true);
@@ -275,7 +302,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _DateFieldSheet(
-                            label: 'To Date',
+                            label: 'To date',
                             value: _dateTo,
                             onPick: () async {
                               await _pickDate(isFrom: false);
@@ -309,10 +336,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final chips = <Widget>[];
 
     if (_track != null) {
-      chips.add(_FilterChip(
-        label: 'Track: ${_trackLabel(_track!)}',
-        onDeleted: () => setState(() => _track = null),
-      ));
+      chips.add(
+        _FilterChip(
+          label: 'Track: ${_trackLabel(_track!)}',
+          onDeleted: () => setState(() => _track = null),
+        ),
+      );
     }
     if (_testId != null) {
       final option = testOptions.firstWhere(
@@ -320,32 +349,40 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         orElse: () => const TestOption(testId: '', label: '', count: 0),
       );
       if (option.testId.isNotEmpty) {
-        chips.add(_FilterChip(
-          label: 'Test: ${option.label}',
-          onDeleted: () => setState(() => _testId = null),
-        ));
+        chips.add(
+          _FilterChip(
+            label: 'Pipeline: ${option.label}',
+            onDeleted: () => setState(() => _testId = null),
+          ),
+        );
       }
     }
     if (_roleController.text.isNotEmpty) {
-      chips.add(_FilterChip(
-        label: 'Role: ${_roleController.text}',
-        onDeleted: () {
-          _roleController.clear();
-          setState(() {});
-        },
-      ));
+      chips.add(
+        _FilterChip(
+          label: 'Role: ${_roleController.text}',
+          onDeleted: () {
+            _roleController.clear();
+            setState(() {});
+          },
+        ),
+      );
     }
     if (_dateFrom != null) {
-      chips.add(_FilterChip(
-        label: 'From: ${_fmtDayShort(_dateFrom!)}',
-        onDeleted: () => setState(() => _dateFrom = null),
-      ));
+      chips.add(
+        _FilterChip(
+          label: 'From: ${_fmtDayShort(_dateFrom!)}',
+          onDeleted: () => setState(() => _dateFrom = null),
+        ),
+      );
     }
     if (_dateTo != null) {
-      chips.add(_FilterChip(
-        label: 'To: ${_fmtDayShort(_dateTo!)}',
-        onDeleted: () => setState(() => _dateTo = null),
-      ));
+      chips.add(
+        _FilterChip(
+          label: 'To: ${_fmtDayShort(_dateTo!)}',
+          onDeleted: () => setState(() => _dateTo = null),
+        ),
+      );
     }
 
     if (chips.isEmpty) return const SizedBox.shrink();
@@ -355,7 +392,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.fromLTRB(
-            AppSpacing.page, AppSpacing.xs, AppSpacing.page, AppSpacing.xs),
+          AppSpacing.page,
+          AppSpacing.xs,
+          AppSpacing.page,
+          AppSpacing.xs,
+        ),
         children: [
           ...chips,
           TextButton(
@@ -428,7 +469,11 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             // with the filter as a compact pill rather than a filled slab.
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.page, 0, AppSpacing.page, AppSpacing.md),
+                AppSpacing.page,
+                0,
+                AppSpacing.page,
+                AppSpacing.md,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -479,7 +524,10 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         title: const Text('Analytics'),
         titleSpacing: AppSpacing.page,
         toolbarHeight: 52,
-        actions: const [LogoutButton(), SizedBox(width: AppSpacing.xs)],
+        actions: const [
+          LogoutButton(),
+          SizedBox(width: AppSpacing.xs),
+        ],
       ),
       body: streamBuilder,
     );
@@ -503,48 +551,57 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     final theme = Theme.of(context);
     return SingleChildScrollView(
       child: DesktopPageContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeader(
-            title: 'Analytics Overview',
-            subtitle: 'Track interview performance, candidate progress, and hiring insights.',
-            isPageTitle: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _openFilterSheet(context, testOptions),
-                  icon: const Icon(Icons.event_outlined, size: 16),
-                  label: Text(_dateRangeLabel()),
-                ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: () => _openFilterSheet(context, testOptions),
-                  icon: const Icon(Icons.filter_list_rounded, size: 16),
-                  label: Text(_activeFilterCount > 0 ? 'Filters ($_activeFilterCount)' : 'Filter'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildActiveFilterChips(testOptions),
-          const SizedBox(height: 16),
-          if (summary.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 48),
-              child: AppMessageState(
-                icon: Icons.filter_alt_off_outlined,
-                title: 'No interviews match these filters',
-                subtitle: _hasActiveFilter
-                    ? 'Adjust or clear the filters to see your metrics.'
-                    : 'Nothing to analyze yet.',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionHeader(
+              title: 'Analytics overview',
+              subtitle:
+                  'Track interview performance, candidate progress, and hiring insights.',
+              isPageTitle: true,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _openFilterSheet(context, testOptions),
+                    icon: const Icon(Icons.event_outlined, size: 16),
+                    label: Text(_dateRangeLabel()),
+                  ),
+                  const SizedBox(width: 10),
+                  FilledButton.icon(
+                    onPressed: () => _openFilterSheet(context, testOptions),
+                    icon: const Icon(Icons.filter_list_rounded, size: 16),
+                    label: Text(
+                      _activeFilterCount > 0
+                          ? 'Filters ($_activeFilterCount)'
+                          : 'Filter',
+                    ),
+                  ),
+                ],
               ),
-            )
-          else
-            _DesktopDashboard(summary: summary, interviews: filtered, theme: theme),
-        ],
-      ),
+            ),
+            const SizedBox(height: 8),
+            _buildActiveFilterChips(testOptions),
+            const SizedBox(height: 16),
+            if (summary.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 48),
+                child: AppMessageState(
+                  icon: Icons.filter_alt_off_outlined,
+                  title: 'No interviews match these filters',
+                  subtitle: _hasActiveFilter
+                      ? 'Adjust or clear the filters to see your metrics.'
+                      : 'Nothing to analyze yet.',
+                ),
+              )
+            else
+              _DesktopDashboard(
+                summary: summary,
+                interviews: filtered,
+                theme: theme,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -625,7 +682,9 @@ class _DateFieldSheet extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md + 2, vertical: AppSpacing.md),
+          horizontal: AppSpacing.md + 2,
+          vertical: AppSpacing.md,
+        ),
         decoration: BoxDecoration(
           color: AppSurfaces.elevated(context),
           border: Border.all(color: AppBorders.strokeColor(context)),
@@ -633,7 +692,11 @@ class _DateFieldSheet extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.event_outlined, size: 18, color: theme.colorScheme.primary),
+            Icon(
+              Icons.event_outlined,
+              size: 18,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -642,14 +705,21 @@ class _DateFieldSheet extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 10,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    hasValue ? _fmtDay(value!) : 'Select Date',
+                    hasValue ? _fmtDay(value!) : 'Select date',
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: hasValue ? FontWeight.w600 : FontWeight.normal,
-                      color: hasValue ? theme.colorScheme.onSurface : theme.colorScheme.onSurfaceVariant,
+                      fontWeight: hasValue
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      color: hasValue
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -660,7 +730,11 @@ class _DateFieldSheet extends StatelessWidget {
                 onTap: onClear,
                 child: Padding(
                   padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.clear, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                  child: Icon(
+                    Icons.clear,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
           ],
@@ -696,9 +770,9 @@ class _Dashboard extends StatelessWidget {
             unit: 'completed',
             caption: avg == null
                 ? '${summary.totals.completed} of ${summary.totals.total} '
-                    'interviews · no scores yet'
+                      'interviews · no scores yet'
                 : '${summary.totals.completed} of ${summary.totals.total} '
-                    'interviews · avg ${avg.toStringAsFixed(1)}',
+                      'interviews · avg ${avg.toStringAsFixed(1)}',
           ),
           const SizedBox(height: AppSpacing.xxl),
           _SectionTitle('Funnel'),
@@ -750,7 +824,9 @@ class _FunnelCards extends StatelessWidget {
 
     return RecruiterPanel(
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
       child: Column(
         children: [
           for (var k = 0; k < stages.length; k++) ...[
@@ -866,8 +942,7 @@ class _ScoreDistributionChart extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final buckets = summary.scoreDistribution;
-    final maxCount =
-        buckets.fold<int>(0, (m, b) => b.count > m ? b.count : m);
+    final maxCount = buckets.fold<int>(0, (m, b) => b.count > m ? b.count : m);
 
     if (summary.scoredCount == 0) {
       return const _EmptyChart(message: 'No scored interviews yet.');
@@ -896,8 +971,12 @@ class _ScoreDistributionChart extends StatelessWidget {
             ),
           ),
           titlesData: FlTitlesData(
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -958,8 +1037,9 @@ class _ScoreDistributionChart extends StatelessWidget {
                 barRods: [
                   BarChartRodData(
                     toY: buckets[k].count.toDouble(),
-                    color: WarmSurfaces.blockSecondary(context)
-                        .withValues(alpha: 0.9),
+                    color: WarmSurfaces.blockSecondary(
+                      context,
+                    ).withValues(alpha: 0.9),
                     width: 13,
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(3),
@@ -1191,8 +1271,12 @@ class _TrendChart extends StatelessWidget {
             ),
           ),
           titlesData: FlTitlesData(
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -1257,8 +1341,9 @@ class _TrendChart extends StatelessWidget {
               // A whisper of fill, not a gradient slab.
               belowBarData: BarAreaData(
                 show: true,
-                color:
-                    WarmSurfaces.blockSecondary(context).withValues(alpha: 0.08),
+                color: WarmSurfaces.blockSecondary(
+                  context,
+                ).withValues(alpha: 0.08),
               ),
             ),
           ],
@@ -1338,9 +1423,11 @@ class _CandidateRowState extends State<_CandidateRow> {
     if (!mounted) return;
     setState(() => _loading = false);
     if (interview == null) return;
-    navigator.push(MaterialPageRoute(
-      builder: (_) => EvaluateInterviewPage(interview: interview!),
-    ));
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => EvaluateInterviewPage(interview: interview!),
+      ),
+    );
   }
 
   @override
@@ -1487,7 +1574,10 @@ class _EmptyChart extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: AppSurfaces.muted(context)),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppSurfaces.muted(context),
+              ),
             ),
           ],
         ),
@@ -1539,27 +1629,28 @@ class _DesktopDashboard extends StatelessWidget {
           maxPerRow: 5,
           children: [
             MetricCard(
-              label: 'Total Interviews',
+              label: 'Total interviews',
               value: '${summary.totals.total}',
               icon: Icons.forum_outlined,
               color: scheme.primary,
             ),
             MetricCard(
-              label: 'Completion Rate',
+              label: 'Completion rate',
               value: '${(summary.completionRate * 100).round()}%',
               icon: Icons.pie_chart_outline_rounded,
               color: scheme.primary,
-              footnote: '${summary.totals.completed} of ${summary.totals.total} completed',
+              footnote:
+                  '${summary.totals.completed} of ${summary.totals.total} completed',
             ),
             MetricCard(
-              label: 'Average Score',
+              label: 'Average score',
               value: avg == null ? '—' : avg.toStringAsFixed(1),
               footnote: avg == null ? null : 'out of 100',
               icon: Icons.stars_rounded,
               color: scheme.secondary,
             ),
             MetricCard(
-              label: 'Evaluated Candidates',
+              label: 'Evaluated candidates',
               value: '${summary.scoredCount}',
               icon: Icons.checklist_rtl_rounded,
               color: AppColors.pastelMintText,
@@ -1578,11 +1669,16 @@ class _DesktopDashboard extends StatelessWidget {
             final wide = constraints.maxWidth > 900;
             final funnel = _FunnelPanel(totals: summary.totals);
             final trend = DesktopCard(
-              title: 'Performance Trend',
-              child: SizedBox(height: 240, child: _TrendChart(trend: summary.trend)),
+              title: 'Performance trend',
+              child: SizedBox(
+                height: 240,
+                child: _TrendChart(trend: summary.trend),
+              ),
             );
             if (!wide) {
-              return Column(children: [funnel, const SizedBox(height: 16), trend]);
+              return Column(
+                children: [funnel, const SizedBox(height: 16), trend],
+              );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1601,7 +1697,9 @@ class _DesktopDashboard extends StatelessWidget {
             final distribution = _ScoreDistributionPanel(summary: summary);
             final byTrack = _PerformanceByTrackPanel(byType: summary.byType);
             if (!wide) {
-              return Column(children: [distribution, const SizedBox(height: 16), byTrack]);
+              return Column(
+                children: [distribution, const SizedBox(height: 16), byTrack],
+              );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1631,14 +1729,14 @@ class _FunnelPanel extends StatelessWidget {
     final rows = <(String, int, Color)>[
       ('Total', totals.total, scheme.primary),
       ('Assigned', totals.assigned, scheme.outline),
-      ('In Progress', totals.inProgress, AppColors.pastelPeach),
+      ('In progress', totals.inProgress, AppColors.pastelPeach),
       ('Completed', totals.completed, AppColors.pastelMintText),
       ('Published', totals.published, scheme.secondary),
     ];
     final base = totals.total == 0 ? 1 : totals.total;
 
     return DesktopCard(
-      title: 'Interview Funnel',
+      title: 'Interview funnel',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1676,15 +1774,26 @@ class _FunnelRow extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(label,
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            Text('$count',
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              '$count',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(width: 6),
-            Text('($pct%)',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant)),
+            Text(
+              '($pct%)',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -1694,7 +1803,9 @@ class _FunnelRow extends StatelessWidget {
             value: fraction.clamp(0, 1),
             minHeight: 8,
             color: color,
-            backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            backgroundColor: scheme.surfaceContainerHighest.withValues(
+              alpha: 0.4,
+            ),
           ),
         ),
       ],
@@ -1713,7 +1824,7 @@ class _ScoreDistributionPanel extends StatelessWidget {
 
     if (summary.scoredCount == 0) {
       return const DesktopCard(
-        title: 'Score Distribution',
+        title: 'Score distribution',
         child: _EmptyChart(message: 'No scored interviews yet.'),
       );
     }
@@ -1732,7 +1843,7 @@ class _ScoreDistributionPanel extends StatelessWidget {
     final avg = summary.averageOverallScore;
 
     return DesktopCard(
-      title: 'Score Distribution',
+      title: 'Score distribution',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1742,18 +1853,25 @@ class _ScoreDistributionPanel extends StatelessWidget {
             children: [
               Text(
                 avg == null ? '—' : avg.toStringAsFixed(1),
-                style: theme.textTheme.headlineLarge
-                    ?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800),
+                style: theme.textTheme.headlineLarge?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(width: 6),
-              Text('/ 100',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: scheme.onSurfaceVariant)),
+              Text(
+                '/ 100',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
           Text(
             'Average score across ${summary.scoredCount} evaluated candidate(s)',
-            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
@@ -1831,12 +1949,26 @@ class _BucketLegendRow extends StatelessWidget {
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(label, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
-        Text('$count', style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          '$count',
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(width: 6),
-        Text('($pct%)',
-            style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+        Text(
+          '($pct%)',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
@@ -1873,16 +2005,28 @@ class _PerformanceByTrackPanel extends StatelessWidget {
                 Icon(_iconFor(t.type), size: 16, color: scheme.primary),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(t.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    t.label,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
                 Text(
-                  t.averageScore == null ? 'avg —' : 'avg ${t.averageScore!.toStringAsFixed(1)}',
-                  style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w700),
+                  t.averageScore == null
+                      ? 'avg —'
+                      : 'avg ${t.averageScore!.toStringAsFixed(1)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(width: 10),
-                Text('${t.completedCount}/${t.count} completed',
-                    style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                Text(
+                  '${t.completedCount}/${t.count} completed',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -1892,7 +2036,9 @@ class _PerformanceByTrackPanel extends StatelessWidget {
                 value: ((t.averageScore ?? 0) / 100).clamp(0, 1),
                 minHeight: 8,
                 color: scheme.primary,
-                backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                backgroundColor: scheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1934,7 +2080,7 @@ class _RecentInterviewsPanel extends StatelessWidget {
     final recent = sorted.take(8).toList();
 
     return DesktopCard(
-      title: 'Recent Interviews',
+      title: 'Recent interviews',
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
       child: recent.isEmpty
           ? const Padding(
@@ -1949,25 +2095,41 @@ class _RecentInterviewsPanel extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                          flex: 3,
-                          child: Text('CANDIDATE',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant))),
+                        flex: 3,
+                        child: Text(
+                          'CANDIDATE',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       Expanded(
-                          flex: 3,
-                          child: Text('ROLE',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant))),
+                        flex: 3,
+                        child: Text(
+                          'ROLE',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       Expanded(
-                          flex: 2,
-                          child: Text('DATE',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant))),
+                        flex: 2,
+                        child: Text(
+                          'DATE',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       Expanded(
-                          flex: 2,
-                          child: Text('STATUS',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: scheme.onSurfaceVariant))),
+                        flex: 2,
+                        child: Text(
+                          'STATUS',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -2006,7 +2168,9 @@ class _RecentInterviewRowState extends State<_RecentInterviewRow> {
       cursor: SystemMouseCursors.click,
       child: InkWell(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => EvaluateInterviewPage(interview: i)),
+          MaterialPageRoute(
+            builder: (_) => EvaluateInterviewPage(interview: i),
+          ),
         ),
         child: Container(
           color: _hovering ? scheme.onSurface.withValues(alpha: 0.04) : null,
@@ -2015,24 +2179,34 @@ class _RecentInterviewRowState extends State<_RecentInterviewRow> {
             children: [
               Expanded(
                 flex: 3,
-                child: Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               Expanded(
                 flex: 3,
-                child: Text(i.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: scheme.onSurfaceVariant)),
+                child: Text(
+                  i.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
               Expanded(
                 flex: 2,
-                child: Text(date,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: scheme.onSurfaceVariant)),
+                child: Text(
+                  date,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
               ),
               Expanded(flex: 2, child: StatusBadge.forInterview(i)),
             ],

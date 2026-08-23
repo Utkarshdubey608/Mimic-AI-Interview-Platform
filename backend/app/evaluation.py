@@ -93,6 +93,16 @@ def has_enough_to_score(responses: list[dict]) -> bool:
     return total >= 40
 
 
+def has_spoken_answer(responses: list[dict]) -> bool:
+    """Whether a submission has any candidate speech at all.
+
+    Empty answers for an individual question are valid. An all-empty response
+    list is a premature transcription submission, and must not replace a
+    recoverable interview placeholder with durable blank answers.
+    """
+    return any(response.get("answer", "").strip() for response in responses)
+
+
 # Gemini's `responseSchema` is an OpenAPI subset: type / properties / required /
 # items / enum / description / propertyOrdering. No minimum/maximum — ranges are
 # enforced by `normalise` below.

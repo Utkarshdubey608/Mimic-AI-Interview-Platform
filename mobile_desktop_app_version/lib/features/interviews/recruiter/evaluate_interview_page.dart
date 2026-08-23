@@ -90,7 +90,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   /// `InterviewRepository.fetchReport`. Empty until it loads, and empty for good on an
   /// interview scored before reports were shared, which is why the panel below says so
   /// rather than rendering nothing.
-  List<({String question, int? score, String feedback})> _perQuestion = const [];
+  List<({String question, int? score, String feedback})> _perQuestion =
+      const [];
   bool _loadingReport = false;
 
   @override
@@ -111,8 +112,17 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       _loadingReport = true;
       _perQuestion = const [];
     });
-    final report = await context.read<InterviewRepository>().fetchReport(id);
-    if (!mounted || _current.id != id) return; // they paged to another candidate
+    final repository = context.read<InterviewRepository>();
+    Map<String, dynamic>? report;
+    // Scoring is queued after the candidate receives the 202 response. Give
+    // the shared report a few seconds to appear before showing an empty panel.
+    for (var attempt = 0; attempt < 6; attempt++) {
+      report = await repository.fetchReport(id);
+      if (InterviewRepository.perQuestionOf(report).isNotEmpty) break;
+      if (attempt < 5) await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    if (!mounted || _current.id != id)
+      return; // they paged to another candidate
     setState(() {
       _perQuestion = InterviewRepository.perQuestionOf(report);
       _loadingReport = false;
@@ -133,7 +143,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       if (!mounted) return;
       if (fresh == null) {
         messenger.showSnackBar(
-            const SnackBar(content: Text('This interview no longer exists.')));
+          const SnackBar(content: Text('This interview no longer exists.')),
+        );
         return;
       }
       setState(() {
@@ -144,7 +155,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       // recruiter sees a fresh score beside a stale (or absent) per-question list.
       await _loadReport();
       messenger.showSnackBar(
-          const SnackBar(content: Text('Reloaded the latest evaluation.')));
+        const SnackBar(content: Text('Reloaded the latest evaluation.')),
+      );
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(SnackBar(content: Text('Refresh failed: $e')));
@@ -164,7 +176,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     _strengthsCtrl.text = _joinList(r['strengths']);
     _improvementsCtrl.text = _joinList(r['improvements']);
     _published = i.resultPublished;
-    _responses = (r['responses'] as List?)
+    _responses =
+        (r['responses'] as List?)
             ?.whereType<Map>()
             .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
             .toList() ??
@@ -176,11 +189,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   String _joinList(dynamic v) =>
       v is List ? v.map((e) => e.toString()).join('\n') : '';
 
-  List<String> _splitLines(String s) => s
-      .split('\n')
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toList();
+  List<String> _splitLines(String s) =>
+      s.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
   @override
   void dispose() {
@@ -191,19 +201,17 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   }
 
   Map<String, dynamic> _buildResult(Interview i) => {
-        'overallScore': _score,
-        'summary': _summaryCtrl.text.trim(),
-        'recommendation': _recommendation,
-        'strengths': _splitLines(_strengthsCtrl.text),
-        'improvements': _splitLines(_improvementsCtrl.text),
-        // Preserve the original AI detail + note that a recruiter touched it.
-        'evaluatedBy': 'manual',
-        if (i.result?['detail'] != null)
-          'detail': i.result!['detail'],
-        // Preserve the integrity signal captured during the interview.
-        if (i.result?['integrity'] != null)
-          'integrity': i.result!['integrity'],
-      };
+    'overallScore': _score,
+    'summary': _summaryCtrl.text.trim(),
+    'recommendation': _recommendation,
+    'strengths': _splitLines(_strengthsCtrl.text),
+    'improvements': _splitLines(_improvementsCtrl.text),
+    // Preserve the original AI detail + note that a recruiter touched it.
+    'evaluatedBy': 'manual',
+    if (i.result?['detail'] != null) 'detail': i.result!['detail'],
+    // Preserve the integrity signal captured during the interview.
+    if (i.result?['integrity'] != null) 'integrity': i.result!['integrity'],
+  };
 
   Future<void> _save({required bool publish}) async {
     if (_saving) return;
@@ -219,8 +227,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       }
       if (!mounted) return;
       Navigator.of(context).pop();
-      messenger.showSnackBar(SnackBar(
-          content: Text(publish ? 'Result published.' : 'Result saved.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(publish ? 'Result published.' : 'Result saved.'),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -242,8 +253,9 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
         _published = false;
         _saving = false;
       });
-      messenger
-          .showSnackBar(const SnackBar(content: Text('Result unpublished.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Result unpublished.')),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -256,15 +268,22 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   /// recruiter's own default key only for legacy tests with no pinned key.
   /// Populates the editable fields for review — does NOT auto-save/publish.
   Future<void> _regenerate() async {
-    debugPrint('[Regenerate] tapped: regenerating=$_regenerating '
-        'responses=${_responses.length}');
+    debugPrint(
+      '[Regenerate] tapped: regenerating=$_regenerating '
+      'responses=${_responses.length}',
+    );
     if (_regenerating) return;
     if (_responses.isEmpty) {
-      debugPrint('[Regenerate] aborted: no stored responses for this interview.');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'No stored responses for this interview — regenerate is unavailable.'),
-      ));
+      debugPrint(
+        '[Regenerate] aborted: no stored responses for this interview.',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No stored responses for this interview — regenerate is unavailable.',
+          ),
+        ),
+      );
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -287,15 +306,18 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
         _strengthsCtrl.text = result.strengths.join('\n');
         _improvementsCtrl.text = result.improvements.join('\n');
       });
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Results regenerated — review and save.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Results regenerated — review and save.')),
+      );
     } catch (e, st) {
       debugPrint('[Regenerate] FAILED: $e');
       debugPrint('$st');
-      messenger.showSnackBar(SnackBar(
-        content: Text('Regenerate failed: $e'),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Regenerate failed: $e'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
@@ -305,7 +327,10 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     final repo = context.read<InterviewRepository>();
     final currentInterview = _current;
     try {
-      await repo.saveResult(currentInterview.id, _buildResult(currentInterview));
+      await repo.saveResult(
+        currentInterview.id,
+        _buildResult(currentInterview),
+      );
     } catch (_) {
       // Swallowed on silent background save
     }
@@ -335,11 +360,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   /// not a draft and not somebody's edit, and a recruiter deciding whether to
   /// trust the number needs to know which it is.
   static String _scorerNote(String evaluatedBy) => switch (evaluatedBy) {
-        '' => '',
-        'ai' => ' · AI draft',
-        'mcq' => ' · scored automatically',
-        _ => ' · edited',
-      };
+    '' => '',
+    'ai' => ' · AI draft',
+    'mcq' => ' · scored automatically',
+    _ => ' · edited',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +372,7 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     final evaluatedBy = (i.result?['evaluatedBy'] as String?) ?? '';
     final leftAppCount =
         ((i.result?['integrity'] as Map?)?['leftAppCount'] as num?)?.toInt() ??
-            0;
+        0;
     return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Evaluate'),
@@ -363,10 +388,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
             tooltip: 'Reload latest evaluation from server',
             onPressed: _refreshing ? null : _refresh,
           ),
-          if (widget.groupInterviews != null && widget.groupInterviews!.length > 1) ...[
+          if (widget.groupInterviews != null &&
+              widget.groupInterviews!.length > 1) ...[
             IconButton(
               icon: const Icon(Icons.arrow_back_ios_rounded, size: 16),
-              tooltip: 'Previous Candidate',
+              tooltip: 'Previous candidate',
               onPressed: _currentIndex > 0
                   ? () => _navigateCandidate(_currentIndex - 1)
                   : null,
@@ -383,7 +409,7 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
             ),
             IconButton(
               icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              tooltip: 'Next Candidate',
+              tooltip: 'Next candidate',
               onPressed: _currentIndex < widget.groupInterviews!.length - 1
                   ? () => _navigateCandidate(_currentIndex + 1)
                   : null,
@@ -405,8 +431,12 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.page, AppSpacing.xs,
-              AppSpacing.page, AppSpacing.xxxl),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page,
+            AppSpacing.xs,
+            AppSpacing.page,
+            AppSpacing.xxxl,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
@@ -425,7 +455,7 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                   const SizedBox(height: AppSpacing.xs),
                   // `effectiveRoundKind`, not `type`: an MCQ assignment carries
                   // `type: chat` (the server's buckets are video|chat) and would
-                  // otherwise be labelled "Chat Interview" on the one screen
+                  // otherwise be labelled "Chat interview" on the one screen
                   // whose job is to say what was taken. A legacy document derives
                   // the same label from `type` anyway, so nothing regresses.
                   Text(
@@ -445,14 +475,16 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                   if (leftAppCount > 0)
                     _StatusNote(
                       icon: Icons.warning_amber_rounded,
-                      text: 'Integrity: left the app $leftAppCount '
+                      text:
+                          'Integrity: left the app $leftAppCount '
                           'time${leftAppCount == 1 ? '' : 's'} during the interview',
                       color: AppColors.pastelPeach,
                     ),
                   if (_evaluationError.isNotEmpty && evaluatedBy.isEmpty)
                     _StatusNote(
                       icon: Icons.error_outline_rounded,
-                      text: 'AI evaluation failed: $_evaluationError. Use '
+                      text:
+                          'AI evaluation failed: $_evaluationError. Use '
                           '"Regenerate results" below to try again.',
                       color: AppColors.danger,
                     ),
@@ -489,8 +521,12 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                   const RecruiterLabel('Overall score'),
                   const SizedBox(height: AppSpacing.sm),
                   RecruiterPanel(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                        AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.sm,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -525,9 +561,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                             inactiveTrackColor: AppSurfaces.elevated(context),
                             thumbColor: scoreColor(context, _score),
                             overlayShape: const RoundSliderOverlayShape(
-                                overlayRadius: 14),
+                              overlayRadius: 14,
+                            ),
                             thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 7),
+                              enabledThumbRadius: 7,
+                            ),
                           ),
                           child: Slider(
                             value: _score.toDouble(),
@@ -535,7 +573,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                             max: 100,
                             divisions: 100,
                             label: '$_score',
-                            onChanged: (v) => setState(() => _score = v.round()),
+                            onChanged: (v) =>
+                                setState(() => _score = v.round()),
                           ),
                         ),
                       ],
@@ -546,11 +585,14 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                     label: 'Recommendation',
                     value: _recommendation,
                     items: _recommendations.entries
-                        .map((e) => DropdownMenuItem(
-                            value: e.key, child: Text(e.value)))
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (v) =>
-                        setState(() => _recommendation = v ?? ''),
+                    onChanged: (v) => setState(() => _recommendation = v ?? ''),
                   ),
                   const SizedBox(height: 16),
                   CustomInputField(
@@ -577,8 +619,9 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                   CustomButton(
                     text: _published ? 'Save changes' : 'Save & publish',
                     isLoading: _saving,
-                    onPressed:
-                        _saving ? () {} : () => _save(publish: !_published),
+                    onPressed: _saving
+                        ? () {}
+                        : () => _save(publish: !_published),
                   ),
                   const SizedBox(height: 10),
                   if (!_published)
@@ -648,7 +691,6 @@ class _PerQuestionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -770,7 +812,8 @@ class _ResponsesSection extends StatelessWidget {
                 if (idx > 0)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.md + 2),
+                      vertical: AppSpacing.md + 2,
+                    ),
                     child: Divider(
                       height: 1,
                       thickness: 1,

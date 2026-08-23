@@ -611,6 +611,59 @@ def candidate_result_view(document: dict) -> dict | None:
     return view
 
 
+_KNOWN_CONCLUSIONS = ("cleared", "not_selected", "on_hold")
+
+
+def _iso_or_none(value: object) -> str | None:
+    """Firestore hands back a datetime; this surface speaks ISO strings."""
+    if value is None:
+        return None
+    as_iso = getattr(value, "isoformat", None)
+    return as_iso() if callable(as_iso) else str(value)
+
+
+def candidate_conclusion_view(document: dict) -> dict | None:
+    """The end of a candidate's run at a pipeline, as they may see it.
+
+    A round outcome answers "did I get through THIS round". This answers "so what
+    happened in the end" — the only question left once they have sat everything, and
+    the one the browser has never been able to answer. A candidate who cleared every
+    round was told "moving forward" on the last one and then heard nothing.
+
+    Unlike `result`, a conclusion needs no publish gate: it is written only by a
+    recruiter deliberately releasing it, there is no automatic path that produces one,
+    and it is visible the instant it lands. Its presence IS the release.
+
+    An allowlist for the same reason as `candidate_result_view` — a field added to the
+    stored conclusion later stays invisible until somebody adds it here on purpose.
+    """
+    conclusion = document.get("conclusion")
+    if not isinstance(conclusion, dict):
+        return None
+
+    outcome = conclusion.get("outcome")
+    if outcome not in _KNOWN_CONCLUSIONS:
+        # An unrecognised value is a newer client's, and guessing which of three
+        # very different things it means is worse than staying quiet.
+        return None
+
+    view: dict = {"outcome": outcome}
+
+    # The message is the point of the feature: "not moving forward" is the same
+    # three words for everybody, and the reason recruiters were leaving the app to
+    # send the other kind by hand.
+    for key in ("message", "publishedByName"):
+        value = conclusion.get(key)
+        if isinstance(value, str) and value.strip():
+            view[key] = value.strip()
+
+    published = conclusion.get("publishedAt")
+    if published is not None:
+        view["publishedAt"] = _iso_or_none(published)
+
+    return view
+
+
 # ── Writes ────────────────────────────────────────────────────────────────────
 
 

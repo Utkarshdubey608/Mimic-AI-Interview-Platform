@@ -24,7 +24,7 @@ class AppearanceSection extends StatelessWidget {
       children: [
         AppleSectionCard(
           title: 'Appearance',
-          subtitle: 'Customize the look and feel of TalbotIQ.',
+          subtitle: 'Customize the look and feel of Mimic.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -41,7 +41,7 @@ class AppearanceSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _ThemeOptionCard(
-                      title: 'Light Mode',
+                      title: 'Light mode',
                       icon: Icons.light_mode_outlined,
                       selected: themeMode == ThemeMode.light,
                       onTap: () => store.setThemeMode(ThemeMode.light),
@@ -50,7 +50,7 @@ class AppearanceSection extends StatelessWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _ThemeOptionCard(
-                      title: 'Dark Mode',
+                      title: 'Dark mode',
                       icon: Icons.dark_mode_outlined,
                       selected: themeMode == ThemeMode.dark,
                       onTap: () => store.setThemeMode(ThemeMode.dark),

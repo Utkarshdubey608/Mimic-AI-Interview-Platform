@@ -322,7 +322,7 @@ class _DesktopRecruiterOnlyNotice extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Talbotiq Desktop is for recruiters — this creates a recruiter account.',
+            'Mimic Desktop is for recruiters — this creates a recruiter account.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),

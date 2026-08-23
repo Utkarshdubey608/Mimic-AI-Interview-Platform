@@ -1,11 +1,11 @@
 {
-    "name": "talbotiq_app",
-    "short_name": "talbotiq_app",
+    "name": "Mimic",
+    "short_name": "Mimic",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Mimic — AI interviewing by TalbotIQ.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

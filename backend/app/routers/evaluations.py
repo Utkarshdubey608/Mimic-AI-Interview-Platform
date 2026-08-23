@@ -130,6 +130,14 @@ async def evaluate(
             "No question/answer pairs were submitted.",
         )
 
+    if not evaluation.has_spoken_answer(responses):
+        # Retryable: normally the client has submitted before Tavus/ASR has
+        # published candidate turns. Never store a permanent blank response set.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "No spoken answers are available yet. Wait for transcription to finish and retry.",
+        )
+
     if not evaluation.has_enough_to_score(responses):
         # Store it as an unscored submission rather than scoring silence into a
         # confident-looking number. The recruiter sees the reason and the answers.

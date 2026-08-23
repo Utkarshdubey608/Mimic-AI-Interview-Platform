@@ -219,7 +219,7 @@ class _PracticePageState extends State<PracticePage> {
                   ],
                   const SizedBox(height: 16),
                   CustomButton(
-                    text: 'Start Practice Session',
+                    text: 'Start practice session',
                     isLoading: _launching,
                     width: double.infinity,
                     onPressed: _launching ? () {} : _launch,
@@ -318,7 +318,7 @@ class _PracticePageState extends State<PracticePage> {
   Widget _buildSessionSetupCard(ThemeData theme) {
     return _buildFormSection(
       context: context,
-      title: 'Session Configuration',
+      title: 'Session configuration',
       icon: Icons.settings_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,7 +331,7 @@ class _PracticePageState extends State<PracticePage> {
           ),
           const SizedBox(height: 16),
           CustomSlider(
-            label: 'Practice Call Duration',
+            label: 'Practice call duration',
             min: 5,
             max: 60,
             divisions: 11,
@@ -347,7 +347,7 @@ class _PracticePageState extends State<PracticePage> {
   Widget _buildQuestionsCard(ThemeData theme) {
     return _buildFormSection(
       context: context,
-      title: 'Practice Questions',
+      title: 'Practice questions',
       icon: Icons.question_answer_outlined,
       child: _buildQuestions(theme),
     );
@@ -404,7 +404,7 @@ class _PracticePageState extends State<PracticePage> {
           ),
         const SizedBox(height: 8),
         CustomButton(
-          text: 'Add Question',
+          text: 'Add question',
           variant: ButtonVariant.outline,
           width: double.infinity,
           height: 44,

@@ -342,7 +342,7 @@ class _MimicGuidePageState extends State<MimicGuidePage> {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurface),
               decoration: InputDecoration(
-                hintText: 'Ask about using TalbotIQ…',
+                hintText: 'Ask about using Mimic…',
                 isDense: true,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

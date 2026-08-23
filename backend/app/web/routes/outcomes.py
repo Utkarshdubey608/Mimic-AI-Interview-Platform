@@ -184,6 +184,96 @@ async def set_outcome(
     return {"id": interview_id, "outcome": outcome, "resultPublished": bool(publish)}
 
 
+def _lines_or_400(value: object, field: str) -> list[str]:
+    """A list of non-empty strings, or a 400.
+
+    The clients send one per line from a textarea, so blank lines are expected and
+    dropped. A single string is accepted and split, because that is what a caller
+    reaching for this route by hand will send first.
+    """
+    if isinstance(value, str):
+        value = value.splitlines()
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"{field} must be a list of strings"
+        )
+    return [line.strip() for line in (str(v) for v in value) if line.strip()]
+
+
+@router.post("/{interview_id}/evaluation", summary="Edit a candidate's evaluation")
+async def set_evaluation(
+    interview_id: str,
+    request: Request,
+    body: dict = Body(...),
+    user: AuthedUser = WebUser,
+) -> dict:
+    """Write a recruiter's own score and write-up over the model's.
+
+    The gap this closes: `/outcome` records what a candidate is TOLD — outcome, rank,
+    note — and deliberately leaves the evaluation alone. So a recruiter in a browser
+    could disagree with a score and had nowhere to say so. The Flutter client has had
+    this since it shipped (`evaluate_interview_page.dart`); this is its route.
+
+    Dotted field paths, for the same reason the sibling route uses them: `detail` is
+    the model's own working — the per-question breakdown a score cites — and
+    `integrity` is captured during the interview and is not a recruiter's to edit.
+    Writing a whole `result` object would drop both, and a score whose basis has been
+    deleted is not reviewable.
+
+    `evaluatedBy` is stamped `manual` so a reader can tell a human's number from a
+    model's. It is set here rather than by the caller: a client that could claim a
+    score was the model's is a client that can launder its own edit.
+    """
+    settings = settings_of(request)
+    await _owned_or_404(settings, interview_id, user)
+
+    score = body.get("overallScore")
+    if score is not None:
+        try:
+            score = int(score)
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "overallScore must be a whole number"
+            ) from None
+        if not 0 <= score <= 100:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "overallScore must be between 0 and 100"
+            )
+
+    from firebase_admin import firestore as admin_firestore
+
+    fields: dict = {
+        "result.evaluatedBy": "manual",
+        "updatedAt": admin_firestore.SERVER_TIMESTAMP,
+    }
+    if score is not None:
+        fields["result.overallScore"] = score
+    for key in ("summary", "recommendation"):
+        value = body.get(key)
+        if isinstance(value, str):
+            fields[f"result.{key}"] = value.strip()
+    for key in ("strengths", "improvements"):
+        if key in body:
+            fields[f"result.{key}"] = _lines_or_400(body.get(key), key)
+
+    publish = body.get("publish")
+    if publish is not None:
+        fields["resultPublished"] = bool(publish)
+
+    def _write() -> None:
+        interviews.collection(settings).document(interview_id).update(fields)
+
+    await asyncio.to_thread(_write)
+    return {
+        "id": interview_id,
+        "overallScore": score,
+        "evaluatedBy": "manual",
+        "resultPublished": bool(publish),
+    }
+
+
 async def _tell_candidate(
     settings,
     *,

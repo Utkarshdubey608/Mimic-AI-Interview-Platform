@@ -86,14 +86,17 @@ class RoundStepTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final accentColor = isDark ? AppColors.pastelMintText : theme.colorScheme.primary;
+    final accentColor = isDark
+        ? AppColors.pastelMintText
+        : theme.colorScheme.primary;
 
     final questions = (round.config['questions'] as List?)?.length ?? 0;
     final detail = round.kind.usesAiInterviewer
         ? '${round.kind.label} · $questions question(s)'
-        : round.kind == RoundKind.mcq && (round.config['mcqSetId'] as String?)?.isNotEmpty == true
-            ? '${round.kind.label} · paper attached'
-            : round.kind.label;
+        : round.kind == RoundKind.mcq &&
+              (round.config['mcqSetId'] as String?)?.isNotEmpty == true
+        ? '${round.kind.label} · paper attached'
+        : round.kind.label;
 
     return IntrinsicHeight(
       child: Row(
@@ -121,7 +124,11 @@ class RoundStepTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: highlight ? accentColor : (isDark ? AppColors.textLight : theme.colorScheme.onSurface),
+                    color: highlight
+                        ? accentColor
+                        : (isDark
+                              ? AppColors.textLight
+                              : theme.colorScheme.onSurface),
                   ),
                 ),
               ),
@@ -145,7 +152,10 @@ class RoundStepTile extends StatelessWidget {
                   onTap: onTap,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: WarmSurfaces.surface(context),
                       borderRadius: BorderRadius.circular(16),
@@ -160,7 +170,9 @@ class RoundStepTile extends StatelessWidget {
                         Icon(
                           roundKindIcon(round.kind),
                           size: 16,
-                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                          color: isDark
+                              ? AppColors.textMuted
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -171,13 +183,17 @@ class RoundStepTile extends StatelessWidget {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      round.title.isEmpty ? 'Untitled round' : round.title,
+                                      round.title.isEmpty
+                                          ? 'Untitled round'
+                                          : round.title,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w600,
-                                        color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                                        color: isDark
+                                            ? AppColors.textLight
+                                            : theme.colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
@@ -201,7 +217,9 @@ class RoundStepTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                                  color: isDark
+                                      ? AppColors.textMuted
+                                      : theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -210,7 +228,9 @@ class RoundStepTile extends StatelessWidget {
                                   Icon(
                                     Icons.schedule_rounded,
                                     size: 11,
-                                    color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                                    color: isDark
+                                        ? AppColors.textSubtle
+                                        : theme.colorScheme.onSurfaceVariant,
                                   ),
                                   const SizedBox(width: 4),
                                   Expanded(
@@ -220,7 +240,11 @@ class RoundStepTile extends StatelessWidget {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 10.5,
-                                        color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                                        color: isDark
+                                            ? AppColors.textSubtle
+                                            : theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                       ),
                                     ),
                                   ),
@@ -234,13 +258,21 @@ class RoundStepTile extends StatelessWidget {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     if (stateLabel != null)
-                                      _chip(theme, stateLabel!, stateColor ?? accentColor),
+                                      _chip(
+                                        theme,
+                                        stateLabel!,
+                                        stateColor ?? accentColor,
+                                      ),
                                     if (assignedCount >= 0)
                                       Text(
                                         '$assignedCount candidate(s)',
                                         style: TextStyle(
                                           fontSize: 10.5,
-                                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                                          color: isDark
+                                              ? AppColors.textMuted
+                                              : theme
+                                                    .colorScheme
+                                                    .onSurfaceVariant,
                                         ),
                                       ),
                                   ],
@@ -263,20 +295,15 @@ class RoundStepTile extends StatelessWidget {
   }
 
   Widget _chip(ThemeData theme, String text, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      text,
+      style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+    ),
+  );
 }
-

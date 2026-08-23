@@ -90,6 +90,6 @@ Map<String, String> sampleContext({
       'interview_link': 'talbotiq://interview/sample',
       'recruiter_name':
           (recruiterName?.trim().isNotEmpty ?? false) ? recruiterName!.trim() : 'Your recruiter',
-      'company': (company?.trim().isNotEmpty ?? false) ? company!.trim() : 'TalbotIQ',
+      'company': (company?.trim().isNotEmpty ?? false) ? company!.trim() : 'Mimic',
       'deadline': 'this Friday',
     };

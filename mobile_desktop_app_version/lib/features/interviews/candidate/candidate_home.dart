@@ -408,7 +408,9 @@ class _CandidateHomeState extends State<CandidateHome> {
         conversationalContext: interview.prompt,
         replicaId: interview.avatar.replicaId,
         personaId: interview.avatar.personaId ?? '',
-        conversationName: interview.title,
+        // `title` is the individual round in a timeline. Keep the interview
+        // name stable across rounds; round-specific UI labels it separately.
+        conversationName: interview.displayTestTitle,
         maxCallDuration: interview.durationMinutes * 60,
         language: interview.language,
       );
@@ -510,7 +512,7 @@ class _CandidateHomeState extends State<CandidateHome> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const _Wordmark(subtitle: 'My Interviews'),
+        title: const _Wordmark(subtitle: 'My interviews'),
         actions: const [
           LogoutButton(),
           SizedBox(width: 4),
@@ -530,7 +532,7 @@ class _CandidateHomeState extends State<CandidateHome> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'My Interviews',
+            title: 'My interviews',
             subtitle: 'Interviews assigned to you appear here, grouped by job.',
             isPageTitle: true,
           ),
@@ -1124,7 +1126,7 @@ class _AssignedCard extends StatelessWidget {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('View Result'),
+            Text('View result'),
             SizedBox(width: 4),
             Icon(Icons.arrow_forward, size: 14),
           ],

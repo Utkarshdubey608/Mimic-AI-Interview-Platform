@@ -29,17 +29,21 @@ Future<void> _pumpScrolling(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(MaterialApp(
-    theme: theme ?? AppTheme.darkTheme,
-    home: Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [Padding(padding: const EdgeInsets.all(16), child: child)],
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: theme ?? AppTheme.darkTheme,
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(padding: const EdgeInsets.all(16), child: child),
+            ],
+          ),
         ),
       ),
     ),
-  ));
+  );
   await tester.pumpAndSettle();
 }
 
@@ -53,7 +57,9 @@ void main() {
   group('RecruiterMetricStrip', () {
     testWidgets('lays out inside a scrolling column', (tester) async {
       await _pumpScrolling(
-          tester, const RecruiterMetricStrip(metrics: _threeMetrics));
+        tester,
+        const RecruiterMetricStrip(metrics: _threeMetrics),
+      );
 
       expect(tester.takeException(), isNull);
       for (final m in _threeMetrics) {
@@ -73,7 +79,9 @@ void main() {
 
     testWidgets('gives every cell the same width', (tester) async {
       await _pumpScrolling(
-          tester, const RecruiterMetricStrip(metrics: _threeMetrics));
+        tester,
+        const RecruiterMetricStrip(metrics: _threeMetrics),
+      );
 
       final widths = [
         for (final m in _threeMetrics) tester.getSize(find.text(m.value)).width,
@@ -96,8 +104,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('an empty list renders nothing rather than an empty panel',
-        (tester) async {
+    testWidgets('an empty list renders nothing rather than an empty panel', (
+      tester,
+    ) async {
       await _pumpScrolling(tester, const RecruiterMetricStrip(metrics: []));
       expect(tester.takeException(), isNull);
       expect(find.byType(RecruiterPanel), findsNothing);
@@ -115,13 +124,20 @@ void main() {
           caption: '4 video · 3 voice · 5 chat',
           actions: [
             RecruiterCircleAction(
-                icon: Icons.add_rounded, label: 'Create', onPressed: () {}),
+              icon: Icons.add_rounded,
+              label: 'Create',
+              onPressed: () {},
+            ),
             RecruiterCircleAction(
-                icon: Icons.folder_outlined, label: 'Library', onPressed: () {}),
+              icon: Icons.folder_outlined,
+              label: 'Library',
+              onPressed: () {},
+            ),
             RecruiterCircleAction(
-                icon: Icons.autorenew_rounded,
-                label: 'Rebuild',
-                onPressed: () {}),
+              icon: Icons.autorenew_rounded,
+              label: 'Rebuild',
+              onPressed: () {},
+            ),
           ],
         ),
       );
@@ -142,7 +158,10 @@ void main() {
           actions: [
             for (final l in ['Create', 'Library', 'Rebuild', 'Archive'])
               RecruiterCircleAction(
-                  icon: Icons.add_rounded, label: l, onPressed: () {}),
+                icon: Icons.add_rounded,
+                label: l,
+                onPressed: () {},
+              ),
           ],
         ),
         size: const Size(300, 720),
@@ -150,8 +169,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a long hero figure ellipsises instead of overflowing',
-        (tester) async {
+    testWidgets('a long hero figure ellipsises instead of overflowing', (
+      tester,
+    ) async {
       await _pumpScrolling(
         tester,
         const RecruiterHeroBlock(
@@ -187,7 +207,10 @@ void main() {
           unit: 'tests',
           actions: [
             RecruiterCircleAction(
-                icon: Icons.add_rounded, label: 'Create', onPressed: () {}),
+              icon: Icons.add_rounded,
+              label: 'Create',
+              onPressed: () {},
+            ),
           ],
         ),
         theme: AppTheme.lightTheme,
@@ -197,13 +220,15 @@ void main() {
   });
 
   group('other shared surfaces in an unbounded column', () {
-    testWidgets('a long list row title truncates instead of overflowing',
-        (tester) async {
+    testWidgets('a long list row title truncates instead of overflowing', (
+      tester,
+    ) async {
       await _pumpScrolling(
         tester,
         RecruiterListRow(
           icon: Icons.folder_outlined,
-          title: 'An interview test with a very long name indeed, far longer '
+          title:
+              'An interview test with a very long name indeed, far longer '
               'than any phone is wide',
           subtitle: 'Chat · 2 candidates · 2 done · 2026-08-22 22:42',
           onTap: () {},
@@ -213,8 +238,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('RecruiterStatCard at the width the funnel strip uses',
-        (tester) async {
+    testWidgets('RecruiterStatCard at the width the funnel strip uses', (
+      tester,
+    ) async {
       await _pumpScrolling(
         tester,
         const SizedBox(
@@ -230,8 +256,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('RecruiterSegmentedProgress from 1 to 12 segments',
-        (tester) async {
+    testWidgets('RecruiterSegmentedProgress from 1 to 12 segments', (
+      tester,
+    ) async {
       // A pipeline has no round cap, so the bar has to survive a long one:
       // 12 segments plus their 3px gaps must still fit a phone column.
       for (final n in [1, 2, 4, 12]) {
@@ -252,12 +279,15 @@ void main() {
       }
     });
 
-    testWidgets('an empty segment list occupies its height without throwing',
-        (tester) async {
+    testWidgets('an empty segment list occupies its height without throwing', (
+      tester,
+    ) async {
       await _pumpScrolling(
         tester,
         const RecruiterSegmentedProgress(
-            segments: [], currentColor: Color(0xFF86EFAC)),
+          segments: [],
+          currentColor: Color(0xFF86EFAC),
+        ),
       );
       expect(tester.takeException(), isNull);
     });
@@ -269,20 +299,34 @@ void main() {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             RecruiterPrimaryButton(
-                label: 'Save & publish', expand: true, onPressed: () {}),
+              label: 'Save & publish',
+              expand: true,
+              onPressed: () {},
+            ),
             const SizedBox(height: 8),
             RecruiterSecondaryButton(
-                label: 'All candidates',
-                icon: Icons.people_alt_outlined,
-                expand: true,
-                onPressed: () {}),
+              label: 'All candidates',
+              icon: Icons.people_alt_outlined,
+              expand: true,
+              onPressed: () {},
+            ),
             const SizedBox(height: 8),
-            RecruiterPillBar(pills: [
-              RecruiterFilterPill(
-                  label: 'All', count: 1, selected: true, onTap: () {}),
-              RecruiterFilterPill(
-                  label: 'Video', count: 0, selected: false, onTap: () {}),
-            ]),
+            RecruiterPillBar(
+              pills: [
+                RecruiterFilterPill(
+                  label: 'All',
+                  count: 1,
+                  selected: true,
+                  onTap: () {},
+                ),
+                RecruiterFilterPill(
+                  label: 'Video',
+                  count: 0,
+                  selected: false,
+                  onTap: () {},
+                ),
+              ],
+            ),
           ],
         ),
         size: const Size(300, 640),

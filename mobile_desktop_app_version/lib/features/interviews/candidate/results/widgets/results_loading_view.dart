@@ -39,7 +39,7 @@ class ResultsLoadingView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Processing Interview Results',
+                'Processing interview results',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),

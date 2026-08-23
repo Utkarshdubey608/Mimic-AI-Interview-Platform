@@ -1,12 +1,10 @@
 // lib/views/interview_page.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 import 'package:provider/provider.dart';
 import 'package:talbotiq/shared/providers/app_store.dart';
 import 'package:talbotiq/core/services/tavus_service.dart';
-import 'package:talbotiq/core/services/recording_service.dart';
 import 'package:talbotiq/shared/widgets/custom_buttons.dart';
 import 'package:talbotiq/features/interviews/candidate/interview/widgets/video_panel.dart';
 import 'package:talbotiq/features/interviews/candidate/interview/widgets/question_bar.dart';
@@ -16,9 +14,10 @@ import 'package:talbotiq/features/interviews/candidate/interview/widgets/questio
 /// bottom question/controls bar: just the video, the current question, and
 /// an End Interview action — no side menu.
 ///
-/// The candidate's microphone is recorded to a local .wav for the duration of
-/// the call; on end the recording is transcribed by Deepgram on the results
-/// page. There is no live transcription during the call.
+/// Tavus's call WebView owns the candidate microphone and produces the
+/// server-side transcript used after the call. The Flutter host deliberately
+/// does not open a second recorder: mobile platforms can grant that recorder
+/// exclusive microphone access and leave the avatar call silent.
 class InterviewPage extends StatefulWidget {
   const InterviewPage({super.key});
 
@@ -57,11 +56,6 @@ class _InterviewPageState extends State<InterviewPage>
   /// nothing repaints per second.
   bool _showDurationNotice = true;
   Timer? _durationNoticeTimer;
-
-  // Local .wav recorder for the candidate's mic (native only). The recording is
-  // transcribed by Deepgram on the results page once the call ends.
-  final RecordingService _recorder = RecordingService();
-  bool _recordingStarted = false;
 
   // Cached store reference so we can add/remove a route listener safely.
   AppStore? _store;
@@ -105,7 +99,7 @@ class _InterviewPageState extends State<InterviewPage>
     }
   }
 
-  /// Manages routing/lifecycle dependencies and starts recording when active.
+  /// Manages routing/lifecycle dependencies and immersive chrome when active.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -118,14 +112,13 @@ class _InterviewPageState extends State<InterviewPage>
     _syncRecordingWithRoute();
   }
 
-  /// Starts microphone recording and enters immersive full-screen chrome when
-  /// the interview becomes active; restores normal chrome otherwise.
+  /// Enters immersive full-screen chrome when the interview becomes active;
+  /// restores normal chrome otherwise.
   void _syncRecordingWithRoute() {
     final store = _store;
     if (store == null) return;
     final shouldRun = store.currentRoute == '/interview' && store.interviewActive;
     if (shouldRun) {
-      _startRecording();
       _setImmersive(true);
     } else {
       _setImmersive(false);
@@ -144,7 +137,7 @@ class _InterviewPageState extends State<InterviewPage>
     );
   }
 
-  /// Cleans up active timers, controllers, listeners, and the recorder.
+  /// Cleans up active timers, controllers and listeners.
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -152,36 +145,8 @@ class _InterviewPageState extends State<InterviewPage>
     _durationNoticeTimer?.cancel();
     _fallbackRevealTimer?.cancel();
     _autoAdvanceTimeoutTimer?.cancel();
-    _recorder.dispose();
     _setImmersive(false);
     super.dispose();
-  }
-
-  /// Starts recording the candidate's microphone to a local .wav file.
-  ///
-  /// Native only. On web this is a no-op (the web build does not record).
-  void _startRecording() async {
-    if (kIsWeb || _recordingStarted) return;
-    _recordingStarted = true;
-    debugPrint('debug[rec]: _startRecording invoked');
-    final ok = await _recorder.start();
-    debugPrint('debug[rec]: _recorder.start() returned $ok');
-    if (ok) {
-      // The true zero-point of the recorded audio's timeline — needed to
-      // align Deepgram's per-word offsets to the right question when the
-      // results page slices the transcript by question.
-      _store?.setRecordingStartTimestamp(DateTime.now().millisecondsSinceEpoch);
-    }
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Could not start audio recording — the transcript may be unavailable.',
-          ),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
   }
 
   /// Cancels and schedules the timeout advance and fallback reveal timers for the current question.
@@ -243,7 +208,7 @@ class _InterviewPageState extends State<InterviewPage>
               ),
             ),
             CustomButton(
-              text: 'End Interview',
+              text: 'End interview',
               variant: ButtonVariant.danger,
               onPressed: () => Navigator.pop(context, true),
             ),
@@ -264,23 +229,6 @@ class _InterviewPageState extends State<InterviewPage>
     // NB: keep this out of setState — firing provider notifyListeners from
     // inside a setState callback is not allowed.
     store.setInterviewActive(false);
-
-    // Stop the local recording and hand its bytes to the store so the results
-    // page can transcribe it via Deepgram's pre-recorded endpoint (native only).
-    if (!kIsWeb) {
-      final bytes = await _recorder.stopAndReadBytes();
-      debugPrint('debug[rec]: endInterview got ${bytes?.length ?? 0} bytes');
-      store.setRecordingBytes(bytes);
-
-      // If the user opted to keep recordings, persist this one to device
-      // storage so it can be played back / deleted later from Settings.
-      if (store.storeLocalRecordings && bytes != null && bytes.isNotEmpty) {
-        final name = (store.currentConversation?.conversationName ?? 'Interview')
-            .replaceAll('TalbotIQ — ', '');
-        final saved = await _recorder.persistLastRecording(name);
-        if (saved != null) store.addRecording(saved);
-      }
-    }
 
     if (store.currentConversation != null &&
         store.currentConversation!.conversationUrl.isNotEmpty) {

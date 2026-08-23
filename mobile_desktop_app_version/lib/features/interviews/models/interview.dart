@@ -28,11 +28,11 @@ extension InterviewTypeX on InterviewType {
   String get label {
     switch (this) {
       case InterviewType.video:
-        return 'Video Interview';
+        return 'Video interview';
       case InterviewType.chat:
-        return 'Chat Interview';
+        return 'Chat interview';
       case InterviewType.voice:
-        return 'Voice Interview';
+        return 'Voice interview';
     }
   }
 
@@ -80,15 +80,15 @@ extension RoundKindX on RoundKind {
       case RoundKind.resume:
         return 'Résumé screen';
       case RoundKind.chat:
-        return 'Chat Interview';
+        return 'Chat interview';
       case RoundKind.video:
-        return 'Video Interview';
+        return 'Video interview';
       case RoundKind.voice:
-        return 'Voice Interview';
+        return 'Voice interview';
       case RoundKind.twoWay:
-        return 'Live Interview';
+        return 'Live interview';
       case RoundKind.mcq:
-        return 'MCQ Assessment';
+        return 'Assessment';
     }
   }
 

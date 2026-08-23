@@ -54,13 +54,13 @@ class _SettingsPageState extends State<SettingsPage> {
           if (isDesktopPlatform)
             const _Category('Preferences', Icons.tune_outlined, AppColors.pastelLavenderText,
                 PreferencesSection()),
-          const _Category('Service Status', Icons.dns_outlined, AppColors.pastelCyanText,
+          const _Category('Service status', Icons.dns_outlined, AppColors.pastelCyanText,
               ServiceStatusSection()),
         ]
       : const [
           _Category('Appearance', Icons.palette_outlined, AppColors.blockPeach,
               AppearanceSection()),
-          _Category('My Recordings', Icons.mic_none_outlined, AppColors.danger,
+          _Category('My recordings', Icons.mic_none_outlined, AppColors.danger,
               MyRecordingsSection()),
         ];
 
@@ -88,7 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppleLargeTitle(
-                      eyebrow: 'Platform Config',
+                      eyebrow: 'Platform config',
                       title: 'Settings',
                       subtitle: isWide
                           ? 'Manage platform behaviour by category.'

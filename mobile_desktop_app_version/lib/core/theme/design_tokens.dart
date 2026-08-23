@@ -13,26 +13,27 @@
 
 import 'package:flutter/material.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
 
 /// The spacing step. Only these values; nothing between them.
 class AppSpacing {
   AppSpacing._();
 
-  static const double xs = 4;
-  static const double sm = 8;
-  static const double md = 12;
-  static const double lg = 16;
-  static const double xl = 20;
-  static const double xxl = 24;
-  static const double xxxl = 32;
+  // Delegates to the generated scale so the web app and this app cannot drift.
+  // Edit contracts/design-tokens.json, not here.
+  static const double xs = TokenSpace.xs;
+  static const double sm = TokenSpace.sm;
+  static const double md = TokenSpace.md;
+  static const double lg = TokenSpace.lg;
+  static const double xl = TokenSpace.xl;
+  static const double xxl = TokenSpace.xxl;
+  static const double xxxl = TokenSpace.xxxl;
 
   /// Standard horizontal page gutter on phones.
-  static const double page = 16;
+  static const double page = TokenSpace.page;
 
-  /// Bottom padding that clears the floating nav bar. The bar is 64 tall with
-  /// a 12 inset, and sits inside SafeArea, so scrolling content needs roughly
-  /// that plus breathing room or the last panel tucks under it.
-  static const double navClearance = 116;
+  /// Bottom padding that clears the floating nav bar.
+  static const double navClearance = TokenSpace.navClearance;
 }
 
 /// Corner radii. Generously rounded — soft, friendly surfaces read as
@@ -43,22 +44,22 @@ class AppRadius {
   AppRadius._();
 
   /// Chips, badges, small pills.
-  static const double xs = 8;
+  static const double xs = TokenRadius.badge;
 
   /// Filter pills and small tiles.
-  static const double sm = 12;
+  static const double sm = TokenRadius.pill;
 
   /// Inputs, buttons and inner surfaces.
-  static const double md = 18;
+  static const double md = TokenRadius.input;
 
   /// The standard card/panel radius.
-  static const double card = 20;
+  static const double card = TokenRadius.card;
 
   /// Sheets, dialogs, large containers.
-  static const double lg = 26;
+  static const double lg = TokenRadius.sheet;
 
   /// Bottom sheets' top corners, the floating nav bar.
-  static const double xl = 32;
+  static const double xl = TokenRadius.xl;
 
   static BorderRadius all(double r) => BorderRadius.circular(r);
   static const BorderRadius cardAll = BorderRadius.all(Radius.circular(card));
@@ -68,7 +69,7 @@ class AppRadius {
 class AppBorders {
   AppBorders._();
 
-  static const double width = 1.0;
+  static const double width = TokenBorder.width;
 
   /// The standard hairline around a card, theme-aware.
   static Border card(BuildContext context) => Border.all(

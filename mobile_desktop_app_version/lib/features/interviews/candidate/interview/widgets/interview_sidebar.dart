@@ -189,7 +189,7 @@ class _InterviewSidebarState extends State<InterviewSidebar> {
                 TextButton(
                   onPressed: widget.onEndInterview,
                   child: Text(
-                    'End Interview',
+                    'End interview',
                     style: TextStyle(
                       color: theme.colorScheme.error,
                       fontSize: 13,

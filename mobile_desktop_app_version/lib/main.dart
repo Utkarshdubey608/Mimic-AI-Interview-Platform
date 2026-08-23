@@ -32,7 +32,7 @@ Future<void> _initDesktopWindow() async {
     size: Size(1440, 900),
     minimumSize: Size(1024, 700),
     center: true,
-    title: 'Talbotiq',
+    title: 'Mimic',
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
@@ -197,7 +197,7 @@ class _MyAppState extends State<MyApp> {
     final desktopFontScale =
         context.select<AppStore, double>((s) => s.desktopFontScale);
     return MaterialApp(
-      title: 'TalbotIQ AI Screenings',
+      title: 'Mimic',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
       theme: WarmSurfaces.theme(

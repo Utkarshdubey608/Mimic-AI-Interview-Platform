@@ -21,6 +21,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
 import 'package:talbotiq/core/theme/accent_palette.dart';
 
 class WarmSurfaces {
@@ -33,15 +34,15 @@ class WarmSurfaces {
 
   /// The page background.
   static Color ground(BuildContext c) =>
-      isDark(c) ? AppColors.warmBackground : const Color(0xFFF6F3EE);
+      isDark(c) ? TokenGroundDark.ground : TokenGroundLight.ground;
 
   /// A card or panel sitting on [ground].
   static Color surface(BuildContext c) =>
-      isDark(c) ? AppColors.warmSurface : Colors.white;
+      isDark(c) ? TokenGroundDark.surface : TokenGroundLight.surface;
 
   /// A chip, input or nested block sitting on [surface].
   static Color surfaceHigh(BuildContext c) =>
-      isDark(c) ? AppColors.warmSurfaceHigh : const Color(0xFFEDE8E0);
+      isDark(c) ? TokenGroundDark.surfaceHigh : TokenGroundLight.surfaceHigh;
 
   /// The bottom bar's fill. Dark in BOTH themes — on light it is the black
   /// pill from the reference; on black it is lifted just enough to separate.
@@ -50,7 +51,7 @@ class WarmSurfaces {
 
   /// Hairline borders and separators.
   static Color stroke(BuildContext c) =>
-      isDark(c) ? AppColors.warmBorder : const Color(0xFFE2DCD2);
+      isDark(c) ? TokenGroundDark.stroke : TokenGroundLight.stroke;
 
   /// The fainter rule used between list rows inside one card.
   static Color separator(BuildContext c) => isDark(c)
@@ -61,15 +62,15 @@ class WarmSurfaces {
 
   /// Primary text.
   static Color ink(BuildContext c) =>
-      isDark(c) ? AppColors.textLight : const Color(0xFF1A1613);
+      isDark(c) ? TokenGroundDark.ink : TokenGroundLight.ink;
 
   /// Secondary text and metadata.
   static Color inkMuted(BuildContext c) =>
-      isDark(c) ? AppColors.textMuted : const Color(0xFF6B635A);
+      isDark(c) ? TokenGroundDark.inkMuted : TokenGroundLight.inkMuted;
 
   /// Tertiary text — timestamps, footnotes, inactive glyphs.
   static Color inkSubtle(BuildContext c) =>
-      isDark(c) ? AppColors.textSubtle : const Color(0xFF9A9188);
+      isDark(c) ? TokenGroundDark.inkSubtle : TokenGroundLight.inkSubtle;
 
   // ── Blocks ──────────────────────────────────────────────────────────────
 

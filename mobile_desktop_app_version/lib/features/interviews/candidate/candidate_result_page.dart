@@ -71,7 +71,7 @@ class CandidateResultPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     supersededByConclusion
-                        ? 'Your final result for this test is on your '
+                        ? 'Your final result for this pipeline is on your '
                             'interviews screen.'
                         : _footerFor(outcome),
                     textAlign: TextAlign.center,
@@ -167,7 +167,7 @@ class CandidateResultPage extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'This test has finished and your final result has been published.',
+            'This pipeline has finished and your final result has been published.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),

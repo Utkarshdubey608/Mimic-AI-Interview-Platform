@@ -303,10 +303,10 @@ class DraftForm {
   factory DraftForm.defaults() => DraftForm(
         replicaId: '',
         personaId: '',
-        conversationName: 'TalbotIQ Interview',
+        conversationName: 'Mimic interview',
         conversationalContext:
-            'You are Alex, a Senior Talent Specialist at TalbotIQ conducting a screening interview. Maintain a warm, professional tone.',
-        customGreeting: 'Hello, welcome to your TalbotIQ interview.',
+            'You are Alex, a Senior Talent Specialist at Mimic conducting a screening interview. Maintain a warm, professional tone.',
+        customGreeting: 'Hello, welcome to your Mimic interview.',
         callbackUrl: '',
         maxCallDuration: 900,
         participantLeftTimeout: 60,

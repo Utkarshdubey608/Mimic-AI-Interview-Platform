@@ -133,12 +133,16 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
   Future<void> _loadCounts() async {
     final repo = context.read<InterviewRepository>();
     final total = await repo.countForRecruiter(
-        recruiterId: _uid, testId: _testId, roundId: _roundId);
+      recruiterId: _uid,
+      testId: _testId,
+      roundId: _roundId,
+    );
     final done = await repo.countForRecruiter(
-        recruiterId: _uid,
-        testId: _testId,
-        roundId: _roundId,
-        status: InterviewStatus.completed);
+      recruiterId: _uid,
+      testId: _testId,
+      roundId: _roundId,
+      status: InterviewStatus.completed,
+    );
     if (!mounted) return;
     setState(() {
       _total = total;
@@ -151,12 +155,12 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
     setState(() => _loading = true);
     try {
       final page = await context.read<InterviewRepository>().fetchRecruiterPage(
-            recruiterId: _uid,
-            testId: _testId,
-            roundId: _roundId,
-            startAfter: _cursor,
-            emailPrefix: _looksLikeEmailPrefix(_query) ? _query : null,
-          );
+        recruiterId: _uid,
+        testId: _testId,
+        roundId: _roundId,
+        startAfter: _cursor,
+        emailPrefix: _looksLikeEmailPrefix(_query) ? _query : null,
+      );
       if (!mounted) return;
       setState(() {
         _loaded.addAll(page.items);
@@ -213,7 +217,7 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('End test and publish results?'),
+        title: const Text('End pipeline and publish results?'),
         content: Text(
           'Every candidate of "${widget.test.title}" who completed the '
           'interview will be able to see their result. This affects all '
@@ -221,11 +225,13 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Publish')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Publish'),
+          ),
         ],
       ),
     );
@@ -237,7 +243,8 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
       if (!mounted) return;
       await _refresh();
       messenger.showSnackBar(
-          const SnackBar(content: Text('Results published to candidates.')));
+        const SnackBar(content: Text('Results published to candidates.')),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not publish: $e')));
     }
@@ -266,9 +273,13 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
 
       if (pending.isEmpty) {
         setState(() => _retrying = false);
-        messenger.showSnackBar(const SnackBar(
-          content: Text('Nothing needs re-scoring — no failed evaluations here.'),
-        ));
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nothing needs re-scoring — no failed evaluations here.',
+            ),
+          ),
+        );
         return;
       }
 
@@ -284,11 +295,13 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Re-score')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Re-score'),
+            ),
           ],
         ),
       );
@@ -311,18 +324,19 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
       });
       await _refresh();
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(report.summary),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(report.summary),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _retrying = false;
         _retryProgress = '';
       });
-      messenger
-          .showSnackBar(SnackBar(content: Text('Could not re-score: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('Could not re-score: $e')));
     }
   }
 
@@ -349,8 +363,11 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
       if (!mounted) return;
       // Nothing left to show — return to the dashboard.
       navigator.pop();
-      messenger.showSnackBar(SnackBar(
-          content: Text('Test deleted ($n candidate record(s) removed).')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Pipeline deleted ($n candidate record(s) removed).'),
+        ),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
     }
@@ -373,8 +390,9 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     '${widget.test.title} · ${round.kind.label}',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),
@@ -441,20 +459,21 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
     } else if (_total < 0) {
       label = '$people candidate(s)';
     } else if (perRound) {
-      label = '$people candidate(s) · $shown of $_total round entr'
+      label =
+          '$people candidate(s) · $shown of $_total round entr'
           '${_total == 1 ? 'y' : 'ies'}$done';
     } else {
       label = 'Showing $shown of $_total candidate(s)$done';
     }
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _actionBar(theme),
           const SizedBox(height: 12),
           Container(
-            height: 40,
+            height: 48,
             decoration: BoxDecoration(
               color: WarmSurfaces.surface(context),
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -473,7 +492,7 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
               decoration: InputDecoration(
                 isDense: true,
                 filled: false,
-                hintText: 'Search this test by name or email...',
+                hintText: 'Search this pipeline by name or email…',
                 hintStyle: TextStyle(
                   fontSize: 13,
                   color: Theme.of(context).brightness == Brightness.dark
@@ -487,13 +506,19 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
                       ? AppColors.textMuted
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-                prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 42,
+                  minHeight: 42,
+                ),
                 suffixIcon: _searchCtrl.text.isEmpty
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.close_rounded, size: 16),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        constraints: const BoxConstraints(
+                          minWidth: 40,
+                          minHeight: 40,
+                        ),
                         tooltip: 'Clear search',
                         onPressed: () {
                           _searchCtrl.clear();
@@ -503,7 +528,10 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -536,12 +564,14 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
         RecruiterAction(
           label: 'Leaderboard',
           icon: Icons.leaderboard_outlined,
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            // Passing `round` through means a single-round test — which has no
-            // roundId on its documents — still ranks, across the whole test.
-            builder: (_) =>
-                RoundLeaderboardPage(test: widget.test, round: round),
-          )),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              // Passing `round` through means a single-round test — which has no
+              // roundId on its documents — still ranks, across the whole test.
+              builder: (_) =>
+                  RoundLeaderboardPage(test: widget.test, round: round),
+            ),
+          ),
         ),
         // Hidden when already scoped to a round — the timeline is where this
         // screen was opened from, so offering it again just loops.
@@ -549,9 +579,11 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
           RecruiterAction(
             label: 'Rounds & schedule',
             icon: Icons.timeline_outlined,
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => RoundTimelinePage(test: widget.test),
-            )),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => RoundTimelinePage(test: widget.test),
+              ),
+            ),
           ),
         // Both of these only mean anything once somebody has finished.
         if (hasCompleted)
@@ -575,16 +607,18 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
             label: 'Final result',
             icon: Icons.flag_outlined,
             onPressed: () async {
-              await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => TestConclusionPage(test: widget.test),
-              ));
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => TestConclusionPage(test: widget.test),
+                ),
+              );
               // A published conclusion shows as a pill on these rows, so the
               // list has to be re-read on the way back.
               if (mounted) await _refresh();
             },
           ),
         RecruiterAction(
-          label: 'Delete test',
+          label: 'Delete pipeline',
           icon: Icons.delete_forever_outlined,
           onPressed: _confirmDeleteTest,
           destructive: true,
@@ -609,10 +643,10 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
       return AppMessageState(
         icon: _query.isEmpty ? Icons.people_outline : Icons.search_off,
         title: _query.isEmpty
-            ? 'No candidates in this test'
+            ? 'No candidates in this pipeline'
             : 'No matching candidates',
         subtitle: _query.isEmpty
-            ? 'Assign this test to a candidate email to get started.'
+            ? 'Assign this pipeline to a candidate email to get started.'
             : 'Try a different name or email.',
       );
     }
@@ -629,10 +663,12 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
           // so "same key as the row above" means "another round of the same
           // person" — rendered as a continuation rather than a fresh card.
           final grouping = widget.round == null;
-          final continuation = grouping &&
+          final continuation =
+              grouping &&
               index > 0 &&
               candidateKey(items[index - 1]) == candidateKey(item);
-          final lastOfCandidate = !grouping ||
+          final lastOfCandidate =
+              !grouping ||
               index == items.length - 1 ||
               candidateKey(items[index + 1]) != candidateKey(item);
           return Padding(
@@ -681,9 +717,12 @@ class _TestCandidatesPageState extends State<TestCandidatesPage> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
-          child: Text('End of list',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          child: Text(
+            'End of list',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       );
     }
@@ -767,7 +806,6 @@ class _InterviewCard extends StatelessWidget {
     );
   }
 
-
   /// The small pill on the right of a candidate row: score, or why there isn't
   /// one.
   Widget _pill(ThemeData theme, String text, Color color, {IconData? icon}) =>
@@ -798,7 +836,11 @@ class _InterviewCard extends StatelessWidget {
       );
 
   Widget _buildDetailBadge(
-      BuildContext context, String text, Color bgColor, Color textColor) {
+    BuildContext context,
+    String text,
+    Color bgColor,
+    Color textColor,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -828,8 +870,7 @@ class _InterviewCard extends StatelessWidget {
     final roundLabel = interview.hasRound ? _roundLabel(interview) : null;
     final conclusion = interview.testConclusion;
     final qs = interview.questions.length;
-    final titleText =
-        continuation ? (roundLabel ?? interview.title) : name;
+    final titleText = continuation ? (roundLabel ?? interview.title) : name;
     final subtitleText = [
       if (!continuation && hasName) interview.candidateEmail,
       if (!continuation && showRound && roundLabel != null) roundLabel,
@@ -839,12 +880,12 @@ class _InterviewCard extends StatelessWidget {
         interview.effectiveRoundKind.label,
     ].join(' · ');
 
-    final score = interview.result != null ? interview.result!['overallScore'] : null;
+    final score = interview.result != null
+        ? interview.result!['overallScore']
+        : null;
 
     return Container(
-      margin: continuation
-          ? const EdgeInsets.only(left: 20)
-          : EdgeInsets.zero,
+      margin: continuation ? const EdgeInsets.only(left: 20) : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: continuation
             ? (WarmSurfaces.surfaceHigh(context).withValues(alpha: 0.3))
@@ -869,7 +910,9 @@ class _InterviewCard extends StatelessWidget {
                       child: Icon(
                         Icons.subdirectory_arrow_right,
                         size: 16,
-                        color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                        color: isDark
+                            ? AppColors.textSubtle
+                            : theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   )
@@ -881,7 +924,9 @@ class _InterviewCard extends StatelessWidget {
                       color: WarmSurfaces.surfaceHigh(context),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark ? AppColors.pastelCyan.withValues(alpha: 0.3) : theme.colorScheme.primary.withValues(alpha: 0.3),
+                        color: isDark
+                            ? AppColors.pastelCyan.withValues(alpha: 0.3)
+                            : theme.colorScheme.primary.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Center(
@@ -889,7 +934,9 @@ class _InterviewCard extends StatelessWidget {
                         name.isNotEmpty ? name[0].toUpperCase() : 'C',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.pastelCyanText : theme.colorScheme.primary,
+                          color: isDark
+                              ? AppColors.pastelCyanText
+                              : theme.colorScheme.primary,
                           fontSize: 14,
                         ),
                       ),
@@ -907,7 +954,9 @@ class _InterviewCard extends StatelessWidget {
                           fontSize: continuation ? 13.5 : 14.5,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.2,
-                          color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                          color: isDark
+                              ? AppColors.textLight
+                              : theme.colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -918,7 +967,9 @@ class _InterviewCard extends StatelessWidget {
                           subtitleText,
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                            color: isDark
+                                ? AppColors.textMuted
+                                : theme.colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -954,14 +1005,18 @@ class _InterviewCard extends StatelessWidget {
                       _pill(
                         theme,
                         'Not scored',
-                        isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                        isDark
+                            ? AppColors.textSubtle
+                            : theme.colorScheme.onSurfaceVariant,
                       ),
                     ] else if (score != null) ...[
                       const SizedBox(height: 5),
                       _pill(
                         theme,
                         'Score: $score',
-                        isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+                        isDark
+                            ? AppColors.pastelMintText
+                            : theme.colorScheme.primary,
                       ),
                     ],
                     if (!continuation && conclusion != null) ...[
@@ -970,8 +1025,12 @@ class _InterviewCard extends StatelessWidget {
                         theme,
                         conclusion.outcome.recruiterLabel,
                         conclusion.outcome == TestOutcome.cleared
-                            ? (isDark ? AppColors.pastelMintText : theme.colorScheme.primary)
-                            : (isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant),
+                            ? (isDark
+                                  ? AppColors.pastelMintText
+                                  : theme.colorScheme.primary)
+                            : (isDark
+                                  ? AppColors.textSubtle
+                                  : theme.colorScheme.onSurfaceVariant),
                         icon: Icons.flag_outlined,
                       ),
                     ],
@@ -984,7 +1043,6 @@ class _InterviewCard extends StatelessWidget {
       ),
     );
   }
-
 
   void _showDetail(BuildContext context, Interview initialInterview) {
     final theme = Theme.of(context);
@@ -1012,7 +1070,10 @@ class _InterviewCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_ios_rounded, size: 16),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_rounded,
+                            size: 16,
+                          ),
                           onPressed: activeIndex > 0
                               ? () => setStateSheet(() => activeIndex--)
                               : null,
@@ -1025,7 +1086,10 @@ class _InterviewCard extends StatelessWidget {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                          icon: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                          ),
                           onPressed: activeIndex < groupInterviews.length - 1
                               ? () => setStateSheet(() => activeIndex++)
                               : null,
@@ -1034,22 +1098,30 @@ class _InterviewCard extends StatelessWidget {
                     ),
                     const Divider(height: 16),
                   ],
-                  Text(i.title,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    i.title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
                       _buildDetailBadge(
                         sheetContext,
                         i.type.label,
-                        theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                        theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.4,
+                        ),
                         theme.colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
                       _buildDetailBadge(
                         sheetContext,
                         i.status.label,
-                        theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                        theme.colorScheme.secondaryContainer.withValues(
+                          alpha: 0.4,
+                        ),
                         theme.colorScheme.secondary,
                       ),
                     ],
@@ -1059,84 +1131,125 @@ class _InterviewCard extends StatelessWidget {
                     _kv(sheetContext, 'Name', i.candidateName!),
                   _kv(sheetContext, 'Email', i.candidateEmail),
                   _kv(sheetContext, 'Duration', '${i.durationMinutes} min'),
-                  _kv(sheetContext, 'Attempts',
-                      i.maxAttempts == null ? 'Unlimited' : '${i.attemptsUsed}/${i.maxAttempts}'),
+                  _kv(
+                    sheetContext,
+                    'Attempts',
+                    i.maxAttempts == null
+                        ? 'Unlimited'
+                        : '${i.attemptsUsed}/${i.maxAttempts}',
+                  ),
                   if (i.availableFrom != null)
                     _kv(sheetContext, 'From', formatDateTime(i.availableFrom!)),
                   if (i.expiresAt != null)
-                    _kv(sheetContext, 'Expires',
-                        '${formatDateTime(i.expiresAt!)}${i.isExpired ? '  (expired)' : ''}'),
-                  _kv(
+                    _kv(
                       sheetContext,
-                      'Result Status',
-                      i.status != InterviewStatus.completed
-                          ? 'Not taken yet'
-                          : (i.result == null ||
-                                  (i.result!['evaluatedBy'] as String? ?? '')
-                                      .isEmpty)
-                              // No score yet — either AI scoring hasn't landed
-                              // (see candidate_video_shell.dart's placeholder
-                              // result) or nobody has evaluated it manually.
-                              ? 'Awaiting evaluation'
-                              : i.resultPublished
-                                  ? 'Published'
-                                  : 'Draft — not published'),
+                      'Expires',
+                      '${formatDateTime(i.expiresAt!)}${i.isExpired ? '  (expired)' : ''}',
+                    ),
+                  _kv(
+                    sheetContext,
+                    'Result status',
+                    i.status != InterviewStatus.completed
+                        ? 'Not taken yet'
+                        : (i.result == null ||
+                              (i.result!['evaluatedBy'] as String? ?? '')
+                                  .isEmpty)
+                        // No score yet — either AI scoring hasn't landed
+                        // (see candidate_video_shell.dart's placeholder
+                        // result) or nobody has evaluated it manually.
+                        ? 'Awaiting evaluation'
+                        : i.resultPublished
+                        ? 'Published'
+                        : 'Draft — not published',
+                  ),
                   if (i.result != null && i.result!['overallScore'] != null)
-                    _kv(sheetContext, 'Overall Score', '${i.result!['overallScore']}/100'),
+                    _kv(
+                      sheetContext,
+                      'Overall score',
+                      '${i.result!['overallScore']}/100',
+                    ),
                   const Divider(height: 24),
-                  Text('Prompt', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Prompt',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: Text(
-                      i.prompt.isEmpty ? 'No custom prompt configured.' : i.prompt,
+                      i.prompt.isEmpty
+                          ? 'No custom prompt configured.'
+                          : i.prompt,
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('Questions', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Questions',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: i.questions.isEmpty
-                          ? [Text('No questions configured.', style: theme.textTheme.bodyMedium)]
-                          : i.questions.asMap().entries.map(
-                                (e) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${e.key + 1}. ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.primary,
+                          ? [
+                              Text(
+                                'No questions configured.',
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            ]
+                          : i.questions
+                                .asMap()
+                                .entries
+                                .map(
+                                  (e) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${e.key + 1}. ',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: theme.colorScheme.primary,
+                                          ),
                                         ),
-                                      ),
-                                      Expanded(
-                                        child: Text(
-                                          e.value,
-                                          style: theme.textTheme.bodyMedium,
+                                        Expanded(
+                                          child: Text(
+                                            e.value,
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                              ).toList(),
+                                )
+                                .toList(),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -1151,15 +1264,19 @@ class _InterviewCard extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: () {
                           Navigator.pop(sheetContext);
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) =>
-                                LiveInterviewPage(interview: i, isHost: true),
-                          ));
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  LiveInterviewPage(interview: i, isHost: true),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.videocam_outlined, size: 18),
-                        label: Text(completed
-                            ? 'Rejoin live interview'
-                            : 'Join live interview'),
+                        label: Text(
+                          completed
+                              ? 'Rejoin live interview'
+                              : 'Join live interview',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1172,9 +1289,11 @@ class _InterviewCard extends StatelessWidget {
                           _openTwoWayReview(context, i);
                         },
                         icon: const Icon(Icons.star_outline, size: 18),
-                        label: Text(i.twoWayStars != null
-                            ? 'Edit your score (${i.twoWayStars}/5)'
-                            : 'Score this interview'),
+                        label: Text(
+                          i.twoWayStars != null
+                              ? 'Edit your score (${i.twoWayStars}/5)'
+                              : 'Score this interview',
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1186,18 +1305,22 @@ class _InterviewCard extends StatelessWidget {
                       child: FilledButton.icon(
                         onPressed: () {
                           Navigator.pop(sheetContext);
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => EvaluateInterviewPage(
-                              interview: i,
-                              groupInterviews: groupInterviews,
-                              initialIndex: activeIndex,
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EvaluateInterviewPage(
+                                interview: i,
+                                groupInterviews: groupInterviews,
+                                initialIndex: activeIndex,
+                              ),
                             ),
-                          ));
+                          );
                         },
                         icon: const Icon(Icons.fact_check_outlined, size: 18),
-                        label: Text(i.resultPublished
-                            ? 'Review / edit result'
-                            : 'Evaluate & publish'),
+                        label: Text(
+                          i.resultPublished
+                              ? 'Review / edit result'
+                              : 'Evaluate & publish',
+                        ),
                       ),
                     ),
                   if (i.result != null) ...[
@@ -1224,9 +1347,12 @@ class _InterviewCard extends StatelessWidget {
                           child: OutlinedButton.icon(
                             onPressed: () {
                               Navigator.pop(sheetContext);
-                              Navigator.of(context).push(MaterialPageRoute(
-                                builder: (_) => CreateInterviewPage(existing: i),
-                              ));
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      CreateInterviewPage(existing: i),
+                                ),
+                              );
                             },
                             icon: const Icon(Icons.edit_outlined, size: 18),
                             label: const Text('Edit'),
@@ -1241,7 +1367,11 @@ class _InterviewCard extends StatelessWidget {
                             onPressed: () => _confirmDelete(context, i),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: theme.colorScheme.error,
-                              side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+                              side: BorderSide(
+                                color: theme.colorScheme.error.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
                             ),
                             icon: const Icon(Icons.delete_outline, size: 18),
                             label: const Text('Delete'),
@@ -1254,7 +1384,7 @@ class _InterviewCard extends StatelessWidget {
               ),
             ),
           );
-        }
+        },
       ),
     );
   }
@@ -1268,10 +1398,16 @@ class _InterviewCard extends StatelessWidget {
     final review = await showTwoWayReviewSheet(context, i);
     if (review == null) return;
     try {
-      await repo.saveTwoWayReview(i.id,
-          stars: review.stars, notes: review.notes);
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Score saved. Publish it from the round when ready.')));
+      await repo.saveTwoWayReview(
+        i.id,
+        stars: review.stars,
+        notes: review.notes,
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Score saved. Publish it from the round when ready.'),
+        ),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not save: $e')));
     }
@@ -1294,12 +1430,15 @@ class _InterviewCard extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Delete response',
-                style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+            child: Text(
+              'Delete response',
+              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+            ),
           ),
         ],
       ),
@@ -1309,7 +1448,10 @@ class _InterviewCard extends StatelessWidget {
       await repo.clearResult(i.id);
       if (context.mounted) Navigator.pop(context); // close the detail sheet
       messenger.showSnackBar(
-          const SnackBar(content: Text('Response deleted; candidate can retake.')));
+        const SnackBar(
+          content: Text('Response deleted; candidate can retake.'),
+        ),
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not delete: $e')));
     }
@@ -1320,19 +1462,21 @@ class _InterviewCard extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Remove candidate from test?'),
+        title: const Text('Remove candidate from pipeline?'),
         content: Text(
           'This deletes the assignment AND any response for “${i.title}”. '
-          'The candidate will no longer see this test at all. To wipe only '
+          'The candidate will no longer see this pipeline at all. To wipe only '
           'their answers and let them retake, use "Delete response" instead.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -1359,7 +1503,9 @@ class _StatusChip extends StatelessWidget {
         color = isDark ? AppColors.pastelCyanText : AppColors.accent;
         break;
       case InterviewStatus.assigned:
-        color = isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant;
+        color = isDark
+            ? AppColors.textMuted
+            : theme.colorScheme.onSurfaceVariant;
         break;
     }
     return Container(
@@ -1367,10 +1513,7 @@ class _StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withValues(alpha: 0.25),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Text(
         status.label,
@@ -1431,7 +1574,7 @@ class _DeleteTestDialogState extends State<_DeleteTestDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('Delete entire test?'),
+      title: const Text('Delete entire pipeline?'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1446,8 +1589,9 @@ class _DeleteTestDialogState extends State<_DeleteTestDialog> {
             const SizedBox(height: 16),
             Text(
               'Type DELETE to confirm',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 6),
             TextField(
@@ -1470,7 +1614,7 @@ class _DeleteTestDialogState extends State<_DeleteTestDialog> {
         TextButton(
           onPressed: _confirmed ? () => Navigator.pop(context, true) : null,
           child: Text(
-            'Delete test',
+            'Delete pipeline',
             style: TextStyle(color: theme.colorScheme.error),
           ),
         ),

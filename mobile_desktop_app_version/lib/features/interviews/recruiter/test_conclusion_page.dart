@@ -450,8 +450,8 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
         icon: Icons.flag_outlined,
         title: 'Nobody has finished yet',
         subtitle: _runs.isEmpty
-            ? 'Assign this test to a candidate to get started.'
-            : '${_runs.length} candidate(s) are in this test, but every one of '
+            ? 'Assign this pipeline to a candidate to get started.'
+            : '${_runs.length} candidate(s) are in this pipeline, but every one of '
                 'them still has a round to sit. A conclusion can be released '
                 'once somebody has nothing left to do.',
       );
@@ -621,7 +621,7 @@ class _TestConclusionPageState extends State<TestConclusionPage> {
               if (_stillRunning > 0) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '$_stillRunning candidate(s) are still mid-test and are not '
+                  '$_stillRunning candidate(s) are still mid-pipeline and are not '
                   'listed.',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),

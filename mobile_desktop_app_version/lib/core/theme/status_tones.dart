@@ -27,14 +27,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
 import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 class StatusTone {
   StatusTone._();
 
-  /// Minimum contrast a status colour must reach against the page, as text.
-  /// 3:1 is the WCAG bar for large/bold text, which is what these are.
-  static const double _minContrast = 3.0;
+  /// Minimum contrast a status colour must reach, as text, against
+  /// [_onGround]'s reference surface. 4.5:1 — the bar for normal text; these
+  /// are not all large/bold, and the web client paints the same value as link
+  /// text. Declared once in contracts/design-tokens.json.
+  static const double _minContrast = TokenStatus.minContrast;
 
   /// Finished, available, cleared, passing — the good outcome.
   static Color ready(BuildContext c) => _onGround(c, WarmSurfaces.block(c));
@@ -51,7 +54,14 @@ class StatusTone {
   /// hand-tuned palette for light mode, this walks the colour toward the ink
   /// until it clears the bar, so any accent added later is handled too.
   static Color _onGround(BuildContext c, Color tone) {
-    final bg = WarmSurfaces.ground(c);
+    // Measured against the LIGHTEST surface the tone is ever drawn on — the
+    // card, not the page ground. A tone tuned only against the ground goes
+    // under the bar the moment it is set on a card, and the web client paints
+    // the same tone on a white card. Both runtimes therefore walk against the
+    // one declared reference and land on the same colour, not a similar one.
+    final bg = WarmSurfaces.isDark(c)
+        ? WarmSurfaces.ground(c)
+        : TokenGroundLight.surface;
     if (_contrast(tone, bg) >= _minContrast) return tone;
 
     var out = tone;
@@ -95,8 +105,8 @@ class StatusTone {
   /// A 0-100 score's band. High takes the accent, mid the secondary, low the
   /// fixed danger — three visually distinct slots at any accent pairing.
   static Color forScore(BuildContext c, num score) {
-    if (score >= 75) return ready(c);
-    if (score >= 55) return borderline(c);
+    if (score >= TokenStatus.scoreReady) return ready(c);
+    if (score >= TokenStatus.scoreBorderline) return borderline(c);
     return failed(c);
   }
 

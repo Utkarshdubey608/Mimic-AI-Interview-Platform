@@ -72,7 +72,7 @@ class _ServiceStatusSectionState extends State<ServiceStatusSection> {
     final unreachable = !_loading && (status == null || status.isEmpty);
 
     return AppleSectionCard(
-      title: 'Service Status',
+      title: 'Service status',
       subtitle: 'Configured by your administrator on the server.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -167,7 +167,7 @@ class _ServiceStatusSectionState extends State<ServiceStatusSection> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Cannot reach the TalbotIQ server',
+                'Cannot reach the Mimic server',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),

@@ -87,7 +87,7 @@ Future<Uint8List> buildReportPdf({
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                (template?.branding.companyName ?? 'TalbotIQ').toUpperCase(),
+                (template?.branding.companyName ?? 'Mimic').toUpperCase(),
                 style: pw.TextStyle(
                     fontSize: 10, color: accent, letterSpacing: 1.5),
               ),

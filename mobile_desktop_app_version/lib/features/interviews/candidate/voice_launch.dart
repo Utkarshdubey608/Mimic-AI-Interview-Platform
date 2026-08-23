@@ -43,8 +43,9 @@ Future<void> launchVoiceInterview({
     grant = await backendClient.mintLiveToken(interviewId: interview.id);
   } on BackendException catch (e) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(e.message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(e.message)));
     return;
   }
   if (!context.mounted) return;
@@ -53,7 +54,7 @@ Future<void> launchVoiceInterview({
     MaterialPageRoute(
       builder: (_) => VoiceStage(
         grant: grant,
-        companyName: interview.recruiterName ?? 'TalbotIQ',
+        companyName: interview.recruiterName ?? 'Mimic',
         // Recruiter-configured limit; null (none set) keeps the service default.
         maxDuration: interview.durationMinutes > 0
             ? Duration(minutes: interview.durationMinutes)
@@ -104,6 +105,32 @@ bool _isReadinessReply(String text) {
   ).hasMatch(t);
 }
 
+/// Gemini may emit ASR placeholders such as `<noise>` as a finalized input
+/// turn. They are diagnostics, not candidate answers, and must never occupy a
+/// planned question or be sent to the recruiter/scorer.
+bool isNonSpeechVoiceTranscript(String text) {
+  final marker = text.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  return const {
+    '<noise>',
+    '[noise]',
+    '(noise)',
+    'noise',
+    '<silence>',
+    '[silence]',
+    '(silence)',
+    'silence',
+    '<inaudible>',
+    '[inaudible]',
+    '(inaudible)',
+    'inaudible',
+  }.contains(marker);
+}
+
+List<String> cleanVoiceResponses(Iterable<String> responses) => responses
+    .map((text) => text.trim())
+    .where((text) => text.isNotEmpty && !isNonSpeechVoiceTranscript(text))
+    .toList(growable: false);
+
 Future<void> _scoreAndStore({
   required AppStore store,
   required InterviewRepository repo,
@@ -134,7 +161,7 @@ Future<void> _scoreAndStore({
     // it as a real answer (and shifting every subsequent answer by one) would
     // corrupt the transcript. Only the FIRST line, and only when it is short
     // and affirmation-shaped, is dropped.
-    final scored = List<String>.from(responses);
+    final scored = cleanVoiceResponses(responses);
     if (scored.isNotEmpty && _isReadinessReply(scored.first)) {
       scored.removeAt(0);
     }
@@ -150,7 +177,8 @@ Future<void> _scoreAndStore({
       try {
         await repo.completeWithoutScore(
           interview.id,
-          error: 'No usable spoken answers were captured (only '
+          error:
+              'No usable spoken answers were captured (only '
               '${combined.length} character(s) of speech). The microphone may '
               'have been muted or blocked, or the candidate did not answer.',
           responsesApproximate: true,
@@ -193,9 +221,11 @@ Future<void> _scoreAndStore({
         // reference's completeness) instead of silently dropping trailing
         // unanswered questions, while any answer beyond the plan is still
         // preserved as an "Additional response".
-        for (var idx = 0;
-            idx < interview.questions.length || idx < scored.length;
-            idx++)
+        for (
+          var idx = 0;
+          idx < interview.questions.length || idx < scored.length;
+          idx++
+        )
           {
             'question': idx < interview.questions.length
                 ? interview.questions[idx]
@@ -212,7 +242,7 @@ Future<void> _scoreAndStore({
     // non-empty — is actually usable. Without this the recruiter got a blank
     // placeholder with no way to see what was said or re-score it.
     try {
-      final scored = List<String>.from(responses);
+      final scored = cleanVoiceResponses(responses);
       if (scored.isNotEmpty && _isReadinessReply(scored.first)) {
         scored.removeAt(0);
       }
@@ -221,9 +251,11 @@ Future<void> _scoreAndStore({
         error: e.toString().replaceAll('Exception: ', ''),
         responsesApproximate: true,
         responses: [
-          for (var idx = 0;
-              idx < interview.questions.length || idx < scored.length;
-              idx++)
+          for (
+            var idx = 0;
+            idx < interview.questions.length || idx < scored.length;
+            idx++
+          )
             {
               'question': idx < interview.questions.length
                   ? interview.questions[idx]

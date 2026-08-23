@@ -8,7 +8,7 @@
 // windows, sidebar rail on wide ones, from the earlier desktop-enablement
 // pass). Nothing in this file changes that code path.
 //
-// Desktop: a horizontal DesktopTopNav (Home, Library, Analytics, Settings)
+// Desktop: a DesktopSpine (Pipelines, Library, Analytics, Settings) down the left
 // replaces the sidebar entirely, per the redesign brief. Each hosted page
 // (RecruiterHome, AnalyticsPage, the Settings tab) renders without its own
 // local AppBar when running under this top nav — the top nav's profile menu
@@ -22,13 +22,16 @@ import 'package:flutter/material.dart';
 import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/shared/widgets/adaptive_nav_scaffold.dart';
 import 'package:talbotiq/shared/widgets/desktop_profile_menu.dart';
-import 'package:talbotiq/shared/widgets/desktop_top_nav.dart';
+import 'package:talbotiq/shared/widgets/desktop_spine.dart';
 import 'package:talbotiq/shared/widgets/floating_nav_bar.dart';
 import 'package:talbotiq/shared/widgets/logout_button.dart';
 import 'package:talbotiq/features/auth/app_role.dart';
 import 'package:talbotiq/features/settings/settings_page.dart';
 import 'package:talbotiq/features/recruiter/analytics/analytics_page.dart';
 import 'package:talbotiq/features/recruiter/views/management/recruiter_library_page.dart';
+import 'package:talbotiq/features/recruiter/views/management/mcq_sets_page.dart';
+import 'package:talbotiq/features/recruiter/views/management/question_sets_page.dart';
+import 'package:talbotiq/features/recruiter/views/management/templates_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/recruiter_home.dart';
 import 'package:talbotiq/features/auth/company_prompt.dart';
 import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
@@ -79,28 +82,64 @@ class _RecruiterShellState extends State<RecruiterShell> {
     const _RecruiterSettingsTab(),
   ];
 
-  static const _desktopNavItems = [
-    DesktopTopNavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    DesktopTopNavItem(
-        icon: Icons.folder_special_outlined,
-        activeIcon: Icons.folder_special,
-        label: 'Library'),
-    DesktopTopNavItem(
-        icon: Icons.analytics_outlined,
-        activeIcon: Icons.analytics_rounded,
-        label: 'Analytics'),
+  /// The shared IA — see contracts/lexicon.md §8. These groups, this order and
+  /// these labels are mirrored by the web spine in `Nav.tsx`, so a change here
+  /// is a change to two apps.
+  ///
+  /// Web nests Templates, Question sets and Assessments directly under Library;
+  /// here they are one level down, inside RecruiterLibraryPage, because this
+  /// client routes them as pushed pages rather than as shell tabs. Same names,
+  /// same place in the hierarchy, one fewer click on the browser.
+  static const _desktopGroups = [
+    SpineGroup(label: 'Hiring', items: [
+      SpineItem(
+          icon: Icons.account_tree_outlined,
+          activeIcon: Icons.account_tree,
+          label: 'Pipelines'),
+    ]),
+    SpineGroup(label: 'Library', items: [
+      SpineItem(
+          icon: Icons.folder_special_outlined,
+          activeIcon: Icons.folder_special,
+          label: 'Library'),
+      // The three the web spine lists directly, as direct links rather than a
+      // drill-through. The Library tab above stays because it also holds
+      // Generate from résumé, Personas and Replicas, which have no spine seat
+      // of their own on this client.
+      SpineItem(
+          icon: Icons.dashboard_customize_outlined,
+          label: 'Templates',
+          push: _templatesPage),
+      SpineItem(
+          icon: Icons.list_alt_outlined,
+          label: 'Question sets',
+          push: _questionSetsPage),
+      SpineItem(
+          icon: Icons.fact_check_outlined,
+          label: 'Assessments',
+          push: _mcqSetsPage),
+    ]),
+    SpineGroup(label: 'Workspace', items: [
+      SpineItem(
+          icon: Icons.analytics_outlined,
+          activeIcon: Icons.analytics_rounded,
+          label: 'Analytics'),
+      SpineItem(
+          icon: Icons.settings_outlined,
+          activeIcon: Icons.settings_rounded,
+          label: 'Settings'),
+    ]),
   ];
 
+  /// Flattened to match the spine's index. Settings is a destination now rather
+  /// than an item hidden in a profile menu — it is one on the web spine, and a
+  /// setting nobody can find is a setting nobody changes.
   static const _desktopPages = [
     RecruiterHome(),
     RecruiterLibraryPage(),
     AnalyticsPage(),
+    _RecruiterSettingsTab(),
   ];
-
-  // Settings is no longer one of the top-nav tabs (moved into the profile
-  // menu) so it isn't part of the IndexedStack above — it's a separate
-  // overlay flag instead, shown in place of whichever tab was active.
-  bool _settingsOpen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +161,7 @@ class _RecruiterShellState extends State<RecruiterShell> {
         // its state is there to drive whichever tab you are looking at.
         action: FloatingNavAction(
           icon: Icons.add_rounded,
-          tooltip: 'Create interview test',
+          tooltip: 'Create pipeline',
           onPressed: () => _homeKey.currentState?.createInterview(),
         ),
         body: IndexedStack(index: _index, children: _mobilePages),
@@ -132,28 +171,23 @@ class _RecruiterShellState extends State<RecruiterShell> {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
+      // A Row, not a Column: the spine runs down the left edge exactly as it
+      // does in the browser. Settings is one of the destinations now, so the
+      // `-1 means nothing is selected` case the top nav needed is gone with it.
+      body: Row(
         children: [
-          DesktopTopNav(
-            // No tab is "active" while Settings is showing — Settings isn't
-            // one of these tabs anymore, so leaving Home/Library/Analytics
-            // highlighted while its content is on screen would mislabel it.
-            // -1 simply matches none of them.
-            currentIndex: _settingsOpen ? -1 : _index,
-            onSelect: (i) => setState(() {
-              _index = i;
-              _settingsOpen = false;
-            }),
-            items: _desktopNavItems,
-            trailing: DesktopProfileMenu(
+          DesktopSpine(
+            currentIndex: _index,
+            onSelect: (i) => setState(() => _index = i),
+            groups: _desktopGroups,
+            account: DesktopProfileMenu(
               roleLabel: 'Recruiter',
-              onOpenSettings: () => setState(() => _settingsOpen = true),
+              onOpenSettings: () => setState(
+                  () => _index = _desktopPages.length - 1),
             ),
           ),
           Expanded(
-            child: _settingsOpen
-                ? const _RecruiterSettingsTab()
-                : IndexedStack(index: _index, children: _desktopPages),
+            child: IndexedStack(index: _index, children: _desktopPages),
           ),
         ],
       ),
@@ -182,3 +216,9 @@ class _RecruiterSettingsTab extends StatelessWidget {
     );
   }
 }
+
+// Route builders for the spine's direct library links. Top-level functions so
+// the SpineItem list can stay `const` — a closure would make it runtime.
+Widget _templatesPage(BuildContext _) => const TemplatesPage();
+Widget _questionSetsPage(BuildContext _) => const QuestionSetsPage();
+Widget _mcqSetsPage(BuildContext _) => const McqSetsPage();

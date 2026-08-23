@@ -47,7 +47,7 @@ class VideoPanel extends StatelessWidget {
           const PulsingAvatar(),
           const SizedBox(height: 16),
           Text(
-            'Demo Mode',
+            'Demo mode',
             style: theme.textTheme.titleMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,

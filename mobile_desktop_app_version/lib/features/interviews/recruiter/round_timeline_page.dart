@@ -92,22 +92,23 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
     _sub = _repo
         .watchRounds(testId: _testId, recruiterId: _uid)
         .listen(
-      (rounds) {
-        if (!mounted) return;
-        setState(() {
-          _rounds = rounds;
-          _error = null;
-        });
-        // Count only rounds we have no number for yet, so an unrelated stream
-        // tick (someone renaming a round) does not re-run every aggregate.
-        final missing =
-            rounds.where((r) => !_counts.containsKey(r.id)).toList();
-        if (missing.isNotEmpty) _loadCounts(missing);
-      },
-      onError: (Object e) {
-        if (mounted) setState(() => _error = e);
-      },
-    );
+          (rounds) {
+            if (!mounted) return;
+            setState(() {
+              _rounds = rounds;
+              _error = null;
+            });
+            // Count only rounds we have no number for yet, so an unrelated stream
+            // tick (someone renaming a round) does not re-run every aggregate.
+            final missing = rounds
+                .where((r) => !_counts.containsKey(r.id))
+                .toList();
+            if (missing.isNotEmpty) _loadCounts(missing);
+          },
+          onError: (Object e) {
+            if (mounted) setState(() => _error = e);
+          },
+        );
   }
 
   @override
@@ -119,11 +120,18 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   /// Fetches the assigned-candidate count for [rounds] concurrently, then
   /// applies them in one rebuild rather than one per round.
   Future<void> _loadCounts(List<InterviewRound> rounds) async {
-    final counts = await Future.wait(rounds.map((r) async => (
+    final counts = await Future.wait(
+      rounds.map(
+        (r) async => (
           r.id,
           await _repo.countForRecruiter(
-              recruiterId: _uid, testId: _testId, roundId: r.id),
-        )));
+            recruiterId: _uid,
+            testId: _testId,
+            roundId: r.id,
+          ),
+        ),
+      ),
+    );
     if (!mounted) return;
     setState(() {
       for (final (id, n) in counts) {
@@ -137,9 +145,7 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   void _invalidateCount(String roundId) {
     if (!mounted) return;
     setState(() => _counts.remove(roundId));
-    _loadCounts([
-      ...?_rounds?.where((r) => r.id == roundId),
-    ]);
+    _loadCounts([...?_rounds?.where((r) => r.id == roundId)]);
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
@@ -173,29 +179,40 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
       // Creating fresh assignments for them would leave each candidate holding
       // two copies of the same test, so offer to move them in instead.
       final legacy = await _repo.countLegacyAssignments(
-          testId: _testId, recruiterId: _uid);
+        testId: _testId,
+        recruiterId: _uid,
+      );
       if (!mounted) return;
       if (legacy > 0 && await _offerAdoption(round, legacy)) {
         final moved = await _repo.adoptLegacyAssignments(round);
         if (!mounted) return;
         _invalidateCount(round.id);
-        messenger.showSnackBar(SnackBar(
-          content: Text('$moved existing candidate(s) moved into '
-              '"${round.title}".'),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '$moved existing candidate(s) moved into '
+              '"${round.title}".',
+            ),
+          ),
+        );
         return;
       }
       if (!mounted) return;
 
       final candidates = await _repo.fetchTestCandidates(
-          testId: _testId, recruiterId: _uid);
+        testId: _testId,
+        recruiterId: _uid,
+      );
       if (!mounted) return;
 
       if (candidates.isEmpty) {
-        messenger.showSnackBar(const SnackBar(
-          content: Text(
-              'No candidates in this test yet — add them to a round first.'),
-        ));
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No candidates in this pipeline yet — add them to a round first.',
+            ),
+          ),
+        );
         return;
       }
 
@@ -205,7 +222,7 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
           title: Text('Add candidates to "${round.title}"?'),
           content: Text(
             [
-              '${candidates.length} candidate(s) are in this test. Anyone '
+              '${candidates.length} candidate(s) are in this pipeline. Anyone '
                   'already in this round is skipped, so their answers and '
                   'scores are kept.',
               // Said out loud because it publishes something to candidates.
@@ -219,11 +236,13 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Add')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Add'),
+            ),
           ],
         ),
       );
@@ -237,11 +256,15 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
         candidates: candidates,
       );
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(n == 0
-            ? 'Everyone in this test is already in that round.'
-            : '$n candidate(s) added to "${round.title}".'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            n == 0
+                ? 'Everyone in this pipeline is already in that round.'
+                : '$n candidate(s) added to "${round.title}".',
+          ),
+        ),
+      );
       // Assigning does not change the round document, so the timeline stream
       // will not tick — the count has to be re-read explicitly.
       _invalidateCount(round.id);
@@ -263,12 +286,12 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
       builder: (ctx) => AlertDialog(
         title: const Text('Move existing candidates in?'),
         content: Text(
-          '$legacy candidate(s) were assigned this test before it had rounds, so '
+          '$legacy candidate(s) were assigned this pipeline before it had rounds, so '
           'they do not belong to any round yet.\n\n'
           'Moving them into "${round.title}" keeps anything they have already '
           'done — answers and scores are untouched — and gives them this round\'s '
           'dates.\n\n'
-          'If you add them as new candidates instead, they will see this test '
+          'If you add them as new candidates instead, they will see this pipeline '
           'twice.',
         ),
         actions: [
@@ -295,21 +318,23 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
         content: Text(
           round.willAutoClose
               ? 'This round is scheduled to close on '
-                  '${formatDateTime(round.closesAt!)}. Ending it now closes it '
-                  'immediately for '
-                  '${n >= 0 ? '$n candidate(s)' : 'its candidates'} — anyone '
-                  'who has not finished loses access.'
+                    '${formatDateTime(round.closesAt!)}. Ending it now closes it '
+                    'immediately for '
+                    '${n >= 0 ? '$n candidate(s)' : 'its candidates'} — anyone '
+                    'who has not finished loses access.'
               : 'The round closes immediately for '
-                  '${n >= 0 ? '$n candidate(s)' : 'its candidates'}. Anyone who '
-                  'has not finished loses access.',
+                    '${n >= 0 ? '$n candidate(s)' : 'its candidates'}. Anyone who '
+                    'has not finished loses access.',
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('End round')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('End round'),
+          ),
         ],
       ),
     );
@@ -320,10 +345,12 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
       await _repo.endRound(round);
       if (!mounted) return;
       messenger.showSnackBar(
-          SnackBar(content: Text('"${round.title}" is closed.')));
+        SnackBar(content: Text('"${round.title}" is closed.')),
+      );
     } catch (e) {
-      messenger
-          .showSnackBar(SnackBar(content: Text('Could not end round: $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not end round: $e')),
+      );
       // Do NOT offer to notify anyone: the round is still open, so any shortlist
       // drawn from it now could still change.
       return;
@@ -343,11 +370,13 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Not now')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Not now'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Choose who advances')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Choose who advances'),
+          ),
         ],
       ),
     );
@@ -361,22 +390,22 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
     // the candidate is advancing TO rather than "the next round".
     final rounds = _rounds ?? const <InterviewRound>[];
     final at = rounds.indexWhere((r) => r.id == round.id);
-    final next =
-        (at >= 0 && at + 1 < rounds.length) ? rounds[at + 1] : null;
+    final next = (at >= 0 && at + 1 < rounds.length) ? rounds[at + 1] : null;
 
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => RoundNotifyPage(
-        test: widget.test,
-        round: round,
-        nextRound: next,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            RoundNotifyPage(test: widget.test, round: round, nextRound: next),
       ),
-    ));
+    );
   }
 
   void _openCandidates(InterviewRound round) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => TestCandidatesPage(test: widget.test, round: round),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TestCandidatesPage(test: widget.test, round: round),
+      ),
+    );
   }
 
   /// Opens the live call for a two-way round.
@@ -385,19 +414,27 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   /// and lets the recruiter pick who they are meeting — the room is keyed on the
   /// interview id, which is one candidate's assignment.
   void _openLiveInterview(InterviewRound round) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => TestCandidatesPage(test: widget.test, round: round),
-    ));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text('Pick the candidate you are interviewing, then "Join live '
-          'interview".'),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TestCandidatesPage(test: widget.test, round: round),
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Pick the candidate you are interviewing, then "Join live '
+          'interview".',
+        ),
+      ),
+    );
   }
 
   void _openLeaderboard(InterviewRound round) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => RoundLeaderboardPage(test: widget.test, round: round),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoundLeaderboardPage(test: widget.test, round: round),
+      ),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -414,8 +451,9 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               widget.test.title,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ),
@@ -467,9 +505,14 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
             showConnector: i < rounds.length - 1,
             stateLabel: roundStateLabel(r, now),
             stateColor: switch (r.stateAt(now)) {
-              RoundState.open => isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
-              RoundState.scheduled => isDark ? AppColors.pastelCyanText : theme.colorScheme.secondary,
-              RoundState.closed => isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+              RoundState.open =>
+                isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+              RoundState.scheduled =>
+                isDark ? AppColors.pastelCyanText : theme.colorScheme.secondary,
+              RoundState.closed =>
+                isDark
+                    ? AppColors.textSubtle
+                    : theme.colorScheme.onSurfaceVariant,
             },
             assignedCount: _counts[r.id] ?? -1,
             highlight: r.id == activeId,
@@ -502,24 +545,43 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                   itemBuilder: (ctx) => [
                     if (r.kind == RoundKind.twoWay && !closed)
                       const PopupMenuItem(
-                          value: 'live', child: Text('Join live interview')),
+                        value: 'live',
+                        child: Text('Join live interview'),
+                      ),
                     const PopupMenuItem(
-                        value: 'configure', child: Text('Configure')),
+                      value: 'configure',
+                      child: Text('Configure'),
+                    ),
                     const PopupMenuItem(
-                        value: 'leaderboard', child: Text('Leaderboard')),
+                      value: 'leaderboard',
+                      child: Text('Leaderboard'),
+                    ),
                     const PopupMenuItem(
-                        value: 'notify', child: Text('Notify candidates…')),
+                      value: 'notify',
+                      child: Text('Notify candidates…'),
+                    ),
                     const PopupMenuItem(
-                        value: 'assign', child: Text('Add candidates')),
+                      value: 'assign',
+                      child: Text('Add candidates'),
+                    ),
                     const PopupMenuItem(
-                        value: 'candidates', child: Text('View candidates')),
+                      value: 'candidates',
+                      child: Text('View candidates'),
+                    ),
                     if (!closed)
                       const PopupMenuItem(
-                          value: 'end', child: Text('End round now')),
+                        value: 'end',
+                        child: Text('End round now'),
+                      ),
                   ],
                 ),
-                Icon(Icons.chevron_right,
-                    size: 18, color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant),
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: isDark
+                      ? AppColors.textSubtle
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
@@ -537,24 +599,26 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => TestConclusionPage(test: widget.test),
-          )),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => TestConclusionPage(test: widget.test),
+            ),
+          ),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: WarmSurfaces.surface(context),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: WarmSurfaces.stroke(context),
-              ),
+              border: Border.all(color: WarmSurfaces.stroke(context)),
             ),
             child: Row(
               children: [
                 Icon(
                   Icons.flag_outlined,
                   size: 20,
-                  color: isDark ? AppColors.pastelMintText : theme.colorScheme.primary,
+                  color: isDark
+                      ? AppColors.pastelMintText
+                      : theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -567,7 +631,9 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                         style: TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
-                          color: isDark ? AppColors.textLight : theme.colorScheme.onSurface,
+                          color: isDark
+                              ? AppColors.textLight
+                              : theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -575,7 +641,9 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                         'Tell the candidates who have finished how it ended, in your own words.',
                         style: TextStyle(
                           fontSize: 11.5,
-                          color: isDark ? AppColors.textMuted : theme.colorScheme.onSurfaceVariant,
+                          color: isDark
+                              ? AppColors.textMuted
+                              : theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -584,7 +652,9 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
                 Icon(
                   Icons.chevron_right,
                   size: 18,
-                  color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+                  color: isDark
+                      ? AppColors.textSubtle
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -595,34 +665,41 @@ class _RoundTimelinePageState extends State<RoundTimelinePage> {
   }
 
   Widget _emptyState(ThemeData theme) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.timeline_outlined,
-                    size: 44, color: theme.colorScheme.onSurfaceVariant),
-                const SizedBox(height: 16),
-                Text('This test has no rounds',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Text(
-                  'It runs as a single stage, which is fine — its schedule and '
-                  'questions are edited from the test itself. A pipeline of '
-                  'rounds is designed when a test is created, using Round Style → '
-                  'Multi Round.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ],
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 460),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.timeline_outlined,
+              size: 44,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-          ),
+            const SizedBox(height: 16),
+            Text(
+              'This pipeline has no rounds',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'It runs as a single stage, which is fine — its schedule and '
+              'questions are edited from the pipeline itself. A sequence of '
+              'rounds is designed when a pipeline is created, using Round style → '
+              'Multi Round.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// The status chip's text for [round] at [now].

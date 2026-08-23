@@ -48,7 +48,7 @@ class ReportPage extends StatelessWidget {
       // Inherit the scaffold background (and let the AppBar inherit too) so
       // this page sits on the same surface as every other recruiter screen.
       appBar: AppBar(
-        title: const Text('Interview Report'),
+        title: const Text('Interview report'),
         actions: [
           if (session != null && report != null)
             IconButton(

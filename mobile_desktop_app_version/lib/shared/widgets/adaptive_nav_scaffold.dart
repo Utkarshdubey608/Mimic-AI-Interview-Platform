@@ -51,15 +51,27 @@ class AdaptiveNavScaffold extends StatelessWidget {
         final isWide = constraints.maxWidth >= kDesktopNavBreakpoint;
         if (!isWide) {
           return Scaffold(
-            backgroundColor: backgroundColor ?? theme.scaffoldBackgroundColor,
-            body: body,
-            bottomNavigationBar: FloatingNavBar(
-              currentIndex: currentIndex,
-              onSelect: onSelect,
-              items: items,
-              action: action,
-            ),
-          );
+              backgroundColor: Colors.transparent,
+              body: Stack(
+                children: [
+                  Positioned.fill(
+                    child: body,
+                  ),
+
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: FloatingNavBar(
+                      currentIndex: currentIndex,
+                      onSelect: onSelect,
+                      items: items,
+                      action: action,
+                    ),
+                  ),
+                ],
+              ),
+            );
         }
 
         final cs = theme.colorScheme;

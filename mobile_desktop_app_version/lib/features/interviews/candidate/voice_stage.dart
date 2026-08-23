@@ -55,7 +55,7 @@ class VoiceStage extends StatefulWidget {
     super.key,
     required this.grant,
     this.personaName = 'AI Interviewer',
-    this.companyName = 'TalbotIQ',
+    this.companyName = 'Mimic',
     this.maxDuration,
     this.onFinished,
   });
@@ -309,7 +309,7 @@ class _VoiceStageState extends State<VoiceStage>
               const SizedBox(height: 20),
               OutlinedButton(
                 onPressed: openAppSettings,
-                child: const Text('Open Settings'),
+                child: const Text('Open settings'),
               ),
               const SizedBox(height: 8),
               TextButton(

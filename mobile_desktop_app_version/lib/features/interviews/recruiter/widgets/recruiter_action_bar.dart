@@ -50,28 +50,18 @@ class RecruiterActionBar extends StatelessWidget {
             'ACTIONS',
             style: TextStyle(
               fontSize: 10.5,
-              color: isDark ? AppColors.textSubtle : theme.colorScheme.onSurfaceVariant,
+              color: isDark
+                  ? AppColors.textSubtle
+                  : theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.0,
             ),
           ),
         ),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: WarmSurfaces.surface(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: WarmSurfaces.stroke(context),
-            ),
-          ),
-          child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final action in actions) _ActionPill(action: action),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [for (final action in actions) _ActionPill(action: action)],
         ),
       ],
     );
@@ -96,7 +86,7 @@ class _ActionPill extends StatelessWidget {
     final color = enabled ? accent : WarmSurfaces.inkSubtle(context);
 
     return Material(
-      color: WarmSurfaces.surface(context),
+      color: WarmSurfaces.surfaceHigh(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
         side: BorderSide(
@@ -109,7 +99,7 @@ class _ActionPill extends StatelessWidget {
         onTap: action.onPressed,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [

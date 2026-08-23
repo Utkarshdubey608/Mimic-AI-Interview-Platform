@@ -1,6 +1,7 @@
 // lib/core/theme/app_theme.dart
 import 'package:flutter/material.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
 
 class AppTheme {
   static ThemeData get darkTheme {
@@ -8,7 +9,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Inter',
+      fontFamily: TokenType.ui,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         onPrimary: AppColors.backgroundBlack,
@@ -123,7 +124,7 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -138,7 +139,7 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -179,7 +180,7 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           color: AppColors.textLight,
-          fontFamily: 'Inter',
+          fontFamily: TokenType.ui,
         ),
         iconTheme: IconThemeData(color: AppColors.textMuted, size: 21),
         actionsIconTheme: IconThemeData(color: AppColors.textMuted, size: 21),
@@ -229,7 +230,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: lightBackground,
-      fontFamily: 'Inter',
+      fontFamily: TokenType.ui,
       colorScheme: const ColorScheme.light(
         primary: lightPrimary,
         onPrimary: lightOnPrimary,
@@ -342,7 +343,7 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -357,7 +358,7 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -395,7 +396,7 @@ class AppTheme {
           fontWeight: FontWeight.w600,
           letterSpacing: -0.3,
           color: lightText,
-          fontFamily: 'Inter',
+          fontFamily: TokenType.ui,
         ),
         iconTheme: IconThemeData(color: lightTextMuted, size: 21),
         actionsIconTheme: IconThemeData(color: lightTextMuted, size: 21),

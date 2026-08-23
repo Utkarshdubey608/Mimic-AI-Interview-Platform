@@ -322,7 +322,7 @@ def test_canned_answers_match_by_keyword() -> None:
 
 
 def test_an_unmatched_question_gets_a_general_overview() -> None:
-    assert "navigate TalbotIQ" in mimic_guide.canned_answer("qwertyuiop", pick=FIRST)
+    assert "navigate Mimic" in mimic_guide.canned_answer("qwertyuiop", pick=FIRST)
 
 
 def test_every_canned_answer_is_non_empty() -> None:

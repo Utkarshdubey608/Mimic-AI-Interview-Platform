@@ -157,7 +157,7 @@ class _NotifyCandidatesCardState extends State<NotifyCandidatesCard> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         CustomToggle(
-          label: 'Email Candidates',
+          label: 'Email candidates',
           description: widget.candidateCount > 0
               ? 'Send the interview link to all ${widget.candidateCount} candidate'
                   '${widget.candidateCount == 1 ? '' : 's'} when this is saved.'
@@ -184,7 +184,7 @@ class _NotifyCandidatesCardState extends State<NotifyCandidatesCard> {
             children: [
               Expanded(
                 child: CustomButton(
-                  text: widget.template == null ? 'Choose Template' : 'Change Template',
+                  text: widget.template == null ? 'Choose template' : 'Change template',
                   variant: ButtonVariant.outline,
                   height: 44,
                   icon: const Icon(Icons.mail_outline, size: 18),

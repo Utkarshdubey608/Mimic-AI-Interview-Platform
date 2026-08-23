@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Talbotiq" "\0"
-            VALUE "FileDescription", "Talbotiq" "\0"
+            VALUE "CompanyName", "TalbotIQ" "\0"
+            VALUE "FileDescription", "Mimic" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "talbotiq_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Talbotiq. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 TalbotIQ. All rights reserved." "\0"
             VALUE "OriginalFilename", "talbotiq_app.exe" "\0"
-            VALUE "ProductName", "Talbotiq" "\0"
+            VALUE "ProductName", "Mimic" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

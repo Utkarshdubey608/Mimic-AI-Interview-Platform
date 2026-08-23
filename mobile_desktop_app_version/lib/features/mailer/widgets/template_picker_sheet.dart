@@ -189,7 +189,7 @@ class _TemplatePickerSheetState extends State<TemplatePickerSheet> {
       builder: (_, scrollController) => Column(
         children: [
           MailerSheetHeader(
-            title: 'Email Template',
+            title: 'Email template',
             subtitle: 'Pick what candidates receive, or create your own.',
             trailing: IconButton(
               tooltip: 'New template',
@@ -201,7 +201,7 @@ class _TemplatePickerSheetState extends State<TemplatePickerSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
             child: CustomButton(
-              text: 'Use This Template',
+              text: 'Use this template',
               width: double.infinity,
               onPressed: _selectedId == null ? () {} : _confirm,
             ),
@@ -270,7 +270,7 @@ class _TemplatePickerSheetState extends State<TemplatePickerSheet> {
           for (final t in mine) _templateTile(t),
         const SizedBox(height: 12),
         CustomButton(
-          text: 'New Template',
+          text: 'New template',
           variant: ButtonVariant.outline,
           width: double.infinity,
           height: 44,

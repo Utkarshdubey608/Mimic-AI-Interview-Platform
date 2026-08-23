@@ -50,7 +50,9 @@ Future<void> launchVideoConversation({
   // Carry the real role + duration so scoring isn't judged against a hardcoded
   // default (falls back to the config for self-serve practice).
   store.setActiveInterviewMeta(
-    role: interview?.title ?? config.conversationName,
+    // An assigned timeline document's `title` is the round. Reports need the
+    // interview/pipeline name, with the round shown separately where relevant.
+    role: interview?.displayTestTitle ?? config.conversationName,
     durationSeconds: (interview?.durationMinutes ?? 0) > 0
         ? interview!.durationMinutes * 60
         : config.maxCallDuration,

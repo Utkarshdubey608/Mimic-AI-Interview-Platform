@@ -797,7 +797,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                     !_roundKind.needsMcqPaper &&
                     _welcomeController.text.trim().isNotEmpty)
                 ? {
-                    'companyName': _recruiterName ?? 'TalbotIQ',
+                    'companyName': _recruiterName ?? 'Mimic',
                     'accentColor': '#0d5c3a',
                     'welcomeMessage': _welcomeController.text.trim(),
                   }
@@ -981,7 +981,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         },
         if (_welcomeController.text.trim().isNotEmpty)
           'branding': {
-            'companyName': _recruiterName ?? 'TalbotIQ',
+            'companyName': _recruiterName ?? 'Mimic',
             'accentColor': '#0d5c3a',
             'welcomeMessage': _welcomeController.text.trim(),
           },
@@ -1088,7 +1088,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
     final n = candidates.length;
     final rounds = _rounds.length;
-    final saved = '$rounds-round test created. '
+    final saved = '$rounds-round pipeline created. '
         'Round 1 assigned to $n candidate${n == 1 ? '' : 's'}.';
     _finish(
       summary: TestSummary(
@@ -1225,7 +1225,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           },
         if (_welcomeController.text.trim().isNotEmpty)
           'branding': {
-            'companyName': _recruiterName ?? 'TalbotIQ',
+            'companyName': _recruiterName ?? 'Mimic',
             'accentColor': '#0d5c3a',
             'welcomeMessage': _welcomeController.text.trim(),
           },
@@ -1283,7 +1283,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         sharedContext: {
           'interview_title': _titleController.text.trim(),
           'recruiter_name': _recruiterName ?? '',
-          'company': 'TalbotIQ',
+          'company': 'Mimic',
           if (_expiresAt != null) 'deadline': formatDateTime(_expiresAt!),
         },
         recipients: [
@@ -1400,20 +1400,20 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
   String get _appBarTitle {
     if (_isRoundConfig) {
-      return widget.roundDraft == null ? 'Add Round' : 'Configure Round';
+      return widget.roundDraft == null ? 'Add round' : 'Configure round';
     }
-    return _isEdit ? 'Edit Interview' : 'Create Test';
+    return _isEdit ? 'Edit interview' : 'Create pipeline';
   }
 
   String get _saveLabel {
     if (_isRoundConfig) {
       return widget.roundDraft == null ? 'Add round' : 'Save round';
     }
-    if (_isEdit) return 'Save Changes';
+    if (_isEdit) return 'Save changes';
     // Name what actually happens: the whole timeline is created, but only round 1
     // reaches candidates.
     return _multiRound
-        ? 'Create test & assign round 1'
+        ? 'Create pipeline & assign round 1'
         : 'Save & Assign Interview';
   }
 
@@ -1488,7 +1488,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// the rest of the screen is.
   Widget _buildRoundStyleCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'Round Style',
+        title: 'Round style',
         icon: Icons.tune,
         child: _buildModeToggle(theme),
       );
@@ -1496,7 +1496,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// The round's kind and name — the round-config equivalent of Interview Basics.
   Widget _buildRoundBasicsCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'Round Basics',
+        title: 'Round basics',
         icon: Icons.flag_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1504,7 +1504,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             _buildKindToggle(theme),
             const SizedBox(height: 20),
             CustomInputField(
-              label: 'Round Name',
+              label: 'Round name',
               placeholder: 'e.g. Résumé screen, Technical round',
               controller: _titleController,
             ),
@@ -1516,7 +1516,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// the interview-type toggle — each round carries its own kind.
   Widget _buildTestBasicsCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'Test Basics',
+        title: 'Pipeline basics',
         icon: Icons.assignment_outlined,
         child: CustomInputField(
           label: 'Job Title / Role',
@@ -1528,7 +1528,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// What a résumé round is scored against.
   Widget _buildResumeCriteriaCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'Résumé Scoring',
+        title: 'Résumé scoring',
         icon: Icons.checklist_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1614,7 +1614,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// every candidate zero — the one failure this screen can still prevent.
   Widget _buildMcqCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'The Assessment',
+        title: 'The assessment',
         icon: Icons.fact_check_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1705,7 +1705,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
   Widget _buildTwoWayCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'How This Round Runs',
+        title: 'How this round runs',
         icon: Icons.groups_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1747,7 +1747,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// window, worded for a round.
   Widget _buildRoundWindowCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'When It Runs',
+        title: 'When it runs',
         icon: Icons.schedule_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1760,10 +1760,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             ),
             const SizedBox(height: 12),
             _buildDateTimeTile(
-                label: 'Opens At', value: _availableFrom, isExpiry: false),
+                label: 'Opens at', value: _availableFrom, isExpiry: false),
             const SizedBox(height: 12),
             _buildDateTimeTile(
-                label: 'Closes At', value: _expiresAt, isExpiry: true),
+                label: 'Closes at', value: _expiresAt, isExpiry: true),
           ],
         ),
       );
@@ -1771,7 +1771,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// Who moves on from this round.
   Widget _buildAdvanceCard(ThemeData theme) => _buildFormSection(
         context: context,
-        title: 'Who Moves On',
+        title: 'Who moves on',
         icon: Icons.trending_up_outlined,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1829,14 +1829,14 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
     return _buildFormSection(
       context: context,
-      title: 'Rounds In This Test (${rounds.length})',
+      title: 'Rounds in this pipeline (${rounds.length})',
       icon: Icons.timeline_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Tap a round to change its configuration. Adding, reordering and '
-            'ending rounds is done from the test\'s timeline.',
+            'ending rounds is done from the pipeline\'s timeline.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
@@ -2260,7 +2260,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   Widget _buildJobDetailsCard(ThemeData theme) {
     return _buildFormSection(
       context: context,
-      title: 'Interview Basics',
+      title: 'Interview basics',
       icon: Icons.assignment_outlined,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2365,7 +2365,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       seg(RoundKind.video, Icons.videocam_outlined, 'Video'),
       seg(RoundKind.voice, Icons.mic_none_outlined, 'Voice'),
       seg(RoundKind.twoWay, Icons.groups_outlined, 'Live'),
-      seg(RoundKind.mcq, Icons.fact_check_outlined, 'MCQ'),
+      seg(RoundKind.mcq, Icons.fact_check_outlined, 'Assessment'),
     ];
 
     return Column(
@@ -2463,7 +2463,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'The structure of an existing test is changed from its timeline, '
+              'The structure of an existing pipeline is changed from its timeline, '
               'not here.',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -2529,7 +2529,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   Map<String, String> get _emailPreviewContext => sampleContext(
         interviewTitle: _titleController.text.trim(),
         recruiterName: _recruiterName,
-        company: 'TalbotIQ',
+        company: 'Mimic',
       );
 
   Widget _buildCandidates(ThemeData theme) {
@@ -2568,7 +2568,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           children: [
             Expanded(
               child: CustomButton(
-                text: 'Add Candidate',
+                text: 'Add candidate',
                 variant: ButtonVariant.outline,
                 height: 44,
                 icon: const Icon(Icons.add, size: 18),
@@ -2578,7 +2578,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             const SizedBox(width: 12),
             Expanded(
               child: CustomButton(
-                text: 'Import File',
+                text: 'Import file',
                 variant: ButtonVariant.outline,
                 height: 44,
                 icon: const Icon(Icons.upload_file_outlined, size: 18),
@@ -2595,8 +2595,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     final title = _type == InterviewType.video
         ? 'Avatar & Questions'
         : _type == InterviewType.chat
-            ? 'Chat Questions'
-            : 'Voice Questions';
+            ? 'Chat questions'
+            : 'Voice questions';
 
     final icon = _type == InterviewType.video
         ? Icons.video_settings_outlined
@@ -2718,7 +2718,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
     return Row(
       children: [
-        seg(false, 'Fixed List', 'Predefined set', Icons.list_alt_outlined),
+        seg(false, 'Fixed list', 'Predefined set', Icons.list_alt_outlined),
         const SizedBox(width: 12),
         seg(true, 'Adaptive AI', 'Dynamic resume-based', Icons.auto_awesome_outlined),
       ],
@@ -2736,7 +2736,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           runSpacing: 8,
           children: [
             Text(
-              'Questions List',
+              'Questions list',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -2777,7 +2777,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           ),
         const SizedBox(height: 8),
         CustomButton(
-          text: 'Add Question',
+          text: 'Add question',
           variant: ButtonVariant.outline,
           width: double.infinity,
           height: 44,
@@ -2796,7 +2796,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           children: [
             Expanded(
               child: Text(
-                'Select Avatar Video',
+                'Select avatar video',
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
@@ -2954,7 +2954,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           if (_type == InterviewType.video) ...[
             const SizedBox(height: 16),
             CustomToggle(
-              label: 'Collect Resume',
+              label: 'Collect résumé',
               description:
                   'Require candidates to upload a resume to ground the avatar\'s questions.',
               checked: _collectResume,
@@ -2980,7 +2980,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
           _advancedGroup(theme, 'Language & length'),
           CustomSelectDropdown<String>(
-            label: 'Interview Language',
+            label: 'Interview language',
             value: _language,
             items: [
               for (final l in _languages)
@@ -2990,7 +2990,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           ),
           const SizedBox(height: 16),
           CustomSlider(
-            label: 'Interview Duration',
+            label: 'Interview duration',
             min: 5,
             max: 60,
             divisions: 11,
@@ -3051,21 +3051,21 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CustomToggle(
-            label: 'Detect Tab Switch',
+            label: 'Detect tab switch',
             description: 'Flag candidate if they leave or switch tabs during the interview.',
             checked: _detectTabSwitch,
             onChanged: (v) => setState(() => _detectTabSwitch = v),
           ),
           const Divider(height: 1),
           CustomToggle(
-            label: 'Block Paste',
+            label: 'Block paste',
             description: 'Prevent candidates from pasting text answers.',
             checked: _disablePaste,
             onChanged: (v) => setState(() => _disablePaste = v),
           ),
           const Divider(height: 1),
           CustomToggle(
-            label: 'Block Copy',
+            label: 'Block copy',
             description: 'Prevent candidates from copying questions.',
             checked: _disableCopy,
             onChanged: (v) => setState(() => _disableCopy = v),
@@ -3116,12 +3116,12 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             ),
           ),
           const SizedBox(height: 8),
-          _buildDateTimeTile(label: 'Accessible From', value: _availableFrom, isExpiry: false),
+          _buildDateTimeTile(label: 'Accessible from', value: _availableFrom, isExpiry: false),
           const SizedBox(height: 12),
-          _buildDateTimeTile(label: 'Expires At', value: _expiresAt, isExpiry: true),
+          _buildDateTimeTile(label: 'Expires at', value: _expiresAt, isExpiry: true),
           const SizedBox(height: 20),
           CustomToggle(
-            label: 'Limit Candidate Attempts',
+            label: 'Limit candidate attempts',
             description: 'Control how many attempts a candidate is allowed to complete the interview.',
             checked: _maxAttempts != null,
             onChanged: (v) => setState(() => _maxAttempts = v ? 1 : null),
@@ -3141,7 +3141,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Attempts Allowed',
+                    'Attempts allowed',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),
@@ -3170,7 +3170,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
               ),
             ),
             CustomToggle(
-              label: 'Enable Question Timer',
+              label: 'Enable question timer',
               description: 'Give candidate a fixed amount of time to think and write their response.',
               checked: _chatTimerEnabled,
               onChanged: (v) => setState(() => _chatTimerEnabled = v),
@@ -3319,8 +3319,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   Widget _buildDevicePicker(ThemeData theme) {
     const options = <String, ({String label, String hint})>{
       'web': (label: 'Web browser', hint: 'Any computer or phone browser'),
-      'mobile': (label: 'Mobile app', hint: 'The TalbotIQ app on a phone'),
-      'desktop': (label: 'Desktop app', hint: 'The TalbotIQ app on a computer'),
+      'mobile': (label: 'Mobile app', hint: 'The Mimic app on a phone'),
+      'desktop': (label: 'Desktop app', hint: 'The Mimic app on a computer'),
     };
     final unrestricted = _allowedDevices.length == options.length;
 
@@ -3328,7 +3328,7 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Where They Can Take It',
+          'Where they can take it',
           style: theme.textTheme.titleSmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,

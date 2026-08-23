@@ -19,7 +19,7 @@ import 'package:talbotiq/features/interviews/models/test_summary.dart';
 /// directly.
 class InterviewRepository {
   InterviewRepository({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
@@ -74,8 +74,10 @@ class InterviewRepository {
     // The recruiterId equality must stay on every query: firestore.rules
     // grants recruiter reads via `resource.data.recruiterId == uid`, and
     // dropping it makes the query unprovable and fails with permission-denied.
-    Query<Map<String, dynamic>> q =
-        _col.where('recruiterId', isEqualTo: recruiterId);
+    Query<Map<String, dynamic>> q = _col.where(
+      'recruiterId',
+      isEqualTo: recruiterId,
+    );
     if (testId != null && testId.isNotEmpty) {
       q = q.where('testId', isEqualTo: testId);
     }
@@ -128,8 +130,10 @@ class InterviewRepository {
   }) async {
     if (recruiterId.isEmpty) return 0;
     try {
-      Query<Map<String, dynamic>> q =
-          _col.where('recruiterId', isEqualTo: recruiterId);
+      Query<Map<String, dynamic>> q = _col.where(
+        'recruiterId',
+        isEqualTo: recruiterId,
+      );
       if (testId != null && testId.isNotEmpty) {
         q = q.where('testId', isEqualTo: testId);
       }
@@ -230,7 +234,8 @@ class InterviewRepository {
   /// fails to parse. A malformed record therefore can't break the whole
   /// dashboard — the remaining valid interviews still render.
   List<Interview> _parseDocs(
-      Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    Iterable<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
     final out = <Interview>[];
     for (final doc in docs) {
       try {
@@ -348,9 +353,7 @@ class InterviewRepository {
     }
 
     final snap = await q.get();
-    return _parseDocs(snap.docs)
-        .where((i) => i.canRetryEvaluation)
-        .toList();
+    return _parseDocs(snap.docs).where((i) => i.canRetryEvaluation).toList();
   }
 
   /// Recruiter saves an edited/manual result (does not change publish state).
@@ -452,10 +455,9 @@ class InterviewRepository {
         final selected = selectedIds.contains(interview.id);
         final note = selected ? noteForSelected : noteForRejected;
         batch.update(_col.doc(interview.id), {
-          'result.outcome': (selected
-                  ? RoundOutcome.selected
-                  : RoundOutcome.notSelected)
-              .wire,
+          'result.outcome':
+              (selected ? RoundOutcome.selected : RoundOutcome.notSelected)
+                  .wire,
           'result.rank': j + 1,
           'result.rankOf': ranked.length,
           if (note != null && note.trim().isNotEmpty)
@@ -510,7 +512,9 @@ class InterviewRepository {
     // batched write in this file does.
     const chunk = 400;
     for (var i = 0; i < assignments.length; i += chunk) {
-      final end = (i + chunk < assignments.length) ? i + chunk : assignments.length;
+      final end = (i + chunk < assignments.length)
+          ? i + chunk
+          : assignments.length;
       final batch = _db.batch();
       for (final interview in assignments.sublist(i, end)) {
         batch.update(_col.doc(interview.id), {
@@ -536,7 +540,9 @@ class InterviewRepository {
     if (assignments.isEmpty) return 0;
     const chunk = 400;
     for (var i = 0; i < assignments.length; i += chunk) {
-      final end = (i + chunk < assignments.length) ? i + chunk : assignments.length;
+      final end = (i + chunk < assignments.length)
+          ? i + chunk
+          : assignments.length;
       final batch = _db.batch();
       for (final interview in assignments.sublist(i, end)) {
         batch.update(_col.doc(interview.id), {
@@ -577,7 +583,6 @@ class InterviewRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
-
 
   // ── Reports (the rich half of a scored interview) ─────────────────────────
   //
@@ -689,8 +694,7 @@ class InterviewRepository {
   /// test index" repair action. Returns how many test docs were written.
   Future<int> backfillTests(String recruiterId) async {
     if (recruiterId.isEmpty) return 0;
-    final snap =
-        await _col.where('recruiterId', isEqualTo: recruiterId).get();
+    final snap = await _col.where('recruiterId', isEqualTo: recruiterId).get();
 
     // Keep the newest interview per test: its title/type/createdAt is the most
     // representative for the batch.
@@ -716,11 +720,11 @@ class InterviewRepository {
 
     // Firestore caps a batch at 500 writes; stay well under.
     const chunk = 400;
-    final summaries =
-        byTest.values.map(TestSummary.fromInterview).toList(growable: false);
+    final summaries = byTest.values
+        .map(TestSummary.fromInterview)
+        .toList(growable: false);
     for (var i = 0; i < summaries.length; i += chunk) {
-      final end =
-          (i + chunk < summaries.length) ? i + chunk : summaries.length;
+      final end = (i + chunk < summaries.length) ? i + chunk : summaries.length;
       final batch = _db.batch();
       for (final t in summaries.sublist(i, end)) {
         batch.set(_tests.doc(t.testId), t.toMap(), SetOptions(merge: true));
@@ -906,17 +910,18 @@ class InterviewRepository {
     required String recruiterId,
   }) {
     if (testId.isEmpty || recruiterId.isEmpty) return Stream.value(const []);
-    return _roundsQuery(testId, recruiterId)
-        .snapshots()
-        .map((s) => _parseRounds(s.docs, testId));
+    return _roundsQuery(
+      testId,
+      recruiterId,
+    ).snapshots().map((s) => _parseRounds(s.docs, testId));
   }
 
   /// The one shape both listing methods use, so the rules-provability filter
   /// cannot be present on one and forgotten on the other.
   Query<Map<String, dynamic>> _roundsQuery(String testId, String recruiterId) =>
-      _roundsOf(testId)
-          .where('recruiterId', isEqualTo: recruiterId)
-          .orderBy('order');
+      _roundsOf(
+        testId,
+      ).where('recruiterId', isEqualTo: recruiterId).orderBy('order');
 
   /// Same one-bad-doc-can't-break-the-list handling as [_parseDocs].
   List<InterviewRound> _parseRounds(
@@ -949,7 +954,8 @@ class InterviewRepository {
     final prev = before.exists
         ? InterviewRound.fromDoc(before, testId: round.testId)
         : null;
-    final windowMoved = prev == null ||
+    final windowMoved =
+        prev == null ||
         prev.opensAt != round.opensAt ||
         prev.closesAt != round.closesAt;
     if (windowMoved) {
@@ -1015,8 +1021,9 @@ class InterviewRepository {
     if (refs.isEmpty) return 0;
 
     final payload = {
-      'availableFrom':
-          availableFrom == null ? null : Timestamp.fromDate(availableFrom),
+      'availableFrom': availableFrom == null
+          ? null
+          : Timestamp.fromDate(availableFrom),
       'expiresAt': expiresAt is DateTime
           ? Timestamp.fromDate(expiresAt)
           : expiresAt, // null or a FieldValue
@@ -1090,7 +1097,8 @@ class InterviewRepository {
     final out = <String, String?>{};
     for (final doc in snap.docs) {
       final d = doc.data();
-      final email = (d['candidateEmailLower'] as String?) ??
+      final email =
+          (d['candidateEmailLower'] as String?) ??
           (d['candidateEmail'] as String?)?.trim().toLowerCase();
       if (email == null || email.isEmpty) continue;
       // First non-empty name wins; a later round may have been created without
@@ -1112,7 +1120,10 @@ class InterviewRepository {
     required String testId,
     required String recruiterId,
   }) async {
-    final docs = await _legacyAssignments(testId: testId, recruiterId: recruiterId);
+    final docs = await _legacyAssignments(
+      testId: testId,
+      recruiterId: recruiterId,
+    );
     return docs.length;
   }
 
@@ -1134,7 +1145,9 @@ class InterviewRepository {
   /// the round they are now in. Returns how many were adopted.
   Future<int> adoptLegacyAssignments(InterviewRound round) async {
     final docs = await _legacyAssignments(
-        testId: round.testId, recruiterId: round.recruiterId);
+      testId: round.testId,
+      recruiterId: round.recruiterId,
+    );
     if (docs.isEmpty) return 0;
 
     const chunk = 400;
@@ -1194,7 +1207,8 @@ class InterviewRepository {
     required String testTitle,
     required Map<String, String?> candidates,
   }) async {
-    if (candidates.isEmpty || round.testId.isEmpty || round.id.isEmpty) return 0;
+    if (candidates.isEmpty || round.testId.isEmpty || round.id.isEmpty)
+      return 0;
 
     final existing = await _col
         .where('recruiterId', isEqualTo: round.recruiterId)
@@ -1378,9 +1392,9 @@ class PagedInterviews {
   });
 
   const PagedInterviews.empty()
-      : items = const [],
-        lastDoc = null,
-        hasMore = false;
+    : items = const [],
+      lastDoc = null,
+      hasMore = false;
 }
 
 /// One page of test summaries plus the cursor for the next.
@@ -1395,8 +1409,5 @@ class PagedTests {
     required this.hasMore,
   });
 
-  const PagedTests.empty()
-      : items = const [],
-        lastDoc = null,
-        hasMore = false;
+  const PagedTests.empty() : items = const [], lastDoc = null, hasMore = false;
 }

@@ -105,14 +105,14 @@ class RecruiterLibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isDesktopPlatform) return _buildDesktop(context);
     return RecruiterScaffold(
-      appBar: AppBar(title: const Text('Manage')),
+      appBar: AppBar(title: const Text('Library')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
             const RecruiterPageHeader(
               kicker: 'Recruiter',
-              title: 'Management',
+              title: 'Library',
               subtitle:
                   'Reusable configuration for how roles are interviewed and '
                   'scored.',

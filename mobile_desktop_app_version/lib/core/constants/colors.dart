@@ -1,6 +1,8 @@
 // lib/core/constants/colors.dart
 import 'package:flutter/material.dart';
 
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
+
 class AppColors {
   // Material Design 3 Minimal Dark Palette - Near-Black & Restrained Pastels
   static const Color background = Color(0xFF0F0F12);       // Near-black primary background
@@ -62,24 +64,24 @@ class AppColors {
   // whole effect. Light mode stays warm cream, matching the reference's light
   // screen. Kept as their own names so this cannot shift the candidate side's
   // neutrals.
-  static const Color warmBackground = Color(0xFF000000);   // Pure black ground
-  static const Color warmSurface = Color(0xFF101010);      // Card, just off black
-  static const Color warmSurfaceHigh = Color(0xFF1C1C1C);  // Nested surface
+  static const Color warmBackground = TokenGroundDark.ground;   // Pure black ground
+  static const Color warmSurface = TokenGroundDark.surface;      // Card, just off black
+  static const Color warmSurfaceHigh = TokenGroundDark.surfaceHigh;  // Nested surface
   // A hairline needs more presence on pure black than on a tinted ground,
   // otherwise a card has no edge at all.
-  static const Color warmBorder = Color(0x1FFFFFFF);       // ~12% white hairline
+  static const Color warmBorder = TokenGroundDark.stroke;        // ~12% white hairline
 
   // The bottom bar is dark in BOTH themes — a black pill carrying a light
   // selected chip, per the reference. On the black page it is lifted just
   // enough to read as a floating element.
-  static const Color navBarDark = Color(0xFF141414);
+  static const Color navBarDark = TokenGroundDark.navBar;
   static const Color navBarOnDark = Color(0xFFF3EFE7);
 
   // Solid pastel blocks — painted at full strength, with near-black ink on top.
   static const Color blockPeach = Color(0xFFF5C9A8);       // Apricot hero block
   static const Color blockLavender = Color(0xFFB9AEE8);    // Periwinkle block
-  static const Color blockCream = Color(0xFFF3EFE7);       // Off-white block
-  static const Color blockInk = Color(0xFF141210);         // Ink used on any block
+  static const Color blockCream = TokenBlock.cream;              // Off-white block
+  static const Color blockInk = TokenBlock.ink;                  // Ink used on any block
 
   // Analytics panel accents
   static const Color analyticsBase = Color(0xFF0F0F12);

@@ -41,7 +41,7 @@ class StatusBadge extends StatelessWidget {
       case InterviewStatus.completed:
         return const StatusBadge(label: 'Completed', tone: BadgeTone.ready);
       case InterviewStatus.inProgress:
-        return const StatusBadge(label: 'In Progress', tone: BadgeTone.pending);
+        return const StatusBadge(label: 'In progress', tone: BadgeTone.pending);
       case InterviewStatus.assigned:
         return const StatusBadge(label: 'Assigned', tone: BadgeTone.neutral);
     }

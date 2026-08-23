@@ -108,7 +108,7 @@ class _SystemCheckPageState extends State<SystemCheckPage>
               const SizedBox(height: 24),
               if (!_bothGranted && _anyPermanentlyDenied)
                 CustomButton(
-                  text: 'Open Settings',
+                  text: 'Open settings',
                   variant: ButtonVariant.outline,
                   onPressed: openAppSettings,
                 )

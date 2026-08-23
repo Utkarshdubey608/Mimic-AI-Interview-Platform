@@ -64,6 +64,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
   bool _hasMore = true;
   bool _loading = false;
   bool _backfilling = false;
+  bool _triedTitleRepair = false;
   Object? _error;
 
   /// Guards the automatic backfill so an empty-but-legitimate account doesn't
@@ -117,6 +118,19 @@ class RecruiterHomeState extends State<RecruiterHome> {
     await _loadMore();
     if (!mounted) return;
 
+    // Tests indexed before titleVersion 2 used the newest assignment's
+    // `title`, which is the last round's name in a timeline. Rebuild that
+    // compact index once so existing pipelines immediately regain their own
+    // test name without asking the recruiter to recreate anything.
+    if (allowBackfill &&
+        !_triedTitleRepair &&
+        _tests.any((test) =>
+            test.titleVersion < TestSummary.titleSchemaVersion)) {
+      _triedTitleRepair = true;
+      await _runBackfill(silent: true);
+      return;
+    }
+
     // No metadata docs but interviews exist => tests predate this collection.
     // Backfill once, then reload.
     if (allowBackfill && _tests.isEmpty && !_triedBackfill) {
@@ -138,7 +152,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
         await _refresh(allowBackfill: false);
         if (!silent && mounted) {
           messenger.showSnackBar(
-            SnackBar(content: Text('$n test(s) found.')),
+            SnackBar(content: Text('$n pipeline(s) found.')),
           );
         }
       } else if (!silent) {
@@ -282,7 +296,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
                       RecruiterProfileHeader(
                         initial: _getUserName().characters.firstOrNull ?? 'R',
                         title: '${_getGreeting()}, ${_getUserName()}',
-                        subtitle: 'AI candidate screening',
+                        subtitle: 'Recruiter',
                         actions: [
                           _headerIcon(
                             icon: Icons.logout_rounded,
@@ -298,7 +312,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
                       RecruiterHeroBlock(
                         kicker: 'Your workspace',
                         value: '${_tests.length}',
-                        unit: _tests.length == 1 ? 'test' : 'tests',
+                        unit: _tests.length == 1 ? 'pipeline' : 'pipelines',
                         caption: _heroCaption(),
                         actions: [
                           RecruiterCircleAction(
@@ -345,7 +359,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Tests & Assessments',
+                              'Pipelines',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
@@ -357,7 +371,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
                           if (_tests.isNotEmpty)
                             Text(
                               '${items.length} '
-                              '${items.length == 1 ? 'test' : 'tests'}',
+                              '${items.length == 1 ? 'pipeline' : 'pipelines'}',
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: WarmSurfaces.inkMuted(context),
@@ -386,7 +400,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
   /// inventing a metric: the type split once there are tests, and the error or
   /// loading condition when there is nothing to split.
   String _heroCaption() {
-    if (_error != null && _tests.isEmpty) return 'Could not load your tests';
+    if (_error != null && _tests.isEmpty) return 'Could not load your pipelines';
     if (_tests.isEmpty) return _loading ? 'Loading…' : 'Nothing created yet';
     final parts = <String>[
       if (_videoCount > 0) '$_videoCount video',
@@ -429,7 +443,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
         decoration: InputDecoration(
           isDense: true,
           filled: false,
-          hintText: 'Search tests...',
+          hintText: 'Search pipelines…',
           hintStyle: TextStyle(fontSize: 13, color: WarmSurfaces.inkSubtle(context)),
           prefixIcon: Icon(
             Icons.search_rounded,
@@ -462,7 +476,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
     if (_error != null && _tests.isEmpty) {
       return SliverToBoxAdapter(
         child: AppErrorState(
-          title: 'Could not load your tests',
+          title: 'Could not load your pipelines',
           detail: '$_error',
           onRetry: () => _refresh(),
         ),
@@ -544,9 +558,9 @@ class RecruiterHomeState extends State<RecruiterHome> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SectionHeader(
-            title: 'Interviews',
+            title: 'Pipelines',
             subtitle:
-                'Manage the interview tests you’ve created and their candidates.',
+                'Manage the pipelines you’ve created and their candidates.',
             isPageTitle: true,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -563,7 +577,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
                 FilledButton.icon(
                   onPressed: _create,
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Create interview'),
+                  label: const Text('Create pipeline'),
                 ),
               ],
             ),
@@ -585,7 +599,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
       textInputAction: TextInputAction.search,
       style: theme.textTheme.bodyMedium,
       decoration: InputDecoration(
-        hintText: 'Search tests by name',
+        hintText: 'Search pipelines by name',
         prefixIcon:
             Icon(Icons.search, size: 20, color: scheme.onSurfaceVariant),
         suffixIcon: _searchCtrl.text.isEmpty
@@ -623,7 +637,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
   Widget _desktopBody(ThemeData theme) {
     if (_error != null && _tests.isEmpty) {
       return AppErrorState(
-        title: 'Could not load your tests',
+        title: 'Could not load your pipelines',
         detail: '$_error',
         onRetry: () => _refresh(),
       );
@@ -644,7 +658,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
       }
       return AppEmptyState(
         icon: Icons.inbox_outlined,
-        title: 'No interviews yet',
+        title: 'No pipelines yet',
         description: 'Create one and assign it to a candidate email.',
       );
     }
@@ -699,7 +713,7 @@ class RecruiterHomeState extends State<RecruiterHome> {
       child: Center(
         child: TextButton(
             onPressed: _loadMore,
-            child: const Text('Load more tests', style: TextStyle(fontSize: 13))),
+            child: const Text('Load more pipelines', style: TextStyle(fontSize: 13))),
       ),
     );
   }
@@ -960,10 +974,10 @@ class _CompactTestRow extends StatelessWidget {
         return Material(
           color: Colors.transparent,
           child: InkWell(
-            // Until the rounds land we cannot know which destination is right,
-            // so the candidate list stays the default — the behaviour this row
-            // has always had.
-            onTap: p != null ? onOpenTimeline : onTap,
+            // A pipeline card opens its test overview, where the recruiter has
+            // the familiar top-level actions (publish, retry, delete and
+            // Rounds & schedule). Timeline remains an explicit action there.
+            onTap: onTap,
             borderRadius: BorderRadius.circular(AppRadius.md),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -1145,7 +1159,7 @@ class _CompactEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No tests created yet',
+            'No pipelines created yet',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -1154,7 +1168,7 @@ class _CompactEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Create your first interview test to start screening candidates.',
+            'Create your first pipeline to start screening candidates.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12.5,
@@ -1165,7 +1179,7 @@ class _CompactEmptyState extends StatelessWidget {
           FilledButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('Create Test', style: TextStyle(fontSize: 13)),
+            label: const Text('Create pipeline', style: TextStyle(fontSize: 13)),
             style: FilledButton.styleFrom(
               backgroundColor: WarmSurfaces.block(context),
               foregroundColor: AppColors.blockInk,
@@ -1216,7 +1230,7 @@ class _CompactNoResults extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            query.isEmpty ? 'No matching tests' : 'No matches for “$query”',
+            query.isEmpty ? 'No matching pipelines' : 'No matches for “$query”',
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w600,
@@ -1327,7 +1341,9 @@ class _DesktopInterviewCardState extends State<_DesktopInterviewCard> {
           onEnter: (_) => setState(() => _hovering = true),
           onExit: (_) => setState(() => _hovering = false),
           child: GestureDetector(
-            onTap: p != null ? widget.onOpenTimeline : widget.onTap,
+            // Match the mobile dashboard: opening a pipeline means opening
+            // its test overview, not skipping its test-level actions.
+            onTap: widget.onTap,
             behavior: HitTestBehavior.opaque,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
@@ -1428,4 +1444,3 @@ class _DesktopInterviewCardState extends State<_DesktopInterviewCard> {
     );
   }
 }
-
