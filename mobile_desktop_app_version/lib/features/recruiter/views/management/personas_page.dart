@@ -69,7 +69,7 @@ class _PersonasPageState extends State<PersonasPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Personas'),
         actions: [
@@ -175,7 +175,7 @@ class _PersonaDetailSheet extends StatelessWidget {
           children: [
             Text(p.personaName.isEmpty ? '(unnamed persona)' : p.personaName,
                 style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             _kv(context, 'Persona ID', p.personaId, copyable: true),
             if (p.defaultReplicaId != null && p.defaultReplicaId!.isNotEmpty)

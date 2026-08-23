@@ -68,6 +68,32 @@ service cloud.firestore {
                      && resource.data.recruiterId == request.auth.uid;
     }
 
+    // mcq_sets / mcq_attempts: SERVER-WRITTEN ONLY. No client may read or write
+    // either one, and both are listed explicitly rather than left to the default
+    // deny — because the reason is not obvious and the next person to add a rule
+    // needs to see it stated.
+    //
+    // `mcq_sets` is a recruiter's assessment paper, and a paper CONTAINS THE
+    // ANSWER KEY. A candidate who could read the collection would not need to sit
+    // the test. Recruiters author papers through `/api/mcq-sets`, which filters on
+    // a `recruiterId` stamped server-side from the auth token — never from the
+    // client — so ownership is enforced where it can be trusted rather than by a
+    // rule reading a field the writer controls.
+    //
+    // `mcq_attempts` is a candidate's answers, and unlike `practice_sessions` next
+    // door it DECIDES A SCORE. Practice is self-serve and nothing gates on it,
+    // which is why the client writes it directly; an attempt is the input to a
+    // grade, so the candidate being graded must not be able to write it. Answers
+    // go through POST /api/interviews/{id}/mcq/answers and are scored with the
+    // Admin SDK, which bypasses these rules.
+    match /mcq_sets/{setId} {
+      allow read, write: if false;
+    }
+
+    match /mcq_attempts/{interviewId} {
+      allow read, write: if false;
+    }
+
     // recruiter_keys/{recruiterId}: each recruiter's API keys (Flutter app). Any
     // signed-in user may read (the candidate device needs them at launch); only
     // that recruiter may write. App-side hiding, not cryptographic secrecy.

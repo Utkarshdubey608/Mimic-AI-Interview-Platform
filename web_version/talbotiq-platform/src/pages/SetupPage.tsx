@@ -137,7 +137,7 @@ export default function SetupPage() {
 
     const body: CreateConversationInput = {
       replica_id: f.replica_id,
-      conversation_name: `TalbotIQ — ${candidateName}`,
+      conversation_name: `Mimic — ${candidateName}`,
       conversational_context: ctx,
       custom_greeting: greeting,
     }
@@ -185,7 +185,7 @@ export default function SetupPage() {
     resetHumeState()
     store.setCurrentConversation({
       conversation_id: `demo-${Date.now()}`,
-      conversation_name: `TalbotIQ — ${name || 'Candidate'}`,
+      conversation_name: `Mimic — ${name || 'Candidate'}`,
       status: 'active', conversation_url: '',
       replica_id: '', created_at: new Date().toISOString(),
     })
@@ -205,8 +205,11 @@ export default function SetupPage() {
    */
   async function applyToCandidates() {
     if (!f.replica_id) { toast.error('Pick a replica — candidates need a live avatar.'); return }
-    if (!store.tavusKey && !avatarApplied.data?.hasKey) {
-      toast.error('Add your Tavus API key in Settings first.')
+    if (!avatarApplied.data?.hasKey) {
+      // The SERVER's answer, and the only one now. There is no client-held key to
+      // fall back to, and telling a recruiter to "add your key in Settings" would
+      // send them to a screen that no longer has the box.
+      toast.error('Tavus is not configured on this deployment — contact your administrator.')
       return
     }
     setApplying(true)
@@ -223,7 +226,6 @@ export default function SetupPage() {
         enableRecording: f.enable_recording || undefined,
         callbackUrl: f.callback_url || undefined,
         fallbackQuestions: store.questions.filter(Boolean),
-        tavusKey: store.tavusKey || undefined,
       })
       qc.invalidateQueries({ queryKey: ['avatar-settings'] })
       toast.success('Applied — every Conversational AI candidate interview now uses this avatar.')

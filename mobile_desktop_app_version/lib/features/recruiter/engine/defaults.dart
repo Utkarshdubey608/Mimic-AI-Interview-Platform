@@ -48,7 +48,7 @@ IntegrityConfig defaultIntegrity() => const IntegrityConfig(
     );
 
 BrandingConfig defaultBranding() => const BrandingConfig(
-      companyName: 'TalbotIQ',
+      companyName: 'Mimic',
       accentColor: '#0d5c3a',
       welcomeMessage:
           'Welcome to your interview. Find a quiet spot, take a breath, and '

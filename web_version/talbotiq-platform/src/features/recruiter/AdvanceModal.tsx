@@ -6,6 +6,7 @@ import { Badge, Button, Input, Modal, Skeleton, Toggle, cn } from '@/components/
 import { RichTextEditor } from './invite-email/RichTextEditor'
 import { TransitionEmailPreview, type TransitionEmailKind } from './TransitionEmailPreview'
 import { inviteEmailTemplatesApi, pipelinesApi } from '@/lib/api'
+import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { defaultTemplateFor, validateLockedTokens } from '@shared/inviteEmail'
 import type { AdvanceResult, BoardCard, InviteEmailTemplate } from '@shared/types'
 
@@ -109,8 +110,8 @@ export function AdvanceModal({
   const sampleVars = {
     candidate_name: sampleCandidate?.candidateName || sampleCandidate?.candidateEmail.split('@')[0] || 'there',
     role: '',
-    recruiter_name: draft?.sender.fromName || 'TalbotIQ',
-    company: draft?.branding.companyName || 'TalbotIQ',
+    recruiter_name: draft?.sender.fromName || 'Mimic',
+    company: draft?.branding.companyName || 'Mimic',
     round_name: targetRoundName,
     score: sampleCandidate?.score != null ? String(sampleCandidate.score) : '',
   }
@@ -136,7 +137,7 @@ export function AdvanceModal({
             candidateIds: ids,
             targetRoundIndex: targetRoundIndex ?? 0,
             emailConfig,
-            origin: window.location.origin,
+            origin: getCandidateLinkOrigin(),
             basis: 'confirm-modal',
           })
 
@@ -285,7 +286,7 @@ export function AdvanceModal({
               )}
               <div>
                 <span className="field-label">Preview</span>
-                <TransitionEmailPreview draft={draft} kind={kind} vars={sampleVars} origin={window.location.origin} />
+                <TransitionEmailPreview draft={draft} kind={kind} vars={sampleVars} origin={getCandidateLinkOrigin()} />
               </div>
             </>
           )}

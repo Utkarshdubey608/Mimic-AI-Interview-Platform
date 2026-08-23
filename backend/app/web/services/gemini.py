@@ -131,7 +131,7 @@ async def resolve_key(settings: Settings) -> str:
 
 
 async def resolve_model(settings: Settings) -> str:
-    """The active model, in the same precedence order as the key."""
+    """The model the deployment scores on. Not a user choice — see `app_settings`."""
     from app.web.services import app_settings
 
     return await app_settings.gemini_model(settings)

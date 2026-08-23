@@ -12,6 +12,7 @@ import asyncio
 import pytest
 from fastapi import HTTPException
 
+from app import interviews as app_interviews
 from app.config import Settings
 from app.security import AuthedUser
 from app.web.services import invite_bridge
@@ -45,14 +46,20 @@ def test_the_precise_mode_wins(mode: str) -> None:
 
 
 def test_an_invite_from_the_mobile_app_falls_back_to_its_type() -> None:
-    """A mobile-created invite has no `mode`; `type` only distinguishes video from chat."""
-    assert invite_bridge.track_for({"type": "video"}) == "video_avatar"
+    """A mobile-created invite has no `mode`; `type` only distinguishes video from chat.
+
+    It degrades to the SAME track, never a richer one. This asserted `video_avatar`
+    until the mismap was fixed — which meant a recruiter's recorded video interview
+    silently became a Tavus avatar conversation the moment the candidate opened it in a
+    browser: a different experience, vendor and cost from the one configured.
+    """
+    assert invite_bridge.track_for({"type": "video"}) == "video"
     assert invite_bridge.track_for({"type": "chat"}) == "chat"
     assert invite_bridge.track_for({}) == "chat"
 
 
 def test_an_unrecognised_mode_falls_back_rather_than_passing_through() -> None:
-    assert invite_bridge.track_for({"mode": "telepathy", "type": "video"}) == "video_avatar"
+    assert invite_bridge.track_for({"mode": "telepathy", "type": "video"}) == "video"
 
 
 # ── template synthesis ────────────────────────────────────────────────────────
@@ -240,9 +247,18 @@ class _Collection:
 
 
 def _patch_interviews(monkeypatch, data: dict | None) -> _Reference:
+    """Stand in for the shared `interviews` collection.
+
+    Patched on `app.interviews.collection` — the single accessor everything now goes
+    through — rather than on a delegate. Patching a delegate only covers the callers
+    that happen to use that one, and this helper previously patched
+    `interview_invite.interviews`, which is now the imported MODULE: the setattr still
+    succeeded and silently stopped intercepting anything. A patch that no-ops instead
+    of failing is worse than no patch, so it goes on the source.
+    """
     reference = _Reference(data)
     monkeypatch.setattr(
-        invite_bridge.interview_invite, "interviews", lambda _settings: _Collection(reference)
+        app_interviews, "collection", lambda _settings: _Collection(reference)
     )
     return reference
 
@@ -364,16 +380,31 @@ def _report(**overrides) -> dict:
     }
 
 
-def test_the_result_shape_serves_both_readers() -> None:
-    """Flat fields for the Flutter model, the web's richer detail nested where Dart ignores
-    it — one document, two readers, neither seeing a shape it does not understand."""
+def test_the_result_is_the_flat_half_only() -> None:
+    """Flat fields for the Flutter model; the rich half lives in the report document.
+
+    This used to nest `perQuestion` and `kpiAverages` under `result.detail`. That was a
+    second copy of what the report already held, and the MOBILE surface wrote its own
+    `detail` to the same field in a different shape — one name, two meanings, read by
+    nobody. `reports/{interviewId}` is the single home now.
+    """
     result = invite_bridge.build_result(_report())
 
     assert result["overallScore"] == 82
     assert result["recommendation"] == "yes"
     assert result["evaluatedBy"] == "ai"
-    assert result["detail"]["kpiAverages"] == {"a": 80}
-    assert len(result["detail"]["perQuestion"]) == 1
+    assert "detail" not in result
+    assert "perQuestion" not in result
+    assert "kpiAverages" not in result
+
+
+def test_the_flat_half_is_the_shared_definition() -> None:
+    """Both surfaces build it from the same function, so a recruiter reading a score
+    cannot tell which client ran the interview."""
+    from app import reports
+
+    report = _report()
+    assert invite_bridge.build_result(report) == reports.build_result_summary(report)
 
 
 def test_a_missing_recommendation_is_defaulted_not_omitted() -> None:
@@ -385,7 +416,6 @@ def test_missing_lists_become_empty_rather_than_none() -> None:
     result = invite_bridge.build_result({"overallScore": 0})
     assert result["strengths"] == []
     assert result["improvements"] == []
-    assert result["detail"]["perQuestion"] == []
 
 
 def test_syncing_writes_the_result_and_leaves_it_unpublished(monkeypatch, fake_store) -> None:
@@ -402,11 +432,49 @@ def test_syncing_writes_the_result_and_leaves_it_unpublished(monkeypatch, fake_s
     assert written["result"]["overallScore"] == 82
 
 
-def test_a_recruiter_created_session_is_not_synced(monkeypatch, fake_store) -> None:
-    """It has no interview document to write to."""
+def test_a_recruiter_created_session_is_synced_too(monkeypatch, fake_store) -> None:
+    """It has an interview document now, so it syncs like any other.
+
+    This test asserted the opposite until the shared assignment record existed. A
+    recruiter-created session used to live only in `web_sessions`, so `sync_result`
+    returned early on the missing `viaInvite` flag — and the interview, its score
+    included, never reached the mobile app. `POST /sessions` writes the assignment now
+    and the session id IS the interview id, so there is nothing left to branch on.
+    """
     reference = _patch_interviews(monkeypatch, _invite())
     asyncio.run(invite_bridge.sync_result(Settings(), {"id": "s1"}, _report()))
-    assert reference.updates == []
+
+    assert len(reference.updates) == 1
+    written = reference.updates[0]
+    assert written["status"] == "completed"
+    assert written["result"]["overallScore"] == 82
+    # Still a recruiter action, on every path.
+    assert written["resultPublished"] is False
+
+
+def test_a_session_with_no_interview_document_is_skipped_quietly(
+    monkeypatch, fake_store, caplog
+) -> None:
+    """Sessions predating the assignment record have nothing to sync into.
+
+    `update` is used rather than `set(merge=True)` precisely so this fails instead of
+    creating half a document — a result with no candidate and no title would render on
+    the mobile dashboard as an unreadable row.
+    """
+    from google.api_core import exceptions as google_exceptions
+
+    reference = _patch_interviews(monkeypatch, _invite())
+
+    def _missing(_fields):
+        raise google_exceptions.NotFound("no such document")
+
+    reference.update = _missing
+
+    with caplog.at_level("INFO"):
+        asyncio.run(invite_bridge.sync_result(Settings(), {"id": "legacy"}, _report()))
+
+    # Expected, so it must not read as a fault in the logs of every legacy completion.
+    assert not [r for r in caplog.records if r.levelname == "ERROR"]
 
 
 def test_a_failed_sync_never_raises(monkeypatch, fake_store) -> None:

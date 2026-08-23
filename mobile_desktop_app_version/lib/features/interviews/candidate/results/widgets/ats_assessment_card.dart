@@ -55,7 +55,7 @@ class AtsAssessmentCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               CustomButton(
-                text: 'Retry Synthesis',
+                text: 'Retry synthesis',
                 variant: ButtonVariant.outline,
                 height: 36,
                 onPressed: onRetry,
@@ -136,7 +136,7 @@ class AtsAssessmentCard extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  'Hiring Recommendation Rationale',
+                  'Hiring recommendation rationale',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -149,7 +149,7 @@ class AtsAssessmentCard extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 Text(
-                  'Key Strengths',
+                  'Key strengths',
                   style: theme.textTheme.titleSmall?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,

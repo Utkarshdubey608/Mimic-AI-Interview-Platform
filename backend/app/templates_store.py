@@ -18,6 +18,15 @@ from app.firebase import get_db
 from app.templating import BUILTIN_BY_ID, BUILTIN_TEMPLATES, DEFAULT_TEMPLATE_ID
 
 
+# The collection name, with ONE definition.
+#
+# `Settings.templates_collection` defaults to this rather than repeating the string,
+# because the web store reaches the collection directly (it is handed a client, not a
+# Settings) and two defaults that could drift is exactly the class of bug this whole
+# unification is undoing.
+TEMPLATES_COLLECTION = "email_templates"
+
+
 class TemplateNotFound(LookupError):
     pass
 
@@ -36,13 +45,17 @@ def normalize_email(email: str | None) -> str:
 
 def _to_dict(doc) -> dict:
     data = doc.to_dict() or {}
+    # `email_templates` is shared with the web surface, which stores its body as
+    # `bodyHtml`. Reading `body` alone rendered a web-authored template as an empty
+    # email — see `unify_body`, which owns the fallback for both directions.
+    body, is_html = unify_body(data)
     return {
         "id": doc.id,
         "name": data.get("name", "Untitled template"),
         "description": data.get("description"),
         "subject": data.get("subject", ""),
-        "body": data.get("body", ""),
-        "is_html": bool(data.get("isHtml", True)),
+        "body": body,
+        "is_html": is_html,
         "owner_email": data.get("ownerEmail"),
         "recruiter_id": data.get("recruiterId"),
         "source": "custom",
@@ -153,3 +166,60 @@ def create(settings: Settings, payload: dict) -> dict:
     ref = _collection(settings).document()
     ref.set(doc)
     return get(settings, ref.id)
+
+
+# ── Cross-client reconciliation ───────────────────────────────────────────────
+#
+# `email_templates` is shared with the WEB surface now, and the two clients grew
+# different shapes for the same thing:
+#
+#   this surface   body + isHtml, description, ownerEmail
+#   web surface    bodyHtml, plus sender / cta / branding / deadlineText / kind
+#
+# Additive keys would have been enough on their own — each client ignoring what it
+# does not understand is how the `interviews` collection already works. The body is
+# the exception: it is not an unknown key a reader can skip, it is THE field, and a
+# web-authored template read by this surface with no `body` renders an empty email.
+#
+# So exactly two fields are reconciled, in one place, in both directions. Everything
+# else stays additive.
+
+
+def unify_body(doc: dict) -> tuple[str, bool]:
+    """`(body, isHtml)` for a template written by either client.
+
+    Prefers this surface's own `body`, falls back to the web's `bodyHtml` — which is
+    always HTML, hence the flag. Returns empty rather than raising: a template with no
+    body at all is a recruiter's half-finished draft, not a crash.
+    """
+    body = doc.get("body")
+    if isinstance(body, str) and body.strip():
+        return body, bool(doc.get("isHtml", True))
+
+    body_html = doc.get("bodyHtml")
+    if isinstance(body_html, str) and body_html.strip():
+        return body_html, True
+
+    return "", bool(doc.get("isHtml", True))
+
+
+def compatibility_fields(*, subject: str, body_html: str, owner_email: str | None) -> dict:
+    """The fields a WEB-authored template needs so this surface can read it.
+
+    Written alongside the web's own shape, not instead of it:
+
+    * `body` / `isHtml` — because `unify_body` prefers `body`, and a reader on an
+      older build of the mobile app has no fallback at all.
+    * `ownerEmail` — because `list_all` here queries on it. Without it a template
+      saved in the browser is invisible on the phone, which is the whole defect this
+      unification exists to close, reintroduced from the other side.
+
+    `recruiterId` is NOT set here: the caller owns it, and it comes from the verified
+    token rather than from anything shaped like a payload.
+    """
+    return {
+        "subject": subject,
+        "body": body_html,
+        "isHtml": True,
+        "ownerEmail": normalize_email(owner_email),
+    }

@@ -128,7 +128,7 @@ Future<void> tapAt(WidgetTester tester, Finder finder) async {
 void main() {
   testWidgets('renders the headline without a scorecard', (tester) async {
     await pump(tester, result());
-    expect(find.text('Practice Report'), findsOneWidget);
+    expect(find.text('Practice report'), findsOneWidget);
     expect(find.text('Overall score'), findsOneWidget);
     // The attempt still happened, so the transcript stays available.
     expect(find.text('No AI report was generated for this attempt — scoring may have '

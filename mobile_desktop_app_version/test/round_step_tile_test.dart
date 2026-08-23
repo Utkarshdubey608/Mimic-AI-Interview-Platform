@@ -53,7 +53,7 @@ void main() {
     expect(find.text('2'), findsOneWidget);
     expect(find.text('Tech round'), findsOneWidget);
     // The sequence has to be legible from the row itself.
-    expect(find.text('Step 2 of 4 · Chat Interview · 3 question(s)'),
+    expect(find.text('Step 2 of 4 · Chat interview · 3 question(s)'),
         findsOneWidget);
   });
 

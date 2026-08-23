@@ -74,7 +74,7 @@ export function TransitionEmailPreview({
 
   const fromLine = draft.sender.verifiedSenderEmail
     ? `${draft.sender.fromName || ''} <${draft.sender.verifiedSenderEmail}>`.trim()
-    : `${draft.sender.fromName || 'TalbotIQ'} (server default sender)`
+    : `${draft.sender.fromName || 'Mimic'} (server default sender)`
   const toLine = kind === 'advance' ? sampleEmail : 'Each recipient listed above'
 
   // Scale the fixed-width email to fit the inline column (CSS zoom keeps layout height).

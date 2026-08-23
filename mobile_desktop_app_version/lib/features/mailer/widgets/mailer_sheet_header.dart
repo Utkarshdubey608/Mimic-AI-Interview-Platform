@@ -28,7 +28,7 @@ class MailerSheetHeader extends StatelessWidget {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: theme.colorScheme.outline.withOpacity(0.4),
+              color: theme.colorScheme.outline.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -42,7 +42,7 @@ class MailerSheetHeader extends StatelessWidget {
                     Text(
                       title,
                       style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),

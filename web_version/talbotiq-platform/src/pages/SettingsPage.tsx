@@ -7,6 +7,7 @@ import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { tavus } from '@/services/tavus'
 import { settingsApi } from '@/lib/api'
+import type { AvatarSettingsStatus } from '@shared/types'
 import { httpBase } from '@/lib/apiOrigin'
 import { GeminiKeyCard } from '@/features/recruiter/GeminiKeyCard'
 
@@ -30,6 +31,48 @@ const SERVER_KEYS = [
 type StatusMap = { deepgram: boolean; hume: boolean; gemini: boolean; rekognition: boolean }
 
 /* ─── local presentational pieces ────────────────────────────────────────── */
+
+/**
+ * Whether this deployment has Tavus configured. Read-only, like GeminiKeyCard.
+ *
+ * `hasKey` is the SERVER's answer. There is deliberately no client-side check: the
+ * old one read a key held in the browser, which meant the page could report
+ * "connected" for a credential the server had never seen.
+ */
+function TavusStatusCard() {
+  const [status, setStatus] = useState<AvatarSettingsStatus | null>(null)
+
+  useEffect(() => {
+    settingsApi.avatarStatus().then(setStatus).catch(() => {})
+  }, [])
+
+  const configured = !!status?.hasKey
+
+  return (
+    <Card className="divide-y divide-rule overflow-hidden">
+      <PanelHead title="Tavus — Avatar">
+        Configured on the server. Drives the video-avatar interview track.
+      </PanelHead>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <span
+          className={
+            configured
+              ? 'badge badge-success'
+              : 'inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-sunk px-2.5 py-1 text-xs font-semibold text-ink-muted'
+          }
+        >
+          {configured ? <span className="live-dot" /> : null}
+          {configured ? 'Configured' : 'Not configured'}
+        </span>
+        <p className="text-xs text-ink-muted">
+          {configured
+            ? 'Set in the deployment environment.'
+            : 'Contact your administrator — this is set in the deployment environment.'}
+        </p>
+      </div>
+    </Card>
+  )
+}
 
 /**
  * One section of the bundle, introduced by its ruled cover head.
@@ -80,7 +123,6 @@ export default function SettingsPage() {
   const [multiLang, setMultiLang] = useState(false)
 
   useEffect(() => {
-    setTavusKeyLocal(store.tavusKey)
     setWebhook(store.webhookUrl)
     // Through httpBase(): a bare '/api/…' path misses the auth interceptor and
     // resolves against the frontend's own origin on a deployed build. Failure
@@ -105,18 +147,17 @@ export default function SettingsPage() {
   }
 
   const [saving, setSaving] = useState(false)
+
+  /// Saves the webhook URL, which is the only thing left here a person can set.
+  ///
+  /// The Tavus key that used to be saved alongside it is gone: credentials come from
+  /// the deployment environment, and there is no route that accepts one from a
+  /// browser. See GeminiKeyCard for the argument.
   async function save() {
     setSaving(true)
-    store.setTavusKey(tavusKey)
-    store.setWebhookUrl(webhook)
-    // Server (single source of truth): applies the key EVERYWHERE at once —
-    // candidate avatar interviews, the recruiter dashboard's proxied calls,
-    // and any previously-applied Setup config.
     try {
-      await settingsApi.saveTavusKey(tavusKey.trim())
-      toast.success('Settings saved — Tavus key applied everywhere')
-    } catch (e) {
-      toast.error(`Server sync failed: ${(e as Error).message}`)
+      store.setWebhookUrl(webhook)
+      toast.success('Settings saved')
     } finally {
       setSaving(false)
     }
@@ -136,52 +177,14 @@ export default function SettingsPage() {
       />
 
       <div className="space-y-6">
-        {/* Tavus (runtime key) */}
-        <Card className="divide-y divide-rule overflow-hidden">
-          <PanelHead title="Tavus — Avatar">
-            The single source of truth for your Tavus key — saving applies it everywhere at once (this browser,
-            candidate interviews, and any applied avatar config). Never compiled into the app bundle.
-          </PanelHead>
-          <div className="space-y-5 px-6 py-5">
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <label htmlFor="tavus-api-key" className="field-label mb-0">Tavus API Key</label>
-                <ConnChip state={connState} />
-              </div>
-              <div className="relative">
-                <input
-                  id="tavus-api-key"
-                  type={showTavus ? 'text' : 'password'}
-                  value={tavusKey}
-                  onChange={e => setTavusKeyLocal(e.target.value)}
-                  placeholder="ta_xxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="input-base pr-16 font-mono text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowTavus(s => !s)}
-                  aria-label={showTavus ? 'Hide the Tavus API key' : 'Show the Tavus API key'}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2.5 py-1 text-[11px] font-semibold text-ink-muted transition-colors duration-fast ease-out hover:bg-surface-hover hover:text-ink"
-                >
-                  {showTavus ? 'Hide' : 'Show'}
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-ink-muted">Required — find it at tavus.io → Settings → API Keys.</p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button variant="outline" size="sm" onClick={testConnection} loading={connState === 'testing'} icon={<PlugZap size={14} />}>
-                Test connection
-              </Button>
-              {connState === 'fail' && (
-                <p className="text-xs text-risk">Tavus rejected the key or was unreachable — check the key, then test again.</p>
-              )}
-              {connState === 'ok' && (
-                <p className="text-xs text-ink-muted">Key verified. Save settings to apply it everywhere.</p>
-              )}
-            </div>
-          </div>
-        </Card>
+        {/* Tavus status — READ-ONLY.
+            This was a box for a Tavus API key, with a "test connection" button and a
+            save that applied it "everywhere at once". It was one of three ways to
+            write a vendor credential from a browser (the others being the Gemini card
+            and a `tavusKey` smuggled through the avatar-apply route), each letting one
+            recruiter change what runs every other recruiter's candidate interviews.
+            All three are gone server-side; this reports what the deployment has. */}
+        <TavusStatusCard />
 
         {/* Gemini — shared server key (frozen recruiter module, reused) */}
         <GeminiKeyCard />
@@ -239,7 +242,7 @@ export default function SettingsPage() {
             Multi-tenant and compliance configuration.
           </PanelHead>
           <div className="divide-y divide-rule px-6 py-2">
-            <Toggle checked={whiteLabelMode} onChange={setWhiteLabelMode} label="White-label mode" description="Remove TalbotIQ branding from candidate-facing screens" />
+            <Toggle checked={whiteLabelMode} onChange={setWhiteLabelMode} label="White-label mode" description="Remove Mimic branding from candidate-facing screens" />
             <Toggle checked={gdprAuto} onChange={setGdprAuto} label="GDPR auto-purge" description="Automatically delete video and biometric data after 30 days" />
             <Toggle checked={multiLang} onChange={setMultiLang} label="Multi-language avatar" description="Enable multilingual question delivery via Tavus" />
           </div>

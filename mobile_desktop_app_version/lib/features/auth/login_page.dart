@@ -13,6 +13,8 @@ import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/core/utils/validators.dart';
 import 'package:talbotiq/shared/widgets/custom_buttons.dart';
 import 'package:talbotiq/shared/widgets/custom_inputs.dart';
+import 'package:talbotiq/shared/widgets/mimic_mark.dart';
+import 'package:talbotiq/shared/widgets/mimic_wordmark.dart';
 import 'package:talbotiq/features/auth/app_role.dart';
 import 'package:talbotiq/features/auth/auth_service.dart';
 
@@ -27,6 +29,7 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _companyController = TextEditingController();
 
   bool _isSignUp = false;
   // Desktop sign-up is recruiter-first by design: a candidate already has an
@@ -44,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _companyController.dispose();
     super.dispose();
   }
 
@@ -81,6 +85,7 @@ class _LoginPageState extends State<LoginPage> {
           password: password,
           role: _role,
           name: _nameController.text,
+          company: _companyController.text,
         );
       } else {
         await auth.signIn(email: email, password: password);
@@ -160,20 +165,21 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1.0,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                // The sign-in lockup: the drawn mark beside the wordmark, the
+                // same pair as web's MimicLockup. FittedBox rather than a bare
+                // Row so a large system font scale shrinks the lockup instead
+                // of overflowing the column.
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const TextSpan(text: 'talbot'),
-                      TextSpan(
-                          text: 'iq',
-                          style: TextStyle(color: theme.colorScheme.primary)),
+                      const MimicMark(size: 44),
+                      const SizedBox(width: 12),
+                      DefaultTextStyle(
+                        style: TextStyle(color: theme.colorScheme.onSurface),
+                        child: const MimicWordmark(fontSize: 34),
+                      ),
                     ],
                   ),
                 ),
@@ -202,6 +208,23 @@ class _LoginPageState extends State<LoginPage> {
                     keyboardType: TextInputType.name,
                   ),
                   const SizedBox(height: 16),
+                  // RECRUITERS ONLY. A candidate belongs to no company here — they
+                  // are invited by one — and asking would imply their answer matters
+                  // to something.
+                  //
+                  // Recorded in the same shape the web client writes, so colleagues
+                  // are recognised as colleagues whichever client they signed up on.
+                  // Optional: an account with no company keeps its own templates and
+                  // question sets, it just shares none.
+                  if (_role == AppRole.recruiter) ...[
+                    CustomInputField(
+                      label: 'Company',
+                      placeholder: 'Your company or organisation',
+                      controller: _companyController,
+                      keyboardType: TextInputType.text,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 ],
                 CustomInputField(
                   label: 'Email',
@@ -302,7 +325,7 @@ class _DesktopRecruiterOnlyNotice extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Talbotiq Desktop is for recruiters — this creates a recruiter account.',
+            'Mimic Desktop is for recruiters — this creates a recruiter account.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),

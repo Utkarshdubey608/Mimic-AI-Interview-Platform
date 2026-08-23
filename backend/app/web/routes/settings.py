@@ -91,61 +91,39 @@ def normalise_avatar_config(body: dict) -> dict:
         "enableRecording": True if body.get("enableRecording") is True else None,
         "callbackUrl": _text(body.get("callbackUrl")),
         "fallbackQuestions": fallback,
-        # Carried forward by `app_settings.save_avatar` when absent.
-        "tavusKey": _text(body.get("tavusKey")),
+        # NO `tavusKey`. This route used to accept one from the request body, which
+        # made applying an avatar a third way to write a vendor credential from the
+        # browser. Credentials come from the deployment environment only — see the
+        # note above the status route.
     }
 
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 
 
-@router.get("", summary="Gemini key status (masked)")
+@router.get("", summary="Provider status (read-only)")
 async def status_(request: Request, user: AuthedUser = WebUser) -> dict:
-    return await app_settings.gemini_status(settings_of(request))
+    """Whether the deployment has Gemini configured, and on which model.
 
+    **Read-only, and there is deliberately no route that writes any of it.**
 
-@router.put("/gemini-key", summary="Save the Gemini key")
-async def save_gemini_key(
-    body: dict, request: Request, user: AuthedUser = WebUser
-) -> dict:
-    body = body or {}
-    logger.info("Gemini key updated by %s", user.uid)  # never the key itself
-    return await app_settings.save_gemini_key(
-        settings_of(request),
-        api_key=str(body.get("apiKey") or ""),
-        model=body.get("model") if isinstance(body.get("model"), str) else None,
-    )
+    This surface used to accept a Gemini key, a Tavus key and a third copy of the
+    Tavus key riding on an applied avatar config — all typed into a browser by a
+    recruiter, all stored in `web_settings`, and all then used to score and run every
+    candidate's interview on the deployment. That is three ways for one authenticated
+    recruiter to change the credential everyone else's interviews run on, and it is
+    the thing the architecture is otherwise built to prevent: the server holds every
+    key, and none reaches the browser.
 
+    The mobile client has never had any of it, and says why in
+    `settings/sections/service_status_section.dart`: a recruiter needs the answer to
+    "is it me, or is this not set up?", and nothing more. This is now the same — a
+    status a recruiter can read when a feature misbehaves, with no control that
+    implies they can fix it themselves.
 
-@router.delete("/gemini-key", summary="Clear the saved Gemini key")
-async def clear_gemini_key(request: Request, user: AuthedUser = WebUser) -> dict:
-    logger.info("Gemini key cleared by %s", user.uid)
-    return await app_settings.clear_gemini_key(settings_of(request))
-
-
-# ── Tavus key ─────────────────────────────────────────────────────────────────
-
-
-@router.put("/tavus-key", summary="Save the global Tavus key")
-async def save_tavus_key(
-    body: dict, request: Request, user: AuthedUser = WebUser
-) -> dict:
-    """The single source of truth for the Tavus key.
-
-    Saving here also updates the copy held with any applied avatar config, so
-    rotating a key takes effect for candidate interviews too — otherwise the old key
-    would keep running them, which is the one place it matters most.
+    Credentials and the model come from the environment. See `.env.example`.
     """
-    logger.info("Tavus key updated by %s", user.uid)
-    return await app_settings.save_tavus_key(
-        settings_of(request), api_key=str((body or {}).get("apiKey") or "")
-    )
-
-
-@router.delete("/tavus-key", summary="Clear the global Tavus key")
-async def clear_tavus_key(request: Request, user: AuthedUser = WebUser) -> dict:
-    logger.info("Tavus key cleared by %s", user.uid)
-    return await app_settings.clear_tavus_key(settings_of(request))
+    return await app_settings.gemini_status(settings_of(request))
 
 
 # ── the applied avatar config ─────────────────────────────────────────────────

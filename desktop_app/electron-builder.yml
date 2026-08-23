@@ -1,0 +1,22 @@
+appId: com.talbotiq.desktop
+productName: Talbotiq
+directories:
+  output: release
+files:
+  - main.js
+  - preload.js
+  - package.json
+extraResources:
+  - from: ../web_version/talbotiq-platform/dist
+    to: renderer
+win:
+  target: nsis
+mac:
+  target: dmg
+  category: public.app-category.business
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSCameraUsageDescription: Talbotiq needs camera access to run video interviews.
+    NSMicrophoneUsageDescription: Talbotiq needs microphone access to run voice and video interviews.

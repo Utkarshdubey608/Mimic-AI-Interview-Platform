@@ -64,7 +64,7 @@ class _ReplicasPageState extends State<ReplicasPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Replicas'),
         actions: [

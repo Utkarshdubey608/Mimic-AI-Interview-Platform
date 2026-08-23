@@ -44,11 +44,11 @@ class ReportPage extends StatelessWidget {
     final template =
         session != null ? store.templateById(session.templateId) : null;
 
-    return Scaffold(
+    return RecruiterScaffold(
       // Inherit the scaffold background (and let the AppBar inherit too) so
       // this page sits on the same surface as every other recruiter screen.
       appBar: AppBar(
-        title: const Text('Interview Report'),
+        title: const Text('Interview report'),
         actions: [
           if (session != null && report != null)
             IconButton(
@@ -173,7 +173,7 @@ class ReportPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: warn.withValues(alpha: 0.12),
         border: Border.all(color: warn.withValues(alpha: 0.4)),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
@@ -219,7 +219,7 @@ class ReportPage extends StatelessWidget {
                       'OVERALL FIT',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 1.2,
                       ),
                     ),
@@ -227,7 +227,7 @@ class ReportPage extends StatelessWidget {
                     Text(
                       '${report.overallScore.round()} / 100',
                       style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.5,
                         color: color,
                       ),
@@ -267,7 +267,7 @@ class ReportPage extends StatelessWidget {
         Text(
           title,
           style:
-              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         ...items.map(
@@ -339,7 +339,7 @@ class ReportPage extends StatelessWidget {
               Text(
                 '${value.round()}',
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w600,
                   color: color,
                 ),
               ),
@@ -347,10 +347,10 @@ class ReportPage extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           ClipRRect(
-            borderRadius: BorderRadius.circular(100),
+            borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
               value: (value / 100).clamp(0, 1),
-              minHeight: 8,
+              minHeight: 4,
               backgroundColor:
                   theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
               valueColor: AlwaysStoppedAnimation(color),

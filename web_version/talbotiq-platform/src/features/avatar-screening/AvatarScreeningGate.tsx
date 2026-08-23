@@ -14,7 +14,9 @@ import { useAppStore } from '@/store/useAppStore'
 import InterviewPage from '@/pages/InterviewPage'
 import { FaceFitCheck } from './facefit/FaceFitCheck'
 
-/** Best-effort candidate first-name from the "TalbotIQ — {name}" convention. */
+/** Best-effort candidate first-name from the "Mimic — {name}" convention.
+ *  Splits on the dash rather than matching the prefix, so records written under
+ *  the old "TalbotIQ — " name still resolve. */
 function candidateNameFrom(conversationName?: string): string | undefined {
   if (!conversationName) return undefined
   const parts = conversationName.split('—')

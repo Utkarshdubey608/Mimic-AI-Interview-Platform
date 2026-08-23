@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'package:talbotiq/features/recruiter/models/recruiter_models.dart';
 import 'package:talbotiq/features/recruiter/store/recruiter_store.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 
 class QuestionSetEditorPage extends StatefulWidget {
   final QuestionSet? existing;
@@ -98,7 +99,7 @@ class _QuestionSetEditorPageState extends State<QuestionSetEditorPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit question set' : 'New question set'),
         actions: [
@@ -106,10 +107,10 @@ class _QuestionSetEditorPageState extends State<QuestionSetEditorPage> {
           const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: RecruiterFab(
         onPressed: _addQuestion,
-        icon: const Icon(Icons.add),
-        label: const Text('Add question'),
+        icon: Icons.add,
+        tooltip: 'Add question',
       ),
       body: SafeArea(
         child: Column(
@@ -131,7 +132,7 @@ class _QuestionSetEditorPageState extends State<QuestionSetEditorPage> {
                 children: [
                   Text('Questions',
                       style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   const Spacer(),
                   Text('Drag to reorder',
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -271,7 +272,7 @@ class _QuestionEditSheetState extends State<_QuestionEditSheet> {
                 style: Theme.of(context)
                     .textTheme
                     .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             TextField(
               controller: _text,

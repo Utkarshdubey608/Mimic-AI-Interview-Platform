@@ -1,7 +1,8 @@
 .DS_Store
 **/.DS_Store
 *.env
-mobile_desktop_app_version/firebase.jsonshots.mjs
+mobile_desktop_app_version/firebase.json
+shots.mjs
 probe.mjs
 shots-*/
 probe-*.png

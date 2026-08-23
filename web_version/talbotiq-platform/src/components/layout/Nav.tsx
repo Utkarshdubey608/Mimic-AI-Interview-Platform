@@ -130,7 +130,7 @@ function itemClass(isActive: boolean) {
 }
 
 export function Nav() {
-  const { interviewActive, tavusKey } = useAppStore()
+  const { interviewActive, tavusConfigured } = useAppStore()
   const { user, signOutUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -236,7 +236,7 @@ export function Nav() {
         <div className="flex-shrink-0 border-t border-brand-border p-2 xl:p-2.5 space-y-2">
           {liveMark && <div className="hidden xl:block px-1">{liveMark}</div>}
 
-          {!tavusKey && (
+          {!tavusConfigured && (
             <button
               onClick={() => navigate('/settings')}
               title="Add an API key"
@@ -314,7 +314,7 @@ export function Nav() {
               </button>
             </div>
 
-            {!tavusKey && (
+            {!tavusConfigured && (
               <button
                 onClick={() => navigate('/settings')}
                 className="mt-3 flex min-h-[44px] w-full items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-3 text-xs font-medium text-warning"

@@ -1,0 +1,362 @@
+{
+  "_readme": "Golden contract for the shared `interviews/{id}` document and the candidate disclosure allowlist. Generated from backend/app/interviews.py; asserted by BOTH backend/tests/test_interview_contract.py and mobile_desktop_app_version/test/interview_contract_test.dart. The field names are frozen — interview.dart reads them. Regenerate with REGENERATE_INTERVIEW_FIXTURES=1 and update both sides in the same commit.",
+  "assignments": {
+    "assignment/chat": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/email-is-lowercased": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "  MiXeD@Example.TEST  ",
+      "candidateEmailLower": "mixed@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/video-mode-maps-to-video-type": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "video",
+      "mode": "video",
+      "title": "Backend Engineer — Video Interview interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/avatar-is-a-video-type": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "video",
+      "mode": "video_avatar",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/two-way-is-a-video-type": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "video",
+      "mode": "two_way",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/voice-is-a-chat-type": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "voice",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/mcq-is-a-chat-type": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "mcq",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/with-questions": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [
+        "Tell me about a hard bug.",
+        "Why this role?"
+      ],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/restricted-to-the-browser": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>",
+      "allowedDevices": [
+        "web"
+      ]
+    },
+    "assignment/restricted-to-the-apps": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>",
+      "allowedDevices": [
+        "mobile",
+        "desktop"
+      ]
+    },
+    "assignment/every-device-is-no-restriction": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": null,
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "assignment/named-candidate": {
+      "testId": "test-1",
+      "recruiterId": "uid-recruiter",
+      "recruiterEmail": "grace@acme.test",
+      "recruiterName": "Grace Hopper",
+      "candidateEmail": "Ada@Example.test",
+      "candidateEmailLower": "ada@example.test",
+      "candidateName": "Ada Lovelace",
+      "type": "chat",
+      "mode": "chat",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "prompt": "",
+      "questions": [],
+      "durationMinutes": 20,
+      "status": "assigned",
+      "keyOverrides": {},
+      "maxAttempts": 1,
+      "attemptsUsed": 0,
+      "resultPublished": false,
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    }
+  },
+  "testSummaries": {
+    "test-summary/chat": {
+      "recruiterId": "uid-recruiter",
+      "title": "Backend Engineer — Timed Q&A interview",
+      "type": "chat",
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    },
+    "test-summary/video": {
+      "recruiterId": "uid-recruiter",
+      "title": "Backend Engineer — Video Interview interview",
+      "type": "video",
+      "createdAt": "<serverTimestamp>",
+      "updatedAt": "<serverTimestamp>"
+    }
+  },
+  "candidateDisclosure": {
+    "disclosure/published-selected": {
+      "outcome": "selected",
+      "rank": 3,
+      "rankOf": 40,
+      "candidateNote": "We will be in touch to schedule the next round."
+    },
+    "disclosure/published-rejected": {
+      "outcome": "not_selected",
+      "rank": 3,
+      "rankOf": 40,
+      "candidateNote": "Thank you for your time."
+    },
+    "disclosure/unpublished-shows-nothing": null,
+    "disclosure/legacy-result-reads-as-pending": {
+      "outcome": "pending"
+    },
+    "disclosure/unknown-outcome-is-pending": {
+      "outcome": "pending"
+    },
+    "disclosure/rank-without-total-is-dropped": {
+      "outcome": "selected"
+    },
+    "disclosure/blank-note-is-dropped": {
+      "outcome": "selected"
+    },
+    "disclosure/no-result-at-all": null,
+    "disclosure/a-future-field-is-not-disclosed": {
+      "outcome": "selected"
+    }
+  },
+  "modes": {
+    "chat": {
+      "label": "Timed Q&A",
+      "type": "chat"
+    },
+    "chatbot": {
+      "label": "Chatbot",
+      "type": "chat"
+    },
+    "mcq": {
+      "label": "MCQ Test",
+      "type": "chat"
+    },
+    "two_way": {
+      "label": "Two-way Interview",
+      "type": "video"
+    },
+    "video": {
+      "label": "Video Interview",
+      "type": "video"
+    },
+    "video_avatar": {
+      "label": "Video Avatar",
+      "type": "video"
+    },
+    "voice": {
+      "label": "Voice",
+      "type": "chat"
+    }
+  },
+  "candidateVisibleResultFields": [
+    "outcome",
+    "rank",
+    "rankOf",
+    "candidateNote"
+  ]
+}

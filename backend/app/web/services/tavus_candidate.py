@@ -81,7 +81,7 @@ def build_payload(
     if config.get("enableRecording"):
         properties["enable_recording"] = True
 
-    base = (config.get("conversationName") or "").strip() or "TalbotIQ"
+    base = (config.get("conversationName") or "").strip() or "Mimic"
     payload: dict = {
         "replica_id": config.get("replicaId"),
         "conversation_name": f"{base} — {name or 'Candidate'}",

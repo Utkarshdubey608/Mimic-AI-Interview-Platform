@@ -11,10 +11,11 @@ import 'package:talbotiq/firebase_options.dart';
 import 'package:talbotiq/core/services/avatar_catalog.dart';
 import 'package:talbotiq/shared/providers/app_store.dart';
 import 'package:talbotiq/features/recruiter/store/recruiter_store.dart';
-import 'package:talbotiq/features/recruiter/services/recruiter_gemini_service.dart';
 import 'package:talbotiq/features/auth/auth_service.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/core/deep_link/deep_link_service.dart';
+import 'package:talbotiq/core/theme/accent_palette.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 import 'package:talbotiq/core/theme/app_theme.dart';
 import 'package:talbotiq/features/app/splash_page.dart';
 
@@ -31,7 +32,7 @@ Future<void> _initDesktopWindow() async {
     size: Size(1440, 900),
     minimumSize: Size(1024, 700),
     center: true,
-    title: 'Talbotiq',
+    title: 'Mimic',
   );
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.show();
@@ -81,9 +82,6 @@ void main() async {
   // stays fully isolated from the protected video-interview AppStore.
   final recruiterStore = RecruiterStore();
   await recruiterStore.load();
-
-  // Restore the recruiter's persisted Gemini model choice (flash/pro).
-  await recruiterGeminiService.loadModelPreference();
 
   runApp(
     MultiProvider(
@@ -180,6 +178,14 @@ class _MyAppState extends State<MyApp> {
     // tree doesn't rebuild on unrelated AppStore notifications (keys, session
     // config, integrity counters, etc.).
     final themeMode = context.select<AppStore, ThemeMode>((s) => s.themeMode);
+    // The block language now covers the whole app, so it is installed here
+    // rather than per screen — a route pushed from anywhere builds under this
+    // MaterialApp and inherits it. (RecruiterScaffold still installs it too;
+    // that is now a harmless re-install of identical values, and it keeps
+    // those screens correct if the app theme is ever split by role again.)
+    final accent = context.select<AppStore, AppAccent>((s) => s.accent);
+    final secondaryAccent =
+        context.select<AppStore, AppAccent>((s) => s.secondaryAccent);
     // Desktop-only text scale (Settings → Preferences → Font Size). Applied
     // once here via MediaQuery.textScaler rather than in every individual
     // widget, so it's a single source of truth that automatically reaches
@@ -191,11 +197,19 @@ class _MyAppState extends State<MyApp> {
     final desktopFontScale =
         context.select<AppStore, double>((s) => s.desktopFontScale);
     return MaterialApp(
-      title: 'TalbotIQ AI Screenings',
+      title: 'Mimic',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: WarmSurfaces.theme(
+        AppTheme.lightTheme,
+        accent: accent,
+        secondary: secondaryAccent,
+      ),
+      darkTheme: WarmSurfaces.theme(
+        AppTheme.darkTheme,
+        accent: accent,
+        secondary: secondaryAccent,
+      ),
       themeMode: themeMode,
       builder: (context, child) {
         if (!isDesktopPlatform || child == null) return child ?? const SizedBox.shrink();

@@ -30,9 +30,9 @@ class TrackType {
   static String label(String v) {
     switch (v) {
       case chatbot:
-        return 'Conversational Chatbot';
+        return 'Conversational chatbot';
       case videoAvatar:
-        return 'Video Avatar';
+        return 'Video avatar';
       case chat:
       default:
         return 'Timed Q&A (Chat)';
@@ -62,9 +62,9 @@ class SessionStatus {
   static String label(String v) {
     switch (v) {
       case systemCheck:
-        return 'System Check';
+        return 'System check';
       case inProgress:
-        return 'In Progress';
+        return 'In progress';
       case completed:
         return 'Completed';
       case expired:
@@ -85,7 +85,7 @@ class Recommendation {
   static String label(String v) {
     switch (v) {
       case strongYes:
-        return 'Strong Yes';
+        return 'Strong yes';
       case yes:
         return 'Yes';
       case maybe:
@@ -402,14 +402,14 @@ class BrandingConfig {
   final String? welcomeMessage;
 
   const BrandingConfig({
-    this.companyName = 'TalbotIQ',
+    this.companyName = 'Mimic',
     this.logoUrl,
     this.accentColor = '#0d5c3a',
     this.welcomeMessage,
   });
 
   factory BrandingConfig.fromJson(Map<String, dynamic> json) => BrandingConfig(
-        companyName: json['companyName'] ?? 'TalbotIQ',
+        companyName: json['companyName'] ?? 'Mimic',
         logoUrl: json['logoUrl'],
         accentColor: json['accentColor'] ?? '#0d5c3a',
         welcomeMessage: json['welcomeMessage'],

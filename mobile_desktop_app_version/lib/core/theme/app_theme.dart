@@ -1,6 +1,7 @@
 // lib/core/theme/app_theme.dart
 import 'package:flutter/material.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.g.dart';
 
 class AppTheme {
   static ThemeData get darkTheme {
@@ -8,7 +9,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Inter',
+      fontFamily: TokenType.ui,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         onPrimary: AppColors.backgroundBlack,
@@ -30,7 +31,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24.0),
+          borderRadius: BorderRadius.circular(20.0),
           side: const BorderSide(color: AppColors.border, width: 1.0),
         ),
       ),
@@ -93,21 +94,21 @@ class AppTheme {
         fillColor: AppColors.backgroundDarker,
         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
         labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
         ),
       ),
@@ -116,14 +117,14 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.backgroundBlack,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100),
+            borderRadius: BorderRadius.circular(18),
           ),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -131,30 +132,30 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textLight,
           side: const BorderSide(color: AppColors.border, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100),
+            borderRadius: BorderRadius.circular(18),
           ),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
       buttonTheme: ButtonThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         buttonColor: AppColors.primary,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: AppColors.cardBg,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28.0),
+          borderRadius: BorderRadius.circular(26.0),
           side: const BorderSide(color: AppColors.border),
         ),
         titleTextStyle: const TextStyle(
-          fontSize: 24,
+          fontSize: 19,
           fontWeight: FontWeight.w700,
           color: AppColors.textLight,
           letterSpacing: -0.5,
@@ -163,6 +164,48 @@ class AppTheme {
           fontSize: 14,
           color: AppColors.textMuted,
         ),
+      ),
+      // Minimal header chrome: no elevation, no tint-on-scroll, a small
+      // semibold title. The design language puts page identity in the body's
+      // own heading, so the bar itself should barely register.
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: AppColors.textLight,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
+          color: AppColors.textLight,
+          fontFamily: TokenType.ui,
+        ),
+        iconTheme: IconThemeData(color: AppColors.textMuted, size: 21),
+        actionsIconTheme: IconThemeData(color: AppColors.textMuted, size: 21),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.cardBg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          side: BorderSide(color: AppColors.border),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.cardBg,
+        selectedColor: AppColors.surfaceElevated,
+        side: const BorderSide(color: AppColors.border),
+        labelStyle: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textLight,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
@@ -187,7 +230,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: lightBackground,
-      fontFamily: 'Inter',
+      fontFamily: TokenType.ui,
       colorScheme: const ColorScheme.light(
         primary: lightPrimary,
         onPrimary: lightOnPrimary,
@@ -207,7 +250,7 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24.0),
+          borderRadius: BorderRadius.circular(20.0),
           side: const BorderSide(color: lightBorder, width: 1.0),
         ),
       ),
@@ -270,21 +313,21 @@ class AppTheme {
         fillColor: lightSurfaceVariant,
         hintStyle: const TextStyle(color: lightTextMuted, fontSize: 14),
         labelStyle: const TextStyle(color: lightTextMuted, fontSize: 14),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: lightPrimary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
       ),
@@ -293,14 +336,14 @@ class AppTheme {
           backgroundColor: lightPrimary,
           foregroundColor: lightOnPrimary,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100),
+            borderRadius: BorderRadius.circular(18),
           ),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
@@ -308,30 +351,30 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: lightText,
           side: const BorderSide(color: lightBorder, width: 1.2),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100),
+            borderRadius: BorderRadius.circular(18),
           ),
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Inter',
+            fontFamily: TokenType.ui,
           ),
         ),
       ),
       buttonTheme: ButtonThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         buttonColor: lightPrimary,
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: lightSurface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28.0),
+          borderRadius: BorderRadius.circular(26.0),
           side: const BorderSide(color: lightBorder),
         ),
         titleTextStyle: const TextStyle(
-          fontSize: 24,
+          fontSize: 19,
           fontWeight: FontWeight.w700,
           color: lightText,
           letterSpacing: -0.5,
@@ -340,6 +383,45 @@ class AppTheme {
           fontSize: 14,
           color: lightTextMuted,
         ),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: lightBackground,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: lightText,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -0.3,
+          color: lightText,
+          fontFamily: TokenType.ui,
+        ),
+        iconTheme: IconThemeData(color: lightTextMuted, size: 21),
+        actionsIconTheme: IconThemeData(color: lightTextMuted, size: 21),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: lightSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          side: BorderSide(color: lightBorder),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: lightSurface,
+        selectedColor: lightSurfaceVariant,
+        side: const BorderSide(color: lightBorder),
+        labelStyle: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: lightText,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dividerTheme: const DividerThemeData(
         color: lightBorder,

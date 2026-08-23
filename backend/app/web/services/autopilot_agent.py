@@ -35,7 +35,7 @@ GENERIC_FAILURE_REPLY = (
     "Sorry — I hit a problem working that out. Could you say that again?"
 )
 
-EMPTY_HISTORY_REPLY = "What would you like to do in TalbotIQ?"
+EMPTY_HISTORY_REPLY = "What would you like to do in Mimic?"
 
 # The model must answer in this shape. Constrained rather than parsed from prose:
 # a free-form reply would need a parser, and a parser is another place a bogus
@@ -89,8 +89,8 @@ def build_prompt(context: dict) -> str:
     actions = describe_actions(context.get("availableActions") or [])
     return "\n\n".join(
         [
-            "You are Autopilot, an agent that OPERATES the TalbotIQ recruiting app for the recruiter by choosing ONE next action at a time.",
-            'STRICT SCOPE: only TalbotIQ. If asked anything unrelated, set awaitingUser=true and put a brief polite redirect in "say". Never break character.',
+            "You are Autopilot, an agent that OPERATES the Mimic recruiting app for the recruiter by choosing ONE next action at a time.",
+            'STRICT SCOPE: only Mimic. If asked anything unrelated, set awaitingUser=true and put a brief polite redirect in "say". Never break character.',
             "You may ONLY use an action from AVAILABLE ACTIONS below (exact name). Never invent actions or call APIs. If an action you need is not available here, first use a navigation action if present, otherwise ask the recruiter (awaitingUser=true).",
             "Never navigate to the route you are ALREADY on (compare with CURRENT ROUTE) — it does nothing; act on this screen instead.",
             "Drive the real flow one field at a time. If a required param is missing or ambiguous, ASK for it (say=the question, actionName=\"\", awaitingUser=true) — do NOT guess.",

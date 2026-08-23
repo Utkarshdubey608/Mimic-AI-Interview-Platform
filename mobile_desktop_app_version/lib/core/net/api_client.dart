@@ -77,6 +77,20 @@ class ApiClient {
       _send(() => _client.post(url, headers: headers, body: body),
           idempotent: false);
 
+  /// PUT, retried like GET rather than like POST.
+  ///
+  /// `idempotent: true` because a PUT *replaces* — sending the same body twice
+  /// leaves the same state, so a retry after a transient 503 cannot duplicate
+  /// anything. That is exactly the property POST lacks, which is why the policy
+  /// above refuses to retry it.
+  Future<http.Response> put(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) =>
+      _send(() => _client.put(url, headers: headers, body: body),
+          idempotent: true);
+
   Future<http.Response> delete(Uri url, {Map<String, String>? headers}) =>
       _send(() => _client.delete(url, headers: headers), idempotent: true);
 

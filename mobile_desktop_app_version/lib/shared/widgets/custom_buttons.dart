@@ -105,7 +105,9 @@ class CustomButton extends StatelessWidget {
           backgroundColor: bg,
           side: border,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(100), // M3 stadium pill shape
+            // Generously rounded, but not a stadium: buttons should read as
+            // part of the same family as the cards around them.
+            borderRadius: BorderRadius.circular(18),
           ),
           padding: EdgeInsets.symmetric(horizontal: 24, vertical: height >= 48 ? 12 : 6),
         ),

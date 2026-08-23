@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Nav } from '@/components/layout/Nav'
 import { refreshServiceStatus } from '@/store/useAppStore'
 import { IntroFaceSync } from '@/features/intro/IntroFaceSync'
+import { CompanyPrompt } from '@/features/auth/CompanyPrompt'
 import { useDocumentGround, useWorkspaceGround } from '@/lib/workspaceGround'
 
 /**
@@ -51,6 +52,11 @@ export default function RecruiterShell() {
       {/* Background, one-time sync of real replica thumbnails into the intro's
           face cache (IndexedDB). Renders nothing; no extra Tavus call. */}
       <IntroFaceSync />
+      {/* Asks an existing recruiter for their company, once. Mounted on the shell
+          rather than on a page so it cannot be skipped by navigating — templates and
+          question sets are scoped by the key, and without one a recruiter silently
+          stops seeing their colleagues' work. Renders nothing once it is set. */}
+      <CompanyPrompt />
     </div>
   )
 }

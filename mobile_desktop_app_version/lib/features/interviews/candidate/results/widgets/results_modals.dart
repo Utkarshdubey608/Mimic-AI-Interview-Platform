@@ -64,7 +64,7 @@ class _ScheduleInterviewDialogState extends State<ScheduleInterviewDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Schedule Technical Interview',
+                'Schedule technical interview',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -99,7 +99,7 @@ class _ScheduleInterviewDialogState extends State<ScheduleInterviewDialog> {
 
               CustomInputField(
                 label: 'Interviewer',
-                placeholder: 'Interviewer Name',
+                placeholder: 'Interviewer name',
                 controller: _interviewerController,
               ),
               const SizedBox(height: 12),
@@ -126,7 +126,7 @@ class _ScheduleInterviewDialogState extends State<ScheduleInterviewDialog> {
                   ),
                   const SizedBox(width: 12),
                   CustomButton(
-                    text: 'Confirm Schedule',
+                    text: 'Confirm schedule',
                     onPressed: () {
                       // Capture the messenger before onClose() disposes this
                       // widget's context / removes it from the tree.
@@ -174,8 +174,8 @@ class OfferRecommendationDialog extends StatelessWidget {
 
     // Build template block content for clipboard and view
     final today = DateTime.now().toString().split(' ').first;
-    final recommendationText = score >= 75 ? 'Proceed with Offer' : 'Further Technical Assessment';
-    final blockContent = '''OFFER RECOMMENDATION — TalbotIQ AI
+    final recommendationText = score >= 75 ? 'Proceed with offer' : 'Further technical assessment';
+    final blockContent = '''OFFER RECOMMENDATION — MIMIC AI
 Score: $score/100 | Verdict: $verdict
 
 RECOMMENDATION: $recommendationText

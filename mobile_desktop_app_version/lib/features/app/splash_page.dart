@@ -1,11 +1,15 @@
 // lib/views/splash_page.dart
 import 'package:flutter/material.dart';
 import 'package:talbotiq/features/auth/auth_gate.dart';
+import 'package:talbotiq/shared/widgets/mimic_mark.dart';
+import 'package:talbotiq/shared/widgets/mimic_wordmark.dart';
 
 /// A clean, modern splash screen.
 ///
-/// Text-only (no logo image): the "talbotiq" wordmark fades and eases up into
-/// place, with a subtle accent underline that draws itself in. Colors are pulled
+/// The Mimic mark and wordmark fade and ease up into place, with a subtle
+/// accent underline that draws itself in. The mark is drawn (see [MimicMark]),
+/// not a logo image, so it matches the OS app icon and the in-app branding
+/// rather than being a third treatment of it. Colors are pulled
 /// from the active [Theme], so the background is dark when the user has chosen
 /// dark mode and light when they've chosen light mode — driven entirely by the
 /// in-app theme preference rather than the OS.
@@ -90,20 +94,11 @@ class _SplashPageState extends State<SplashPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                RichText(
-                  text: TextSpan(
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 40,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -1.2,
-                      color: onBg,
-                    ),
-                    children: [
-                      const TextSpan(text: 'talbot'),
-                      TextSpan(text: 'iq', style: TextStyle(color: accent)),
-                    ],
-                  ),
+                const MimicMark(size: 64),
+                const SizedBox(height: 20),
+                DefaultTextStyle(
+                  style: TextStyle(color: onBg),
+                  child: const MimicWordmark(fontSize: 40),
                 ),
                 const SizedBox(height: 14),
                 // Accent underline that grows out from the center.

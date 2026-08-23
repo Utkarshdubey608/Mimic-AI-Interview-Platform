@@ -145,7 +145,11 @@ async def join(
         # The owning recruiter reaches this route too (require_candidate allows
         # them), and they are allowed to preview outside the window.
         if not interviews.is_owning_recruiter(interview, uid=user.uid):
-            interview.ensure_launchable()
+            interview.ensure_launchable(
+                interviews.device_from_header(
+                    request.headers.get(interviews.CLIENT_DEVICE_HEADER)
+                )
+            )
     except InterviewAccessDenied as exc:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
     except InterviewNotLaunchable as exc:

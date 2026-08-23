@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ArrowRight, CheckCircle2, LogOut, Inbox } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Info, LogOut, Inbox } from 'lucide-react'
 import {
   Button, Skeleton, ExhibitTab, Card, EmptyState, ErrorState, Page,
 } from '@/components/ui'
@@ -9,7 +9,7 @@ import { MimicLockup } from '@/components/brand/MimicMark'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { useDocumentGround } from '@/lib/workspaceGround'
-import type { CandidateAssignedSession } from '@shared/types'
+import type { CandidateAssignedSession, CandidateOutcome } from '@shared/types'
 
 /**
  * The candidate's home: everything they have been invited to.
@@ -108,31 +108,105 @@ export default function CandidateHome() {
   )
 }
 
+/**
+ * The outcome copy, written for the candidate rather than the recruiter.
+ *
+ * No hiring vocabulary — "Moving forward", not "Strong Hire". The words are lifted
+ * from `RoundOutcomeX.candidateLabel` in the Flutter app so the same decision reads
+ * identically wherever the candidate happens to open it.
+ */
+const OUTCOME_COPY: Record<CandidateOutcome['outcome'], { label: string; blurb: string }> = {
+  selected:     { label: 'Moving forward',     blurb: 'The hiring team will be in touch about the next step.' },
+  not_selected: { label: 'Not moving forward', blurb: 'Thank you for the time you gave this.' },
+  pending:      { label: 'Under review',       blurb: 'Your interview is with the hiring team. You will hear from them.' },
+}
+
+/**
+ * What the candidate is told, and nothing else.
+ *
+ * Three fields, and the server will not send a fourth — see `CandidateOutcome`. There
+ * is deliberately no score anywhere on this component, and no place to put one.
+ */
+function OutcomePanel({ outcome }: { outcome: CandidateOutcome }) {
+  const copy = OUTCOME_COPY[outcome.outcome] ?? OUTCOME_COPY.pending
+
+  /* `not_selected` is NOT an error state, and this is the one styling decision here
+     that carries meaning. Red reads as "something went wrong" — a fault, possibly
+     theirs. It is a decision, so it gets the same neutral treatment as any other
+     piece of information. Mobile makes the same choice for the same reason
+     (onSurfaceVariant, not error). */
+  const tone =
+    outcome.outcome === 'selected'
+      ? 'border-ok-rule bg-ok-bg text-ok'
+      : 'border-rule bg-ground text-ink-muted'
+
+  return (
+    <div className="mt-3 rounded-md border border-rule bg-ground/50 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm font-semibold ${tone}`}>
+          {outcome.outcome === 'selected' ? <CheckCircle2 size={14} aria-hidden="true" /> : <Info size={14} aria-hidden="true" />}
+          {copy.label}
+        </span>
+        {/* Only when both halves are present — a position with no total reads as a
+            bare number out of nowhere. The server drops a lone rank for the same
+            reason, so this is belt and braces. */}
+        {outcome.rank != null && outcome.rankOf != null ? (
+          <span className="text-xs text-ink-muted">Ranked {outcome.rank} of {outcome.rankOf}</span>
+        ) : null}
+      </div>
+
+      {outcome.candidateNote ? (
+        <p className="mt-2.5 whitespace-pre-line border-l-2 border-rule pl-3 text-sm text-ink">
+          {outcome.candidateNote}
+        </p>
+      ) : null}
+
+      <p className="mt-2 text-xs text-ink-muted">{copy.blurb}</p>
+    </div>
+  )
+}
+
 function SessionRow({ s }: { s: CandidateAssignedSession }) {
   const done = s.status === 'completed' || s.status === 'expired'
   return (
-    <li className="flex items-center justify-between gap-4 rounded-lg border border-rule bg-surface p-4 transition-colors duration-fast hover:border-rule-strong">
-      <div className="min-w-0">
-        <p className="truncate font-semibold text-ink">{s.templateName}</p>
-        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
-          {s.role ? <span className="truncate text-xs text-ink-muted">{s.role}</span> : null}
-          <ExhibitTab track={s.track} />
+    <li className="rounded-lg border border-rule bg-surface p-4 transition-colors duration-fast hover:border-rule-strong">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink">{s.templateName}</p>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
+            {s.role ? <span className="truncate text-xs text-ink-muted">{s.role}</span> : null}
+            <ExhibitTab track={s.track} />
+          </div>
         </div>
+
+        {done ? (
+          <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-3 py-1.5 text-sm font-semibold text-ok">
+            <CheckCircle2 size={15} aria-hidden="true" /> Completed
+          </span>
+        ) : (
+          <Link
+            /* A résumé round goes somewhere else entirely — see the route comment in
+               App.tsx. Keyed on `roundKind`, not `track`: the assignment carries
+               `type: chat` for one, so routing on the track would send them into the
+               interview engine. */
+            to={s.roundKind === 'resume' ? `/submit-resume/${s.id}` : `/take/${s.id}`}
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md bg-action px-4 py-2 text-sm font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            {s.roundKind === 'resume'
+              ? 'Submit résumé'
+              : s.status === 'in_progress'
+                ? 'Continue'
+                : 'Start interview'}
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        )}
       </div>
 
-      {done ? (
-        <span className="flex flex-shrink-0 items-center gap-1.5 rounded-md border border-ok-rule bg-ok-bg px-3 py-1.5 text-sm font-semibold text-ok">
-          <CheckCircle2 size={15} aria-hidden="true" /> Completed
-        </span>
-      ) : (
-        <Link
-          to={`/take/${s.id}`}
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md bg-action px-4 py-2 text-sm font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-        >
-          {s.status === 'in_progress' ? 'Continue' : 'Start interview'}
-          <ArrowRight size={15} aria-hidden="true" />
-        </Link>
-      )}
+      {/* The end of the journey, which used to not exist here at all: a candidate who
+          interviewed on the web was shown "Completed" and never told anything else,
+          not even about a result released from the phone. Absent until the recruiter
+          publishes — the server sends null, so there is nothing to hide client-side. */}
+      {s.outcome ? <OutcomePanel outcome={s.outcome} /> : null}
     </li>
   )
 }

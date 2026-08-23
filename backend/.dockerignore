@@ -1,0 +1,42 @@
+# The Dockerfile copies only `requirements.txt` and `app/`, but everything else in this
+# directory is still uploaded to the daemon as build context — 315 MB of it, almost all
+# `.venv`. Excluding it takes the context to a couple of megabytes.
+#
+# The second reason is safety: `.env` and `serviceAccount.json` are real credentials
+# sitting next to the Dockerfile. Nothing copies them today, but a future `COPY . .`
+# would bake them into a pushed image. This makes that impossible rather than unlikely.
+
+# ── credentials — never in an image ───────────────────────────────────────────
+.env
+.env.*
+!.env.example
+serviceAccount.json
+*.pem
+*.key
+
+# ── local environments and caches ─────────────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── not needed at runtime ─────────────────────────────────────────────────────
+tests/
+scripts/
+spikes/
+Dockerfile
+.dockerignore
+README.md
+
+# ── editor and VCS noise ──────────────────────────────────────────────────────
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+.DS_Store

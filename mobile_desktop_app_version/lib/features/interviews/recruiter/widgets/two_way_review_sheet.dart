@@ -19,6 +19,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:talbotiq/features/interviews/models/interview.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 /// What the recruiter entered.
 class TwoWayReview {
@@ -103,9 +105,9 @@ class _TwoWayReviewSheetState extends State<_TwoWayReviewSheet> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20,
+        AppSpacing.xl,
         0,
-        20,
+        AppSpacing.xl,
         // Clears the keyboard when the notes field is focused.
         MediaQuery.of(context).viewInsets.bottom + 24,
       ),
@@ -114,39 +116,52 @@ class _TwoWayReviewSheetState extends State<_TwoWayReviewSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Score this interview',
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
+            Text(
+              'Score this interview',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+                color: AppSurfaces.text(context),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               '$name · ${widget.interview.title}',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12.5,
+                color: AppSurfaces.muted(context),
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpacing.xs + 2),
             Text(
               'You ran this interview, so you score it — there is no recording '
               'to score automatically.',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppSurfaces.subtle(context),
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: AppSpacing.xl),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 for (var star = 1; star <= 5; star++)
                   IconButton(
-                    iconSize: 38,
+                    iconSize: 32,
                     tooltip: '$star star${star == 1 ? '' : 's'}',
                     onPressed: () => setState(() {
                       _stars = star;
                       _error = null;
                     }),
                     icon: Icon(
-                      star <= _stars ? Icons.star_rounded : Icons.star_border_rounded,
+                      star <= _stars
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
                       color: star <= _stars
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
+                          ? WarmSurfaces.block(context)
+                          : AppSurfaces.subtle(context),
                     ),
                   ),
               ],
@@ -154,8 +169,11 @@ class _TwoWayReviewSheetState extends State<_TwoWayReviewSheet> {
             Text(
               _starMeaning,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppSurfaces.text(context),
+              ),
             ),
             if (_stars > 0) ...[
               const SizedBox(height: 4),
@@ -164,8 +182,10 @@ class _TwoWayReviewSheetState extends State<_TwoWayReviewSheet> {
                 // this number, so it should not be a surprise.
                 'Ranks as $_score / 100 alongside the other rounds.',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: AppSurfaces.subtle(context),
+                ),
               ),
             ],
             const SizedBox(height: 20),

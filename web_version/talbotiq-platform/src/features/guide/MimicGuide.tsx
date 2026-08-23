@@ -897,7 +897,7 @@ export default function MimicGuide() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Mimic Guide — your TalbotIQ assistant"
+        title="Mimic Guide — your assistant"
         aria-label="Open Mimic Guide"
         className={cn(
           // Squared and ink-grounded. It was a violet-gradient pill, which is the
@@ -1084,7 +1084,7 @@ export default function MimicGuide() {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-brand-gray">Your TalbotIQ AI assistant</p>
+            <p className="text-xs text-brand-gray">Your Mimic AI assistant</p>
             <div className="flex items-center gap-2 pt-1 text-xs text-brand-gray">
               <Languages className="size-3.5 shrink-0" aria-hidden />
               <span>Voice language</span>
@@ -1145,7 +1145,7 @@ export default function MimicGuide() {
               <div className="flex flex-col gap-5">
                 <p className="text-sm leading-relaxed text-neutral-200">
                   Hi! I&apos;m <span className="font-semibold text-white">Mimic Guide</span>. Ask me
-                  anything about TalbotIQ — interviews, templates, question sets, sessions, AI
+                  anything about Mimic — interviews, templates, question sets, sessions, AI
                   Avatar Screening, or results.
                 </p>
                 <div className="flex flex-col gap-2">
@@ -1239,7 +1239,7 @@ export default function MimicGuide() {
                   }
                 }}
                 rows={1}
-                placeholder="Ask anything about TalbotIQ…"
+                placeholder="Ask anything about Mimic…"
                 className="max-h-[72px] min-h-9 flex-1 resize-none rounded-xl border border-brand-border bg-brand-black px-3.5 py-2 text-sm text-neutral-100 outline-none transition-colors duration-150 placeholder:text-brand-gray/70 focus-visible:border-brand-gold/60"
               />
               <button

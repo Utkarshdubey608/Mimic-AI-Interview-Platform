@@ -247,14 +247,14 @@ def render_email_shell(
 
     branding = template.get("branding") or {}
     accent = _colour(branding.get("accentColor"))
-    company = escape_html(branding.get("companyName") or "TalbotIQ")
+    company = escape_html(branding.get("companyName") or "Mimic")
     logo = (
         f'<img src="{escape_html(branding["logoUrl"])}" alt="{escape_html(branding.get("companyName") or "")}"'
         ' style="max-height:40px;margin-bottom:8px" />'
         if branding.get("logoUrl")
         else f'<div style="font-weight:700;color:{accent};font-size:18px">{company}</div>'
     )
-    footer = escape_html(branding.get("footer") or "Sent via TalbotIQ.")
+    footer = escape_html(branding.get("footer") or "Sent via Mimic.")
 
     # The shell tones mirror the in-app violet system so the wizard's preview and the
     # delivered mail read as one surface. Figtree is the product face; the rest of the
@@ -334,11 +334,11 @@ def render_transition_email(
 
 # ── seeds ─────────────────────────────────────────────────────────────────────
 
-_SENDER = {"verifiedSenderEmail": "", "fromName": "TalbotIQ", "replyTo": ""}
+_SENDER = {"verifiedSenderEmail": "", "fromName": "Mimic", "replyTo": ""}
 _BRANDING = {
-    "companyName": "TalbotIQ",
+    "companyName": "Mimic",
     "accentColor": DEFAULT_ACCENT,
-    "footer": "Sent via TalbotIQ.",
+    "footer": "Sent via Mimic.",
 }
 
 

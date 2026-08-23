@@ -8,7 +8,7 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false"/>
 
     <application
-        android:label="talbotiq_app"
+        android:label="Mimic"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -408,7 +408,7 @@ export default function ReportPage() {
     if (!reportRef.current) return
     setExporting(true)
     try {
-      await exportElementToPdf(reportRef.current, `TalbotIQ-${session.candidate.name.replace(/\s+/g, '-')}-report.pdf`)
+      await exportElementToPdf(reportRef.current, `Mimic-${session.candidate.name.replace(/\s+/g, '-')}-report.pdf`)
     } catch {
       toast.error('PDF export failed')
     } finally {

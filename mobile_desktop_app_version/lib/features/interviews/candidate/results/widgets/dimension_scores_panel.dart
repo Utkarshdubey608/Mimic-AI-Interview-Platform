@@ -91,7 +91,7 @@ class DimensionScoresPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Dimension Scores',
+              'Dimension scores',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -122,7 +122,7 @@ class DimensionScoresPanel extends StatelessWidget {
             ),
             _buildDimensionProgress(
               context,
-              'Stress Mgmt',
+              'Stress mgmt',
               overallScore + 2,
             ),
             _buildDimensionProgress(

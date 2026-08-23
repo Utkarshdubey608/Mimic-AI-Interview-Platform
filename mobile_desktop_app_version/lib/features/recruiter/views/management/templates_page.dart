@@ -86,12 +86,12 @@ class TemplatesPage extends StatelessWidget {
     final templates = [...store.templates]
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(title: const Text('Templates')),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: RecruiterFab(
         onPressed: () => _openEditor(context),
-        icon: const Icon(Icons.add),
-        label: const Text('New template'),
+        icon: Icons.add,
+        tooltip: 'New template',
       ),
       body: SafeArea(
         child: ListView(

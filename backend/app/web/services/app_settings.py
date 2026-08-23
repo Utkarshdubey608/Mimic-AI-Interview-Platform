@@ -73,7 +73,17 @@ async def gemini_key(settings: Settings) -> str:
 
 
 async def gemini_model(settings: Settings) -> str:
-    """The active model, in the same precedence order as the key."""
+    """The model the deployment scores on.
+
+    NOT a user choice. It was briefly per-account and before that it was a `web_settings`
+    value a recruiter could change from the browser — which, being a global singleton,
+    changed it for every recruiter on the deployment. Both are gone: the model is
+    deployment configuration like the key it goes with, and there is no route that
+    writes it.
+
+    The stored value is still READ so a deployment that has one keeps working; nothing
+    can set it any more. Set `GEMINI_MODEL` in the environment instead.
+    """
     doc = await document(settings)
     return _str(doc.get(GEMINI_MODEL)) or settings.gemini_model.strip() or "gemini-2.5-flash"
 
@@ -95,29 +105,6 @@ async def gemini_status(settings: Settings) -> dict:
     }
 
 
-async def save_gemini_key(settings: Settings, *, api_key: str, model: str | None) -> dict:
-    """Save (or clear, when blank) the recruiter's Gemini key."""
-    store = get_store(settings)
-    cleaned = (api_key or "").strip()
-
-    if cleaned:
-        await store.settings.merge({GEMINI_KEY: cleaned})
-    else:
-        await store.settings.unset(GEMINI_KEY)
-
-    # The model is only ever set, never cleared by this route — an empty model would
-    # leave generation with no default at all.
-    if (model or "").strip():
-        await store.settings.merge({GEMINI_MODEL: model.strip()})
-
-    return await gemini_status(settings)
-
-
-async def clear_gemini_key(settings: Settings) -> dict:
-    await get_store(settings).settings.unset(GEMINI_KEY)
-    return await gemini_status(settings)
-
-
 # ── Tavus ─────────────────────────────────────────────────────────────────────
 
 
@@ -137,49 +124,6 @@ async def tavus_key(settings: Settings) -> str:
         or _str((avatar or {}).get("tavusKey"))
         or settings.tavus_api_key.strip()
     )
-
-
-async def save_tavus_key(settings: Settings, *, api_key: str) -> dict:
-    """Save the global Tavus key, syncing the avatar config's copy.
-
-    One key, everywhere: without the sync, a previously-applied avatar config would
-    keep running candidate interviews on the OLD key, so rotating a compromised key
-    would silently not take effect where it matters most.
-    """
-    store = get_store(settings)
-    cleaned = (api_key or "").strip()
-    doc = await document(settings)
-
-    if cleaned:
-        await store.settings.merge({TAVUS_KEY: cleaned})
-    else:
-        await store.settings.unset(TAVUS_KEY)
-
-    avatar = doc.get(AVATAR)
-    if isinstance(avatar, dict):
-        await store.settings.merge(
-            {
-                AVATAR: {
-                    **avatar,
-                    "tavusKey": cleaned or None,
-                    "updatedAt": _now(),
-                }
-            }
-        )
-
-    return {"tavusKeySet": bool(cleaned), "tavusKeyMasked": mask(cleaned)}
-
-
-async def clear_tavus_key(settings: Settings) -> dict:
-    store = get_store(settings)
-    doc = await document(settings)
-    await store.settings.unset(TAVUS_KEY)
-
-    avatar = doc.get(AVATAR)
-    if isinstance(avatar, dict):
-        await store.settings.merge({AVATAR: {**avatar, "tavusKey": None}})
-
-    return {"tavusKeySet": False, "tavusKeyMasked": None}
 
 
 # ── the applied avatar config ─────────────────────────────────────────────────

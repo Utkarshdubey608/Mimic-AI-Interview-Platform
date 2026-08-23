@@ -113,14 +113,36 @@ async def round_questions(request: Request, round_def: dict) -> list[str]:
 
 
 def _company(template: dict) -> str:
-    return (template.get("branding") or {}).get("companyName") or "TalbotIQ"
+    return (template.get("branding") or {}).get("companyName") or "Mimic"
 
 
 def _from_name(template: dict) -> str:
-    return (template.get("sender") or {}).get("fromName") or "TalbotIQ"
+    return (template.get("sender") or {}).get("fromName") or "Mimic"
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
+
+
+
+def _assert_writable(settings) -> None:
+    """Refuse a write once the pipeline model has been retired.
+
+    Rounds replaced it (`tests/{testId}/rounds`), and this is the switch that ends the
+    parallel-running period. READS are untouched on purpose: a recruiter part-way
+    through a hire should not lose sight of a pipeline they are running just because
+    nothing new can be added to it.
+
+    410 rather than 404: the route exists and the resource exists, it is the CAPABILITY
+    that is gone — and a 404 would read as "your pipeline was deleted", which is the one
+    thing that has not happened.
+    """
+    if settings.pipelines_writable:
+        return
+    raise HTTPException(
+        status.HTTP_410_GONE,
+        "Pipelines have been replaced by round timelines. Your existing pipelines are "
+        "still here to read; create new rounds from a test's Timeline instead.",
+    )
 
 
 @router.get("", summary="This recruiter's pipelines")
@@ -139,6 +161,7 @@ async def list_pipelines(
 async def create_pipeline(
     request: Request, body: dict = Body(...), user: AuthedUser = WebUser
 ) -> dict:
+    _assert_writable(settings_of(request))
     store = get_store(settings_of(request))
     now = _now()
     created = {
@@ -163,6 +186,7 @@ async def get_pipeline(
 async def update_pipeline(
     pipeline_id: str, request: Request, body: dict = Body(...), user: AuthedUser = WebUser
 ) -> dict:
+    _assert_writable(settings_of(request))
     store = get_store(settings_of(request))
     existing = await load_owned(request, pipeline_id, user)
 
@@ -184,6 +208,7 @@ async def update_pipeline(
 async def delete_pipeline(
     pipeline_id: str, request: Request, user: AuthedUser = WebUser
 ) -> Response:
+    _assert_writable(settings_of(request))
     await load_owned(request, pipeline_id, user)
     store = get_store(settings_of(request))
     # The candidate records are left in place deliberately: they carry the audit trail
@@ -263,8 +288,18 @@ async def invite_round_one(
     origin = str(body.get("origin") or "").strip()
     now = _now()
     test_id = str(uuid.uuid4())
-    collection = interview_invite.interviews(settings)
+    collection = interview_invite.interviews_collection(settings)
     recruiter_name = await users.get_display_name(settings, user.uid)
+
+    # Enrolling into a pipeline is a batch like any other, so it gets the metadata
+    # document the mobile recruiter dashboard pages over. Best-effort; never raises.
+    await interview_invite.ensure_test_summary(
+        settings,
+        test_id=test_id,
+        recruiter_id=user.uid,
+        role=str(pipeline.get("role") or ""),
+        mode=first_round.get("mode") or "chat",
+    )
 
     created: list[dict] = []
     emailed = 0
@@ -362,6 +397,7 @@ async def advance(
     created, only a terminal email. Partial success by design — see the module
     docstring.
     """
+    _assert_writable(settings_of(request))
     settings = settings_of(request)
     pipeline = await load_owned(request, pipeline_id, user)
     rounds = pipeline.get("rounds") or []
@@ -488,8 +524,20 @@ async def _advance_one(
         # A real next round: create its interview, then send the advance email.
         round_def = rounds[target]
         questions = await round_questions(request, round_def)
-        collection = interview_invite.interviews(settings)
+        collection = interview_invite.interviews_collection(settings)
 
+        # DELIBERATELY no `ensure_test_summary` here, unlike the enrolment path above.
+        #
+        # This mints a fresh testId PER ADVANCED CANDIDATE, so writing a metadata
+        # document for each would put one single-candidate "test" on the mobile
+        # dashboard for every person advanced — twenty advances, twenty junk rows.
+        # That is worse than the current invisibility, not better.
+        #
+        # The real defect is upstream: a web pipeline round is not modelled as a round
+        # at all, so its interviews cannot group under the test they belong to. Fixing
+        # THAT is Phase 10 (rounds convergence), where a pipeline's rounds become
+        # `tests/{testId}/rounds/{roundId}` and every round's assignments share the
+        # pipeline's own test. See Documents/WEB_MOBILE_CONSISTENCY_PLAN.md.
         document = interview_invite.build_document(
             test_id=str(uuid.uuid4()),
             recruiter_id=user.uid,
@@ -591,6 +639,7 @@ async def not_advancing(
     pipeline is often a working decision a recruiter revisits, and a rejection sent by
     default cannot be recalled.
     """
+    _assert_writable(settings_of(request))
     settings = settings_of(request)
     store = get_store(settings)
     pipeline = await load_owned(request, pipeline_id, user)
@@ -688,6 +737,7 @@ async def move_back(
     Refused once the advanced-into round has a report: that round really happened, and
     erasing an assessment a candidate completed is not a correction.
     """
+    _assert_writable(settings_of(request))
     settings = settings_of(request)
     store = get_store(settings)
     pipeline = await load_owned(request, pipeline_id, user)
@@ -721,7 +771,7 @@ async def move_back(
             # Firestore, so leaving it outside meant an unreachable backend aborted the
             # whole move-back with a 503 and skipped the local cleanup below — the
             # opposite of what this except clause is here to guarantee.
-            collection = interview_invite.interviews(settings)
+            collection = interview_invite.interviews_collection(settings)
             await asyncio.to_thread(collection.document(interview_id).delete)
         except Exception as exc:  # noqa: BLE001 - the local cleanup still matters
             logger.warning("could not delete interview %s: %s", interview_id, exc)

@@ -171,7 +171,11 @@ class _DesktopProfileMenuState extends State<DesktopProfileMenu>
                         children: [
                           const SizedBox(width: 10),
                           ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 200),
+                            // Sized for the SPINE, which is where this now
+                            // lives: 240 wide, less its 24 of padding, less
+                            // the avatar, gaps and chevron. It was 200, tuned
+                            // for a top bar with the whole window to spare.
+                            constraints: const BoxConstraints(maxWidth: 132),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisSize: MainAxisSize.min,

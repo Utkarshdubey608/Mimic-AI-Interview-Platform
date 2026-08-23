@@ -1,13 +1,1 @@
-{
-  "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
-  },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "runtime": "nodejs20"
-    }
-  ]
-}
+{"firestore":{"rules":"firestore.rules","indexes":"firestore.indexes.json"},"functions":[{"source":"functions","codebase":"default","runtime":"nodejs20"}],"flutter":{"platforms":{"android":{"default":{"projectId":"talbotiq-9cc4e","appId":"1:473028554722:android:0eea71e6a072af23b713bb","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"talbotiq-9cc4e","configurations":{"android":"1:473028554722:android:0eea71e6a072af23b713bb"}}}}}}

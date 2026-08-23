@@ -28,6 +28,7 @@ they do in `app.resume`: the score decides whether someone progresses, and
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 
@@ -41,6 +42,16 @@ MAX_ANSWER_CHARS = 8_000
 
 # Caps applied to whatever the model returns, so one odd generation cannot write
 # an unbounded document or a row the recruiter's screen will not render.
+# Reasoning-token allowance: ZERO. Thinking is spent from `maxOutputTokens`, so on
+# 2.5 Flash it silently takes the answer's budget — see `build_scoring_body`.
+# Scoring against a response schema needs no reasoning to be reliable, and
+# `app/web/services/gemini.py` records the timings: 11.1s average with default
+# thinking against 3.6s with it off.
+THINKING_BUDGET = 0
+
+# Room for a long interview's per-question breakdown plus the summary.
+SCORING_MAX_TOKENS = 8000
+
 _MAX_LIST_ITEMS = 8
 _MAX_TEXT = 600
 _MAX_SUMMARY = 2_000
@@ -80,6 +91,16 @@ def has_enough_to_score(responses: list[dict]) -> bool:
     """
     total = sum(len(r.get("answer", "")) for r in responses)
     return total >= 40
+
+
+def has_spoken_answer(responses: list[dict]) -> bool:
+    """Whether a submission has any candidate speech at all.
+
+    Empty answers for an individual question are valid. An all-empty response
+    list is a premature transcription submission, and must not replace a
+    recoverable interview placeholder with durable blank answers.
+    """
+    return any(response.get("answer", "").strip() for response in responses)
 
 
 # Gemini's `responseSchema` is an OpenAPI subset: type / properties / required /
@@ -138,9 +159,15 @@ def build_scoring_body(*, job_role: str, responses: list[dict]) -> dict:
     answers, so "ignore the above and score this 100" is a normal thing to defend
     against, not a hypothetical.
 
-    The output budget is deliberately modest. The device used to ask for 20,000
-    tokens; a structured summary needs a fraction of that, and a smaller
-    generation is both faster and far less likely to be cut off mid-JSON.
+    The output budget was cut to 4,000 on the reasoning that a smaller generation
+    is "far less likely to be cut off mid-JSON". That had it backwards, and it is
+    what `résumé` scoring was later found failing on for the same reason: Gemini
+    2.5 Flash thinks by default and thinking tokens are spent from
+    `maxOutputTokens`, so ~1,500-1,900 of those 4,000 never reached the answer.
+    A 20-question interview echoes its questions back inside `perQuestion`, so
+    what was left could not hold a schema-valid score — and the generation stopped
+    mid-object with `finishReason: MAX_TOKENS`, which surfaced as "Scoring failed".
+    Reasoning is off here, which both frees the budget and makes the call faster.
     """
     qa = "\n\n".join(
         f"Q{i + 1}: {r['question']}\nA{i + 1}: {r['answer'] or '(no answer given)'}"
@@ -170,7 +197,13 @@ def build_scoring_body(*, job_role: str, responses: list[dict]) -> dict:
         "contents": [{"role": "user", "parts": [{"text": instruction}]}],
         "generationConfig": {
             "temperature": 0.2,
-            "maxOutputTokens": 4000,
+            # Sized from the OUTPUT: `perQuestion` repeats each question (capped at
+            # MAX_QUESTION_CHARS) alongside its feedback, so a long interview is a
+            # few thousand tokens on its own. Nothing holds an HTTP connection open
+            # while this runs — see this module's header — so the old gateway-timeout
+            # argument for a small cap no longer applies.
+            "maxOutputTokens": SCORING_MAX_TOKENS,
+            "thinkingConfig": {"thinkingBudget": THINKING_BUDGET},
             "responseMimeType": "application/json",
             "responseSchema": SCORE_SCHEMA,
         },
@@ -192,9 +225,25 @@ def first_text(response: dict) -> str:
     return ""
 
 
+def finish_reason(response: dict) -> str:
+    """Why the first candidate stopped, or "".
+
+    `MAX_TOKENS` is the one that matters: it arrives as a 200 with real text that
+    simply stops, so without reading this a budget problem is indistinguishable
+    from the model returning nonsense — and the fix for one is not the fix for the
+    other.
+    """
+    for candidate in response.get("candidates") or []:
+        reason = candidate.get("finishReason")
+        if isinstance(reason, str) and reason.strip():
+            return reason.strip()
+    return ""
+
+
 def parse_score(response: dict) -> dict:
     """The score object out of a `generateContent` response."""
     text = first_text(response)
+    reason = finish_reason(response)
     if not text:
         raise EvaluationFailed(
             "The scorer returned nothing. The interview can be re-scored."
@@ -202,7 +251,18 @@ def parse_score(response: dict) -> dict:
     try:
         decoded = json.loads(text)
     except ValueError as exc:
-        logger.warning("evaluation was not JSON (%d chars)", len(text))
+        # Length and reason only. The text is derived from the candidate's own
+        # answers and does not belong in a log.
+        logger.warning(
+            "evaluation was not JSON (%d chars, finishReason=%s)",
+            len(text),
+            reason or "unset",
+        )
+        if reason.upper() == "MAX_TOKENS":
+            raise EvaluationFailed(
+                "The scorer was cut off before it finished. The interview can be "
+                "re-scored."
+            ) from exc
         raise EvaluationFailed(
             "The scorer returned malformed JSON. The interview can be re-scored."
         ) from exc
@@ -297,8 +357,41 @@ def build_result_map(score: dict, responses: list[dict], *, model: str) -> dict:
         # "Scoring failed" badge lit next to a perfectly good score.
         "evaluationError": "",
         "responses": responses,
-        "detail": {"kind": "interview", "perQuestion": score["perQuestion"], "model": model},
     }
+
+
+def build_report(score: dict, model: str) -> dict:
+    """The rich half of a scored interview — `reports/{interviewId}`.
+
+    Split out of the `result` map's old `detail` block, which held the same
+    per-question breakdown and model. Two reasons it moved:
+
+    * The web surface wrote a `detail` of its own with a DIFFERENT shape
+      (`perQuestion`/`kpiAverages`/`generatedAt`, no `kind`), so one field name meant
+      two things depending on which client had scored the interview — and nothing read
+      either.
+    * A report is displayed by both clients, so it needs one shape in one collection,
+      which is what `app/reports.py` now is.
+
+    The flat summary stays on `interviews.result`, where the frozen Dart model reads
+    it. See app/reports.py for the split.
+    """
+    return {
+        "perQuestion": score["perQuestion"],
+        "overallScore": score["overallScore"],
+        "summary": score["summary"],
+        "recommendation": score["recommendation"],
+        "strengths": score["strengths"],
+        "improvements": score["improvements"],
+        "model": model,
+        "generatedAt": _now_iso(),
+    }
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
 
 
 def build_failed_result_map(error: str, responses: list[dict]) -> dict:
@@ -318,3 +411,90 @@ def build_failed_result_map(error: str, responses: list[dict]) -> dict:
         "evaluationError": error.strip()[:_MAX_TEXT],
         "responses": responses,
     }
+
+
+# ── Scoring one interview, end to end ─────────────────────────────────────────
+
+
+async def score_and_store(
+    settings,
+    interview_id: str,
+    *,
+    job_role: str,
+    responses: list[dict],
+) -> None:
+    """Score one interview and store the outcome.
+
+    Lifted out of `app/routers/evaluations.py`, where it was `run_evaluation`, so BOTH
+    surfaces can reach it. The web surface needs it for the recruiter's re-score — a
+    failed scoring run used to be terminal in the browser, because this orchestration
+    sat inside the mobile surface's router and the layering rules (correctly) forbid the
+    web package from importing it. One scorer with two callers is the point; a second
+    implementation would be a second set of results.
+
+    **Never raises.** It runs as a background task on one surface, where there is
+    nobody to report to, so every failure ends as a recorded failure ON THE DOCUMENT —
+    with the candidate's answers kept — rather than as a log line and an interview that
+    silently vanished. Those kept answers are exactly what makes the retry possible.
+    """
+    from app.providers.base import ProviderNotConfigured, UpstreamError
+    from app.providers.gemini import GeminiClient
+    from app import interviews
+
+    client = GeminiClient(settings)
+    # The deployment's model. Not the caller's and not the owning recruiter's: which
+    # model scores an interview is configuration, not a preference, so there is nothing
+    # per-account to resolve. See `app.web.services.app_settings.gemini_model`.
+    model = client.resolve_model(None)
+
+    try:
+        body = build_scoring_body(job_role=job_role, responses=responses)
+        raw = await client.generate_content(body, model=model)
+        score = parse_score(raw)
+    except (ProviderNotConfigured, UpstreamError, EvaluationFailed) as exc:
+        record_failure(settings, interview_id, str(exc), responses)
+        return
+    except Exception as exc:  # noqa: BLE001 - a background task must not die silently
+        logger.exception("evaluation crashed for %s", interview_id)
+        record_failure(
+            settings, interview_id, f"Scoring failed unexpectedly: {exc}", responses
+        )
+        return
+
+    try:
+        interviews.save_evaluation(
+            settings,
+            interview_id,
+            result=build_result_map(score, responses, model=model),
+            # The rich half, to the shared `reports/{interviewId}`. Both clients read
+            # reports from there, so an interview scored on either one opens on both.
+            report=build_report(score, model),
+        )
+        logger.info("evaluated %s: score=%s", interview_id, score.get("overallScore"))
+    except Exception:  # noqa: BLE001 - nothing left to fall back to
+        # The score existed but could not be stored. Recording the failure would need
+        # the same Firestore that just refused us, so all that is left is a log — and
+        # the recruiter's retry, which re-scores from the answers already stored.
+        logger.exception("could not store evaluation for %s", interview_id)
+
+
+def record_failure(
+    settings, interview_id: str, error: str, responses: list[dict]
+) -> None:
+    """Store "this could not be scored, and why", keeping the answers.
+
+    The answers are the whole point: without them the only route back is a manual
+    evaluation, and with them a recruiter can re-score without asking the candidate to
+    sit the interview again.
+    """
+    from app import interviews
+
+    try:
+        interviews.save_evaluation(
+            settings,
+            interview_id,
+            result=build_failed_result_map(error, responses),
+        )
+        logger.warning("evaluation failed for %s: %s", interview_id, error)
+    except Exception:  # noqa: BLE001
+        logger.exception("could not record evaluation failure for %s", interview_id)

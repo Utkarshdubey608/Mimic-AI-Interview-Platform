@@ -1,5 +1,6 @@
 // lib/views/settings_page.dart
 import 'package:flutter/material.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/shared/widgets/apple_ui.dart';
 import 'package:talbotiq/shared/widgets/desktop_page_container.dart';
@@ -10,6 +11,7 @@ import 'package:talbotiq/features/settings/sections/appearance_section.dart';
 import 'package:talbotiq/features/settings/sections/my_recordings_section.dart';
 import 'package:talbotiq/features/settings/sections/preferences_section.dart';
 import 'package:talbotiq/features/settings/sections/service_status_section.dart';
+import 'package:talbotiq/core/theme/status_tones.dart';
 
 /// Settings shell: an Apple-style large title, a category navigator (sidebar rail
 /// on wide screens, scrollable pills on narrow) and the active category section.
@@ -44,21 +46,21 @@ class _SettingsPageState extends State<SettingsPage> {
   // drift out of index alignment.
   late final List<_Category> _items = _isRecruiter
       ? [
-          const _Category('Appearance', Icons.palette_outlined, Color(0xFFF59E0B),
+          const _Category('Appearance', Icons.palette_outlined, AppColors.blockPeach,
               AppearanceSection()),
           // Font Size only has an effect on desktop (see main.dart's
           // MediaQuery.textScaler wiring) — hidden on recruiter mobile/web
           // rather than showing a control that would silently do nothing.
           if (isDesktopPlatform)
-            const _Category('Preferences', Icons.tune_outlined, Color(0xFF6366F1),
+            const _Category('Preferences', Icons.tune_outlined, AppColors.pastelLavenderText,
                 PreferencesSection()),
-          const _Category('Service Status', Icons.dns_outlined, Color(0xFF0EA5E9),
+          const _Category('Service status', Icons.dns_outlined, AppColors.pastelCyanText,
               ServiceStatusSection()),
         ]
       : const [
-          _Category('Appearance', Icons.palette_outlined, Color(0xFFF59E0B),
+          _Category('Appearance', Icons.palette_outlined, AppColors.blockPeach,
               AppearanceSection()),
-          _Category('My Recordings', Icons.mic_none_outlined, Color(0xFFEF4444),
+          _Category('My recordings', Icons.mic_none_outlined, AppColors.danger,
               MyRecordingsSection()),
         ];
 
@@ -86,7 +88,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppleLargeTitle(
-                      eyebrow: 'Platform Config',
+                      eyebrow: 'Platform config',
                       title: 'Settings',
                       subtitle: isWide
                           ? 'Manage platform behaviour by category.'
@@ -185,13 +187,13 @@ class _SettingsPageState extends State<SettingsPage> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.6)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outline),
       ),
       child: ListTile(
-        leading: const AppleIconBadge(
+        leading: AppleIconBadge(
           icon: Icons.support_agent,
-          color: Color(0xFF10B981),
+          color: StatusTone.ready(context),
           size: 32,
         ),
         title: Text(
@@ -221,8 +223,8 @@ class _SettingsPageState extends State<SettingsPage> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.6)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Column(
         children: [
@@ -239,7 +241,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return InkWell(
       onTap: () => setState(() => _category = i),
       child: Container(
-        color: selected ? theme.colorScheme.primary.withOpacity(0.10) : null,
+        color: selected ? theme.colorScheme.primary.withValues(alpha: 0.10) : null,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         child: Row(
           children: [
@@ -258,7 +260,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             if (selected)
               Icon(Icons.chevron_right,
-                  size: 18, color: theme.colorScheme.primary.withOpacity(0.7)),
+                  size: 18, color: theme.colorScheme.primary.withValues(alpha: 0.7)),
           ],
         ),
       ),
@@ -282,7 +284,7 @@ class _SettingsPageState extends State<SettingsPage> {
           border: Border.all(
             color: selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.6),
+                : theme.colorScheme.outline.withValues(alpha: 0.6),
           ),
         ),
         child: Row(
