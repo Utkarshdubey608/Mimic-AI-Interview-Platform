@@ -15,7 +15,7 @@
  *   seo        a title and a meta description exist and are not the shell's
  *   images     every <img> decoded; a broken product still is worse than none
  *   console    no console errors, no page errors, no failed requests
- *   reveal     nothing is stranded invisible by a scroll animation
+ *   reveal     every scroll-reveal fired, so no content is unreachable
  *
  * Usage:
  *   node scripts/marketing-verify.mjs                     both viewports, all routes
@@ -130,13 +130,22 @@ for (const vp of VIEWPORTS) {
        * bottom, let every observer fire, and only then look. It warms the
        * lazy images for the screenshot too. */
       await page.evaluate(async () => {
-        const step = Math.round(innerHeight * 0.8)
-        for (let y = 0; y < document.body.scrollHeight; y += step) {
+        /* Half a viewport per step, and one viewport PAST the bottom.
+         *
+         * The home page pins a section as you scroll it, which inserts several
+         * viewport-heights and moves everything below. An 80% step through that
+         * can jump clean over a block that is only on screen for a narrow band
+         * of scroll, so it never enters the observer's root and its reveal
+         * never fires — which the harness then reports as unreachable content
+         * when the reader would have seen it. A finer walk, re-reading
+         * scrollHeight each step because pinning changes it. */
+        const step = Math.round(innerHeight * 0.5)
+        for (let y = 0; y < document.body.scrollHeight + innerHeight; y += step) {
           scrollTo({ top: y, behavior: 'instant' })
-          await new Promise((r) => setTimeout(r, 90))
+          await new Promise((r) => setTimeout(r, 80))
         }
         scrollTo({ top: 0, behavior: 'instant' })
-        await new Promise((r) => setTimeout(r, 650))
+        await new Promise((r) => setTimeout(r, 500))
       })
 
       Object.assign(checks, await page.evaluate(() => {
@@ -144,11 +153,16 @@ for (const vp of VIEWPORTS) {
         const main = document.querySelector('main, .mimic-site')
         const h1s = [...document.querySelectorAll('h1')].filter((h) => h.textContent.trim())
         const imgs = [...document.querySelectorAll('img')]
-        // The page has been scrolled end to end by now, so every reveal has
-        // had its chance. Anything still transparent is content no reader will
-        // ever see, wherever it sits on the page.
-        const stranded = [...document.querySelectorAll('.reveal, [data-reveal]')]
-          .filter((el) => Number(getComputedStyle(el).opacity) < 0.05).length
+        /* Assert the reveal's STATE, not its current opacity.
+         *
+         * Reveal adds `in` the moment its observer fires, and the fade is a
+         * 0.42s CSS transition on top of that. Sampling computed opacity races
+         * that transition: across 73 routes in one run, with .webm demos
+         * decoding, four pages reported content "stuck invisible" that every
+         * isolated re-run showed arriving normally. The question worth asking
+         * is not "is this opaque right now" but "did this ever get triggered",
+         * and that is a class, not a number — so it cannot flake. */
+        const stranded = document.querySelectorAll('.reveal:not(.in)').length
         const desc = document.querySelector('meta[name="description"]')?.content ?? ''
         return {
           rendered: (main?.getBoundingClientRect().height ?? 0) > 400,
