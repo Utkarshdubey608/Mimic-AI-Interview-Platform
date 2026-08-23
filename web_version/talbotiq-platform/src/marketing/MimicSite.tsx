@@ -61,39 +61,21 @@ const STEPS = [
     d: ['Drag to advance, or take everyone above a score or the top N', 'Rejection emails are off by default', 'Export the selected list as CSV'] },
 ]
 
-/* ── The rubric, dramatised. These are the product's six real default criteria
-      with their real default weights; the answer and scores are synthetic. */
-/* ── The problem section's two cards, populated with the REAL rubric ───────
-      Both columns list the product's six real default criteria — the same six
-      RUBRIC holds, so there is one source of truth on this page for what Mimic
-      measures.
+/* ── The rubric, dramatised ────────────────────────────────────────────────
+      The product's six real default criteria with their real default weights;
+      the answer and the scores beside them are synthetic. It is the one source of
+      truth on this page for what Mimic measures.
 
-      What differs is the STATE of the numbers, which is the entire argument:
+      There is deliberately NO OUTCOME STATISTIC here — no time-to-hire, no
+      cost-per-hire, no completion rate — because none of them has been verified.
+      See PRODUCT.md, Evidence on Hand, and the note on CountUp in motion.tsx. A
+      diagram of what gets measured is honest; a number about how well it works is
+      not, until someone has cleared one.
 
-      LEFT, unstructured. Five interviewers, five interviews. Some criteria were
-      never asked about, some were scored on whatever scale that interviewer
-      happens to use, and the coverage is different for every candidate. The
-      marks below are those shapes — a letter grade, a five-point scale, a
-      percentage, a blank. Nothing here is a Mimic output; it is what a stack of
-      unstructured screens looks like when you try to compare it.
-
-      RIGHT, one rubric. The same six criteria, every one of them scored, on one
-      scale, with the values RUBRIC already discloses as a dramatisation.
-
-      NO OUTCOME STATISTICS. There is no time-to-hire, no cost-per-hire and no
-      completion rate anywhere in here, because none has been verified — see
-      PRODUCT.md, Evidence on Hand, and the note on CountUp in motion.tsx. A
-      diagram of what gets measured is honest; a number about how well it works
-      is not, until someone has cleared one. */
-const UNSTRUCTURED: readonly (string | null)[] = [
-  'B+',      // a letter, from the interviewer who grades
-  null,      // never asked
-  '4 / 5',   // a five-point scale, from the next interviewer
-  '82%',     // a percentage, from the one who scores out of a hundred
-  null,      // never asked
-  'Strong',  // a word
-]
-
+      This block used to carry a second list too, `UNSTRUCTURED` — the same six
+      criteria as a letter grade, a five-point scale, a percentage and two blanks,
+      which was the left half of the "Five interviewers, five interviews" section's
+      argument. That section has been removed, so the list went with it. */
 const RUBRIC = [
   { k: 'Communication Clarity',      v: 88 },
   { k: 'Relevance to Question',      v: 91 },
@@ -411,118 +393,6 @@ export default function MimicSite() {
           </div>
         </section>
 
-        {/* ── THE MECHANISM — proof by demonstration, not by borrowed statistic ── */}
-        <section className="section" id="scoring" aria-labelledby="mech-h">
-          <div className="wrap">
-            <div className="sec-head">
-              <span className="eyebrow">How scoring works</span>
-              <h2 className="h2" id="mech-h">A score you can check, line by line.</h2>
-              <p className="lede">
-                Most screening tools hand you a number. Mimic hands you the number, the criteria it
-                came from, and the sentence in the candidate’s own answer that earned it.
-              </p>
-            </div>
-
-            <div className="mech">
-              <Reveal>
-                {/* The page's thesis, animated: the rubric marking a real answer.
-                    Bars grow, evidence highlights sweep in, and the weighted total
-                    counts up — the scoring SHOWN rather than asserted. Driven by
-                    scaleX and a CSS custom property, never by animating width,
-                    which would relayout the card on every frame. */}
-                <div ref={scoreRef} className={`mech-card${scored ? ' is-scored' : ''}`}>
-                  <div className="mech-q">
-                    <span className="lbl">Question 3 of 6</span>
-                    <p>Tell me about a time you had to de-escalate a situation on a night shift with no senior nurse on the floor.</p>
-                  </div>
-                  <div className="mech-a">
-                    <span className="lbl">Candidate answer</span>
-                    <p>
-                      “We had a patient just out of surgery becoming agitated around 2am and the on-call was forty
-                      minutes out. <mark>I moved him to the quiet bay first so the ward settled</mark>, then
-                      checked his chart for the analgesia timing — he was overdue.{' '}
-                      <mark>I called the on-call with the drug chart already in front of me</mark> so we
-                      could agree a dose in one conversation instead of three, and I stayed with him
-                      until it took. <mark>Afterwards I wrote it up and flagged the gap in the handover</mark>{' '}
-                      so the day team knew to watch the timing.”
-                    </p>
-                  </div>
-                  <div className="mech-scores">
-                    <span className="lbl">Scored against your rubric</span>
-                    {RUBRIC.map((k, i) => (
-                      <div className="kpi" key={k.k} style={{ '--i': i } as React.CSSProperties}>
-                        <div>
-                          <div className="kn">{k.k}</div>
-                          <div className="track">
-                            <div className="fill" style={{ '--v': k.v / 100 } as React.CSSProperties} />
-                          </div>
-                        </div>
-                        <div className="kv" style={{ color: k.v >= 85 ? '#15803D' : k.v >= 70 ? '#8A4308' : '#B3261E' }}>{k.v}</div>
-                      </div>
-                    ))}
-                    <div className="mech-total">
-                      <span className="lab">Overall, weighted</span>
-                      <span className="val">
-                        <span className="num">86</span>
-                        <span className="rec">Strong Yes</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-
-              <div>
-                <ul className="mech-points">
-                  <li>
-                    <span className="ico"><Ico n="quote" /></span>
-                    <div>
-                      <h3>The evidence is part of the score</h3>
-                      <p>
-                        Each criterion links back to the passage it was drawn from. A hiring manager
-                        who disagrees with a number can read the sentence behind it in a few seconds
-                        rather than taking the score on trust.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="scale" /></span>
-                    <div>
-                      <h3>You set the criteria and the weights</h3>
-                      <p>
-                        Six criteria ship as a starting point. Rename them, switch them off, add your
-                        own, and set what each one is worth. The weights rescale to 100% as you type,
-                        so the arithmetic is always honest.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="calc" /></span>
-                    <div>
-                      <h3>The platform does the arithmetic, not the model</h3>
-                      <p>
-                        The language model judges individual answers. The overall score is computed
-                        from your weights in ordinary code, which is why the same answers always
-                        produce the same number.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="alert" /></span>
-                    <div>
-                      <h3>It tells you when it is unsure</h3>
-                      <p>
-                        If an interview captured no answers, the report says <em>not evaluated</em>{' '}
-                        rather than showing zeros. If it ran without AI, it says so on the report. A
-                        degraded result is never dressed up as a real one.
-                      </p>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* ── FORMATS ── */}
         <FormatShowcase />
 
@@ -648,91 +518,135 @@ export default function MimicSite() {
           </div>
         </section>
 
-        {/* ── THE PROBLEM, MOVED ──
-            This used to sit third, immediately after the logos. It reads better
-            here, right before the shelf whose first column is "Build your first
-            round": the argument for why one rubric matters lands while the reader
-            is looking at the thing that would let them build one, instead of four
-            screens earlier where it was an abstraction about somebody else.
-            The light/dark rhythm survives the move — the workspace card and the
-            trust band before it are both light, and the CTA after the resources
-            shelf is the next dark beat. */}
-        {/* ── THE PROBLEM ──
-            The narrative beat the page was missing. It went straight from "here
-            are our customers" to "here is how our scoring works", which answers
-            a question the reader has not been given a reason to ask yet.
+        {/* ── HOW SCORING WORKS — and the page's dark beat ──
+            Moved here from third-from-top, and moved onto the ink at the same
+            time. Two reasons, and they are the same reason: this is the section
+            that has to land, and it now lands immediately before the shelf whose
+            first column is "Build your first round" — the argument for a score you
+            can audit arrives while the reader is looking at the thing that would
+            let them build one.
 
-            The composition is deliberately NOT three cards. It is the argument
-            itself, drawn: on the left, the same role screened five times by
-            five people — ragged, each line a different length, each asking
-            something different. On the right, the same five candidates against
-            one set of criteria. Nothing here depicts a product interface, so it
-            cannot be mistaken for one; it is a diagram of the difference. */}
-        {/* The page's dark beat.
-            This section states the problem, and it was on the light record
-            ground like everything around it — so the one moment the page admits
-            something is broken looked exactly like the moments where it is
-            explaining how things work. The site already alternates light record
-            sections with dark ink fields (the CTA, the process stage, the
-            footer); this is now one of them. It is also the only way the field
-            and the ink below can exist at all: cyan light needs a dark ground.
+            It also takes over the dark beat that the problem section used to hold
+            before it was removed, which is what keeps the page from running white
+            from the workspace frames all the way to the footer. The evidence card
+            inside it stays light on purpose: a document on ink, which is the
+            treatment the whole site is built on.
 
-            Two layers, all enhancements, all absent without WebGL:
-              Field         the site's own ambient ink light
-              InkTrail      the same advected dye the hero uses */}
-        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h">
+            The field is the ambient ink light; the trail is not mounted here
+            because RoamingInk covers any surface that does not carry its own, and
+            it reads this ground as dark and blends accordingly. */}
+        <section className="section on-dark" id="scoring" aria-labelledby="mech-h">
           <Field seed={17} />
-          <InkTrail />
           <div className="wrap">
             <div className="sec-head">
-              <span className="eyebrow">The problem</span>
-              <h2 className="h2" id="problem-h">Five interviewers, five interviews.</h2>
+              <span className="eyebrow">How scoring works</span>
+              <h2 className="h2" id="mech-h">A score you can check, line by line.</h2>
               <p className="lede">
-                Screening at volume means different people asking different questions on different
-                days, writing notes in their own shorthand. The scores that come out the other end
-                were never measuring the same thing, so comparing them is guesswork with a number
-                attached.
+                Most screening tools hand you a number. Mimic hands you the number, the criteria it
+                came from, and the sentence in the candidate’s own answer that earned it.
               </p>
             </div>
 
-            <Reveal>
-              <div className="noise" aria-hidden="true">
-                <div className="noise-side">
-                  <span className="noise-label">Unstructured screening</span>
-                  <div className="noise-kpis">
-                    {RUBRIC.map((c, i) => (
-                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
-                        <span className="noise-k">{c.k}</span>
-                        <span className={UNSTRUCTURED[i] ? 'noise-v is-mixed' : 'noise-v is-absent'}>
-                          {UNSTRUCTURED[i] ?? 'not asked'}
-                        </span>
-                      </span>
-                    ))}
+            <div className="mech">
+              <Reveal>
+                {/* The page's thesis, animated: the rubric marking a real answer.
+                    Bars grow, evidence highlights sweep in, and the weighted total
+                    counts up — the scoring SHOWN rather than asserted. Driven by
+                    scaleX and a CSS custom property, never by animating width,
+                    which would relayout the card on every frame. */}
+                <div ref={scoreRef} className={`mech-card${scored ? ' is-scored' : ''}`}>
+                  <div className="mech-q">
+                    <span className="lbl">Question 3 of 6</span>
+                    <p>Tell me about a time you had to de-escalate a situation on a night shift with no senior nurse on the floor.</p>
                   </div>
-                  <span className="noise-foot">Six criteria, four scales, two gaps — nothing to compare</span>
-                </div>
-
-                <span className="noise-arrow">
-                  <Ico n="arrow" />
-                </span>
-
-                <div className="noise-side is-ordered">
-                  <span className="noise-label">One rubric, applied identically</span>
-                  <div className="noise-kpis">
-                    {RUBRIC.map((c, i) => (
-                      <span className="noise-kpi" key={c.k} style={{ '--i': i } as React.CSSProperties}>
-                        <span className="noise-k">{c.k}</span>
-                        <span className="noise-v">{c.v}</span>
-                        <span className="noise-bar" style={{ '--v': c.v / 100 } as React.CSSProperties} />
-                      </span>
-                    ))}
+                  <div className="mech-a">
+                    <span className="lbl">Candidate answer</span>
+                    <p>
+                      “We had a patient just out of surgery becoming agitated around 2am and the on-call was forty
+                      minutes out. <mark>I moved him to the quiet bay first so the ward settled</mark>, then
+                      checked his chart for the analgesia timing — he was overdue.{' '}
+                      <mark>I called the on-call with the drug chart already in front of me</mark> so we
+                      could agree a dose in one conversation instead of three, and I stayed with him
+                      until it took. <mark>Afterwards I wrote it up and flagged the gap in the handover</mark>{' '}
+                      so the day team knew to watch the timing.”
+                    </p>
                   </div>
-                  <span className="noise-foot">Six criteria, one scale, every answer — directly comparable</span>
+                  <div className="mech-scores">
+                    <span className="lbl">Scored against your rubric</span>
+                    {RUBRIC.map((k, i) => (
+                      <div className="kpi" key={k.k} style={{ '--i': i } as React.CSSProperties}>
+                        <div>
+                          <div className="kn">{k.k}</div>
+                          <div className="track">
+                            <div className="fill" style={{ '--v': k.v / 100 } as React.CSSProperties} />
+                          </div>
+                        </div>
+                        <div className="kv" style={{ color: k.v >= 85 ? '#15803D' : k.v >= 70 ? '#8A4308' : '#B3261E' }}>{k.v}</div>
+                      </div>
+                    ))}
+                    <div className="mech-total">
+                      <span className="lab">Overall, weighted</span>
+                      <span className="val">
+                        <span className="num">86</span>
+                        <span className="rec">Strong Yes</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
+              </Reveal>
+
+              <div>
+                <ul className="mech-points">
+                  <li>
+                    <span className="ico"><Ico n="quote" /></span>
+                    <div>
+                      <h3>The evidence is part of the score</h3>
+                      <p>
+                        Each criterion links back to the passage it was drawn from. A hiring manager
+                        who disagrees with a number can read the sentence behind it in a few seconds
+                        rather than taking the score on trust.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="scale" /></span>
+                    <div>
+                      <h3>You set the criteria and the weights</h3>
+                      <p>
+                        Six criteria ship as a starting point. Rename them, switch them off, add your
+                        own, and set what each one is worth. The weights rescale to 100% as you type,
+                        so the arithmetic is always honest.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="calc" /></span>
+                    <div>
+                      <h3>The platform does the arithmetic, not the model</h3>
+                      <p>
+                        The language model judges individual answers. The overall score is computed
+                        from your weights in ordinary code, which is why the same answers always
+                        produce the same number.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="alert" /></span>
+                    <div>
+                      <h3>It tells you when it is unsure</h3>
+                      <p>
+                        If an interview captured no answers, the report says <em>not evaluated</em>{' '}
+                        rather than showing zeros. If it ran without AI, it says so on the report. A
+                        degraded result is never dressed up as a real one.
+                      </p>
+                    </div>
+                  </li>
+                </ul>
               </div>
-            </Reveal>
+            </div>
           </div>
         </section>
+
 
         {/* ── RESOURCES ── */}
         <section className="section" id="resources" aria-labelledby="res-h">

@@ -669,6 +669,27 @@
   justify-content:space-between;gap:var(--mm-s-2);background:var(--mm-bg-alt)
 }
 .mimic-site .mech-total .kpi{font-size:var(--mm-t-metric);font-weight:600;color:var(--mm-ink)}
+/* ── The evidence card as a light island on the ink ──────────────────────
+   The scoring section is an ink field now, and `.on-dark` sets colours by
+   DESCENDANT selector — `.on-dark p`, `.on-dark .kn` — so those colours reached
+   inside the white card too and painted near-white text on white paper. Measured
+   before this block: the question line came out at 1.22:1 (#E8E8ED on #FFF),
+   which is invisible, and the criterion labels at 2.63:1, which is nearly.
+
+   `inherit` rather than a restated colour: the card's own parts already declare
+   what they want — `.mech-q` is ink, `.mech-a` is ink-2 — so handing the cascade
+   back to them restores exactly what the card looked like on paper, with nothing
+   here to keep in sync if those change.
+
+   The pattern, for the next light island that lands on an ink ground: it is not
+   enough to give the island a white background. Every `.on-dark` descendant rule
+   has to be handed back at the island's boundary. */
+.mimic-site .on-dark .mech-card p{color:inherit}
+.mimic-site .on-dark .mech-card h3{color:var(--mm-ink)}
+.mimic-site .on-dark .mech-card .kn{color:var(--mm-muted)}
+.mimic-site .on-dark .mech-card .meta{color:var(--mm-muted)}
+.mimic-site .on-dark .mech-card a{color:var(--mm-reg)}
+
 .mimic-site .mech-points{display:grid;gap:var(--mm-s-3)}
 .mimic-site .mech-points li{list-style:none;padding-left:0}
 .mimic-site .rec{
@@ -2562,6 +2583,41 @@
   transition:opacity .5s var(--mm-ease);
 }
 .mimic-site .mm-ink.is-lit{opacity:1}
+
+/* ── The ink on paper ─────────────────────────────────────────────────────
+   The same canvas as `.mm-ink`, blended the other way. `screen` adds light,
+   which is right on the ink grounds and arithmetically nothing on white; the
+   draw pass writes premultiplied alpha with transparency everywhere the dye is
+   not, so `multiply` takes the identical canvas and darkens instead.
+
+   Z-INDEX 0, AND THE CONTENT ABOVE IT. Not a detail: multiply reaching over the
+   type would tint the type and quietly undo the contrast the audit checks. The
+   blend gets the section's background and nothing else.
+
+   No opacity transition and no `is-lit`. The dark trail fades its canvas in
+   because it appears over a static field; this one is moved into a section on
+   arrival and its own fade restarts there, so a CSS fade on top of that would be
+   two fades fighting. */
+.mimic-site .mm-ink-light{
+  position:absolute;inset:0;
+  display:block;width:100%;height:100%;
+  pointer-events:none;
+  border-radius:inherit;
+  /* NEGATIVE, and this is the whole reason no section needs marking up. At
+     z-index 0 a positioned canvas paints over in-flow content, so every host
+     would have had to lift its own content above it — one rule per section, on
+     74 routes. At -1 it paints below the content and above the host's own
+     background, which is exactly the layer the blend wants, and the type on top
+     is untouched. It only works because the host is made a stacking context when
+     the canvas moves in; otherwise -1 escapes and hides behind the background.
+     The blend mode is set there too, from the measured ground. */
+  z-index:-1
+}
+
+/* Same three calls the rest of the ink makes. */
+@media (prefers-reduced-motion:reduce){ .mimic-site .mm-ink-light{display:none} }
+@media (prefers-reduced-transparency:reduce){ .mimic-site .mm-ink-light{display:none} }
+@media (prefers-contrast:more){ .mimic-site .mm-ink-light{display:none} }
 
 /* The content sits above it. Stated rather than left to source order, because a
    canvas is exactly the kind of element that ends up on top by accident. */

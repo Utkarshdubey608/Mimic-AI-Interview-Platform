@@ -6,6 +6,7 @@ import { Ico } from './icons'
 import { ScrollProgress, useSectionCues, useSmoothScroll } from './motion'
 import { Field } from './Field'
 import { InkTrail } from './ink/InkTrail'
+import { RoamingInk } from './ink/RoamingInk'
 import './mimicSite.css'
 
 const Mark = () => (
@@ -91,6 +92,10 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
 
   return (
     <div className="mimic-site">
+      {/* The ink trail on every surface that does not already carry one — which
+          is every white band on all 74 routes. One layer, mounted here rather
+          than per page, because it finds its own host. See RoamingInk. */}
+      <RoamingInk />
       <ScrollProgress />
       {banner && (
         <div className="banner" role="region" aria-label="Announcement">
