@@ -493,8 +493,10 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
      advance a second panel. */
   const liveCur = useRef(cur)
   liveCur.current = cur
-  /** When the last wheel event arrived, and when the next gesture may act. */
-  const gesture = useRef({ at: 0, until: 0 })
+  /** Gesture state: when the last event arrived, the floor before the next
+      advance, the direction, and the size of the previous event — which is what a
+      new push is recognised against. */
+  const gesture = useRef({ at: 0, until: 0, dir: 0, last: 0 })
 
   /* The driving flag, and the clean-up that has to happen the moment it goes
      false. The inline styles the driver writes are stronger than the stylesheet,
@@ -601,15 +603,49 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
       e.preventDefault()
       e.stopPropagation()
 
-      /* A flick is one gesture however many events it fires. Inertia arrives as a
-         stream roughly a frame apart, so a gap counts as the start of a new one —
-         which is the whole mechanism: the first event of a flick advances a panel
-         and every event after it is swallowed. */
+      /* ── One gesture, one panel — and then READY AGAIN ────────────────────
+         A flick is one gesture however many events it fires, so something has to
+         decide where one ends and the next begins. This took three attempts and
+         the two failures are the reason the rule looks the way it does.
+
+         A quiet gap plus a 420ms lock was unusable on a precision touchpad: a
+         swipe's inertia fires events for up to a second, every one of them
+         swallowed here and every one refreshing the "last event" clock, so the gap
+         never arrived — and a reader who flicked again during the tail only made
+         the stream longer. The section held one panel and would not let go.
+
+         Reading the DECAY was worse, and wrong in the opposite direction: inertia
+         falls away, so "the delta dropped below a third of the peak" fires in the
+         MIDDLE of the swipe, and the rest of that same swipe then advanced a panel
+         every time the floor expired. One swipe crossed five panels.
+
+         What actually separates a new push from the tail of the last one is not
+         that the delta is small. It is that the delta RISES AGAIN. Inertia only
+         ever decays; a finger pushing again is immediately larger than the tail it
+         landed on. So a rise of half again over the previous event starts a new
+         gesture — which is what lets a second swipe land in the middle of the
+         first one's inertia and still count, the case that made this feel stuck.
+
+         Two more signals mean the same thing and cost nothing to include: 90ms of
+         silence, which is the gap between two deliberate flicks of a wheel, and a
+         change of direction, which nobody does by accident mid-flick.
+
+         The 320ms floor is the backstop for a touchpad that RAMPS UP at the start
+         of a swipe — three rising events in a row would otherwise be three
+         gestures. It caps this at about three panels a second, which no reader will
+         experience as a restriction. */
       const now = performance.now()
-      const fresh = now - gesture.current.at > 140
-      gesture.current.at = now
-      if (!fresh || now < gesture.current.until) return
-      gesture.current.until = now + 420
+      const g = gesture.current
+      const gap = now - g.at
+      const size = Math.abs(e.deltaY)
+      const rising = size > g.last * 1.5
+      g.at = now
+      g.last = size
+
+      const fresh = gap > 90 || dir !== g.dir || rising
+      g.dir = dir
+      if (!fresh || size < 12 || now < g.until) return
+      g.until = now + 320
       goToStep(at + dir)
     }
 
