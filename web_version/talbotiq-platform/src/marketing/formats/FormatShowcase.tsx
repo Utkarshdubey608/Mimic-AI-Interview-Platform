@@ -159,7 +159,10 @@ export function FormatShowcase() {
   /** Scroll state carried between frames: position, previous position, eased
       velocity in panels per second, the last frame's timestamp, and the pending
       relaxation frame. */
-  const motion = useRef({ p: 0, pp: 0, v: 0, t: 0, raf: 0 })
+  const motion = useRef({ p: 0, pp: 0, v: 0, t: 0, raf: 0, dir: 0 })
+  /** PinnedStage's `goToStep`, parked here by the deck so the settle can reach
+      it. It only exists inside the render prop, and the motion loop is out here. */
+  const snapTo = useRef<((i: number) => void) | null>(null)
   /** True only while PinnedStage is actually pinned and driving this deck. */
   const driving = useRef(false)
   const [cur, setCur] = useState(0)
@@ -218,12 +221,23 @@ export function FormatShowcase() {
 
       const recede = 1 - edge * RECEDE
 
+      /* TRANSLATION ONLY on the copy. The lines used to carry the recede and the
+         smear as a scale too, and a near-1 fractional scale on text is the one
+         thing here that cannot be done safely: it promotes every line to its own
+         layer and re-rasterises the glyphs at a non-integer size every frame. On
+         the reporter's machine the effect was that the white heading, and the
+         white label in the rail, occupied their space and painted NOTHING, while
+         the grey text around them rendered fine.
+         A composited layer TRANSLATED by a fractional offset is just an offset —
+         no re-raster, no risk. The scale now lives only on the film, which is a
+         video: rasterising that at a fractional size is what video does anyway.
+         Crisper type, and the staging is carried by the displacement, which was
+         the part that was doing the work. */
       const kids = copyKids.current[i]
       if (kids) {
         for (let k = 0; k < kids.length; k++) {
           const m = STAGE[k] ?? 1
-          kids[k].style.transform =
-            `translate3d(${off * LEAD * m}rem,0,0) scale3d(${recede * sx},${recede * sy},1)`
+          kids[k].style.transform = `translate3d(${off * LEAD * m}rem,0,0)`
         }
       }
 
@@ -272,14 +286,61 @@ export function FormatShowcase() {
     const now = performance.now()
     const dt = s.t ? Math.min((now - s.t) / 1000, 1 / 15) : 1 / 60
     s.t = now
-    const target = (s.p - s.pp) / dt
+    const rate = (s.p - s.pp) / dt
+    /* Held separately from the velocity, because the velocity is what decays to
+       zero and the direction is what has to survive that: by the time the settle
+       runs there is no motion left to read a direction from. */
+    if (Math.abs(rate) > 0.02) s.dir = Math.sign(rate)
     s.pp = s.p
-    s.v += (target - s.v) * (1 - Math.exp(-dt * 14))
+    s.v += (rate - s.v) * (1 - Math.exp(-dt * 14))
 
-    paint(s.p, Math.min(1, Math.abs(s.v) * RUSH_GAIN))
+    /* Snapped to exactly zero BEFORE the last paint, not after it. Stopping the
+       loop and zeroing afterwards left the final frame holding whatever the
+       velocity happened to be under the threshold — a panel sitting perfectly
+       still with a 1.0005 scale baked into it, permanently, which is how the
+       fractional-scale problem above became permanent rather than transient. */
+    const moving = Math.abs(s.v) > RUSH_REST
+    if (!moving) { s.v = 0; s.t = 0 }
+    paint(s.p, moving ? Math.min(1, Math.abs(s.v) * RUSH_GAIN) : 0)
 
-    if (Math.abs(s.v) > RUSH_REST) s.raf = requestAnimationFrame(step)
-    else { s.v = 0; s.t = 0 }
+    if (moving) { s.raf = requestAnimationFrame(step); return }
+
+    /* ── Settle onto a panel ────────────────────────────────────────────────
+       The deck has come to rest. If it stopped between two panels, finish the
+       journey — and finish it in the direction the reader was already going.
+
+       This is what makes one scroll advance one panel, and it is the half of that
+       problem that is actually solvable. Lengthening the travel cannot solve the
+       other half: a trackpad flick carries an arbitrary distance, and the single
+       gesture that started this crossed all six panels.
+
+       FORWARD, not nearest. Nearest was the first version and it was wrong in a
+       way worth recording: a reader who nudges the wheel one notch has moved a
+       third of the way into a transition, and rounding to nearest hauls them back
+       where they started. The page fighting the reader is worse than the page not
+       snapping at all. Projecting along the direction of travel instead is both
+       what makes a single notch advance exactly one panel, and the rule every
+       good carousel uses — the target is chosen from where the gesture was GOING,
+       not from where it happened to stop.
+
+       Through `goToStep`, so the scroll engine eases it and the arrival stays
+       interruptible: a reader who grabs the page mid-settle simply takes over.
+       The epsilon is what stops it chasing its own sub-pixel error, and the 0.12
+       is the dead zone that keeps an accidental one-pixel twitch from advancing
+       anything. */
+    const snap = snapTo.current
+    if (!snap) return
+    const head = deckHead(s.p, MODES.length)
+    const floor = Math.floor(head)
+    const frac = head - floor
+    const dir = s.dir
+    const target = dir > 0
+      ? (frac > 0.12 ? floor + 1 : floor)
+      : dir < 0
+        ? (frac < 0.88 ? floor : floor + 1)
+        : Math.round(head)
+    const clamped = Math.min(MODES.length - 1, Math.max(0, target))
+    if (Math.abs(head - clamped) > 0.02) snap(clamped)
   }, [paint])
 
   /**
@@ -348,6 +409,17 @@ export function FormatShowcase() {
         steps={MODES.length}
         onStep={onStep}
         onProgress={onProgress}
+        /* One wheel notch carries 80px through the scroll engine. At the default
+           30 a step cost 175px and the whole section was 1049px, so one flick
+           crossed three panels and one trackpad swipe crossed all six.
+
+           48 puts a step at ~280px, which makes a single notch about 29% of a
+           transition — over the settle's dead zone, so one notch advances exactly
+           one panel and no more. It is a compromise on purpose: long enough that a
+           flick does not cross the whole section, short enough that the section is
+           not a toll gate between the reader and the rest of the page. The rail is
+           there for anyone who would rather jump. */
+        vhPerStep={48}
         id="platform"
         className="mm-formats on-dark"
         labelledBy="fmt-h"
@@ -364,6 +436,7 @@ export function FormatShowcase() {
             films={films}
             seamRef={seamRef}
             driving={driving}
+            snapTo={snapTo}
             stop={stop}
             resetCur={onStep}
           />
@@ -379,7 +452,7 @@ export function FormatShowcase() {
  * off-stage panels out of the tab order, and handing the inline styles back to
  * the stylesheet when the stage stops driving.
  */
-function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, seamRef, driving, stop, resetCur }: {
+function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, seamRef, driving, snapTo, stop, resetCur }: {
   pinned: boolean
   cur: number
   goToStep: (i: number) => void
@@ -389,6 +462,7 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
   films: React.MutableRefObject<(HTMLElement | null)[]>
   seamRef: React.MutableRefObject<HTMLDivElement | null>
   driving: React.MutableRefObject<boolean>
+  snapTo: React.MutableRefObject<((i: number) => void) | null>
   stop: () => void
   resetCur: (i: number) => void
 }) {
@@ -428,6 +502,12 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
     const seam = seamRef.current
     if (seam) { seam.style.removeProperty('transform'); seam.style.removeProperty('opacity') }
   }, [pinned, driving, stop, slides, copies, copyKids, films, seamRef, resetCur])
+
+  /* Hand PinnedStage's `goToStep` out to the motion loop, which lives above this
+     component and so never sees the render prop. Assigned on every render because
+     the callback's identity changes with `pinned`, and a stale one would scroll
+     against arithmetic that no longer applies. */
+  snapTo.current = pinned ? goToStep : null
 
   /* Unmount, in whatever state the pin was in. The effect above only runs its
      clean-up when `pinned` goes false; navigating away while pinned skips it. */

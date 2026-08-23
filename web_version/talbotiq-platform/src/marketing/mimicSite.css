@@ -2882,17 +2882,36 @@
    that machine got the vertical list, and only saw the deck after its reader
    zoomed the browser out to 90%.
 
-   480 is measured rather than guessed. The floor exists so that this query and
-   PinnedStage's fit test agree about which mode is in force: the stage pins only
-   when its content plus 24px clears the viewport, and a query that matched while
-   the pin refused would stack six panels with nothing driving them. What sets a
-   panel's height at short viewports is the COPY column — the film is capped in vh
-   below, so it shrinks with the window instead of setting the floor — and the
-   copy plus the rail measures a little over 400px. 480 clears that with room for
-   a larger default font size, and the degradation below still covers a viewport
-   that somehow does not. */
-@media (min-width:1081px) and (min-height:480px) and (prefers-reduced-motion:no-preference){
+   520 is measured, and measured twice — the first answer was wrong. The floor has
+   to satisfy TWO conditions, not one:
+
+     · PinnedStage must agree to pin, which needs content + 24px ≤ viewport, or
+       the query would match while nothing drove the panels.
+     · The content must fit the box MINUS the nav's height, which is reserved
+       above. Miss this and flex centring overflows the padded box symmetrically:
+       the top of the panel goes back under the nav and the rail drops off the
+       bottom. Measured at 1280×520 with the earlier numbers, the panel's top edge
+       came out at y=61 against a nav bottom edge of y=62, and the rail's bottom
+       was 1px past the fold.
+
+   The second condition is the binding one, and it is why the film cap and the
+   rail's gap came down in the same pass. Measured with the values now in this
+   file: 520 leaves 34px, the 583px viewport this was reported from leaves 70px,
+   and a 460px window falls to the list, which is correct for it. */
+@media (min-width:1081px) and (min-height:520px) and (prefers-reduced-motion:no-preference){
   .mimic-site .mm-formats{padding-bottom:0}
+
+  /* The nav is sticky and 3.875rem tall, and the pinned box starts at the very
+     top of the viewport — so the top of the panel was BEHIND it. At 1280×583 the
+     deck's top edge measured y=47 against a nav whose bottom edge is y=62: the
+     first fifteen pixels of the panel, and of the lamp line along the top of the
+     film, were under the chrome.
+
+     Reserved as padding rather than by moving the sticky box, because the box has
+     to stay 100vh — it is what holds the deck still — and `box-sizing:border-box`
+     is already set site-wide, so the flex centring below simply happens in the
+     space the nav leaves. */
+  .mimic-site .mm-formats .mm-stage-sticky{padding-top:var(--mm-nav-h)}
 
   /* ONE grid cell, six panels in it. Not `position:absolute`, which would leave
      the deck with no height of its own and force a hard-coded one; as a grid
@@ -2956,18 +2975,21 @@
      outgrowing it — this is what keeps the fit test passing, and with it the
      agreement between this media query and the pin. */
   .mimic-site .fmt-stage{justify-self:end;width:100%;max-width:41rem}
-  /* 46vh rather than 40: at 40 the film came out SHORTER than the copy column
-     beside it on a 583px viewport, so the copy set the panel's height either way
-     and the difference went to nothing but empty ground. */
+  /* 42vh. Not 40 — at 40 the film came out shorter than the copy column beside it
+     on a 583px viewport, so the copy set the panel's height either way and the
+     difference went to empty ground. And not 46, which is where it was for one
+     revision: with the nav's height now reserved above, 46 made the panel taller
+     than the space left for it, and the overflow went straight back under the
+     nav. 42 is what fits with the rail below it. */
   .mimic-site .fmt-stage .shot video,
-  .mimic-site .fmt-stage .shot img{max-height:min(23rem,46vh);object-fit:cover}
+  .mimic-site .fmt-stage .shot img{max-height:min(23rem,42vh);object-fit:cover}
 
   /* The rail: six labels under the deck, the current one underlined by a
      hairline that draws left to right. It is the section's table of contents and
      its position indicator in one, and every entry is a real button — so the
      deck can be read by clicking as well as by scrolling, which is the
      difference between a scroll effect and a control. */
-  .mimic-site .fmt-nav{display:flex;gap:var(--mm-s-2);margin-top:var(--mm-s-6)}
+  .mimic-site .fmt-nav{display:flex;gap:var(--mm-s-2);margin-top:var(--mm-s-5)}
   .mimic-site .fmt-nav button{
     position:relative;flex:1 1 0;min-width:0;text-align:left;
     appearance:none;background:none;border:0;border-top:1px solid var(--mm-on-ink-line);

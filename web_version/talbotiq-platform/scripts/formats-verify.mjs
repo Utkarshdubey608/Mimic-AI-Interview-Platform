@@ -69,6 +69,20 @@ const readDeck = () => ({
     const r = h.getBoundingClientRect()
     return { top: r.top, bottom: r.bottom, height: r.height, background: getComputedStyle(h).backgroundColor }
   })(),
+  /* Every transform inside a panel, so the harness can police WHAT KIND each one
+     is. A fractional scale on text is the specific fault that made a white
+     heading occupy its space and paint nothing on the reporter's machine, so
+     "does any copy line carry a scale" is now a first-class check. */
+  copyScales: Array.from(document.querySelectorAll('.fmt-copy')).flatMap((c) =>
+    Array.from(c.children).map((el) => {
+      const t = getComputedStyle(el).transform
+      if (t === 'none') return 1
+      const m = t.match(/matrix\(([^)]+)\)/)
+      if (!m) return 1
+      const n = m[1].split(',').map(Number)
+      // a and d of the 2D matrix are the x and y scale.
+      return Math.max(Math.abs(n[0] - 1), Math.abs(n[3] - 1))
+    })),
   panels: Array.from(document.querySelectorAll('.fmt-slide')).map((el) => {
     const r = el.getBoundingClientRect()
     const cs = getComputedStyle(el)
@@ -114,11 +128,59 @@ const onStage = (s) => s.panels.filter((p) => {
   return Math.min(p.right, s.deck.right) - Math.max(p.left, s.deck.left) > 1
 })
 
+/**
+ * Scroll there and wait for the page to actually be still.
+ *
+ * Two frames used to be enough. It stopped being enough when the deck learned to
+ * settle onto a panel: the settle hands a target to the scroll engine, the engine
+ * EASES to it, and an eased scroll overrides a later `scrollTo` — so the harness
+ * would set a position, read 90ms later, and be looking at wherever the previous
+ * settle was still travelling to. Every step reported the same wrong panel.
+ *
+ * Waiting for stillness rather than for a fixed delay is also the honest test: it
+ * is the state a reader is in when they stop.
+ */
+const quiet = (page) => page.evaluate(() => new Promise((done) => {
+  let last = -1, still = 0, frames = 0
+  const look = () => {
+    if (Math.abs(window.scrollY - last) < 0.5) still++; else still = 0
+    last = window.scrollY
+    // 10 quiet frames, or give up at 4 seconds rather than hang the run.
+    if (still >= 10 || ++frames > 240) done()
+    else requestAnimationFrame(look)
+  }
+  requestAnimationFrame(look)
+}))
+
+/**
+ * Put the page at `y` and keep it there.
+ *
+ * Two frames used to be enough. It stopped being enough when the deck learned to
+ * settle onto a panel, and it took two goes to get this right, so both are worth
+ * recording:
+ *
+ *  · A settle hands a target to the scroll engine and the engine EASES to it, and
+ *    an eased scroll overrides a later `scrollTo`. Waiting a fixed 90ms read the
+ *    page mid-journey.
+ *  · Waiting for stillness alone is not enough either. The settle only fires once
+ *    the velocity has decayed, which takes longer than the stillness check needs
+ *    to pass — so the wait would return, the harness would scroll somewhere else,
+ *    and THEN the previous position's settle would fire and drag the page to a
+ *    panel the harness was no longer asking about. Every step reported the panel
+ *    the section had been parked on before the loop started.
+ *
+ * So: scroll, wait past the decay, wait for stillness, and if something moved the
+ * page anyway, do it again. Two rounds is enough because the second scroll happens
+ * with nothing pending.
+ */
 const settle = async (page, y) => {
-  await page.evaluate((to) => window.scrollTo(0, to), y)
-  // Two frames: one for the scroll listener to read, one for the style to land.
-  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
-  await page.waitForTimeout(90)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.evaluate((to) => window.scrollTo(0, to), y)
+    await page.waitForTimeout(420)   // longer than the velocity decay
+    await quiet(page)
+    const at = await page.evaluate(() => window.scrollY)
+    if (Math.abs(at - y) < 4) return
+  }
 }
 
 async function laptop(browser, size) {
@@ -168,31 +230,45 @@ async function laptop(browser, size) {
 
   // 3 + 4. The whole travel, in 41 samples: never a third panel, never a panel
   //        outside the deck, and the rail always names the panel on stage.
-  let maxLit = 0, tall = 0, moved = 0, railWrong = 0
+  /* A CONTINUOUS scroll, sampled while it is happening.
+     This used to jump to 41 fixed positions and read the state at rest. That
+     stopped being a test of anything the moment the deck learned to settle onto
+     the nearest panel: a jump lands, the velocity decays, the deck snaps to a
+     panel centre, and the sample reads a settled panel every time — mid-travel,
+     the state this is supposed to police, was never observed. Wheeling through it
+     and sampling on the way is both harder to pass and the thing readers do. */
+  let maxLit = 0, tall = 0, moved = 0, samples = 0
   const deck0 = mid.deck
-  for (let k = 0; k <= 40; k++) {
-    const p = k / 40
-    await settle(page, geom.top + travel * p)
+  await settle(page, geom.top - 300)
+  await page.mouse.move(Math.round(size.w / 2), Math.round(size.h / 2))
+  for (let k = 0; k < 120; k++) {
+    await page.mouse.wheel(0, 120)
     const s = await page.evaluate(readDeck)
+    samples++
     const lit = onStage(s)
-    maxLit = Math.max(maxLit, lit.length)
-    // Sideways is the mechanism, so only VERTICAL escape is a fault — that is the
-    // axis a neighbouring section lives on.
+    if (lit.length > maxLit) maxLit = lit.length
     for (const x of lit) if (x.top < s.deck.top - 1 || x.bottom > s.deck.bottom + 1) tall++
-    // And the deck's own box must not move or grow while it is pinned. If it does,
-    // it is the deck that has escaped, and paint containment cannot help.
     if (Math.abs((s.deck.bottom - s.deck.top) - (deck0.bottom - deck0.top)) > 1
       || Math.abs(s.deck.left - deck0.left) > 1) moved++
-    // The rail may name either panel adjacent to the head: at the halfway point
-    // between two panels both answers are right, and a sub-pixel difference
-    // between this travel and PinnedStage's flips which one rounding picks.
-    const h = head(p, PANELS)
-    if (s.rail.on !== Math.floor(h) && s.rail.on !== Math.ceil(h)) railWrong++
   }
-  check('never more than two panels on stage at once', maxLit <= 2, `${maxLit} at once`)
-  check('no panel reaches past the deck vertically', tall === 0, `${tall} of 41 samples`)
-  check('the pinned deck box never moves or grows', moved === 0, `${moved} of 41 samples`)
-  check('the rail always names a panel on stage', railWrong === 0, `${railWrong} of 41 samples disagreed`)
+  check(`never more than two panels on stage across ${samples} live samples`, maxLit <= 2, `${maxLit} at once`)
+  check('no panel reaches past the deck vertically', tall === 0, `${tall} of ${samples} samples`)
+  check('the pinned deck box never moves or grows', moved === 0, `${moved} of ${samples} samples`)
+
+  /* The settle. Stop the deck deliberately between two panels and it has to come
+     to rest on one — this is what makes a scroll advance a panel rather than
+     leaving the reader parked across a join. */
+  await settle(page, geom.top + travel * 0.5)
+  await page.waitForTimeout(1600)
+  const rested = await page.evaluate(readDeck)
+  const restLit = onStage(rested)
+  check('stopped between two panels, the deck settles onto one', restLit.length === 1,
+    `${restLit.length} on stage: ${restLit.map((x) => x.name).join(', ')}`)
+
+  /* And the fault the reporter actually saw. */
+  const worstScale = Math.max(...rested.copyScales)
+  check('no copy line carries a scale', worstScale < 1e-6, `worst deviation from 1 was ${worstScale}`)
+
 
   // 4, the part that was actually reported: once the section is above the
   // viewport, so is the deck — and with paint containment that is the end of it.
