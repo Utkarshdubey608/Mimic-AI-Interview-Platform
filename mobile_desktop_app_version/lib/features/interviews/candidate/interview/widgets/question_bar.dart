@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:talbotiq/shared/providers/app_store.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 /// Bottom overlay for the interview call: a translucent scrim over the video
 /// showing the current question as a caption, plus prev/end/next controls —
@@ -99,7 +100,7 @@ class QuestionBar extends StatelessWidget {
                   width: 6,
                   height: 6,
                   decoration: const BoxDecoration(
-                    color: Colors.greenAccent,
+                    color: AppColors.pastelMintText,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -107,7 +108,7 @@ class QuestionBar extends StatelessWidget {
                 const Text(
                   'Speaking',
                   style: TextStyle(
-                    color: Colors.greenAccent,
+                    color: AppColors.pastelMintText,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -129,7 +130,7 @@ class QuestionBar extends StatelessWidget {
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
-                          color: autoAdvance ? Colors.greenAccent : Colors.white54,
+                          color: autoAdvance ? AppColors.pastelMintText : Colors.white54,
                           shape: BoxShape.circle,
                         ),
                       ),

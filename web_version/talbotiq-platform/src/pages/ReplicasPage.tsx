@@ -111,7 +111,7 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
 
 export default function ReplicasPage() {
   const { data: replicas, isLoading, isError, error, refetch, isFetching } = useReplicas()
-  const { tavusKey } = useAppStore()
+  const { tavusConfigured } = useAppStore()
   const navigate = useNavigate()
   const update = useUpdateReplica()
   const [selected, setSelected] = useState<TavusReplica | null>(null)
@@ -170,7 +170,7 @@ export default function ReplicasPage() {
             </Button>
           }
         />
-      ) : !replicas?.length && !tavusKey ? (
+      ) : !replicas?.length && !tavusConfigured ? (
         /* Without a key, listReplicas resolves to an empty array rather than
            rejecting (it tolerates partial failure), so an unconfigured
            workspace would otherwise be told "no replicas yet" and sent to

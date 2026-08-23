@@ -76,7 +76,7 @@ class QuestionSetsPage extends StatelessWidget {
     final sets = [...store.questionSets]
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Question sets'),
         actions: [
@@ -91,10 +91,10 @@ class QuestionSetsPage extends StatelessWidget {
           const SizedBox(width: 4),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: RecruiterFab(
         onPressed: () => _openEditor(context),
-        icon: const Icon(Icons.add),
-        label: const Text('New set'),
+        icon: Icons.add,
+        tooltip: 'New set',
       ),
       body: SafeArea(
         child: ListView(

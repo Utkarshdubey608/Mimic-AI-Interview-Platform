@@ -901,6 +901,14 @@ export interface IntegrityEventRequest {
 export interface SessionListItem {
   id: string
   candidate: { name: string; email: string }
+  /**
+   * Which BATCH this belongs to, from the shared assignment.
+   *
+   * The web had no concept of a test — mobile's whole recruiter dashboard is tests —
+   * so a timeline had nothing to hang off. Null for a session with no assignment
+   * behind it, which is every one created before that record existed.
+   */
+  testId?: string | null
   templateId: string
   templateName: string
   track: TrackType
@@ -921,6 +929,50 @@ export interface SessionListItem {
 
 /** Candidate-safe view of a session assigned to the signed-in candidate. Never
  *  includes scores, reports, or any other candidate's data. */
+/**
+ * What a candidate may be told about a round they finished.
+ *
+ * THE ENTIRE candidate-facing result: whether they are moving forward, optionally
+ * where they placed, and optionally a note the recruiter wrote for them.
+ *
+ * Never a score, a recommendation, a summary, or a list of their weaknesses. Those
+ * are the recruiter's working notes — a language model's opinion written in hiring
+ * vocabulary, kept for them to review and edit — and publishing them hands the
+ * candidate a judgement nobody wrote for them.
+ *
+ * The rule is enforced SERVER-SIDE by `interviews.candidate_result_view`, which is an
+ * allowlist rather than a filter: a field added to the stored result is invisible here
+ * until somebody deliberately adds it there. This interface is the shape that
+ * allowlist produces, not a second place the decision is made — widening it changes
+ * nothing on its own.
+ *
+ * Mirrors `RoundOutcome` + `CandidateResultPage` in the Flutter app.
+ */
+export interface CandidateOutcome {
+  /** `pending` is also what a result published before outcomes existed reads as, so
+   *  a legacy document shows "under review" instead of leaking its raw score. */
+  outcome: 'selected' | 'not_selected' | 'pending'
+  /** Written as a pair or not at all — a position with no total means nothing. */
+  rank?: number
+  rankOf?: number
+  candidateNote?: string
+}
+
+/**
+ * Which clients a candidate may take an interview on.
+ *
+ * `web` is the browser, `mobile` and `desktop` are the Flutter app on a phone and on a
+ * computer. An empty or absent list means NO restriction — and selecting all three is
+ * stored the same way, because "every device" and "no restriction" are one policy.
+ *
+ * ⚠️ A POLICY CONTROL, NOT A SECURITY BOUNDARY. `web` is enforced structurally (only
+ * this app calls `/api/web/*`), but the two app values are self-reported by the Flutter
+ * client in a header, so a modified one could claim either. It stops a candidate
+ * opening the wrong client by accident, which is what it is for. See
+ * `interviews.DEVICES` in the backend.
+ */
+export type InterviewDevice = 'web' | 'mobile' | 'desktop'
+
 export interface CandidateAssignedSession {
   id: string
   templateName: string
@@ -929,6 +981,16 @@ export interface CandidateAssignedSession {
   status: SessionStatus
   createdAt: string
   completedAt?: string
+  /** Null until the recruiter publishes. `resultPublished` is the only gate. */
+  outcome?: CandidateOutcome | null
+  /**
+   * Which kind of round this is, when it belongs to one.
+   *
+   * `resume` is the one that changes where the candidate goes: it is a submission step,
+   * not a session anyone joins, and routing it into the interview engine drops them
+   * into a chat with no questions.
+   */
+  roundKind?: RoundKind | null
 }
 
 export interface SessionReportQuestion {
@@ -1168,6 +1230,80 @@ export interface ExtractCandidatesResult {
 }
 
 /** Recruiter → server: create one interview per candidate + (optionally) email them. */
+/**
+ * An interview whose scoring can be re-run: nothing scored it, and the answers it
+ * needs survive. See `outcomesApi.retryable`.
+ */
+export interface RetryableEvaluation {
+  id: string
+  candidate: { name: string; email: string }
+  title: string
+  /** How many stored answers the scorer would have to work with. */
+  answers: number
+  /** Why it failed, when the scorer said — a transient upstream error reads very
+   *  differently from "too little was said". */
+  error: string
+}
+
+/**
+ * One round of a test's timeline — the model BOTH clients now share.
+ *
+ * The web had `web_pipelines` and the Flutter app had `tests/{testId}/rounds`, and
+ * neither knew about the other: a candidate advanced on one was invisible on the other.
+ * This is the Flutter model, and three of its properties are why it was kept:
+ *
+ * • `state` is COMPUTED by the server from the clock and sent. Nothing stores it, so
+ *   nothing can go stale — where the old pipelines AUTHORED candidate status, which
+ *   meant a status could disagree with the clock and nobody would notice.
+ * • A round's window is copied onto every assignment, because a candidate's device
+ *   cannot read round documents. That is why "end round now" is a server action.
+ * • Ranks are stamped at decision time, not recomputed on read.
+ *
+ * Mirrors `InterviewRound` in interview_round.dart and `Round` in app/rounds.py.
+ */
+export type RoundKind = 'resume' | 'chat' | 'video' | 'voice' | 'two_way'
+export type RoundState = 'scheduled' | 'open' | 'closed'
+
+export interface RoundCriteria {
+  requiredSkills: string[]
+  niceToHave: string[]
+  minYears: number | null
+  minScore: number | null
+}
+
+export interface InterviewRound {
+  id: string
+  testId: string
+  order: number
+  title: string
+  kind: RoundKind
+  config: Record<string, unknown>
+  opensAt: string | null
+  closesAt: string | null
+  closedAt: string | null
+  closedBy: 'manual' | 'auto' | null
+  criteria: RoundCriteria
+  /** Derived server-side from the clock. Never stored. */
+  state: RoundState
+  /** A recruiter ended it, rather than the deadline passing. */
+  endedManually: boolean
+  /** False for a résumé round — a submission step, not a session anyone joins. */
+  isInterview: boolean
+  /** True only for two-way: a human was in the room and there is no recording. */
+  isRecruiterScored: boolean
+}
+
+export interface TimelineResponse {
+  rounds: InterviewRound[]
+  /**
+   * Assignments that belong to NO round. Non-zero means the test was created as a
+   * single round and given rounds afterwards — those are invisible to every
+   * round-scoped view until adopted, and a recruiter cannot fix what they are not
+   * told about.
+   */
+  legacyAssignments: number
+}
+
 export interface CreateInvitesRequest {
   mode: TrackType                                   // Chatbot / Voice / Video Avatar / Timed Q&A
   role: string                                      // batch candidate role (Step 1)
@@ -1183,6 +1319,11 @@ export interface CreateInvitesRequest {
     model: GeminiModel
   }
   questionSetId?: string                            // when source === 'set'
+  /**
+   * Restrict the interview to particular clients. Omit (or send all three) for no
+   * restriction — the server normalises both to the same stored state.
+   */
+  allowedDevices?: InterviewDevice[]
   /**
    * When mode === 'mcq'. The paper is REFERENCED, not embedded: the invite
    * pipeline carries questions as plain strings, which cannot express an option

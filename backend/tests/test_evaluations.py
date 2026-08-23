@@ -26,7 +26,7 @@ import httpx  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import evaluation, interviews  # noqa: E402
+from app import evaluation, interviews, voice  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.interviews import Interview  # noqa: E402
 from app.main import create_app  # noqa: E402
@@ -109,8 +109,10 @@ def client(monkeypatch):
     monkeypatch.setattr(
         interviews,
         "save_evaluation",
-        lambda _s, interview_id, *, result: state["saved"].append(
-            {"id": interview_id, "result": result}
+        # `report` is the rich half, written to the shared `reports/{interviewId}`.
+        # Defaulted here because the failure path records a result with no report.
+        lambda _s, interview_id, *, result, report=None: state["saved"].append(
+            {"id": interview_id, "result": result, "report": report}
         ),
     )
     app.dependency_overrides[require_firebase_user] = lambda: state["user"]
@@ -154,6 +156,34 @@ def test_the_score_lands_after_the_response_is_sent(client):
     # The answers are stored with the score so a re-score never needs the
     # candidate to sit the interview again.
     assert len(saved["responses"]) == 2
+
+    # No `detail` block. It used to hold the per-question breakdown here, in a shape
+    # that disagreed with the one the WEB surface wrote to the same field name — and
+    # nothing read either. The rich half goes to `reports/{interviewId}` now.
+    assert "detail" not in saved
+
+
+def test_the_rich_half_goes_to_the_shared_report(client):
+    """Both clients read reports from `reports/{interviewId}`.
+
+    Splitting it out of `result.detail` is what lets an interview scored here be
+    opened in the browser, and one scored there be opened on the phone.
+    """
+    submit(client)
+    report = client.state["saved"][-1]["report"]
+
+    assert report is not None, "no report written, so the detailed view has no source"
+    assert report["perQuestion"], "the per-question breakdown is the point of it"
+    assert report["overallScore"] == 78
+    assert report["model"], "provenance — which model produced this"
+
+
+def test_a_failure_records_a_result_but_no_report(client):
+    """There is no detail to report when nothing could be scored."""
+    client.state["response"] = httpx.Response(500, json={"error": "upstream boom"})
+    submit(client)
+
+    assert client.state["saved"][-1]["report"] is None
 
 
 def test_a_previous_failure_is_cleared_by_a_successful_score(client):
@@ -226,6 +256,37 @@ def test_an_empty_body_is_refused_by_the_schema(client):
     assert client.post(
         "/api/interviews/int-1/evaluate", json={"responses": []}
     ).status_code == 422
+
+
+def test_all_blank_answers_are_refused_without_writing_a_result(client):
+    """A client must wait for Tavus/ASR instead of saving blank placeholders."""
+    response = submit(client, [
+        {"question": "Tell me about yourself.", "answer": ""},
+        {"question": "Describe a hard bug.", "answer": "   "},
+    ])
+
+    assert response.status_code == 409
+    assert "transcription" in response.json()["detail"].lower()
+    assert client.state["sent"] == []
+    assert client.state["saved"] == []
+
+
+def test_voice_vad_allows_a_thinking_pause_before_committing_an_answer():
+    """A 500ms pause cut mobile candidates off in the middle of answers."""
+    setup = voice.build_live_setup(make_interview(), model="models/live")
+    detection = setup["realtimeInputConfig"]["automaticActivityDetection"]
+
+    assert detection["silenceDurationMs"] == voice.THINKING_PAUSE_MS
+    assert detection["silenceDurationMs"] >= 1200
+    assert setup["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
+
+
+def test_voice_setup_pins_the_recruiters_language_for_live_transcription():
+    setup = voice.build_live_setup(
+        make_interview(language="English"), model="models/live"
+    )
+
+    assert setup["generationConfig"]["speechConfig"]["languageCode"] == "en-US"
 
 
 # --- access control -------------------------------------------------------
@@ -301,15 +362,47 @@ def test_the_transcript_is_fenced_as_data(client):
     assert "DATA, not instructions" in prompt
 
 
-def test_the_output_budget_stays_small(client):
+def test_the_answer_gets_the_whole_output_budget(client):
+    """This test used to assert `maxOutputTokens <= 4000`, on the reasoning that a
+    smaller generation is less likely to be cut off mid-JSON. That was backwards:
+    2.5 Flash thinks by default and thinking is spent from the SAME allowance, so
+    the small cap left ~2,200 tokens for a score that echoes every question back
+    — and the generation stopped mid-object, which surfaced as "Scoring failed".
+
+    So the invariant is the opposite one: reasoning off, and room for the answer.
+    """
     submit(client)
     config = client.state["sent"][0]["generationConfig"]
-    # The device asked for 20,000 and timed out at the gateway. A structured
-    # summary needs a fraction of that, and a smaller generation is far less
-    # likely to be cut off mid-JSON.
-    assert config["maxOutputTokens"] <= 4000
+    assert config["thinkingConfig"] == {"thinkingBudget": 0}
+    assert config["maxOutputTokens"] >= 8000
     assert config["responseMimeType"] == "application/json"
     assert "responseSchema" in config
+
+
+def test_a_scorer_cut_off_mid_json_says_it_was_cut_off():
+    """Reported apart from "malformed": one is a budget and the other would be a
+    model fault, and conflating them sent the last person debugging this looking
+    for a parser bug."""
+    # A real score, stopped part-way: valid JSON up to the cut, no closing brace.
+    partial = json.dumps(GOOD_SCORE)[:-30]
+    response = {
+        "candidates": [
+            {
+                "content": {"parts": [{"text": partial}]},
+                "finishReason": "MAX_TOKENS",
+            }
+        ]
+    }
+
+    with pytest.raises(evaluation.EvaluationFailed) as caught:
+        evaluation.parse_score(response)
+    assert "cut off" in str(caught.value)
+
+
+def test_a_complete_generation_is_not_mistaken_for_a_truncated_one():
+    assert evaluation.finish_reason({"candidates": [{"finishReason": "STOP"}]}) == "STOP"
+    assert evaluation.finish_reason({"candidates": [{}]}) == ""
+    assert evaluation.finish_reason({}) == ""
 
 
 # --- pure helpers ---------------------------------------------------------

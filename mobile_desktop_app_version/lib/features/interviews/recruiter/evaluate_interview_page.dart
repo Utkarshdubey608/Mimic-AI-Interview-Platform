@@ -13,6 +13,9 @@ import 'package:talbotiq/shared/widgets/custom_buttons.dart';
 import 'package:talbotiq/shared/widgets/custom_inputs.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
+import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 
 class EvaluateInterviewPage extends StatefulWidget {
   final Interview interview;
@@ -81,10 +84,49 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
           : widget.interview);
 
   @override
+  /// The per-question breakdown from the SHARED `reports/{interviewId}` document.
+  ///
+  /// Separate from `interview.result`, which carries only the flat summary — see
+  /// `InterviewRepository.fetchReport`. Empty until it loads, and empty for good on an
+  /// interview scored before reports were shared, which is why the panel below says so
+  /// rather than rendering nothing.
+  List<({String question, int? score, String feedback})> _perQuestion =
+      const [];
+  bool _loadingReport = false;
+
+  @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex ?? 0;
     _loadInterview(_current);
+    _loadReport();
+  }
+
+  /// Fetches the shared report for whichever interview is showing.
+  ///
+  /// Best-effort and never blocking: the flat score is already on screen from the
+  /// assignment, so a failure here costs the breakdown and nothing else.
+  Future<void> _loadReport() async {
+    final id = _current.id;
+    setState(() {
+      _loadingReport = true;
+      _perQuestion = const [];
+    });
+    final repository = context.read<InterviewRepository>();
+    Map<String, dynamic>? report;
+    // Scoring is queued after the candidate receives the 202 response. Give
+    // the shared report a few seconds to appear before showing an empty panel.
+    for (var attempt = 0; attempt < 6; attempt++) {
+      report = await repository.fetchReport(id);
+      if (InterviewRepository.perQuestionOf(report).isNotEmpty) break;
+      if (attempt < 5) await Future<void>.delayed(const Duration(seconds: 2));
+    }
+    if (!mounted || _current.id != id)
+      return; // they paged to another candidate
+    setState(() {
+      _perQuestion = InterviewRepository.perQuestionOf(report);
+      _loadingReport = false;
+    });
   }
 
   /// Re-fetches this interview from Firestore and reloads the form — the
@@ -101,15 +143,20 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       if (!mounted) return;
       if (fresh == null) {
         messenger.showSnackBar(
-            const SnackBar(content: Text('This interview no longer exists.')));
+          const SnackBar(content: Text('This interview no longer exists.')),
+        );
         return;
       }
       setState(() {
         _refreshedInterview = fresh;
         _loadInterview(fresh);
       });
+      // The breakdown lands with the score, so refresh both together — otherwise a
+      // recruiter sees a fresh score beside a stale (or absent) per-question list.
+      await _loadReport();
       messenger.showSnackBar(
-          const SnackBar(content: Text('Reloaded the latest evaluation.')));
+        const SnackBar(content: Text('Reloaded the latest evaluation.')),
+      );
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(SnackBar(content: Text('Refresh failed: $e')));
@@ -129,7 +176,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     _strengthsCtrl.text = _joinList(r['strengths']);
     _improvementsCtrl.text = _joinList(r['improvements']);
     _published = i.resultPublished;
-    _responses = (r['responses'] as List?)
+    _responses =
+        (r['responses'] as List?)
             ?.whereType<Map>()
             .map((e) => e.map((k, v) => MapEntry(k.toString(), v)))
             .toList() ??
@@ -141,11 +189,8 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   String _joinList(dynamic v) =>
       v is List ? v.map((e) => e.toString()).join('\n') : '';
 
-  List<String> _splitLines(String s) => s
-      .split('\n')
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toList();
+  List<String> _splitLines(String s) =>
+      s.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
 
   @override
   void dispose() {
@@ -156,19 +201,17 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   }
 
   Map<String, dynamic> _buildResult(Interview i) => {
-        'overallScore': _score,
-        'summary': _summaryCtrl.text.trim(),
-        'recommendation': _recommendation,
-        'strengths': _splitLines(_strengthsCtrl.text),
-        'improvements': _splitLines(_improvementsCtrl.text),
-        // Preserve the original AI detail + note that a recruiter touched it.
-        'evaluatedBy': 'manual',
-        if (i.result?['detail'] != null)
-          'detail': i.result!['detail'],
-        // Preserve the integrity signal captured during the interview.
-        if (i.result?['integrity'] != null)
-          'integrity': i.result!['integrity'],
-      };
+    'overallScore': _score,
+    'summary': _summaryCtrl.text.trim(),
+    'recommendation': _recommendation,
+    'strengths': _splitLines(_strengthsCtrl.text),
+    'improvements': _splitLines(_improvementsCtrl.text),
+    // Preserve the original AI detail + note that a recruiter touched it.
+    'evaluatedBy': 'manual',
+    if (i.result?['detail'] != null) 'detail': i.result!['detail'],
+    // Preserve the integrity signal captured during the interview.
+    if (i.result?['integrity'] != null) 'integrity': i.result!['integrity'],
+  };
 
   Future<void> _save({required bool publish}) async {
     if (_saving) return;
@@ -184,8 +227,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       }
       if (!mounted) return;
       Navigator.of(context).pop();
-      messenger.showSnackBar(SnackBar(
-          content: Text(publish ? 'Result published.' : 'Result saved.')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(publish ? 'Result published.' : 'Result saved.'),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -207,8 +253,9 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
         _published = false;
         _saving = false;
       });
-      messenger
-          .showSnackBar(const SnackBar(content: Text('Result unpublished.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Result unpublished.')),
+      );
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
@@ -221,15 +268,22 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   /// recruiter's own default key only for legacy tests with no pinned key.
   /// Populates the editable fields for review — does NOT auto-save/publish.
   Future<void> _regenerate() async {
-    debugPrint('[Regenerate] tapped: regenerating=$_regenerating '
-        'responses=${_responses.length}');
+    debugPrint(
+      '[Regenerate] tapped: regenerating=$_regenerating '
+      'responses=${_responses.length}',
+    );
     if (_regenerating) return;
     if (_responses.isEmpty) {
-      debugPrint('[Regenerate] aborted: no stored responses for this interview.');
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'No stored responses for this interview — regenerate is unavailable.'),
-      ));
+      debugPrint(
+        '[Regenerate] aborted: no stored responses for this interview.',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No stored responses for this interview — regenerate is unavailable.',
+          ),
+        ),
+      );
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -252,15 +306,18 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
         _strengthsCtrl.text = result.strengths.join('\n');
         _improvementsCtrl.text = result.improvements.join('\n');
       });
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Results regenerated — review and save.')));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Results regenerated — review and save.')),
+      );
     } catch (e, st) {
       debugPrint('[Regenerate] FAILED: $e');
       debugPrint('$st');
-      messenger.showSnackBar(SnackBar(
-        content: Text('Regenerate failed: $e'),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Regenerate failed: $e'),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _regenerating = false);
     }
@@ -270,7 +327,10 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     final repo = context.read<InterviewRepository>();
     final currentInterview = _current;
     try {
-      await repo.saveResult(currentInterview.id, _buildResult(currentInterview));
+      await repo.saveResult(
+        currentInterview.id,
+        _buildResult(currentInterview),
+      );
     } catch (_) {
       // Swallowed on silent background save
     }
@@ -293,15 +353,27 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
     });
   }
 
+  /// Who produced the stored score, in words.
+  ///
+  /// `mcq` is named rather than folded into "edited", which is what an unknown
+  /// scorer used to read as. An exact comparison against a stored answer key is
+  /// not a draft and not somebody's edit, and a recruiter deciding whether to
+  /// trust the number needs to know which it is.
+  static String _scorerNote(String evaluatedBy) => switch (evaluatedBy) {
+    '' => '',
+    'ai' => ' · AI draft',
+    'mcq' => ' · scored automatically',
+    _ => ' · edited',
+  };
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final i = _current;
     final evaluatedBy = (i.result?['evaluatedBy'] as String?) ?? '';
     final leftAppCount =
         ((i.result?['integrity'] as Map?)?['leftAppCount'] as num?)?.toInt() ??
-            0;
-    return Scaffold(
+        0;
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Evaluate'),
         actions: [
@@ -316,10 +388,11 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
             tooltip: 'Reload latest evaluation from server',
             onPressed: _refreshing ? null : _refresh,
           ),
-          if (widget.groupInterviews != null && widget.groupInterviews!.length > 1) ...[
+          if (widget.groupInterviews != null &&
+              widget.groupInterviews!.length > 1) ...[
             IconButton(
               icon: const Icon(Icons.arrow_back_ios_rounded, size: 16),
-              tooltip: 'Previous Candidate',
+              tooltip: 'Previous candidate',
               onPressed: _currentIndex > 0
                   ? () => _navigateCandidate(_currentIndex - 1)
                   : null,
@@ -327,12 +400,16 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
             Center(
               child: Text(
                 '${_currentIndex + 1} / ${widget.groupInterviews!.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12.5,
+                  color: AppSurfaces.muted(context),
+                ),
               ),
             ),
             IconButton(
               icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              tooltip: 'Next Candidate',
+              tooltip: 'Next candidate',
               onPressed: _currentIndex < widget.groupInterviews!.length - 1
                   ? () => _navigateCandidate(_currentIndex + 1)
                   : null,
@@ -354,69 +431,73 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.page,
+            AppSpacing.xs,
+            AppSpacing.page,
+            AppSpacing.xxxl,
+          ),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(i.candidateName ?? i.candidateEmail,
-                      style: theme.textTheme.titleLarge),
                   Text(
-                      '${i.type.label} · ${i.candidateEmail}'
-                      '${evaluatedBy.isEmpty ? '' : ' · ${evaluatedBy == 'ai' ? 'AI draft' : 'edited'}'}',
-                      style: theme.textTheme.bodySmall),
+                    i.candidateName ?? i.candidateEmail,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                      color: AppSurfaces.text(context),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  // `effectiveRoundKind`, not `type`: an MCQ assignment carries
+                  // `type: chat` (the server's buckets are video|chat) and would
+                  // otherwise be labelled "Chat interview" on the one screen
+                  // whose job is to say what was taken. A legacy document derives
+                  // the same label from `type` anyway, so nothing regresses.
+                  Text(
+                    '${i.effectiveRoundKind.label} · ${i.candidateEmail}'
+                    '${_scorerNote(evaluatedBy)}',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: AppSurfaces.muted(context),
+                    ),
+                  ),
                   if (_published)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.visibility,
-                              size: 16, color: theme.colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Text('Visible to candidate',
-                              style: TextStyle(color: theme.colorScheme.primary)),
-                        ],
-                      ),
+                    const _StatusNote(
+                      icon: Icons.visibility_outlined,
+                      text: 'Visible to candidate',
+                      color: AppColors.pastelMintText,
                     ),
                   if (leftAppCount > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded,
-                              size: 16, color: theme.colorScheme.error),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Integrity: left the app $leftAppCount '
-                              'time${leftAppCount == 1 ? '' : 's'} during the interview',
-                              style: TextStyle(color: theme.colorScheme.error),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StatusNote(
+                      icon: Icons.warning_amber_rounded,
+                      text:
+                          'Integrity: left the app $leftAppCount '
+                          'time${leftAppCount == 1 ? '' : 's'} during the interview',
+                      color: AppColors.pastelPeach,
                     ),
                   if (_evaluationError.isNotEmpty && evaluatedBy.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 16, color: theme.colorScheme.error),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'AI evaluation failed: $_evaluationError. Use '
-                              '"Regenerate Results" below to try again.',
-                              style: TextStyle(color: theme.colorScheme.error),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _StatusNote(
+                      icon: Icons.error_outline_rounded,
+                      text:
+                          'AI evaluation failed: $_evaluationError. Use '
+                          '"Regenerate results" below to try again.',
+                      color: AppColors.danger,
                     ),
+                  // The per-question breakdown, from the SHARED report document.
+                  // Shown above the raw answers because it is the reviewed view of the
+                  // same material — a recruiter reads the judgement, then the evidence.
+                  if (_loadingReport || _perQuestion.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    _PerQuestionSection(
+                      rows: _perQuestion,
+                      loading: _loadingReport,
+                    ),
+                  ],
                   if (_responses.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     _ResponsesSection(
@@ -433,31 +514,85 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.auto_awesome, size: 18),
-                      label: const Text('Regenerate Results (Gemini)'),
+                      label: const Text('Regenerate results'),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  Text('Overall score: $_score / 100',
-                      style: theme.textTheme.labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  Slider(
-                    value: _score.toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 100,
-                    label: '$_score',
-                    onChanged: (v) => setState(() => _score = v.round()),
+                  const SizedBox(height: AppSpacing.xxl),
+                  const RecruiterLabel('Overall score'),
+                  const SizedBox(height: AppSpacing.sm),
+                  RecruiterPanel(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.sm,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              '$_score',
+                              style: TextStyle(
+                                fontSize: 30,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -1,
+                                height: 1,
+                                color: scoreColor(context, _score),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            Text(
+                              '/ 100',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppSurfaces.subtle(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            activeTrackColor: scoreColor(context, _score),
+                            inactiveTrackColor: AppSurfaces.elevated(context),
+                            thumbColor: scoreColor(context, _score),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 14,
+                            ),
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 7,
+                            ),
+                          ),
+                          child: Slider(
+                            value: _score.toDouble(),
+                            min: 0,
+                            max: 100,
+                            divisions: 100,
+                            label: '$_score',
+                            onChanged: (v) =>
+                                setState(() => _score = v.round()),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.lg),
                   CustomSelectDropdown<String>(
                     label: 'Recommendation',
                     value: _recommendation,
                     items: _recommendations.entries
-                        .map((e) => DropdownMenuItem(
-                            value: e.key, child: Text(e.value)))
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
                         .toList(),
-                    onChanged: (v) =>
-                        setState(() => _recommendation = v ?? ''),
+                    onChanged: (v) => setState(() => _recommendation = v ?? ''),
                   ),
                   const SizedBox(height: 16),
                   CustomInputField(
@@ -484,8 +619,9 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
                   CustomButton(
                     text: _published ? 'Save changes' : 'Save & publish',
                     isLoading: _saving,
-                    onPressed:
-                        _saving ? () {} : () => _save(publish: !_published),
+                    onPressed: _saving
+                        ? () {}
+                        : () => _save(publish: !_published),
                   ),
                   const SizedBox(height: 10),
                   if (!_published)
@@ -504,9 +640,145 @@ class _EvaluateInterviewPageState extends State<EvaluateInterviewPage> {
   }
 }
 
+/// One advisory line under the candidate's name — published state, an
+/// integrity flag, or a failed evaluation. Same shape for all three so the
+/// header reads as a list of facts rather than three different alerts.
+class _StatusNote extends StatelessWidget {
+  const _StatusNote({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: AppSpacing.sm - 2),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12.5, height: 1.35, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Read-only list of the candidate's raw per-question responses, shown above
 /// the editable score fields so the recruiter reads the actual answers before
 /// scoring/regenerating.
+/// The AI's per-question judgement, read from `reports/{interviewId}`.
+///
+/// Its own section rather than folded into the answers list: this is the SCORER's view
+/// of each answer, and the answers themselves are the evidence. Conflating them would
+/// make it unclear which text a person wrote and which a model did.
+class _PerQuestionSection extends StatelessWidget {
+  const _PerQuestionSection({required this.rows, required this.loading});
+
+  final List<({String question, int? score, String feedback})> rows;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const RecruiterLabel('Per-question breakdown'),
+        const SizedBox(height: AppSpacing.sm),
+        if (loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          // One panel of thin-separated rows: the breakdown is a single
+          // reading of one interview, not a stack of unrelated cards.
+          RecruiterPanel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var k = 0; k < rows.length; k++) ...[
+                  if (k > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppBorders.separatorColor(context),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md + 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                rows[k].question,
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                  color: AppSurfaces.text(context),
+                                ),
+                              ),
+                            ),
+                            // Absent rather than 0 when the scorer gave none —
+                            // a 0 reads as "answered badly" where the truth is
+                            // "not scored".
+                            if (rows[k].score != null) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(
+                                '${rows[k].score}',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.3,
+                                  color: scoreColor(context, rows[k].score!),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (rows[k].feedback.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xs + 2),
+                          Text(
+                            rows[k].feedback,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              height: 1.4,
+                              color: AppSurfaces.muted(context),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ResponsesSection extends StatelessWidget {
   const _ResponsesSection({required this.responses, required this.approximate});
 
@@ -515,47 +787,64 @@ class _ResponsesSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outline.withOpacity(0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Candidate Responses',
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600)),
-          if (approximate)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Voice interviews pair answers to questions by order only — '
-                'attribution may not be exact.',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ),
-          const SizedBox(height: 12),
-          for (var idx = 0; idx < responses.length; idx++) ...[
-            if (idx > 0) const Divider(height: 20),
-            Text('Q${idx + 1}. ${responses[idx]['question'] ?? ''}',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(
-              (responses[idx]['answer'] as String?)?.isNotEmpty == true
-                  ? responses[idx]['answer'] as String
-                  : '(no answer captured)',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ],
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const RecruiterLabel('Candidate responses'),
+        const SizedBox(height: AppSpacing.sm),
+        RecruiterPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (approximate) ...[
+                Text(
+                  'Voice interviews pair answers to questions by order only — '
+                  'attribution may not be exact.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    color: AppColors.pastelPeach,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+              for (var idx = 0; idx < responses.length; idx++) ...[
+                if (idx > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.md + 2,
+                    ),
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: AppBorders.separatorColor(context),
+                    ),
+                  ),
+                Text(
+                  'Q${idx + 1}. ${responses[idx]['question'] ?? ''}',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: AppSurfaces.text(context),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs + 2),
+                Text(
+                  (responses[idx]['answer'] as String?)?.isNotEmpty == true
+                      ? responses[idx]['answer'] as String
+                      : '(no answer captured)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.45,
+                    color: AppSurfaces.muted(context),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:talbotiq/core/theme/accent_palette.dart';
 import 'package:talbotiq/shared/models/app_models.dart';
 
 /// Stages of the post-interview processing pipeline (transcript → AI scoring
@@ -37,6 +38,8 @@ class AppStore extends ChangeNotifier {
 
   // Theme Mode
   ThemeMode _themeMode = ThemeMode.dark;
+  AppAccent _accent = AppAccent.peach;
+  AppAccent _secondaryAccent = AppAccent.lavender;
 
   // Global desktop text scale (Settings → Preferences → Font Size). Applied
   // once, at the MaterialApp root (see main.dart), via MediaQuery's
@@ -136,6 +139,15 @@ class AppStore extends ChangeNotifier {
 
   // Getters
   ThemeMode get themeMode => _themeMode;
+
+  /// The primary block colour: the featured card, the primary button, the
+  /// selected chip. See AppAccent for why recolouring these is safe.
+  AppAccent get accent => _accent;
+
+  /// The secondary block colour, for the supporting accents — chart bars,
+  /// meters, the trend line. Kept separate so a user can set a two-colour
+  /// scheme rather than having everything take one hue.
+  AppAccent get secondaryAccent => _secondaryAccent;
   double get desktopFontScale => _desktopFontScale;
 
   String get defaultReplicaId => _defaultReplicaId;
@@ -191,6 +203,22 @@ class AppStore extends ChangeNotifier {
   void setThemeMode(ThemeMode mode) {
     if (_themeMode != mode) {
       _themeMode = mode;
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void setAccent(AppAccent accent) {
+    if (_accent != accent) {
+      _accent = accent;
+      _saveToPrefs();
+      notifyListeners();
+    }
+  }
+
+  void setSecondaryAccent(AppAccent accent) {
+    if (_secondaryAccent != accent) {
+      _secondaryAccent = accent;
       _saveToPrefs();
       notifyListeners();
     }
@@ -453,7 +481,17 @@ class AppStore extends ChangeNotifier {
         );
       } else {
         _themeMode = ThemeMode.dark;
+    _accent = AppAccent.peach;
+    _secondaryAccent = AppAccent.lavender;
       }
+
+      // Unknown or absent values fall back to the default rather than
+      // throwing, so an older build's prefs still load.
+      _accent = AppAccentX.fromWire(data['accent'] as String?);
+      _secondaryAccent = AppAccentX.fromWire(
+        data['secondaryAccent'] as String?,
+        fallback: AppAccent.lavender,
+      );
 
       _storeLocalRecordings = data['storeLocalRecordings'] ?? false;
 
@@ -516,6 +554,8 @@ class AppStore extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final Map<String, dynamic> data = {
         'themeMode': _themeMode.name,
+        'accent': _accent.wire,
+        'secondaryAccent': _secondaryAccent.wire,
         'defaultReplicaId': _defaultReplicaId,
         'defaultPersonaId': _defaultPersonaId,
         'sessionConfig': _sessionConfig.toJson(),
@@ -538,6 +578,8 @@ class AppStore extends ChangeNotifier {
     await prefs.remove(_kStoreKey);
     reset();
     _themeMode = ThemeMode.dark;
+    _accent = AppAccent.peach;
+    _secondaryAccent = AppAccent.lavender;
     _desktopFontScale = 1.0;
     _defaultReplicaId = '';
     _defaultPersonaId = '';

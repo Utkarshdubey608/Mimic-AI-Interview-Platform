@@ -356,8 +356,8 @@ class _RadarChartPainter extends CustomPainter {
   ];
 
   static const List<String> categoryLabels = [
-    'High Positive',
-    'Calm Positive',
+    'High positive',
+    'Calm positive',
     'Cognitive',
     'Social',
     'Negative',

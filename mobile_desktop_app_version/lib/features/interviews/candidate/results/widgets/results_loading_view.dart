@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:talbotiq/shared/models/app_models.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 /// A loading view displaying a three-step progressive analysis pipeline:
 /// 1. Tavus Transcript Retrieval
@@ -38,7 +39,7 @@ class ResultsLoadingView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Processing Interview Results',
+                'Processing interview results',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -170,7 +171,7 @@ class ProgressStepWidget extends StatelessWidget {
       iconColor = theme.colorScheme.error;
     } else if (isDone) {
       iconData = Icons.check_circle_outline;
-      iconColor = Colors.green;
+      iconColor = AppColors.pastelMintText;
     }
 
     return Row(
@@ -195,7 +196,7 @@ class ProgressStepWidget extends StatelessWidget {
                   color: isFailed
                       ? theme.colorScheme.error
                       : (isDone
-                          ? Colors.green
+                          ? AppColors.pastelMintText
                           : theme.colorScheme.onSurface.withValues(alpha: 0.38)),
                 ),
               ),

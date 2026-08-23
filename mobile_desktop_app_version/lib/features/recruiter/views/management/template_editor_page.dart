@@ -143,7 +143,7 @@ class _TemplateEditorPageState extends State<TemplateEditorPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(
         title: Text(_isEdit ? 'Edit template' : 'New template'),
         actions: [
@@ -369,7 +369,7 @@ class _KpiRow extends StatelessWidget {
                     textAlign: TextAlign.right,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

@@ -56,6 +56,39 @@ flutter:
   assets:
     - assets/
 
+  # Bundled, not fetched. AppTheme has always declared `fontFamily: 'Inter'`,
+  # but no font asset shipped and there is no google_fonts dependency, so every
+  # build silently fell back to the platform default — Roboto on Android, SF on
+  # iOS and macOS, Segoe on Windows. The app therefore did not match the web
+  # client, and did not match itself across platforms.
+  #
+  # Static instances rather than the variable face: Flutter's FontWeight does
+  # not drive a variable weight axis consistently across platforms, so w600
+  # would render at w400 on some of them.
+  #
+  # Chivo Mono is the machine-value face (scores, timers, IDs, timestamps) and
+  # is the same family the web client uses. Both are SIL Open Font License 1.1
+  # — see assets/fonts/OFL-NOTICE.txt.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
+        - asset: assets/fonts/Inter-800.ttf
+          weight: 800
+    - family: Chivo Mono
+      fonts:
+        - asset: assets/fonts/ChivoMono-400.ttf
+          weight: 400
+        - asset: assets/fonts/ChivoMono-600.ttf
+          weight: 600
+
 flutter_launcher_icons:
   android: true
   ios: true

@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 
+from app import interviews as interviews_kernel
+from app import reports
 from app.config import Settings
 from app.security import AuthedUser
 from app.web.services import interview_invite
@@ -55,15 +57,23 @@ def template_id_for(interview_id: str) -> str:
 def track_for(data: dict) -> str:
     """The track an invite runs on.
 
-    `mode` is the web's own field and is authoritative. The fallback reads Flutter's
-    `type`, which only distinguishes video from chat — an invite created by the mobile
-    app has no `mode`, and mapping its `video` onto `video_avatar` is the closest the
-    two models come.
+    `mode` is authoritative and is now written by `interviews.build_assignment`, so
+    every interview created since carries one. The fallback is for documents that
+    predate that, and for the mobile client until it writes `mode` too — those have
+    only `type`, which distinguishes video from chat and nothing else.
+
+    **The fallback degrades to the SAME track, never a richer one.** It used to map
+    `type: video` onto `video_avatar`, which silently turned a recruiter's recorded
+    video interview into a Tavus avatar conversation the moment the candidate opened it
+    in a browser: a different experience, a different vendor and a different cost from
+    the one that was configured. `video` is a real track here — recorded video answers
+    — so the honest degradation is to it. Guessing upward is how a client ends up
+    running an interview nobody asked for.
     """
     mode = data.get("mode")
     if mode in WEB_TRACKS:
         return mode
-    return "video_avatar" if data.get("type") == "video" else "chat"
+    return "video" if data.get("type") == "video" else "chat"
 
 
 def _as_int(value: object, fallback: int) -> int:
@@ -224,7 +234,7 @@ async def materialise(
             )
         return existing, template
 
-    reference = interview_invite.interviews(settings).document(interview_id)
+    reference = interview_invite.interviews_collection(settings).document(interview_id)
     snapshot = await asyncio.to_thread(reference.get)
     if not snapshot.exists:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Interview not found")
@@ -261,6 +271,22 @@ async def materialise(
     if data.get("status") == "completed":
         raise HTTPException(
             status.HTTP_409_CONFLICT, "This interview has already been completed"
+        )
+
+    # The recruiter may have restricted this to particular clients. Checked here, at
+    # the claim, rather than deeper in: this is the point where a session and a
+    # synthesised template would be written, and materialising an interview the
+    # candidate is then refused would leave a session nobody can run.
+    #
+    # Unlike the Flutter side this needs no header — reaching `/api/web/*` at all IS
+    # being the browser, so `web` cannot be spoofed here. See `interviews.DEVICES`.
+    allowed = interviews_kernel.normalise_devices(data.get("allowedDevices"))
+    if allowed and interviews_kernel.DEVICE_WEB not in allowed:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This interview has to be taken on "
+            f"{interviews_kernel.describe_devices(allowed)}. Open your invitation "
+            "there and sign in with this same email address.",
         )
 
     now = datetime.now(timezone.utc).isoformat()
@@ -305,49 +331,57 @@ async def _mark_launched(settings: Settings, reference, interview_id: str) -> No
 def build_result(report: dict) -> dict:
     """The `result` block written onto an interview document.
 
-    Shaped for the Flutter app's reader: the flat fields it displays at the top level,
-    and the web's richer per-question and KPI detail nested under `detail` where the Dart
-    model ignores it. One document serves both readers without either seeing a shape it
-    does not understand.
+    A thin delegate to `reports.build_result_summary`, the shared definition of the
+    flat half — the mobile surface's scorer produces the same shape from the same
+    function, so a recruiter reading a score cannot tell which client ran the
+    interview.
+
+    **No `detail` block any more.** It used to nest the per-question scores, KPI
+    averages and generation time here. That was a second copy of what the report
+    document already held — and worse, the mobile surface wrote a `detail` of its own
+    with a DIFFERENT shape and a `kind` discriminator, so one field name meant two
+    things depending on which client had scored the interview. Nothing read either.
+    The rich half has one home now: `reports/{interviewId}`. See app/reports.py.
     """
-    return {
-        "overallScore": report.get("overallScore", 0),
-        "summary": report.get("summary") or "",
-        # Defaulted rather than omitted: the mobile model reads this field directly, and
-        # a missing recommendation renders as an empty badge.
-        "recommendation": report.get("recommendation") or "maybe",
-        "strengths": report.get("strengths") or [],
-        "improvements": report.get("improvements") or [],
-        "evaluatedBy": "ai",
-        "detail": {
-            "perQuestion": report.get("perQuestion") or [],
-            "kpiAverages": report.get("kpiAverages") or {},
-            "generatedAt": report.get("generatedAt"),
-        },
-    }
+    return reports.build_result_summary(report)
 
 
 async def sync_result(settings: Settings, session: dict, report: dict) -> None:
     """Push a completed session's score back to its interview document.
 
-    A no-op for sessions the recruiter created directly — those have no interview
-    document to write to.
+    **Runs for every session, not only invite-backed ones.** It used to return early
+    unless the session carried `viaInvite`, because a recruiter-created session had no
+    interview document to write to. It has one now — `POST /sessions` records the
+    shared assignment, using the session id as the interview id — so the flag no longer
+    distinguishes anything worth branching on, and branching on it is what made a
+    template-created interview invisible to the mobile app, score included.
+
+    `viaInvite` is left on the documents that have it. It is still true, still
+    describes where the session came from, and removing it would rewrite history for
+    no gain.
 
     Best-effort and never raises: the report is already stored locally, so a failure here
-    delays the recruiter seeing it rather than losing it.
+    delays the recruiter seeing it rather than losing it. `update` rather than
+    `set(merge=True)` is deliberate — it FAILS on a missing document instead of
+    creating a partial one. Sessions created before the assignment write existed have
+    no interview document, and half a document (a result, no candidate, no title) would
+    show up on the mobile dashboard as an unreadable row. Logged and skipped is the
+    honest outcome for those.
 
     `resultPublished` is deliberately NOT set. Releasing a result to the candidate stays a
     recruiter action, and writing it here would publish every score automatically.
     """
     import asyncio
 
-    if not session.get("viaInvite"):
+    from firebase_admin import firestore as admin_firestore
+    from google.api_core import exceptions as google_exceptions
+
+    session_id = session.get("id")
+    if not session_id:
         return
 
-    from firebase_admin import firestore as admin_firestore
-
     def _write() -> None:
-        interview_invite.interviews(settings).document(session["id"]).update(
+        interview_invite.interviews_collection(settings).document(session_id).update(
             {
                 "status": "completed",
                 "completedAt": admin_firestore.SERVER_TIMESTAMP,
@@ -359,5 +393,14 @@ async def sync_result(settings: Settings, session: dict, report: dict) -> None:
 
     try:
         await asyncio.to_thread(_write)
+    except google_exceptions.NotFound:
+        # A session predating the assignment write. Expected, not an error: the report
+        # is stored and the recruiter sees it on the web. Info, so it does not read as
+        # a fault in the logs of every legacy completion.
+        logger.info(
+            "no interviews/%s to sync into — session predates the shared "
+            "assignment record",
+            session_id,
+        )
     except Exception as exc:  # noqa: BLE001 - the report is safe locally either way
-        logger.error("could not sync result for %s: %s", session.get("id"), exc)
+        logger.error("could not sync result for %s: %s", session_id, exc)

@@ -21,16 +21,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:provider/provider.dart';
 
-import 'package:talbotiq/core/utils/date_format.dart';
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/resume_submission.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/recruiter/test_candidates_page.dart';
-import 'package:talbotiq/features/interviews/recruiter/widgets/recruiter_action_bar.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
 import 'package:talbotiq/shared/widgets/app_message_state.dart';
+import 'package:talbotiq/core/theme/warm_surfaces.dart';
 
 class RoundLeaderboardPage extends StatefulWidget {
   final TestSummary test;
@@ -134,78 +135,55 @@ class _RoundLeaderboardPageState extends State<RoundLeaderboardPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
+        toolbarHeight: 52,
         titleSpacing: 0,
         leadingWidth: 44,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 22),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 19),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text(
-          'Leaderboard',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.8,
-          ),
-        ),
+        title: const Text('Leaderboard'),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 18),
-              child: Text(
-                (widget.round?.title ?? widget.test.title).toLowerCase(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
+          // Header: which round this ranks, then one secondary route out to
+          // the unfiltered candidate list.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: SizedBox(
-              width: double.infinity,
-              child: Material(
-                color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  side: BorderSide(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.55),
-                    width: 1.2,
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page, 0, AppSpacing.page, AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.round?.title ?? widget.test.title,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.4,
+                    color: AppSurfaces.text(context),
                   ),
                 ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(28),
-                  onTap: _openAllCandidates,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.people_alt_outlined,
-                            size: 20, color: theme.colorScheme.primary),
-                        const SizedBox(width: 10),
-                        Text(
-                          'All candidates',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _assigned >= 0
+                      ? '$_assigned assigned · ranked by score'
+                      : 'Ranked by score',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppSurfaces.muted(context),
                   ),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                RecruiterSecondaryButton(
+                  label: 'All candidates',
+                  icon: Icons.people_alt_outlined,
+                  expand: true,
+                  onPressed: _openAllCandidates,
+                ),
+              ],
             ),
           ),
           Expanded(child: _body(theme)),
@@ -244,12 +222,13 @@ class _RoundLeaderboardPageState extends State<RoundLeaderboardPage> {
       onRefresh: _refresh,
       child: ListView.builder(
         controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.page, 0, AppSpacing.page,
+            AppSpacing.navClearance),
         itemCount: _ranked.length + 1,
         itemBuilder: (context, i) {
           if (i == _ranked.length) return _footer(theme);
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: _LeaderboardRow(
               interview: _ranked[i],
               rank: i + 1,
@@ -308,8 +287,10 @@ class _RoundLeaderboardPageState extends State<RoundLeaderboardPage> {
             _assigned >= 0
                 ? '${_ranked.length} of $_assigned candidate(s) scored'
                 : '${_ranked.length} scored',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 12,
+              color: AppSurfaces.muted(context),
+            ),
           ),
           if (unscored > 0) ...[
             const SizedBox(height: 4),
@@ -355,93 +336,120 @@ class _LeaderboardRowState extends State<_LeaderboardRow> {
           ? _i.candidateName!.trim()
           : _i.candidateEmail;
 
-  Color _scoreColor(ThemeData theme) {
-    final s = _score ?? 0;
-    if (s >= 70) return theme.colorScheme.primary;
-    if (s >= 45) return theme.colorScheme.secondary;
-    return theme.colorScheme.error;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final submission = _submission;
-    final score = submission?.score;
 
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.18),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
-        side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
-          width: 1.2,
-        ),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(30),
-        onTap: () => setState(() => _expanded = !_expanded),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 10, 12, 10),
-          child: Row(
-            children: [
-              _rankBadge(theme),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _who,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
+    return RecruiterPanel(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: AppRadius.cardAll,
+              onTap: () => setState(() => _expanded = !_expanded),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md + 2,
+                  vertical: AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    _rankBadge(theme),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        _who,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: AppSurfaces.text(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      '${_score ?? '—'}',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.4,
+                        color: _score == null
+                            ? AppSurfaces.subtle(context)
+                            : scoreColor(context, _score!),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Icon(
+                      _expanded
+                          ? Icons.expand_less_rounded
+                          : Icons.expand_more_rounded,
+                      size: 19,
+                      color: AppSurfaces.subtle(context),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '${_score ?? '—'}',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: _scoreColor(theme),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 22,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ],
+            ),
           ),
-        ),
+          // The reason behind the number. The toggle above used to flip a flag
+          // nothing read, so the breakdown this widget already builds was
+          // never reachable.
+          if (_expanded) ...[
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: AppBorders.separatorColor(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md + 2),
+              child: _detail(theme, submission),
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _rankBadge(ThemeData theme) {
     // The top three read as a podium; past that the number is just a position.
-    final highlight = widget.rank <= 3;
+    final Color tint;
+    switch (widget.rank) {
+      case 1:
+        tint = WarmSurfaces.block(context);
+        break;
+      case 2:
+        tint = AppColors.pastelCyanText;
+        break;
+      case 3:
+        tint = AppColors.pastelPeach;
+        break;
+      default:
+        tint = AppColors.textMuted;
+    }
     return Container(
-      width: 30,
-      height: 30,
+      width: 28,
+      height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: highlight
-            ? theme.colorScheme.primary.withValues(alpha: 0.14)
-            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        color: AppSurfaces.elevated(context),
         shape: BoxShape.circle,
-        border: highlight
-            ? Border.all(
-                color: theme.colorScheme.primary.withValues(alpha: 0.4))
-            : null,
+        border: Border.all(color: tint.withValues(alpha: 0.35)),
       ),
-      child: Text('${widget.rank}',
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: highlight
-                ? theme.colorScheme.primary
-                : theme.colorScheme.onSurfaceVariant,
-          )),
+      child: Text(
+        '${widget.rank}',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          color: tint,
+        ),
+      ),
     );
   }
 
@@ -486,14 +494,15 @@ class _LeaderboardRowState extends State<_LeaderboardRow> {
           const SizedBox(height: 14),
           _label(theme, 'Strengths'),
           const SizedBox(height: 4),
-          ...score.strengths.map((s) => _bullet(theme, s, Icons.add, null)),
+          ...score.strengths
+              .map((s) => _bullet(theme, s, Icons.add, AppColors.pastelMintText)),
         ],
         if (score.gaps.isNotEmpty) ...[
           const SizedBox(height: 14),
           _label(theme, 'Gaps'),
           const SizedBox(height: 4),
-          ...score.gaps.map((g) =>
-              _bullet(theme, g, Icons.remove, theme.colorScheme.error)),
+          ...score.gaps.map(
+              (g) => _bullet(theme, g, Icons.remove, AppColors.danger)),
         ],
         if (submission != null) ...[
           const SizedBox(height: 14),
@@ -570,12 +579,9 @@ class _LeaderboardRowState extends State<_LeaderboardRow> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: theme.colorScheme.outlineVariant
-                      .withValues(alpha: 0.4)),
+              color: AppSurfaces.elevated(context),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppBorders.strokeColor(context)),
             ),
             child: SingleChildScrollView(
               // Selectable so a recruiter can pull a phrase straight out of the
@@ -594,17 +600,10 @@ class _LeaderboardRowState extends State<_LeaderboardRow> {
     );
   }
 
-  Widget _label(ThemeData theme, String text) => Text(
-        text.toUpperCase(),
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontWeight: FontWeight.bold,
-          letterSpacing: 0.6,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      );
+  Widget _label(ThemeData theme, String text) => RecruiterLabel(text);
 
   Widget _skillRow(ThemeData theme, ResumeSkillScore skill) {
-    final weak = skill.score < 45;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -614,34 +613,33 @@ class _LeaderboardRowState extends State<_LeaderboardRow> {
             children: [
               if (skill.required)
                 Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(Icons.star,
-                      size: 12, color: theme.colorScheme.primary),
+                  padding: const EdgeInsets.only(right: AppSpacing.xs + 2),
+                  child: Icon(Icons.star_rounded,
+                      size: 11, color: WarmSurfaces.block(context)),
                 ),
               Expanded(
                 child: Text(skill.name,
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600)),
               ),
-              Text('${skill.score}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: weak
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurface,
-                  )),
+              Text(
+                '${skill.score}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: scoreColor(context, skill.score),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 3),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
               value: skill.score / 100,
-              minHeight: 4,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              color: weak
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
+              minHeight: 3,
+              backgroundColor: AppSurfaces.elevated(context),
+              color: scoreColor(context, skill.score),
             ),
           ),
           if (skill.evidence.isNotEmpty) ...[

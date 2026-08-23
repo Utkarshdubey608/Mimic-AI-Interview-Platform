@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
+import 'package:talbotiq/features/interviews/models/test_summary.dart';
 import 'package:talbotiq/features/interviews/recruiter/round_notify_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/round_timeline_page.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
@@ -239,6 +240,32 @@ void main() {
       expect(picked.map((i) => i.candidateEmailLower),
           isNot(contains('e@b.com')));
     });
+  });
+
+  test('a rebuilt test summary keeps the pipeline title, not its round title',
+      () {
+    final assignment = Interview(
+      id: 'assignment-1',
+      testId: testId,
+      roundId: 'round-2',
+      recruiterId: recruiter,
+      recruiterEmail: 'rec@co.com',
+      candidateEmail: 'candidate@co.com',
+      candidateEmailLower: 'candidate@co.com',
+      type: InterviewType.voice,
+      title: 'Final voice round',
+      testTitle: 'Staff engineer hiring',
+      prompt: '',
+      questions: const [],
+      avatar: const AvatarConfig(replicaId: ''),
+      durationMinutes: 15,
+      status: InterviewStatus.assigned,
+    );
+
+    final summary = TestSummary.fromInterview(assignment);
+
+    expect(summary.title, 'Staff engineer hiring');
+    expect(summary.titleVersion, TestSummary.titleSchemaVersion);
   });
 
   group('round kind', () {

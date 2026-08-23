@@ -44,7 +44,7 @@ class PracticeReportPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('Practice Report')),
+      appBar: AppBar(title: const Text('Practice report')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         child: Center(

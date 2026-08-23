@@ -16,6 +16,12 @@ from app.main import create_app
 from app.security import AuthedUser
 from app.web.services import pipeline_board as board
 
+
+def _run(coro):
+    import asyncio
+
+    return asyncio.new_event_loop().run_until_complete(coro)
+
 OTHER = AuthedUser(uid="uid-other", email="other@talbotiq.com", claims={})
 
 
@@ -500,3 +506,70 @@ def test_move_back_rewinds_and_records_the_correction(
 
 def test_pipelines_require_a_token() -> None:
     assert TestClient(create_app()).get("/api/web/pipelines").status_code == 401
+
+
+# ── retirement: writes off, reads intact, data untouched ──────────────────────
+
+
+def _retired():
+    """A client whose deployment has retired the pipeline model."""
+    from fastapi.testclient import TestClient
+
+    from app.config import Settings
+    from app.main import create_app
+    from app.security import AuthedUser, require_firebase_user
+    from app.web.deps import web_user_from_query
+
+    user = AuthedUser(uid="uid-recruiter", email="r@t.test", claims={})
+    app = create_app()
+    app.state.settings = Settings(pipelines_writable=False)
+    app.dependency_overrides[require_firebase_user] = lambda: user
+    app.dependency_overrides[web_user_from_query] = lambda: user
+    return TestClient(app)
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("post", "/api/web/pipelines"),
+        ("put", "/api/web/pipelines/p1"),
+        ("delete", "/api/web/pipelines/p1"),
+        ("post", "/api/web/pipelines/p1/advance"),
+        ("post", "/api/web/pipelines/p1/not-advancing"),
+        ("post", "/api/web/pipelines/p1/move-back"),
+    ],
+)
+def test_every_write_is_refused_once_retired(fake_store, method: str, path: str) -> None:
+    """Rounds replaced this model. Turning writes off is how it is retired.
+
+    410, not 404: the route exists and so does the pipeline — it is the CAPABILITY that
+    is gone. A 404 would read as "your pipeline was deleted", which is the one thing
+    that has not happened.
+    """
+    response = _retired().request(method.upper(), path, json={})
+    assert response.status_code == 410, f"{method.upper()} {path} still writes"
+    assert "Timeline" in response.json()["detail"]
+
+
+def test_reads_still_work_once_retired(fake_store) -> None:
+    """A recruiter part-way through a hire must not lose sight of a pipeline they are
+    running just because nothing new can be added to it."""
+    _run(
+        fake_store.pipelines.put(
+            {"id": "p1", "recruiterId": "uid-recruiter", "role": "Backend", "rounds": []}
+        )
+    )
+    client = _retired()
+
+    assert client.get("/api/web/pipelines").status_code == 200
+    assert client.get("/api/web/pipelines/p1").status_code == 200
+    assert [p["id"] for p in client.get("/api/web/pipelines").json()] == ["p1"]
+
+
+def test_retiring_deletes_nothing(fake_store) -> None:
+    """Retiring and deleting are different steps, and conflating them makes the
+    reversible one irreversible. Deletion is `scripts/delete_web_pipelines.py`."""
+    _run(fake_store.pipelines.put({"id": "p1", "recruiterId": "uid-recruiter"}))
+    _retired().post("/api/web/pipelines", json={"role": "Backend"})
+
+    assert "p1" in fake_store.pipelines.docs

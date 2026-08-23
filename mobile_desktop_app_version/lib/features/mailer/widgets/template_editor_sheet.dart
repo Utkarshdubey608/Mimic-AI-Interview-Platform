@@ -184,7 +184,7 @@ class _TemplateEditorSheetState extends State<TemplateEditorSheet> {
       builder: (_, scrollController) => Column(
         children: [
           MailerSheetHeader(
-            title: widget.seed == null ? 'New Email Template' : 'Customise Template',
+            title: widget.seed == null ? 'New email template' : 'Customise template',
             subtitle: 'Saved to ${widget.ownerEmail} — only you will see it.',
             trailing: TextButton.icon(
               onPressed: () => setState(() => _showPreview = !_showPreview),
@@ -208,7 +208,7 @@ class _TemplateEditorSheetState extends State<TemplateEditorSheet> {
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                     children: [
                       CustomInputField(
-                        label: 'Template Name',
+                        label: 'Template name',
                         placeholder: 'e.g. Round 2 invite',
                         controller: _name,
                       ),
@@ -262,7 +262,7 @@ class _TemplateEditorSheetState extends State<TemplateEditorSheet> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: CustomButton(
-              text: 'Save Template',
+              text: 'Save template',
               isLoading: _saving,
               width: double.infinity,
               onPressed: _saving ? () {} : _save,

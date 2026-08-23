@@ -66,73 +66,75 @@ def test_the_environment_is_used_when_nothing_is_saved(fake_store) -> None:
 def test_no_key_anywhere_reports_none(fake_store) -> None:
     settings = Settings(gemini_api_key="")
     status = asyncio.run(app_settings.gemini_status(settings))
-    assert status == {
-        "geminiKeySet": False,
-        "geminiKeyMasked": None,
-        "source": "none",
-        "model": settings.gemini_model,
-    }
+    assert status["geminiKeySet"] is False
+    assert status["source"] == "none"
 
 
-def test_saving_a_blank_key_clears_it(fake_store) -> None:
-    settings = Settings(gemini_api_key="")
-    asyncio.run(app_settings.save_gemini_key(settings, api_key=REAL_KEY, model=None))
-    assert asyncio.run(app_settings.gemini_key(settings)) == REAL_KEY
-
-    asyncio.run(app_settings.save_gemini_key(settings, api_key="  ", model=None))
-    assert asyncio.run(app_settings.gemini_key(settings)) == ""
+# ── the write paths are GONE ──────────────────────────────────────────────────
 
 
-def test_the_model_is_never_cleared_by_saving_a_key(fake_store) -> None:
-    """An empty model would leave generation with no default at all."""
-    settings = Settings()
-    asyncio.run(app_settings.save_gemini_key(settings, api_key=REAL_KEY, model="gemini-2.5-pro"))
-    assert asyncio.run(app_settings.gemini_model(settings)) == "gemini-2.5-pro"
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("put", "/api/web/settings/gemini-key"),
+        ("delete", "/api/web/settings/gemini-key"),
+        ("put", "/api/web/settings/tavus-key"),
+        ("delete", "/api/web/settings/tavus-key"),
+    ],
+)
+def test_no_route_can_write_a_credential(
+    authed_client: TestClient, fake_store, method: str, path: str
+) -> None:
+    """There were THREE ways to set a vendor key from a browser, and all are removed.
 
-    asyncio.run(app_settings.save_gemini_key(settings, api_key=REAL_KEY, model=""))
-    assert asyncio.run(app_settings.gemini_model(settings)) == "gemini-2.5-pro"
+    Two named routes plus a third copy riding on the avatar config. Each let one
+    authenticated recruiter change the credential that scores and runs every other
+    recruiter's candidate interviews on the deployment — which is exactly what
+    "credentials never reach the browser" exists to prevent. The mobile client never
+    had any of them.
+
+    Keys come from the environment now, and this asserts there is no longer a route
+    that says otherwise.
+    """
+    response = authed_client.request(method.upper(), path, json={"apiKey": REAL_KEY})
+    assert response.status_code in (404, 405), (
+        f"{method.upper()} {path} still exists — a credential can be written from a "
+        "browser"
+    )
 
 
-def test_clearing_the_key_leaves_the_environment_in_play(fake_store) -> None:
-    settings = Settings(gemini_api_key="env-key")
-    asyncio.run(app_settings.save_gemini_key(settings, api_key="saved", model=None))
-    status = asyncio.run(app_settings.clear_gemini_key(settings))
-    assert status["source"] == "env"
+def test_applying_an_avatar_config_cannot_smuggle_a_key(
+    authed_client: TestClient, fake_store
+) -> None:
+    """The third write path, which was the easiest to miss.
+
+    `normalise_avatar_config` accepted a `tavusKey` from the request body, so applying
+    an avatar was a way to set the credential without going near a route named for it.
+    """
+    authed_client.put(
+        "/api/web/settings/avatar",
+        json={"replicaId": "r1", "tavusKey": "smuggled-key"},
+    )
+    stored = fake_store.settings.doc.get("avatar") or {}
+    assert stored.get("tavusKey") in (None, ""), "a key reached the store from a body"
+    assert "smuggled-key" not in str(fake_store.settings.doc)
 
 
 # ── Tavus key resolution ──────────────────────────────────────────────────────
 
 
 def test_tavus_key_precedence(fake_store) -> None:
+    """Three sources, in the order candidate interviews actually resolve them."""
     settings = Settings(tavus_api_key="env-key")
+
+    fake_store.settings.doc = {}
     assert asyncio.run(app_settings.tavus_key(settings)) == "env-key"
 
-    fake_store.settings.doc = {"avatar": {"replicaId": "r1", "tavusKey": "avatar-key"}}
+    fake_store.settings.doc = {"avatar": {"tavusKey": "avatar-key"}}
     assert asyncio.run(app_settings.tavus_key(settings)) == "avatar-key"
 
-    fake_store.settings.doc["tavusApiKey"] = "global-key"
+    fake_store.settings.doc = {"tavusApiKey": "global-key", "avatar": {"tavusKey": "avatar-key"}}
     assert asyncio.run(app_settings.tavus_key(settings)) == "global-key"
-
-
-def test_saving_the_tavus_key_syncs_the_avatar_copy(fake_store) -> None:
-    """Without the sync, an applied avatar config keeps running candidate interviews
-    on the OLD key — so rotating a compromised key would silently not take effect
-    where it matters most."""
-    settings = Settings(tavus_api_key="")
-    fake_store.settings.doc = {"avatar": {"replicaId": "r1", "tavusKey": "old-key"}}
-
-    result = asyncio.run(app_settings.save_tavus_key(settings, api_key="new-key"))
-    assert result == {"tavusKeySet": True, "tavusKeyMasked": "…"}
-    assert fake_store.settings.doc["avatar"]["tavusKey"] == "new-key"
-
-
-def test_clearing_the_tavus_key_clears_the_avatar_copy(fake_store) -> None:
-    settings = Settings(tavus_api_key="")
-    fake_store.settings.doc = {"tavusApiKey": "k", "avatar": {"replicaId": "r1", "tavusKey": "k"}}
-
-    result = asyncio.run(app_settings.clear_tavus_key(settings))
-    assert result["tavusKeySet"] is False
-    assert fake_store.settings.doc["avatar"]["tavusKey"] is None
 
 
 # ── avatar config normalisation ───────────────────────────────────────────────
@@ -202,12 +204,18 @@ def test_applying_a_config_without_a_replica_is_rejected(authed_client: TestClie
     assert "replica is required" in response.json()["error"]
 
 
-def test_reapplying_a_config_keeps_the_existing_key(
+def test_reapplying_a_config_keeps_a_previously_stored_key(
     authed_client: TestClient, fake_store
 ) -> None:
     """Re-applying from the Setup page must not clear the key and break every
-    candidate interview."""
-    authed_client.put("/api/web/settings/avatar", json={"replicaId": "r1", "tavusKey": "k1"})
+    candidate interview.
+
+    The key can no longer ARRIVE in the request body — that was one of three ways to
+    write a credential from a browser — so it is seeded here as a deployment that
+    already has one. What matters is unchanged: `save_avatar` carries it forward.
+    """
+    fake_store.settings.doc = {"avatar": {"replicaId": "r1", "tavusKey": "k1"}}
+
     authed_client.put("/api/web/settings/avatar", json={"replicaId": "r2"})
 
     assert fake_store.settings.doc["avatar"]["tavusKey"] == "k1"

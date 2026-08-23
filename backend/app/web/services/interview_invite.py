@@ -4,17 +4,21 @@ The reusable home for the per-candidate `interviews/{id}` document and the mail 
 goes with it. Used by the bulk-invite flow and by pipeline round transitions, which is
 why it lives here rather than inside a route.
 
-**The document schema is shared with the Flutter app.** The first block of fields is
-the frozen schema from APPLICATION_FLOW.md, written with the exact names
-`interview.dart` reads. The web-only fields (`mode`, `role`, `screening`, `pipeline`,
-`invite`) are additive — Flutter ignores unknown keys, which is what lets one
-collection serve both clients.
+**The document schema is shared with the Flutter app, and `app.interviews` owns it.**
+The frozen fields — the ones `interview.dart` reads — are built by
+`interviews.build_assignment`; this module adds only the web-only keys (`role`,
+`screening`, `pipeline`, `invite`), which are additive because Flutter ignores unknown
+keys. That is what lets one collection serve both clients.
 
-Two shape details that are not cosmetic. `type` is Flutter's `video | chat` bucket,
-which cannot express the web's six tracks, so the precise one rides in `mode` and the
-Dart model still parses. And `screening` omits absent keys entirely rather than writing
-`None`, because Firestore rejects an explicit `undefined` and a two-way invite has no
-question source at all.
+This module used to spell the frozen field names out itself, alongside its own
+`INTERVIEWS_COLLECTION` and its own `type`-from-`mode` mapping. Two modules
+independently knowing one schema is how the two clients drifted apart, so the second
+copy is gone: the track vocabulary, the `type`/`mode` derivation and the document shape
+all live in `app.interviews` now.
+
+One shape detail here that is not cosmetic: `screening` omits absent keys entirely
+rather than writing `None`, because Firestore rejects an explicit `undefined` and a
+two-way invite has no question source at all.
 """
 
 from __future__ import annotations
@@ -22,38 +26,18 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from app import interviews
 from app.config import Settings
-from app.firebase import get_db
 from app.web.services import invite_email_render
 
 logger = logging.getLogger("web.interview_invite")
 
-INTERVIEWS_COLLECTION = "interviews"
-
-# The web's tracks, and the label used in an interview's title.
-MODE_LABELS = {
-    "chatbot": "Chatbot",
-    "voice": "Voice",
-    "video_avatar": "Video Avatar",
-    "chat": "Timed Q&A",
-    "video": "Video Interview",
-    "two_way": "Two-way Interview",
-    "mcq": "MCQ Test",
-}
-
-# Which of Flutter's two buckets each track maps onto.
-_VIDEO_MODES = {"video_avatar", "video", "two_way"}
-
-DEFAULT_DURATION_MINUTES = 20
-
-
-def type_for_mode(mode: str) -> str:
-    """Flutter's `interviews.type`, which only knows video and chat."""
-    return "video" if mode in _VIDEO_MODES else "chat"
-
-
-def is_known_mode(mode: object) -> bool:
-    return isinstance(mode, str) and mode in MODE_LABELS
+# Re-exported so existing call sites keep reading naturally. The definitions — and
+# therefore the one place any of this can be wrong — are in `app.interviews`.
+MODE_LABELS = interviews.MODE_LABELS
+DEFAULT_DURATION_MINUTES = interviews.DEFAULT_DURATION_MINUTES
+type_for_mode = interviews.type_for_mode
+is_known_mode = interviews.is_known_mode
 
 
 def name_from_email(email: str) -> str:
@@ -82,14 +66,19 @@ def build_document(
     question_set_id: str | None = None,
     mcq_set_id: str | None = None,
     pipeline: dict | None = None,
+    allowed_devices: object = None,
     server_timestamp: object = None,
 ) -> dict:
     """The exact `interviews/{id}` document for one candidate. Pure.
 
+    The frozen half comes from `interviews.build_assignment`, which owns those field
+    names and derives `type` from `mode` so the two cannot disagree. Everything added
+    below is web-only and ignored by the Dart model.
+
     `server_timestamp` is injected so this stays testable — the caller passes
     Firestore's sentinel in production and a fixed value in a test.
     """
-    label = MODE_LABELS.get(mode, mode)
+    label = interviews.mode_label(mode)
 
     screening: dict = {}
     if source:
@@ -114,30 +103,20 @@ def build_document(
         screening["mcqSetId"] = mcq_set_id
 
     document = {
-        # ── the frozen Flutter schema, exact field names ──
-        "testId": test_id,
-        "recruiterId": recruiter_id,
-        "recruiterEmail": recruiter_email,
-        "recruiterName": recruiter_name,
-        "candidateEmail": candidate_email,
-        # Lowercased copy: assignment is matched on this, because the app never stores
-        # a candidate uid — the invite exists before they have an account.
-        "candidateEmailLower": candidate_email.lower(),
-        "candidateName": None,
-        "type": type_for_mode(mode),
-        "title": f"{role} — {label} interview",
-        "prompt": "",
-        "questions": questions,
-        "durationMinutes": DEFAULT_DURATION_MINUTES,
-        "status": "assigned",
-        "keyOverrides": {},
-        "maxAttempts": 1,
-        "attemptsUsed": 0,
-        "resultPublished": False,
-        "createdAt": server_timestamp,
-        "updatedAt": server_timestamp,
+        # ── the frozen schema, owned by app.interviews ──
+        **interviews.build_assignment(
+            test_id=test_id,
+            recruiter_id=recruiter_id,
+            recruiter_email=recruiter_email,
+            recruiter_name=recruiter_name,
+            candidate_email=candidate_email,
+            title=f"{role} — {label} interview",
+            mode=mode,
+            questions=questions,
+            allowed_devices=allowed_devices,
+            server_timestamp=server_timestamp,
+        ),
         # ── web-only, additive (Flutter ignores unknown keys) ──
-        "mode": mode,
         "role": role,
         "screening": screening,
     }
@@ -146,6 +125,82 @@ def build_document(
         document["pipeline"] = pipeline
 
     return document
+
+
+async def ensure_test_summary(
+    settings: Settings,
+    *,
+    test_id: str,
+    recruiter_id: str,
+    role: str,
+    mode: str,
+) -> bool:
+    """Record the `tests/{testId}` metadata document for a batch. Best-effort.
+
+    **Why this exists.** The mobile recruiter dashboard pages over the `tests`
+    collection, not `interviews` — a deliberate design, because grouping a thousand
+    assignments client-side to list a dozen batches was ruinous. Nothing on the web
+    surface ever wrote that document, so every batch created on the web was invisible
+    on the phone.
+
+    Mobile has a backfill that derives these from existing interviews, but it is
+    guarded on the tests list being EMPTY, so it never fires for the recruiter this
+    hurts most: one who already uses the app. Their web batches simply never appeared
+    until they found "Rebuild test list" by hand.
+
+    **Ordering: written BEFORE the assignments it describes.** The opposite order
+    risks the exact failure being fixed here — assignments that exist with no metadata
+    document are invisible on one client, and nobody reports a screen that looks
+    correctly empty. A metadata document with no assignments yet is the better failure:
+    it is visible, obviously wrong, and deletable.
+
+    **Never raises.** A dashboard index is not worth denying a recruiter their invites
+    for, and this is recoverable — mobile's "Rebuild test list" rebuilds it from the
+    assignments. Returns whether the write landed, so the caller can log the gap.
+
+    `merge=True` so the write is safe to repeat and never REPLACES a document — a
+    field another writer added (mobile's `upsertTest` records the same shape) survives.
+
+    It is not, however, "idempotent" in the stronger sense of leaving timestamps alone:
+    a repeat re-stamps `createdAt`. That is deliberate rather than overlooked. Avoiding
+    it needs a read-before-write — a round trip and a race — to defend against a case
+    the caller structurally prevents: every call site mints a fresh `uuid4()` test id,
+    so the only way to write the same one twice is retrying the same batch, where a
+    refreshed timestamp is harmless. If a caller ever appears that re-sends into an
+    EXISTING batch, this is the line to revisit, because the dashboard sorts on
+    `createdAt` and a reset would move the batch to the top.
+    """
+    import asyncio
+
+    from firebase_admin import firestore as admin_firestore
+
+    if not test_id or not recruiter_id:
+        return False
+
+    label = interviews.mode_label(mode)
+    summary = interviews.build_test_summary(
+        recruiter_id=recruiter_id,
+        title=f"{role} — {label} interview",
+        mode=mode,
+        server_timestamp=admin_firestore.SERVER_TIMESTAMP,
+    )
+
+    def _write() -> None:
+        interviews.tests_collection(settings).document(test_id).set(
+            summary, merge=True
+        )
+
+    try:
+        await asyncio.to_thread(_write)
+        return True
+    except Exception as exc:  # noqa: BLE001 - never block a batch for its index
+        logger.error(
+            "could not write tests/%s metadata (batch still created; mobile's "
+            "'Rebuild test list' will recover it): %s",
+            test_id,
+            exc,
+        )
+        return False
 
 
 def interview_link(origin: str, interview_id: str) -> str:
@@ -289,6 +344,10 @@ async def send_invite_email(
     )
 
 
-def interviews(settings: Settings):
-    """The shared `interviews` collection — the same one the Flutter app reads."""
-    return get_db(settings).collection(INTERVIEWS_COLLECTION)
+def interviews_collection(settings: Settings):
+    """The shared `interviews` collection — the same one the Flutter app reads.
+
+    A thin delegate: `app.interviews` owns the collection name, so there is no second
+    place for the string to be wrong in.
+    """
+    return interviews.collection(settings)

@@ -345,7 +345,7 @@ class AnalyticsService {
       counts[id] = (counts[id] ?? 0) + 1;
       labelFor.putIfAbsent(id, () {
         final t = i.title.trim();
-        return t.isEmpty ? 'Untitled test' : t;
+        return t.isEmpty ? 'Untitled pipeline' : t;
       });
     }
     final out = [

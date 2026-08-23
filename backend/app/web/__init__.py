@@ -28,7 +28,9 @@ from app.web.routes import (
     leads,
     pipelines,
     mcq_sets,
+    outcomes,
     question_sets,
+    rounds as rounds_routes,
     sessions,
     sessions_avatar,
     sessions_chat,
@@ -67,7 +69,9 @@ _MODULES = (
     voices,
     templates,
     mcq_sets,
+    outcomes,
     question_sets,
+    rounds_routes,
     sessions,
     # The session sub-tracks add paths under the same prefix. No path is a prefix of
     # another, so order between them does not matter — the core lifecycle stays first

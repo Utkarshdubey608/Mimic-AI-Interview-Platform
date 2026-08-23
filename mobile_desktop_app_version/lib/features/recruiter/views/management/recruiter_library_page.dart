@@ -6,15 +6,17 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/design_tokens.dart';
 import 'package:talbotiq/core/utils/desktop_platform.dart';
 import 'package:talbotiq/shared/widgets/desktop_card.dart';
 import 'package:talbotiq/shared/widgets/desktop_page_container.dart';
 import 'package:talbotiq/shared/widgets/responsive_grid.dart';
 import 'package:talbotiq/shared/widgets/section_header.dart';
 import 'package:talbotiq/features/recruiter/views/widgets/recruiter_ui.dart';
-import 'gemini_model_page.dart';
 import 'generate_from_resume_page.dart';
 import 'personas_page.dart';
+import 'mcq_sets_page.dart';
 import 'question_sets_page.dart';
 import 'replicas_page.dart';
 import 'templates_page.dart';
@@ -24,11 +26,17 @@ class _LibrarySection {
   final String title;
   final String subtitle;
   final WidgetBuilder pageBuilder;
+
+  /// The pastel tinting this row's icon chip. One per section, so the list is
+  /// scannable by colour without any row becoming a coloured block.
+  final Color tint;
+
   const _LibrarySection({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.pageBuilder,
+    required this.tint,
   });
 }
 
@@ -38,43 +46,50 @@ const _sections = [
     title: 'Templates',
     subtitle: 'Reusable interview configurations and scoring rubrics.',
     pageBuilder: _templatesPage,
+    tint: AppColors.pastelCyanText,
   ),
   _LibrarySection(
     icon: Icons.list_alt_outlined,
     title: 'Question sets',
     subtitle: 'Reusable fixed questions with categories and ideal-answer notes.',
     pageBuilder: _questionSetsPage,
+    tint: AppColors.pastelLavenderText,
+  ),
+  _LibrarySection(
+    icon: Icons.fact_check_outlined,
+    title: 'Assessments',
+    subtitle:
+        'Multiple-choice papers. Scored exactly, with no model in the loop.',
+    pageBuilder: _mcqSetsPage,
+    tint: AppColors.pastelMintText,
   ),
   _LibrarySection(
     icon: Icons.auto_awesome_outlined,
     title: 'Generate from résumé',
     subtitle: 'Upload a candidate PDF and generate a tailored question set.',
     pageBuilder: _generateFromResumePage,
-  ),
-  _LibrarySection(
-    icon: Icons.tune_outlined,
-    title: 'AI model',
-    subtitle: 'Choose the Gemini model (Flash / Pro).',
-    pageBuilder: _geminiModelPage,
+    tint: AppColors.blockPeach,
   ),
   _LibrarySection(
     icon: Icons.face_retouching_natural_outlined,
     title: 'Personas',
     subtitle: 'Interviewer personalities on your Tavus account.',
     pageBuilder: _personasPage,
+    tint: AppColors.pastelPeach,
   ),
   _LibrarySection(
     icon: Icons.smart_display_outlined,
     title: 'Replicas',
     subtitle: 'Avatars available on your Tavus account.',
     pageBuilder: _replicasPage,
+    tint: AppColors.pastelCyanText,
   ),
 ];
 
 Widget _templatesPage(BuildContext _) => const TemplatesPage();
 Widget _questionSetsPage(BuildContext _) => const QuestionSetsPage();
+Widget _mcqSetsPage(BuildContext _) => const McqSetsPage();
 Widget _generateFromResumePage(BuildContext _) => const GenerateFromResumePage();
-Widget _geminiModelPage(BuildContext _) => const GeminiModelPage();
 Widget _personasPage(BuildContext _) => const PersonasPage();
 Widget _replicasPage(BuildContext _) => const ReplicasPage();
 
@@ -89,34 +104,46 @@ class RecruiterLibraryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isDesktopPlatform) return _buildDesktop(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Manage')),
+    return RecruiterScaffold(
+      appBar: AppBar(title: const Text('Library')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
             const RecruiterPageHeader(
               kicker: 'Recruiter',
-              title: 'Management',
+              title: 'Library',
               subtitle:
                   'Reusable configuration for how roles are interviewed and '
                   'scored.',
             ),
             const SizedBox(height: 20),
-            for (final s in _sections)
-              _HubTile(
-                icon: s.icon,
-                title: s.title,
-                subtitle: s.subtitle,
-                onTap: () => _open(context, s),
+            // Thin-separated rows inside one panel — the reference's folder
+            // list — rather than a card per destination.
+            RecruiterPanel(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+              child: Column(
+                children: [
+                  for (var k = 0; k < _sections.length; k++) ...[
+                    if (k > 0) const RecruiterRowSeparator(),
+                    RecruiterListRow(
+                      icon: _sections[k].icon,
+                      iconColor: _sections[k].tint,
+                      title: _sections[k].title,
+                      subtitle: _sections[k].subtitle,
+                      onTap: () => _open(context, _sections[k]),
+                    ),
+                  ],
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  /// Same six destinations as mobile, same navigation targets — just a
+  /// The same destinations as mobile, same navigation targets — just a
   /// compact grid instead of tall full-width rows, since a desktop window
   /// has the horizontal room for it and drilling through a single-column
   /// list is a phone-navigation pattern.
@@ -157,7 +184,7 @@ class _LibraryGridTile extends StatelessWidget {
     final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(20),
       child: DesktopCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,55 +216,3 @@ class _LibraryGridTile extends StatelessWidget {
   }
 }
 
-class _HubTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _HubTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: RecruiterPanel(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
-          ],
-        ),
-      ),
-    );
-  }
-}

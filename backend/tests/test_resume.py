@@ -88,6 +88,26 @@ def gemini_text_response(text: str) -> httpx.Response:
     )
 
 
+def gemini_truncated_response(text: str) -> httpx.Response:
+    """A 200 whose generation ran out of `maxOutputTokens` part-way through.
+
+    The shape that broke scoring in production: HTTP 200, a real text part, and
+    no closing brace — because thinking tokens had eaten the answer's budget.
+    """
+    return httpx.Response(
+        200,
+        json={
+            "candidates": [
+                {
+                    "content": {"parts": [{"text": text}]},
+                    "finishReason": "MAX_TOKENS",
+                }
+            ],
+            "usageMetadata": {"thoughtsTokenCount": 1874},
+        },
+    )
+
+
 @pytest.fixture
 def client(monkeypatch):
     app = create_app()
@@ -279,8 +299,21 @@ def test_the_score_is_mirrored_onto_the_canonical_result_map(client):
     assert result["recommendation"] == "Recommended"
     assert result["evaluatedBy"] == "ai"
     assert result["improvements"] == ["No Kotlin evidence"]
-    assert result["detail"]["kind"] == "resume"
-    assert result["detail"]["resumeScore"]["skills"][0]["name"] == "Flutter"
+
+    # No `detail` block. It used to carry `{"kind": "resume", "resumeScore": score}`,
+    # which was a verbatim copy of `resume.score` on the same document — two copies of
+    # one breakdown, and nothing read the second.
+    assert "detail" not in result
+
+
+def test_the_full_breakdown_is_kept_once_under_resume(client):
+    """Dropping `result.detail` lost nothing: this is where it always also lived."""
+    post_score(client)
+    saved = client.state["saved"][0]["resume"]
+
+    assert saved["score"]["skills"][0]["name"] == "Flutter"
+    assert saved["score"]["overallScore"] == 78
+    assert saved["score"]["model"], "provenance — which model produced this"
 
 
 def test_the_stored_text_is_capped(client):
@@ -358,6 +391,65 @@ def test_malformed_json_from_the_scorer_is_502_and_stores_nothing(client):
     response = post_score(client)
     assert response.status_code == 502
     assert not client.state["saved"], "a bad generation must not be stored"
+
+
+def test_neither_call_spends_its_answer_budget_on_thinking(client):
+    """THE BUG: Gemini 2.5 Flash thinks by default and thinking tokens come out
+    of `maxOutputTokens`, so ~1800 of the 3000 went on reasoning and the JSON
+    arrived unfinished — a 200 that scored as a 502. Both calls now pin the
+    budget to zero, and both sizes are checked because the schema's own caps
+    could not fit in the old 3000 even with thinking off."""
+    post_score(client)
+    post_extract(client)
+    scoring, extraction = (
+        client.state["sent"][0]["generationConfig"],
+        client.state["sent"][1]["generationConfig"],
+    )
+
+    assert scoring["thinkingConfig"] == {"thinkingBudget": 0}
+    assert extraction["thinkingConfig"] == {"thinkingBudget": 0}
+    # Sized from what the OUTPUT can be: 20 skills of capped evidence plus a
+    # summary is ~3900 tokens, and a MAX_RESUME_CHARS transcript is ~8600.
+    assert scoring["maxOutputTokens"] >= 8000
+    assert extraction["maxOutputTokens"] >= 12_000
+
+
+def test_a_scorer_cut_off_mid_json_is_502_and_says_it_was_cut_off(client):
+    """Reported as truncation, not as "malformed": one is a budget and the other
+    would be a model fault, and calling the first the second sends whoever is
+    debugging it looking for a parser bug."""
+    partial = json.dumps(GOOD_SCORE)[:-40]
+    client.state["response"] = gemini_truncated_response(partial)
+
+    response = post_score(client)
+
+    assert response.status_code == 502
+    assert "cut off" in response.json()["detail"]
+    assert not client.state["saved"], "a half-scored résumé must not be stored"
+
+
+def test_a_truncated_transcript_is_refused_rather_than_scored(client):
+    """The worse half of the same bug: half a résumé still looks like a résumé,
+    so it would have been scored — and shown to the recruiter — as the whole
+    thing. Nothing about the text itself says it was cut off."""
+    client.state["response"] = gemini_truncated_response(
+        "Casey — Flutter engineer. Built and shipped"
+    )
+
+    response = post_extract(client)
+
+    assert response.status_code == 422
+    assert "too long" in response.json()["detail"]
+
+
+def test_a_complete_generation_is_not_mistaken_for_a_truncated_one(client):
+    """`finishReason: STOP` is the normal case and must stay unaffected — and so
+    must a response that carries no finishReason at all, which is what every
+    existing test in this file sends."""
+    assert resume.finish_reason({"candidates": [{"finishReason": "STOP"}]}) == "STOP"
+    assert resume.finish_reason({"candidates": [{}]}) == ""
+    assert resume.finish_reason({}) == ""
+    assert post_score(client).status_code == 200
 
 
 def test_a_blocked_generation_with_no_text_is_502(client):

@@ -21,6 +21,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'package:talbotiq/core/net/live_token.dart';
 import 'package:talbotiq/core/services/gemini_live_service.dart';
+import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/theme/status_tones.dart';
 
 class VoiceStage extends StatefulWidget {
   /// A backend-minted token for this one session.
@@ -53,7 +55,7 @@ class VoiceStage extends StatefulWidget {
     super.key,
     required this.grant,
     this.personaName = 'AI Interviewer',
-    this.companyName = 'TalbotIQ',
+    this.companyName = 'Mimic',
     this.maxDuration,
     this.onFinished,
   });
@@ -307,7 +309,7 @@ class _VoiceStageState extends State<VoiceStage>
               const SizedBox(height: 20),
               OutlinedButton(
                 onPressed: openAppSettings,
-                child: const Text('Open Settings'),
+                child: const Text('Open settings'),
               ),
               const SizedBox(height: 8),
               TextButton(
@@ -648,7 +650,9 @@ class _LiveDot extends StatelessWidget {
       height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: connecting ? Colors.amber : Colors.green,
+        color: connecting
+            ? StatusTone.pending(context)
+            : StatusTone.ready(context),
       ),
     );
   }
@@ -668,7 +672,7 @@ class _Orb extends StatelessWidget {
         state == GeminiLiveState.greeting;
     final listening = state == GeminiLiveState.listening;
     final color =
-        listening ? Colors.green : (speaking ? scheme.primary : scheme.outline);
+        listening ? StatusTone.ready(context) : (speaking ? scheme.primary : scheme.outline);
 
     return SizedBox(
       width: 200,

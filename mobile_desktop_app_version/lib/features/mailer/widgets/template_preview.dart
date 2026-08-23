@@ -52,8 +52,8 @@ class TemplatePreview extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(12),
+            color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,11 +75,11 @@ class TemplatePreview extends StatelessWidget {
         const SizedBox(height: 12),
         Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
-                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+                borderRadius: BorderRadius.circular(16),
                 color: Colors.white,
               ),
               child: isHtml

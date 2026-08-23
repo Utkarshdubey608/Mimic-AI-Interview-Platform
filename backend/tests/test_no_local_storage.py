@@ -152,4 +152,9 @@ def test_the_web_store_knows_the_high_write_collections() -> None:
     for name in ("sessions", "reports", "voice_jobs", "leads", "settings"):
         collection = getattr(store, name, None)
         assert collection is not None, name
-        assert collection.name.startswith(PREFIX), name
+        # `reports` is the shared collection now, not `web_reports` — both clients
+        # display reports, so a web-only store made the mobile app unable to show one
+        # for an interview taken in a browser. What this test actually cares about is
+        # unchanged: it is a Firestore collection, so the write path is not disk.
+        if name != "reports":
+            assert collection.name.startswith(PREFIX), name

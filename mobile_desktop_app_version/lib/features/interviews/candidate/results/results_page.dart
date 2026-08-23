@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart'; // for clipboard
 
+import 'package:talbotiq/features/interviews/shared/launch_payload.dart';
 import 'package:talbotiq/shared/models/app_models.dart';
 import 'package:talbotiq/shared/providers/app_store.dart';
 import 'package:talbotiq/core/services/gemini_service.dart';
@@ -19,6 +20,7 @@ import 'package:talbotiq/features/interviews/candidate/results/widgets/ats_asses
 import 'package:talbotiq/features/interviews/candidate/results/widgets/dimension_scores_panel.dart';
 import 'package:talbotiq/features/interviews/candidate/results/widgets/strengths_watchpoints_panel.dart';
 import 'package:talbotiq/features/interviews/candidate/results/widgets/results_stats_widgets.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 class ResultsPage extends StatefulWidget {
   const ResultsPage({super.key});
@@ -216,7 +218,7 @@ class _ResultsPageState extends State<ResultsPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Unable to fetch transcript from Tavus: $e'),
-              backgroundColor: Colors.amber,
+              backgroundColor: AppColors.pastelPeach,
             ),
           );
         }
@@ -260,7 +262,7 @@ class _ResultsPageState extends State<ResultsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unable to transcribe recording: $e'),
-            backgroundColor: Colors.amber,
+            backgroundColor: AppColors.pastelPeach,
           ),
         );
       }
@@ -292,8 +294,8 @@ class _ResultsPageState extends State<ResultsPage> {
     try {
       final scorecard = await geminiService.analyze(
         candidateName:
-            (store.currentConversation?.conversationName ?? 'Candidate')
-                .replaceAll('TalbotIQ — ', ''),
+            stripConversationPrefix(
+                store.currentConversation?.conversationName ?? 'Candidate'),
         jobRole: store.activeInterviewRole,
         interviewDurationSeconds: store.activeInterviewDurationSeconds > 0
             ? store.activeInterviewDurationSeconds
@@ -324,8 +326,8 @@ class _ResultsPageState extends State<ResultsPage> {
         InterviewResult(
           id: 'res-${DateTime.now().millisecondsSinceEpoch}',
           conversationId: store.currentConversation?.conversationId ?? '',
-          name: (store.currentConversation?.conversationName ?? 'Interview')
-              .replaceAll('TalbotIQ — ', ''),
+          name: stripConversationPrefix(
+              store.currentConversation?.conversationName ?? 'Interview'),
           createdAt: DateTime.now().toIso8601String(),
           score: score,
           wpm: store.wpm,
@@ -355,10 +357,10 @@ class _ResultsPageState extends State<ResultsPage> {
 
   /// Maps composite score to verbal candidate fit verdict.
   String _getScoreVerdict(int score) {
-    if (score >= 85) return 'Excellent Candidate';
-    if (score >= 70) return 'Good Candidate';
-    if (score >= 60) return 'Potential Candidate';
-    return 'Needs Further Review';
+    if (score >= 85) return 'Excellent candidate';
+    if (score >= 70) return 'Good candidate';
+    if (score >= 60) return 'Potential candidate';
+    return 'Needs further review';
   }
 
   /// Copies text report summary to system clipboard.
@@ -370,7 +372,7 @@ class _ResultsPageState extends State<ResultsPage> {
   ) {
     final theme = Theme.of(context);
     final text =
-        'TalbotIQ Report — Score: $score/100 — $verdict — Session: ${jobId ?? 'TIQ-demo'}';
+        'Mimic report — Score: $score/100 — $verdict — Session: ${jobId ?? 'TIQ-demo'}';
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -401,7 +403,7 @@ class _ResultsPageState extends State<ResultsPage> {
                     size: 20, color: theme.colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Interview Transcript',
+                  'Interview transcript',
                   style: theme.textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
@@ -480,7 +482,7 @@ class _ResultsPageState extends State<ResultsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Recruiter Actions',
+              'Recruiter actions',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -491,11 +493,11 @@ class _ResultsPageState extends State<ResultsPage> {
               runSpacing: 12,
               children: [
                 CustomButton(
-                  text: 'Schedule Technical Interview',
+                  text: 'Schedule technical interview',
                   onPressed: () => setState(() => _scheduleOpen = true),
                 ),
                 CustomButton(
-                  text: 'Share Profile Summary',
+                  text: 'Share profile summary',
                   variant: ButtonVariant.secondary,
                   onPressed: () =>
                       _shareProfile(context, overallScore, verdict, jobId),
@@ -506,7 +508,7 @@ class _ResultsPageState extends State<ResultsPage> {
                   onPressed: () => setState(() => _offerOpen = true),
                 ),
                 CustomButton(
-                  text: 'New Interview Session',
+                  text: 'New session',
                   variant: ButtonVariant.ghost,
                   onPressed: () {
                     final store = Provider.of<AppStore>(context, listen: false);
@@ -631,7 +633,7 @@ class _ResultsPageState extends State<ResultsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Interview Complete',
+                                'Interview complete',
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.bold,
@@ -641,7 +643,7 @@ class _ResultsPageState extends State<ResultsPage> {
                               const SizedBox(height: 6),
                               Text(
                                 store.currentConversation?.conversationName ??
-                                    'Interview Assessment',
+                                    'Interview assessment',
                                 style: theme.textTheme.headlineLarge?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -680,7 +682,7 @@ class _ResultsPageState extends State<ResultsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Interview Complete',
+                                      'Interview complete',
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
                                             color: theme.colorScheme.primary,
@@ -693,7 +695,7 @@ class _ResultsPageState extends State<ResultsPage> {
                                       store
                                               .currentConversation
                                               ?.conversationName ??
-                                          'Interview Assessment',
+                                          'Interview assessment',
                                       style: theme.textTheme.headlineLarge
                                           ?.copyWith(
                                             fontWeight: FontWeight.w700,
@@ -737,7 +739,7 @@ class _ResultsPageState extends State<ResultsPage> {
                     GridPaperResult(
                       children: [
                         StatCard(
-                          label: 'Overall Score',
+                          label: 'Overall score',
                           value: resolvedScore != null
                               ? '$overallScore/100'
                               : 'N/A',
@@ -745,7 +747,7 @@ class _ResultsPageState extends State<ResultsPage> {
                           subTitle: verdict,
                         ),
                         StatCard(
-                          label: 'Hiring Confidence',
+                          label: 'Hiring confidence',
                           value: resolvedScore != null
                               ? '$overallScore%'
                               : 'N/A',
@@ -761,7 +763,7 @@ class _ResultsPageState extends State<ResultsPage> {
                           subTitle: 'Nova-3 speech pace',
                         ),
                         StatCard(
-                          label: 'Total Fillers',
+                          label: 'Total fillers',
                           value: '${store.fillers}',
                           valueColor: store.fillers <= 4
                               ? theme.colorScheme.primary
@@ -787,7 +789,7 @@ class _ResultsPageState extends State<ResultsPage> {
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'Overall Score',
+                                  'Overall score',
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),

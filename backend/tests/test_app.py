@@ -277,3 +277,17 @@ def test_api_key_is_enforced_when_set(monkeypatch):
 
     assert client.get("/api/templates").status_code == 401
     assert client.get("/api/templates", headers={"X-API-Key": "secret"}).status_code == 200
+
+
+def test_the_template_collection_has_one_name() -> None:
+    """`Settings.templates_collection` and `templates_store.TEMPLATES_COLLECTION`.
+
+    Two definitions because of an import cycle — `templates_store` imports `config` —
+    so they are asserted equal here instead. The web store reaches the collection
+    through the constant while the mobile surface goes through Settings, and a drift
+    between them would silently split the shared store back into two.
+    """
+    from app import templates_store
+    from app.config import Settings
+
+    assert Settings().templates_collection == templates_store.TEMPLATES_COLLECTION

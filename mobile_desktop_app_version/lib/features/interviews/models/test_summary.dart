@@ -20,12 +20,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 
 class TestSummary {
+  /// Bump when the denormalised dashboard title needs rebuilding. Version 1
+  /// summaries were incorrectly derived from an assignment's round title.
+  static const int titleSchemaVersion = 2;
+
   /// Document id, equal to the `testId` shared by this batch's interviews.
   final String testId;
   final String recruiterId;
   final String title;
   final InterviewType type;
   final DateTime? createdAt;
+  final int titleVersion;
 
   const TestSummary({
     required this.testId,
@@ -33,6 +38,7 @@ class TestSummary {
     required this.title,
     required this.type,
     required this.createdAt,
+    this.titleVersion = titleSchemaVersion,
   });
 
   factory TestSummary.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -43,6 +49,7 @@ class TestSummary {
       title: (d['title'] as String?) ?? 'Interview',
       type: InterviewTypeX.fromWire(d['type'] as String?),
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      titleVersion: (d['titleVersion'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -51,7 +58,9 @@ class TestSummary {
   factory TestSummary.fromInterview(Interview i) => TestSummary(
         testId: i.testId.isNotEmpty ? i.testId : i.id,
         recruiterId: i.recruiterId,
-        title: i.title,
+        // Timeline assignments use `title` for their individual round. The
+        // dashboard must always name the test/pipeline that owns that round.
+        title: i.displayTestTitle,
         type: i.type,
         createdAt: i.createdAt,
       );
@@ -62,6 +71,7 @@ class TestSummary {
         'recruiterId': recruiterId,
         'title': title,
         'type': type.wire,
+        'titleVersion': titleSchemaVersion,
         // Fall back to the server clock when the source interview had no
         // timestamp yet (a pending serverTimestamp write reads back null).
         'createdAt': createdAt != null

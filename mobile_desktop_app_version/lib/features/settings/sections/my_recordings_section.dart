@@ -199,7 +199,7 @@ class _MyRecordingsSectionState extends State<MyRecordingsSection> {
     final recordings = store.recordings;
 
     return AppleSectionCard(
-      title: 'My Recordings',
+      title: 'My recordings',
       subtitle: 'Interview audio is kept only on this device.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

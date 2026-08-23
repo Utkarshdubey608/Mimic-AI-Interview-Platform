@@ -74,6 +74,45 @@ enum GeminiLiveState {
 /// Who a caption line belongs to.
 enum CaptionRole { interviewer, candidate }
 
+/// Identifies interviewer audio leaking from a phone speaker into the mic.
+/// Gemini labels all input transcription as the user, so without this guard a
+/// repeated interviewer question becomes a candidate answer.
+bool isLikelyInterviewerPlaybackEcho(String input, String interviewer) {
+  List<String> tokens(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .toList();
+
+  final heard = tokens(input);
+  final spoken = tokens(interviewer);
+  // Never suppress ordinary acknowledgements such as "yes" or "sounds good".
+  if (heard.length < 4 || spoken.length < 4) return false;
+  if (heard.length <= 6 &&
+      heard.any(
+        const {
+          'yes',
+          'yeah',
+          'yep',
+          'ready',
+          'sure',
+          'okay',
+          'ok',
+          'absolutely',
+        }.contains,
+      )) {
+    return false;
+  }
+  final heardText = heard.join(' ');
+  final spokenText = spoken.join(' ');
+  if (spokenText.contains(heardText)) return true;
+
+  final overlap = heard.toSet().intersection(spoken.toSet()).length;
+  // Live ASR often gives us only a fragment of the echoed question.
+  return overlap / heard.length >= 0.85;
+}
+
 /// Ping-pong playback state for the "idle" (non-active) player — see
 /// [GeminiLiveService._advance].
 enum _IdleClipState { none, preparing, ready }
@@ -127,7 +166,7 @@ class GeminiLiveService {
   /// interview is finalized gracefully (mirrors voice.ts's idle watchdog).
   GeminiLiveService({
     this.maxDuration = const Duration(minutes: 18),
-    this.idleTimeout = const Duration(seconds: 45),
+    this.idleTimeout = const Duration(seconds: 90),
   });
 
   /// Hard wall-clock cap on the whole interview (see [GeminiLiveService]).
@@ -249,6 +288,13 @@ class GeminiLiveService {
   final StringBuffer _pendingInterviewer = StringBuffer();
   final StringBuffer _pendingCandidate = StringBuffer();
 
+  // Echo can reach the recorder shortly after the output queue has drained.
+  String _lastInterviewerText = '';
+  DateTime? _lastInterviewerAudioAt;
+  static const _echoGraceWindow = Duration(milliseconds: 1200);
+  DateTime? _playbackEndedAt;
+  static const _micEchoGateTail = Duration(milliseconds: 500);
+
   // Per-turn PCM24k output accumulator. Chunks are cut into ~0.5s WAV segments
   // as they arrive (see _enqueueAudio) rather than buffered for the whole
   // turn, so the interviewer starts speaking well before the full reply has
@@ -338,6 +384,14 @@ class GeminiLiveService {
   /// capture pipelines.
   void sendAudioChunk(Uint8List pcm16) {
     if (_disposed || _muted || !_setupComplete) return;
+    // Do not forward the microphone while the interviewer is audible. On many
+    // phones the generic recorder/player pair cannot share hardware AEC, so
+    // forwarding here sends the interviewer's own PCM back to Gemini as the
+    // candidate. A short tail lets the room acoustics settle before listening.
+    final playbackJustEnded =
+        _playbackEndedAt != null &&
+        DateTime.now().difference(_playbackEndedAt!) < _micEchoGateTail;
+    if (_hasPendingAudio || playbackJustEnded) return;
     final channel = _channel;
     if (channel == null) return;
     final b64 = base64Encode(pcm16);
@@ -351,10 +405,7 @@ class GeminiLiveService {
     _sendJson({
       'realtimeInput': {
         'mediaChunks': [
-          {
-            'mimeType': 'audio/pcm;rate=$_inputSampleRate',
-            'data': b64,
-          },
+          {'mimeType': 'audio/pcm;rate=$_inputSampleRate', 'data': b64},
         ],
       },
     });
@@ -375,8 +426,10 @@ class GeminiLiveService {
       if (peak > _micPeak) _micPeak = peak;
       // Roughly once a second at 16 kHz mono.
       if (_micChunks % 30 == 0) {
-        debugPrint('debug[live]: mic chunks=$_micChunks bytes=$_micBytes '
-            'peak=$_micPeak/32767 muted=$_muted');
+        debugPrint(
+          'debug[live]: mic chunks=$_micChunks bytes=$_micBytes '
+          'peak=$_micPeak/32767 muted=$_muted',
+        );
         _micPeak = 0;
       }
     }
@@ -460,9 +513,7 @@ class GeminiLiveService {
   /// fields here has no effect and would falsely imply the client is in control.
   void _sendSetup({required String model}) {
     _sendJson({
-      'setup': {
-        'model': model.startsWith('models/') ? model : 'models/$model',
-      },
+      'setup': {'model': model.startsWith('models/') ? model : 'models/$model'},
     });
   }
 
@@ -552,32 +603,56 @@ class GeminiLiveService {
     final outT = sc['outputTranscription'];
     if (outT is Map && outT['text'] is String) {
       _pendingInterviewer.write(outT['text']);
-      _emit(GeminiLiveCaption(
-        CaptionRole.interviewer,
-        _pendingInterviewer.toString(),
-        false,
-      ));
+      _lastInterviewerText = _pendingInterviewer.toString();
+      _lastInterviewerAudioAt = DateTime.now();
+      _emit(
+        GeminiLiveCaption(
+          CaptionRole.interviewer,
+          _pendingInterviewer.toString(),
+          false,
+        ),
+      );
     }
+    var inputWasPlaybackEcho = false;
     final inT = sc['inputTranscription'];
     if (inT is Map && inT['text'] is String) {
-      _pendingCandidate.write(inT['text']);
-      // The candidate is speaking -> it's their turn.
-      _emitState(GeminiLiveState.listening);
-      // Candidate produced speech -> the call is NOT idle. Reset the watchdog
-      // so a long/thoughtful answer is never cut off mid-sentence. (We key the
-      // watchdog off VAD-detected speech captions, not raw mic chunks, since the
-      // mic streams continuously and would otherwise never let it expire.)
-      _armIdleWatchdog();
-      _emit(GeminiLiveCaption(
-        CaptionRole.candidate,
-        _pendingCandidate.toString(),
-        false,
-      ));
+      final fragment = inT['text'] as String;
+      final outputWasRecentlyAudible =
+          _hasPendingAudio ||
+          (_lastInterviewerAudioAt != null &&
+              DateTime.now().difference(_lastInterviewerAudioAt!) <=
+                  _echoGraceWindow);
+      inputWasPlaybackEcho =
+          outputWasRecentlyAudible &&
+          isLikelyInterviewerPlaybackEcho(fragment, _lastInterviewerText);
+      if (inputWasPlaybackEcho) {
+        if (kDebugMode) {
+          debugPrint('debug[live]: ignored interviewer playback in input ASR');
+        }
+      } else {
+        _pendingCandidate.write(fragment);
+        // The candidate is speaking -> it's their turn.
+        _emitState(GeminiLiveState.listening);
+        // Candidate produced speech -> the call is NOT idle. Reset the watchdog
+        // so a long/thoughtful answer is never cut off mid-sentence. (We key the
+        // watchdog off VAD-detected speech captions, not raw mic chunks, since the
+        // mic streams continuously and would otherwise never let it expire.)
+        _armIdleWatchdog();
+        _emit(
+          GeminiLiveCaption(
+            CaptionRole.candidate,
+            _pendingCandidate.toString(),
+            false,
+          ),
+        );
+      }
     }
 
     // 3) Barge-in: candidate interrupted the interviewer. Drop buffered/playing
     //    interviewer audio and its partial caption.
-    if (sc['interrupted'] == true) {
+    // Gemini may pair `interrupted` with the echoed input frame. The source of
+    // that barge-in is our own playback, so do not cut the interviewer off.
+    if (sc['interrupted'] == true && !inputWasPlaybackEcho) {
       _pendingInterviewer.clear();
       _outBuffer.clear();
       _turnAudioComplete = true;
@@ -690,13 +765,17 @@ class GeminiLiveService {
         return;
       }
       if (kDebugMode) {
-        debugPrint('debug[live]: mic stream started '
-            '(pcm16 ${_inputSampleRate}Hz mono)');
+        debugPrint(
+          'debug[live]: mic stream started '
+          '(pcm16 ${_inputSampleRate}Hz mono)',
+        );
       }
       _micSub = stream.listen(
         sendAudioChunk,
         onError: (Object e, StackTrace _) {
-          if (kDebugMode) debugPrint('debug[live]: mic stream error: $e');
+          // Continuing after a capture failure creates a live-looking session
+          // which can only submit silence after the idle timeout.
+          _fail('Microphone capture stopped: $e');
         },
         cancelOnError: false,
       );
@@ -749,7 +828,6 @@ class GeminiLiveService {
           options: const {
             AVAudioSessionOptions.defaultToSpeaker,
             AVAudioSessionOptions.allowBluetooth,
-            AVAudioSessionOptions.mixWithOthers,
           },
         ),
       );
@@ -794,8 +872,9 @@ class GeminiLiveService {
 
   void _ensurePlayerListeners() {
     for (var i = 0; i < _players.length; i++) {
-      _playerCompleteSubs[i] ??=
-          _players[i].onPlayerComplete.listen((_) => _onPlayerComplete(i));
+      _playerCompleteSubs[i] ??= _players[i].onPlayerComplete.listen(
+        (_) => _onPlayerComplete(i),
+      );
     }
   }
 
@@ -827,11 +906,13 @@ class GeminiLiveService {
         _idleState = _IdleClipState.none;
         _activePlayer = 1 - _activePlayer;
         _playing = true;
-        unawaited(_players[_activePlayer].resume().catchError((e) {
-          if (kDebugMode) debugPrint('debug[live]: resume failed: $e');
-          _playing = false;
-          _advance();
-        }));
+        unawaited(
+          _players[_activePlayer].resume().catchError((e) {
+            if (kDebugMode) debugPrint('debug[live]: resume failed: $e');
+            _playing = false;
+            _advance();
+          }),
+        );
         _advance(); // opportunistically start preparing the new idle slot
         return;
       }
@@ -855,21 +936,24 @@ class GeminiLiveService {
     final wav = _clipQueue.removeAt(0);
     final gen = _playbackGeneration;
     final idle = _players[1 - _activePlayer];
-    idle.setSourceBytes(wav, mimeType: 'audio/wav').then((_) {
-      if (_disposed || gen != _playbackGeneration) return;
-      _idleState = _IdleClipState.ready;
-      // The active player may have already finished while this was
-      // preparing — advance() now promotes it if so.
-      _advance();
-    }).catchError((e) {
-      if (kDebugMode) debugPrint('debug[live]: idle prepare failed: $e');
-      if (_disposed || gen != _playbackGeneration) return;
-      _idleState = _IdleClipState.none;
-      // Don't drop the audio — put it back and let the (slower) cold-start
-      // path pick it up once the active player finishes.
-      _clipQueue.insert(0, wav);
-      _advance();
-    });
+    idle
+        .setSourceBytes(wav, mimeType: 'audio/wav')
+        .then((_) {
+          if (_disposed || gen != _playbackGeneration) return;
+          _idleState = _IdleClipState.ready;
+          // The active player may have already finished while this was
+          // preparing — advance() now promotes it if so.
+          _advance();
+        })
+        .catchError((e) {
+          if (kDebugMode) debugPrint('debug[live]: idle prepare failed: $e');
+          if (_disposed || gen != _playbackGeneration) return;
+          _idleState = _IdleClipState.none;
+          // Don't drop the audio — put it back and let the (slower) cold-start
+          // path pick it up once the active player finishes.
+          _clipQueue.insert(0, wav);
+          _advance();
+        });
   }
 
   Future<void> _startActive(Uint8List wav) async {
@@ -879,6 +963,8 @@ class GeminiLiveService {
     } catch (e) {
       _playing = false;
       if (kDebugMode) debugPrint('debug[live]: playback failed: $e');
+      // A failed chunk must not strand the rest of the interview audio.
+      _advance();
     }
   }
 
@@ -898,6 +984,7 @@ class GeminiLiveService {
     // Nothing queued, nothing in flight, AND the model finished the turn ->
     // candidate's turn.
     if (!_finished && _turnAudioComplete) {
+      _playbackEndedAt = DateTime.now();
       _emitState(GeminiLiveState.listening);
     }
   }

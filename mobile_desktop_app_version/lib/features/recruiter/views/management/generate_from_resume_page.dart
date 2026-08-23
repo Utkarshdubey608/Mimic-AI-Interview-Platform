@@ -169,14 +169,16 @@ class _GenerateFromResumePageState extends State<GenerateFromResumePage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
+    return RecruiterScaffold(
       appBar: AppBar(title: const Text('Generate from résumé')),
       floatingActionButton: _results.isEmpty
           ? null
-          : FloatingActionButton.extended(
+          // Labelled rather than a bare "+": the count is the whole point of
+          // this action, so it stays on the button.
+          : RecruiterFab(
               onPressed: _saveAsSet,
-              icon: const Icon(Icons.save_outlined),
-              label: Text('Save (${_selected.length})'),
+              icon: Icons.save_outlined,
+              tooltip: 'Save ${_selected.length} selected question(s) as a set',
             ),
       body: SafeArea(
         child: ListView(

@@ -46,6 +46,92 @@ KERNEL = {
     # The consequence: a change to app/mailer.py is a change to the MOBILE contract
     # too, so it is reviewed against `/api/emails/send` — see tests/test_mailer_modes.py.
     "app.mailer",
+    # The `interviews` collection is the ONE record both clients read and write, so
+    # the module that knows its field names has to be shared — not copied. It was
+    # copied: `app/web/services/interview_invite.py` carried its own
+    # `INTERVIEWS_COLLECTION`, its own `type`-from-`mode` mapping and its own spelling
+    # of every frozen field. Two modules independently knowing one schema is how the
+    # web and mobile clients drifted apart, and a convention was never going to hold
+    # them together.
+    #
+    # The consequence, and it is the same bargain as app.mailer: a change to
+    # app/interviews.py is a change to the MOBILE contract. Field names here are read
+    # by `interview.dart` and cannot be renamed. Review against both surfaces, and
+    # against `contracts/interview_document.fixtures.json`, which exists so a change
+    # that would break the other client fails a test instead of a candidate's
+    # interview.
+    "app.interviews",
+    # A report IS the result of one interview, and BOTH clients display reports. While
+    # it lived in `web_reports` the mobile app was structurally unable to show one for
+    # an interview taken in a browser, and the web sessions list showed no score for
+    # one taken on a phone. Same bargain as the two above: a change here is a change to
+    # what the mobile app can read.
+    "app.reports",
+    # Scoring an interview. Promoted so BOTH surfaces run the same scorer: a failed
+    # scoring run used to be terminal in the browser, purely because the orchestration
+    # lived inside `app/routers/evaluations.py` and rule 2 (correctly) keeps the web
+    # package out of the mobile surface. A second implementation would have been a
+    # second set of results for the same interview.
+    #
+    # Same bargain again: a change here changes what the MOBILE app stores on an
+    # interview, so it is reviewed against tests/test_evaluations.py as well.
+    "app.evaluation",
+    # Invite and notification email templates. `email_templates` is now the ONE store
+    # for them: the web surface kept its own `web_invite_email_templates`, so a
+    # recruiter's saved template was invisible on the other client — while the
+    # RENDERING was already unified against a golden fixture. Storage was the half
+    # that had not caught up.
+    #
+    # Same bargain: a change here is a change to `/api/templates`, the mobile
+    # surface's frozen route, so it is reviewed against both.
+    "app.templates_store",
+    # The built-in templates the store falls back to. Shared for the same reason.
+    "app.templating",
+    # A test's timeline. BOTH clients grew a multi-round feature and neither knew about
+    # the other's — mobile's `tests/{id}/rounds` against the web's `web_pipelines` — so
+    # a candidate advanced on one was invisible on the other. This is mobile's model,
+    # promoted, because it derives round state from the clock (nothing to go stale),
+    # copies the window onto each assignment (the candidate's device cannot read round
+    # documents) and stamps ranks (so a re-score elsewhere does not shift somebody's
+    # position under them).
+    #
+    # Same bargain: field names here are read by `interview_round.dart` and cannot be
+    # renamed.
+    "app.rounds",
+    # The writes that go with it — window propagation and stamped ranks. Same
+    # bargain again.
+    "app.rounds_writer",
+    # What a candidate thought of the interview. This was `web_feedback`, so the prompt
+    # existed only in the browser and a candidate who interviewed on the phone was
+    # never asked — on the only channel the product has for hearing from candidates.
+    "app.feedback",
+    # MCQ scoring and the PUBLIC question projection.
+    #
+    # MCQ is the only track whose questions contain the answers, so the allow-list in
+    # `mcq_public_question` is not a formatting concern — it is the thing standing
+    # between a stored answer key and a candidate's device. One implementation, shared,
+    # rather than one per client.
+    #
+    # Pure: it imports nothing but the standard library, which is what made the move
+    # free.
+    "app.mcq_scoring",
+    # Where a paper lives and where an attempt at one lives. An MCQ attempt used to be
+    # part of a `web_session` — with the resolved paper and its ANSWER KEY inside it —
+    # which is precisely what welded the runtime to the web surface and stopped MCQ
+    # reaching the other client.
+    "app.mcq",
+    # Sitting a paper: resolve, autosave, submit. The runtime both clients call.
+    "app.mcq_runtime",
+    # Authoring a paper: cleaning, validation, and what stands between a draft and a
+    # usable assessment. Pure. Shared so a paper authored on a phone and one authored in
+    # a browser are the same document under the same rules, rather than two validators
+    # that agree until one of them is changed.
+    "app.mcq_authoring",
+    # Writing a paper: prompts, response schemas, and the normalisation that decides
+    # what counts as a usable generated question. Pure — the two surfaces call two
+    # different Gemini clients (see app/web/services/mcq_gen.py on why), so sharing
+    # this is what stops the same request producing two different papers.
+    "app.mcq_gen",
 }
 
 

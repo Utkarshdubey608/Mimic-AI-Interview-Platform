@@ -30,6 +30,7 @@ from fastapi import (
 )
 
 from app.security import AuthedUser
+from app.web.services import users
 from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
 from app.web.services import gemini, question_gen
 from app.web.store import get_store
@@ -74,8 +75,14 @@ def normalise_questions(raw: object) -> list[dict]:
 
 @router.get("", summary="Every question set, by name")
 async def list_sets(request: Request, user: AuthedUser = WebUser) -> list[dict]:
-    store = get_store(settings_of(request))
+    settings = settings_of(request)
+    store = get_store(settings)
+    # Company-scoped, plus anything this recruiter authored. See the note in
+    # routes/templates.py and `users.visible_to`.
     sets_ = await store.question_sets.all()
+    if settings.company_scoping_enabled:
+        key = await users.get_company_key(settings, user.uid)
+        sets_ = users.visible_to(sets_, company_key=key, uid=user.uid)
     # Alphabetical, matching the Express ordering the picker relies on.
     return sorted(sets_, key=lambda s: str(s.get("name") or "").lower())
 
@@ -179,7 +186,8 @@ async def get_set(set_id: str, request: Request, user: AuthedUser = WebUser) -> 
 
 @router.post("", status_code=status.HTTP_201_CREATED, summary="Create a question set")
 async def create_set(body: dict, request: Request, user: AuthedUser = WebUser) -> dict:
-    store = get_store(settings_of(request))
+    settings = settings_of(request)
+    store = get_store(settings)
     now = _now()
     created = {
         "id": str(uuid.uuid4()),
@@ -191,6 +199,10 @@ async def create_set(body: dict, request: Request, user: AuthedUser = WebUser) -
         # "should a company's sets be private to it" decision impossible to take
         # later. See the ⚠️ in routes/templates.py.
         "recruiterId": user.uid,
+        # Which company may see it. Written only when the author HAS one — never a
+        # blank key, which would pool every company-less set into one shared bucket.
+        # That decision is now taken; see routes/templates.py.
+        **({"companyKey": _key} if (_key := await users.get_company_key(settings, user.uid)) else {}),
         "createdAt": now,
         "updatedAt": now,
     }

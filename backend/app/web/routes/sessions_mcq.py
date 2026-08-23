@@ -23,8 +23,10 @@ so a leaked "it's the third one" is worth nothing to the next candidate and a re
 does not reshuffle under someone mid-decision.
 
 ── Scoring ──────────────────────────────────────────────────────────────────
-Deterministic and instant. No model is called, so an MCQ result is exact,
-reproducible and free — see `services/mcq_scoring.py` for why multi-select is
+Deterministic and instant, and run by `app/mcq_runtime.py` — the SAME scorer the shared
+`/api/interviews/{id}/mcq` routes use, so the same paper sat in a browser or on a phone
+cannot produce two different numbers. No model is called, so an MCQ result is exact,
+reproducible and free — see `app/mcq_scoring.py` for why multi-select is
 all-or-nothing by default.
 """
 
@@ -37,7 +39,8 @@ from fastapi import APIRouter, Body, HTTPException, Request, status
 
 from app.security import AuthedUser
 from app.web.deps import WebUser, settings_of
-from app.web.services import mcq_scoring, session_store
+from app import mcq, mcq_runtime
+from app.web.services import session_store
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions_mcq")
@@ -59,141 +62,35 @@ def _require_mcq(session: dict) -> None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not an MCQ session.")
 
 
-def _clean_answer(question: dict, submitted: object) -> list | dict:
-    """One candidate answer, keeping only ids the question actually has.
+def _paper_of(session: dict) -> dict:
+    """The session's resolved paper, in the shape the kernel's helpers expect.
 
-    Type-aware, and in ONE place deliberately. Autosave and submit both clean the
-    same payload, and they used to do it with two copies of the same four lines -
-    which is precisely how a submit-only bug hides behind a passing autosave test.
-    A new question type now has one place to teach rather than two to remember.
-
-    A client sending an unknown id is a bug, not an answer, and storing it would
-    make the result unexplainable to the recruiter reading the report.
+    A web session stores the paper inline (`questions` + `mcqSections`) because that is
+    how MCQ was built before the runtime moved. Rather than change how a live session is
+    stored mid-flight, this adapts the shape at the boundary — so ordering, the public
+    projection, answer cleaning and scoring all run through the SAME code the shared
+    route uses. See `app/mcq_runtime.py`.
     """
-    if question.get("type") == mcq_scoring.MATCH:
-        # A pairing, not a list. Both halves are checked: a prompt the question
-        # does not ask about, or a match that is not on offer, is dropped.
-        if not isinstance(submitted, dict):
-            return {}
-        prompts = {str(p.get("id")) for p in question.get("prompts") or []}
-        matches = {str(m.get("id")) for m in question.get("matches") or []}
-        return {
-            str(prompt): str(match)
-            for prompt, match in submitted.items()
-            if str(prompt) in prompts and str(match) in matches
-        }
-
-    if not isinstance(submitted, (list, tuple, set)):
-        return []
-    options = {str(o.get("id")) for o in question.get("options") or []}
-    picks = [str(v) for v in submitted if str(v) in options]
-    return list(dict.fromkeys(picks))
-
-
-def _public_sections(session: dict) -> list[dict]:
-    """The paper's structure, as the candidate may see it.
-
-    Carries `questionIds` rather than putting a `sectionId` on every question. The
-    runtime needs the grouping either way; keeping it here means the structure has
-    one representation instead of two that can disagree, and the manifest is
-    already the thing that defines order.
-
-    Nothing in here is secret - a section name, its instructions and its reading
-    passage are all things the candidate is about to be shown anyway.
-    """
-    questions = session.get("questions") or []
-    manifest = []
-    for section in session.get("mcqSections") or []:
-        section_id = str(section.get("id") or "")
-        entry: dict = {
-            "id": section_id,
-            "name": str(section.get("name") or ""),
-            "questionIds": [
-                str(q.get("id"))
-                for q in questions
-                if mcq_scoring.section_id_of(q) == section_id
-            ],
-        }
-        if instructions := section.get("instructions"):
-            entry["instructions"] = str(instructions)
-        if passage := section.get("passage"):
-            entry["passage"] = str(passage)
-        manifest.append(entry)
-    return manifest
-
-
-def _public_paper(session: dict) -> list[dict]:
-    """The questions as the candidate may see them.
-
-    Seeded with the session id so the shuffle is stable for this candidate across
-    reloads and different for the next one.
-    """
-    config = session.get("mcqConfig") or {}
-    seed = session["id"] if config.get("shuffleOptions", True) else None
-
-    # Ordered by SECTION, so a candidate meets section one first. Questions
-    # belonging to no section sort last rather than being dropped: an unsectioned
-    # question is still a question somebody has to answer.
-    order = {
-        str(section.get("id")): index
-        for index, section in enumerate(session.get("mcqSections") or [])
-    }
-    questions = sorted(
-        session.get("questions") or [],
-        key=lambda q: order.get(mcq_scoring.section_id_of(q), len(order)),
-    )
-    return [
-        mcq_scoring.mcq_public_question(question, shuffle_seed=seed)
-        for question in questions
-    ]
-
-
-def _public_result(result: dict | None) -> dict | None:
-    """The score, WITHOUT the answers that produced it.
-
-    Showing a candidate their score is not the same as publishing the key, and the
-    stored result carries both: every per-question record holds
-    `correctOptionIds`, because that is what makes the RECRUITER's report
-    reviewable. Returning the stored result verbatim would therefore hand the whole
-    answer key to anyone whose recruiter enabled `showScoreToCandidate` — the exact
-    leak the paper route is careful to prevent, arriving through the back door.
-
-    So this is an allow-list too, and per-question it names only what the candidate
-    is entitled to: whether they got it right, and what it was worth.
-    """
-    if not result:
-        return None
     return {
-        "kind": "mcq",
-        "correctCount": result.get("correctCount"),
-        "questionCount": result.get("questionCount"),
-        "points": result.get("points"),
-        "pointsAvailable": result.get("pointsAvailable"),
-        "percent": result.get("percent"),
-        "passThreshold": result.get("passThreshold"),
-        "passed": result.get("passed"),
-        "questions": [
-            {
-                "questionId": record.get("questionId"),
-                "correct": record.get("correct"),
-                "points": record.get("points"),
-                "pointsAvailable": record.get("pointsAvailable"),
-            }
-            for record in result.get("questions") or []
-        ],
+        "questions": session.get("questions") or [],
+        "sections": session.get("mcqSections") or [],
+        "name": session.get("role") or "",
     }
 
 
 def _state(session: dict) -> dict:
     """Everything the runtime needs, and nothing it must not have."""
     config = session.get("mcqConfig") or {}
+    paper = _paper_of(session)
     return {
         "sessionId": session["id"],
         "status": session.get("status"),
-        "questions": _public_paper(session),
+        "questions": mcq.public_paper(
+            paper, seed=mcq.shuffle_seed_for(config, attempt_key=session["id"])
+        ),
         # Absent for an unsectioned paper, so the runtime can ask "is this divided?"
         # and get an answer rather than render an empty heading.
-        "sections": _public_sections(session) or None,
+        "sections": mcq.public_sections(paper) or None,
         # What they have answered so far, so a reload restores the paper as left.
         "answers": session.get("mcqAnswers") or {},
         "submittedAt": session.get("mcqSubmittedAt"),
@@ -204,7 +101,9 @@ def _state(session: dict) -> dict:
         # by default, because a score delivered by a machine with no human in the
         # loop is what the completion screen deliberately avoids. Even when
         # allowed, it goes through `_public_result` — a score is not the key.
-        "result": _public_result(session.get("mcqResult")) if config.get("showScoreToCandidate") else None,
+        "result": mcq_runtime.candidate_result(session.get("mcqResult"))
+        if config.get("showScoreToCandidate")
+        else None,
     }
 
 
@@ -241,18 +140,11 @@ async def save_answers(
     if session.get("mcqSubmittedAt"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This assessment is already submitted.")
 
-    valid_ids = {str(q.get("id")) for q in session.get("questions") or []}
     incoming = (body or {}).get("answers")
     if not isinstance(incoming, dict):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "answers must be an object.")
 
-    by_id = {str(q.get("id")): q for q in session.get("questions") or []}
-    cleaned: dict[str, list | dict] = {}
-    for question_id, selected in incoming.items():
-        key = str(question_id)
-        if key not in valid_ids:
-            continue
-        cleaned[key] = _clean_answer(by_id[key], selected)
+    cleaned = mcq.clean_answers(incoming, session.get("questions") or [])
 
     session["mcqAnswers"] = cleaned
     session["mcqAnswersAt"] = _now()
@@ -279,36 +171,18 @@ async def submit(session_id: str, request: Request, body: dict = Body(default={}
     if session.get("mcqSubmittedAt"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This assessment is already submitted.")
 
-    answers = dict(session.get("mcqAnswers") or {})
-    late = (body or {}).get("answers")
-    if isinstance(late, dict):
-        by_id = {str(q.get("id")): q for q in session.get("questions") or []}
-        for question_id, selected in late.items():
-            key = str(question_id)
-            if key not in by_id:
-                continue
-            answers[key] = _clean_answer(by_id[key], selected)
+    paper = _paper_of(session)
+    answers = {
+        **(session.get("mcqAnswers") or {}),
+        **mcq.clean_answers((body or {}).get("answers"), paper["questions"]),
+    }
 
     config = session.get("mcqConfig") or {}
-    result = mcq_scoring.score_submission(
-        session.get("questions") or [],
-        answers,
-        multi_rule=config.get("multiRule") or mcq_scoring.ALL_OR_NOTHING,
-        match_rule=config.get("matchRule") or mcq_scoring.PARTIAL,
-        pass_threshold=config.get("passThreshold"),
-    )
-    result["topics"] = mcq_scoring.topic_breakdown(
-        session.get("questions") or [], result["questions"]
-    )
-    # Only present for a paper that HAS sections. An unsectioned paper gets no key
-    # at all rather than an empty list, so the report can ask "was this paper
-    # divided?" and get an answer, instead of rendering an empty heading.
-    if sections := mcq_scoring.section_breakdown(
-        session.get("questions") or [],
-        result["questions"],
-        sections=session.get("mcqSections") or [],
-    ):
-        result["sections"] = sections
+    # ONE scorer, shared with `/api/interviews/{id}/mcq/submit`. The same paper sat on
+    # either surface must not be able to produce two numbers, and the only way to
+    # guarantee that is for there to be one implementation rather than an agreement
+    # between two.
+    result = mcq_runtime.score(paper["questions"], answers, config=config, paper=paper)
 
     now = _now()
     session["mcqAnswers"] = answers

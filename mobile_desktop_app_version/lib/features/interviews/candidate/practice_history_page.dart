@@ -51,7 +51,7 @@ class PracticeHistoryPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Practice History'),
+        title: const Text('Practice history'),
         actions: const [LogoutButton(), SizedBox(width: 4)],
       ),
       body: _body(context, results),
@@ -67,7 +67,7 @@ class PracticeHistoryPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SectionHeader(
-            title: 'Practice History',
+            title: 'Practice history',
             subtitle: 'Your own practice attempts and their AI reports.',
             isPageTitle: true,
           ),

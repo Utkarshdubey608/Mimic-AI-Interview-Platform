@@ -75,10 +75,9 @@ class Collection:
         """
 
         def _read() -> list[dict]:
-            return [
-                _with_id(snap, self.key_field)
-                for snap in self._client.collection(self.name).stream()
-            ]
+            return _parse_all(
+                self._client.collection(self.name).stream(), self.key_field, self.name
+            )
 
         return await asyncio.to_thread(_read)
 
@@ -91,7 +90,7 @@ class Collection:
             query = self._client.collection(self.name).where(
                 filter=FieldFilter(field, op, value)
             )
-            return [_with_id(snap, self.key_field) for snap in query.stream()]
+            return _parse_all(query.stream(), self.key_field, self.name)
 
         return await asyncio.to_thread(_read)
 
@@ -243,6 +242,33 @@ class SingletonDocument:
 
             await asyncio.to_thread(_write)
         return await self.get()
+
+
+def _parse_all(snapshots: Any, key_field: str, collection_name: str) -> list[dict]:
+    """Every document, DROPPING any single one that cannot be parsed.
+
+    Adopted from the Flutter client, where `InterviewRepository._parseDocs` has always
+    worked this way and says why: one malformed record must not break the whole
+    dashboard. Here a list comprehension over `stream()` meant a single document —
+    hand-edited in the console, written by an older build, or half-written by a failed
+    batch — could raise and empty a recruiter's entire templates list, with the symptom
+    reading as "you have nothing" rather than "one row is broken".
+
+    Logged with the id, so a persistently unreadable document is findable rather than
+    merely absent. Never silent.
+    """
+    parsed: list[dict] = []
+    for snapshot in snapshots:
+        try:
+            parsed.append(_with_id(snapshot, key_field))
+        except Exception as exc:  # noqa: BLE001 - one bad row must not empty a list
+            logger.warning(
+                "%s: skipping unreadable document %s: %s",
+                collection_name,
+                getattr(snapshot, "id", "?"),
+                exc,
+            )
+    return parsed
 
 
 def _with_id(snapshot: Any, key_field: str) -> dict:

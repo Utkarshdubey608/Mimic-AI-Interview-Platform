@@ -403,8 +403,7 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+    return RecruiterScaffold(
       appBar: AppBar(
         title: const Text('Notify candidates'),
         bottom: PreferredSize(
@@ -473,7 +472,7 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
                     child: Text('${_selected.length} of ${_ranked.length} '
                         'advancing',
                         style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+                            ?.copyWith(fontWeight: FontWeight.w600)),
                   ),
                   TextButton(
                     onPressed: _sending
@@ -549,7 +548,7 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
           secondary: Text(
             '${score ?? '—'}',
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: selected
                   ? theme.colorScheme.primary
                   : theme.colorScheme.onSurfaceVariant,
@@ -586,7 +585,7 @@ class _RoundNotifyPageState extends State<RoundNotifyPage> {
           children: [
             Text('Message on their result screen (optional)',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+                    ?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
             Text(
               'Candidates see their outcome, their rank, and whichever of these '

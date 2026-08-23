@@ -23,7 +23,7 @@ class PreferencesSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppleSectionCard(
-          title: 'Font Size',
+          title: 'Font size',
           subtitle: 'Adjust the size of text across the desktop application.',
           child: _FontSizeSlider(scale: scale, onChanged: store.setDesktopFontScale),
         ),
@@ -40,7 +40,7 @@ class _FontSizeSlider extends StatelessWidget {
   // Guidance values from the brief: readable steps that scale typography
   // without touching spacing/component dimensions, so layouts stay stable.
   static const _scales = [0.90, 1.00, 1.10, 1.20];
-  static const _labels = ['Small', 'Medium', 'Large', 'Extra Large'];
+  static const _labels = ['Small', 'Medium', 'Large', 'Extra large'];
 
   int get _index {
     var closest = 1; // Medium — sane fallback for a legacy/unexpected value.

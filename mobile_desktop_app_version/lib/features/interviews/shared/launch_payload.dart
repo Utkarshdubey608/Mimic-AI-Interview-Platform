@@ -1,6 +1,18 @@
 // lib/views/setup/launch_payload.dart
 import 'package:talbotiq/shared/models/app_models.dart';
 
+/// The prefix put on a Tavus conversation name, so the candidate's name can be
+/// recovered from it later.
+const String kConversationNamePrefix = 'Mimic — ';
+
+/// Strips that prefix off a stored conversation name.
+///
+/// Accepts the legacy 'TalbotIQ — ' form too. Conversations created before the
+/// rename still carry it, and dropping that case would leave old recordings and
+/// old scorecards named "TalbotIQ — Ada Lovelace" instead of "Ada Lovelace".
+String stripConversationPrefix(String name) =>
+    name.replaceAll(kConversationNamePrefix, '').replaceAll('TalbotIQ — ', '');
+
 // Builds the Tavus create-conversation request body from the persisted session
 // config and question list, personalised for the given candidate. Only the
 // non-default properties are included so the payload stays minimal.
@@ -19,7 +31,7 @@ Map<String, dynamic> buildConversationPayload({
 
   final systemPrompt = config.conversationalContext.trim().isNotEmpty
       ? config.conversationalContext.trim()
-      : 'You are Alex, a Senior Talent Specialist at TalbotIQ conducting a screening interview with $candidateName. Maintain a warm, professional tone.';
+      : 'You are Alex, a Senior Talent Specialist at Mimic conducting a screening interview with $candidateName. Maintain a warm, professional tone.';
 
   final finalContext = '''
 $systemPrompt
@@ -36,11 +48,11 @@ $numbered''';
 
   final greeting = config.customGreeting.trim().isNotEmpty
       ? config.customGreeting.trim()
-      : "Hello $candidateName, welcome to your TalbotIQ interview. I'm excited to learn more about you today. Are you ready to begin?";
+      : "Hello $candidateName, welcome to your Mimic interview. I'm excited to learn more about you today. Are you ready to begin?";
 
   final Map<String, dynamic> body = {
     'replica_id': config.replicaId.trim(),
-    'conversation_name': 'TalbotIQ — $candidateName',
+    'conversation_name': '$kConversationNamePrefix$candidateName',
     'conversational_context': finalContext,
     'custom_greeting': greeting,
   };

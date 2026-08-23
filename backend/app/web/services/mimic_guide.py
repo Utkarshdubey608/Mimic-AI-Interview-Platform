@@ -64,13 +64,13 @@ GUIDE_FAQ: list[tuple[str, list[str]]] = [
     (
         r"track|chat|chatbot|voice|avatar|timed|type of interview|interview type",
         [
-            'TalbotIQ supports four interview **tracks**:\n\n- **Timed Q&A** — typed answers with a per-question countdown.\n- **Chatbot / Conversational** — a typed conversation with adaptive follow-ups.\n- **Voice** — a real-time spoken interview.\n- **Video Avatar** — an AI avatar speaks each question on screen.\n\nPick the track in a **Template**.\n\n[Manage Templates](/templates)',
+            'Mimic supports four interview **tracks**:\n\n- **Timed Q&A** — typed answers with a per-question countdown.\n- **Chatbot / Conversational** — a typed conversation with adaptive follow-ups.\n- **Voice** — a real-time spoken interview.\n- **Video Avatar** — an AI avatar speaks each question on screen.\n\nPick the track in a **Template**.\n\n[Manage Templates](/templates)',
         ],
     ),
     (
         r"avatar screening|screening|tavus|replica|persona|setup|deepgram|hume|rekognition",
         [
-            "**AI Avatar Screening** runs a live AI-avatar video interview and then analyses it. Configure it in **Setup** (pick a replica + persona), run it in the **Interview** room, and review speech, emotion, and facial analytics in **Results**.\n\n[Set up Avatar Screening](/setup)",
+            "**AI Avatar Screening** runs a live AI-avatar video interview and then analyses it. Configure it in **Setup** (pick a replica + persona), run it in the **Interview** room, and review speech, emotion, and facial analytics in **Results**.\n\n[Set up Avatar Screening](/avatar-studio)",
         ],
     ),
     (
@@ -100,9 +100,9 @@ GUIDE_FAQ: list[tuple[str, list[str]]] = [
 ]
 
 _GENERAL_ANSWERS = [
-    "I can help you navigate TalbotIQ. Ask me how to **create a session**, build a **template** or **question set**, run **AI Avatar Screening**, or read your **results**.",
+    "I can help you navigate Mimic. Ask me how to **create a session**, build a **template** or **question set**, run **AI Avatar Screening**, or read your **results**.",
     'Happy to help! Try: *"How do I create an interview session?"*, *"What interview tracks are there?"*, or *"Where do I see a candidate\'s score?"*',
-    "TalbotIQ is an AI Interview Platform. I can walk you through templates, question sets, sessions, the interview tracks, AI Avatar Screening, and results & analytics — what would you like to do?",
+    "Mimic is an AI Interview Platform. I can walk you through templates, question sets, sessions, the interview tracks, AI Avatar Screening, and results & analytics — what would you like to do?",
 ]
 
 

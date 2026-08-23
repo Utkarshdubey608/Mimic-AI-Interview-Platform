@@ -315,7 +315,14 @@ async def create_invites(
     origin = str(body.get("origin") or "").strip()
     send_emails = body.get("sendEmails") is not False
     test_id = str(uuid.uuid4())
-    collection = interview_invite.interviews(settings)
+    collection = interview_invite.interviews_collection(settings)
+
+    # The batch's metadata document, written FIRST — the mobile recruiter dashboard
+    # pages over `tests`, so a batch without one is invisible there. Best-effort and
+    # never raises; see `ensure_test_summary` for the ordering and recovery argument.
+    await interview_invite.ensure_test_summary(
+        settings, test_id=test_id, recruiter_id=user.uid, role=role, mode=mode
+    )
 
     created: list[dict] = []
     emailed = 0
@@ -335,6 +342,10 @@ async def create_invites(
             config=body.get("config") if isinstance(body.get("config"), dict) else None,
             question_set_id=str(question_set_id) if question_set_id else None,
             mcq_set_id=mcq_set_id or None,
+            # Which clients the candidate may take this on. Validated and normalised
+            # in the kernel: unknown values are dropped rather than refused, and
+            # "all three" is stored as no restriction at all.
+            allowed_devices=body.get("allowedDevices"),
             server_timestamp=admin_firestore.SERVER_TIMESTAMP,
         )
 
@@ -450,7 +461,7 @@ async def retry_invite(
 
     settings = settings_of(request)
     store = get_store(settings)
-    collection = interview_invite.interviews(settings)
+    collection = interview_invite.interviews_collection(settings)
 
     reference = collection.document(interview_id)
     snapshot = await asyncio.to_thread(reference.get)

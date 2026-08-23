@@ -96,7 +96,9 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
         // unawaited Future's rejection is otherwise an UNCAUGHT async error,
         // e.g. if Firestore is unreachable) just because this side note
         // couldn't be written.
-        repo.updateStatus(interview.id, InterviewStatus.inProgress).catchError(
+        repo
+            .updateStatus(interview.id, InterviewStatus.inProgress)
+            .catchError(
               (e) => debugPrint('updateStatus(inProgress) failed: $e'),
             );
       }
@@ -105,7 +107,13 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
       // file header) so leaving before AI analysis lands never reopens this
       // interview for a fresh "Launch".
       if (interview != null) _writePlaceholderIfNeeded(interview, repo);
-      _submitForEvaluation(interview, repo);
+      // Route changes are synchronous, but Tavus publishes its transcript
+      // asynchronously. ResultsPage changes the stage to `evaluating` only
+      // after transcript retrieval (including its local-audio fallback), so
+      // that is the safe hand-off point for storing answers.
+      if (_store?.processingStage == InterviewProcessingStage.evaluating) {
+        _submitForEvaluation(interview, repo);
+      }
     } else if (!_popScheduled) {
       // A page navigated somewhere outside this shell (e.g. "New session").
       _popScheduled = true;
@@ -123,7 +131,10 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
   /// for manual evaluation — the correct fallback if AI scoring never lands.
   /// `_maybeStoreResult` below overwrites this with the real AI-scored result
   /// once/if it's ready.
-  void _writePlaceholderIfNeeded(Interview interview, InterviewRepository repo) {
+  void _writePlaceholderIfNeeded(
+    Interview interview,
+    InterviewRepository repo,
+  ) {
     if (_placeholderWritten) return;
     _placeholderWritten = true;
     // Best-effort — must not crash on a network hiccup (see updateStatus's
@@ -132,7 +143,9 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
     // round leaderboard while the AI is still working on them.
     repo
         .completeWithoutScore(interview.id)
-        .catchError((e) => debugPrint('completeWithoutScore(placeholder) failed: $e'));
+        .catchError(
+          (e) => debugPrint('completeWithoutScore(placeholder) failed: $e'),
+        );
   }
 
   /// Hands the candidate's answers to the server, which scores them in the
@@ -148,14 +161,32 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
   /// The candidate is released as soon as their ANSWERS are stored. Whether a
   /// score exists yet is the recruiter's concern, not theirs.
   Future<void> _submitForEvaluation(
-      Interview? interview, InterviewRepository repo) async {
+    Interview? interview,
+    InterviewRepository repo,
+  ) async {
     if (interview == null || _resultWritten || !mounted) return;
     _resultWritten = true;
     final store = context.read<AppStore>();
 
     store.setProcessingStage(InterviewProcessingStage.sendingToRecruiter);
-    final responses =
-        _buildResponses(store.sessionTranscript, interview.questions);
+    final responses = _buildResponses(
+      store.sessionTranscript,
+      interview.questions,
+    );
+
+    // Candidate speech is required before this can be a response submission.
+    // Do not overwrite the recoverable placeholder with one blank answer for
+    // every question when Tavus has not yet published the transcript.
+    if (!responses.any((response) => response['answer']!.isNotEmpty)) {
+      store.setProcessingStage(
+        InterviewProcessingStage.failed,
+        error:
+            'We could not capture your spoken answers. Your interview was '
+            'marked complete, but blank answers were not submitted. Please '
+            'contact the recruiter to arrange a retry.',
+      );
+      return;
+    }
 
     try {
       final ack = await evaluationService.submit(
@@ -166,9 +197,11 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
       // `stored_without_score` means the server kept the answers but had too
       // little to score. From the candidate's side that is still a completed
       // submission — the distinction is the recruiter's.
-      store.setProcessingStage(ack.isScoring
-          ? InterviewProcessingStage.complete
-          : InterviewProcessingStage.submittedWithoutScoring);
+      store.setProcessingStage(
+        ack.isScoring
+            ? InterviewProcessingStage.complete
+            : InterviewProcessingStage.submittedWithoutScoring,
+      );
     } catch (e) {
       if (!mounted) return;
       // The submission itself failed, which is the one case that loses the
@@ -177,7 +210,8 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
       try {
         await repo.completeWithoutScore(
           interview.id,
-          error: 'The answers could not be submitted for scoring: '
+          error:
+              'The answers could not be submitted for scoring: '
               '${e.toString().replaceAll('Exception: ', '')}',
           responses: responses,
           integrity: store.integrityLeftAppCount > 0
@@ -186,26 +220,30 @@ class _CandidateVideoShellState extends State<CandidateVideoShell> {
         );
         if (mounted) {
           store.setProcessingStage(
-              InterviewProcessingStage.submittedWithoutScoring);
+            InterviewProcessingStage.submittedWithoutScoring,
+          );
         }
       } catch (writeError) {
         if (mounted) {
           store.setProcessingStage(
             InterviewProcessingStage.failed,
-            error: 'Could not send your responses to the recruiter: $writeError',
+            error:
+                'Could not send your responses to the recruiter: $writeError',
           );
         }
       }
     }
   }
 
-
   /// Pairs each question with the candidate's spoken answer(s) for it, so the
   /// recruiter can review the raw response alongside the AI-scored summary.
   List<Map<String, String>> _buildResponses(
-      List<TranscriptEntry> transcript, List<String> questions) {
-    final candidateEntries =
-        transcript.where((e) => e.role == 'candidate').toList();
+    List<TranscriptEntry> transcript,
+    List<String> questions,
+  ) {
+    final candidateEntries = transcript
+        .where((e) => e.role == 'candidate')
+        .toList();
     return [
       for (var idx = 0; idx < questions.length; idx++)
         {
@@ -259,9 +297,18 @@ class _VideoPendingScreen extends StatelessWidget {
   const _VideoPendingScreen();
 
   static const _steps = <(InterviewProcessingStage, String)>[
-    (InterviewProcessingStage.fetchingTranscript, 'Fetching your interview from Tavus'),
-    (InterviewProcessingStage.evaluating, 'Evaluating your answers with Gemini'),
-    (InterviewProcessingStage.sendingToRecruiter, 'Sending results to the recruiter'),
+    (
+      InterviewProcessingStage.fetchingTranscript,
+      'Fetching your interview from Tavus',
+    ),
+    (
+      InterviewProcessingStage.evaluating,
+      'Evaluating your answers with Gemini',
+    ),
+    (
+      InterviewProcessingStage.sendingToRecruiter,
+      'Sending results to the recruiter',
+    ),
   ];
 
   /// Index of the step currently in progress (steps before it are done).
@@ -314,29 +361,31 @@ class _VideoPendingScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   failed ? 'Something went wrong' : 'Interview submitted',
-                  style: theme.textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   failed
                       ? (store.processingError ??
-                          'Processing failed, but your responses were saved. '
-                              'The recruiter will follow up.')
+                            'Processing failed, but your responses were saved. '
+                                'The recruiter will follow up.')
                       : submittedWithoutScoring
-                          ? 'An error occurred while generating your interview '
-                              'evaluation. Your interview responses have been '
-                              'safely submitted to the recruiter, who can '
-                              'regenerate the evaluation and publish your '
-                              'results. No further action is required from '
-                              'your side.'
-                          : complete
-                              ? 'Your interview has been processed and sent to '
-                                  'the recruiter. You may now close this window.'
-                              : 'Please wait while we process your responses…',
+                      ? 'An error occurred while generating your interview '
+                            'evaluation. Your interview responses have been '
+                            'safely submitted to the recruiter, who can '
+                            'regenerate the evaluation and publish your '
+                            'results. No further action is required from '
+                            'your side.'
+                      : complete
+                      ? 'Your interview has been processed and sent to '
+                            'the recruiter. You may now close this window.'
+                      : 'Please wait while we process your responses…',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (!failed && !done) ...[
                   const SizedBox(height: 24),
@@ -368,7 +417,11 @@ class _StepRow extends StatelessWidget {
   final bool done;
   final bool active;
 
-  const _StepRow({required this.label, required this.done, required this.active});
+  const _StepRow({
+    required this.label,
+    required this.done,
+    required this.active,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +435,9 @@ class _StepRow extends StatelessWidget {
           Icon(
             done
                 ? Icons.check_circle
-                : (active ? Icons.radio_button_checked : Icons.radio_button_unchecked),
+                : (active
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked),
             size: 16,
             color: highlighted
                 ? theme.colorScheme.primary

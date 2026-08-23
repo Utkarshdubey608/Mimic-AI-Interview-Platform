@@ -11,8 +11,7 @@ import { InviteEmailStep } from './invite-email/InviteEmailStep'
 import { ReviewSend } from './invite-email/ReviewSend'
 import { RoundBuilder, defaultRounds, toRoundDefs, type RoundDraft } from './RoundBuilder'
 import { defaultInviteEmailTemplate, validateLockedTokens } from '@shared/inviteEmail'
-import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
-import type { TrackType, QuestionStyle, DifficultyChoice, GeminiModel, QuestionSet, CreateInvitesResult, InviteEmailTemplate } from '@shared/types'
+import type { TrackType, QuestionStyle, DifficultyChoice, GeminiModel, QuestionSet, CreateInvitesResult, InviteEmailTemplate, InterviewDevice } from '@shared/types'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 
 const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
@@ -192,6 +191,77 @@ function StepFooter({ left, hint, right }: { left: React.ReactNode; hint?: strin
   )
 }
 
+/**
+ * Which clients a candidate may take the interview on.
+ *
+ * Multi-select rather than a single choice, because the useful restrictions are
+ * "apps only" and "browser only" as much as any one device.
+ *
+ * Deselecting everything is not offered: the last remaining device cannot be turned
+ * off. An interview nobody can take is never what the recruiter meant, and the state
+ * is easier to prevent than to explain.
+ */
+const DEVICE_OPTIONS: { id: InterviewDevice; label: string; hint: string }[] = [
+  { id: 'web',     label: 'Web browser', hint: 'Any computer or phone browser' },
+  { id: 'mobile',  label: 'Mobile app',  hint: 'The TalbotIQ app on a phone' },
+  { id: 'desktop', label: 'Desktop app', hint: 'The TalbotIQ app on a computer' },
+]
+
+function DevicePicker({
+  value,
+  onChange,
+}: {
+  value: InterviewDevice[]
+  onChange: (next: InterviewDevice[]) => void
+}) {
+  const toggle = (id: InterviewDevice) => {
+    const next = value.includes(id) ? value.filter((d) => d !== id) : [...value, id]
+    if (next.length === 0) return   // never leave an interview nobody can take
+    onChange(next)
+  }
+
+  const unrestricted = value.length === DEVICE_OPTIONS.length
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {DEVICE_OPTIONS.map((option) => {
+          const on = value.includes(option.id)
+          const isLast = on && value.length === 1
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => toggle(option.id)}
+              aria-pressed={on}
+              // The last one on cannot be turned off, and saying so beats a click
+              // that silently does nothing.
+              title={isLast ? 'At least one device has to stay selected' : undefined}
+              className={cn(
+                'rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150',
+                on
+                  ? 'border-primary-700 bg-primary-50'
+                  : 'border-border bg-white hover:border-neutral-300',
+                isLast && 'cursor-not-allowed',
+              )}
+            >
+              <span className={cn('block text-sm font-semibold', on ? 'text-primary-700' : 'text-neutral-700')}>
+                {option.label}
+              </span>
+              <span className="mt-0.5 block text-xs text-neutral-500">{option.hint}</span>
+            </button>
+          )
+        })}
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">
+        {unrestricted
+          ? 'No restriction — candidates can use whichever they have.'
+          : `Candidates will be told to use ${value.length === 1 ? 'this' : 'one of these'} if they open another.`}
+      </p>
+    </div>
+  )
+}
+
 /** §2 config panel — role is read-only (from Step 1); NO "question set name". */
 function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorConfig; setCfg: (c: TailorConfig) => void }) {
   const [domainDraft, setDomainDraft] = useState('')
@@ -319,6 +389,10 @@ export default function InviteWizard() {
     (location.state as { mode?: Mode } | null)?.mode ?? '',
   )
   const [role, setRole] = useState('')
+  /* Which clients a candidate may take this on. All three selected IS unrestricted,
+     which is also what the server stores — so this starts unrestricted and the
+     recruiter narrows it only if the interview genuinely needs a particular client. */
+  const [devices, setDevices] = useState<InterviewDevice[]>(['web', 'mobile', 'desktop'])
   // Single interview (default, unchanged behavior) vs. an ordered set of rounds
   // (multi) — round modes are chosen per-round in Step 2, not here.
   const [setupType, setSetupType] = useState<'single' | 'multi'>('single')
@@ -458,7 +532,10 @@ export default function InviteWizard() {
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
         candidates: validCandidates,
-        origin: getCandidateLinkOrigin(),
+        // Omitted when unrestricted, so the common case sends nothing and the
+        // document carries no field. The server normalises either way.
+        ...(devices.length > 0 && devices.length < 3 ? { allowedDevices: devices } : {}),
+        origin: window.location.origin,
         emailConfig: emailConfigPayload(),
         sendEmails: true,
       })
@@ -731,6 +808,17 @@ export default function InviteWizard() {
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-500">The position you’re interviewing for. Every invite in this batch uses it (you can override per candidate in Step 3).</p>
             </div>
             <input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Senior Backend Engineer" className="input-base max-w-md" autoFocus />
+          </section>
+
+          <section>
+            <div className="mb-4">
+              <span className="block font-display text-base font-extrabold tracking-[-0.02em] text-neutral-900">Where they can take it</span>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-500">
+                All three by default. Narrow it when the interview genuinely needs one — a
+                coding screen that wants a keyboard, or a field role done on a phone.
+              </p>
+            </div>
+            <DevicePicker value={devices} onChange={setDevices} />
           </section>
 
           <StepFooter

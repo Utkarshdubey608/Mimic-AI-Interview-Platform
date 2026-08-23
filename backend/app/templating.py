@@ -24,6 +24,10 @@ SUPPORTED_VARIABLES: dict[str, str] = {
     # closed, and what comes next.
     "round_title": "Name of the round this message is about.",
     "next_round": "Name of the round the candidate is moving on to.",
+    # The end of a candidate's whole run at a test (see the app's
+    # TestConclusion): the recruiter's own words, shown in the app AND mailed, so
+    # the two cannot disagree.
+    "recruiter_message": "The recruiter's message about the final result.",
 }
 
 _PLACEHOLDER = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
@@ -170,6 +174,57 @@ BUILTIN_TEMPLATES: list[dict] = [
         to the next round on this occasion. This was a competitive process and
         the decision was a difficult one.
       </p>
+      <p style="line-height:1.6;">
+        We're genuinely grateful for your interest, and we'd welcome an
+        application from you for future roles.
+      </p>
+      <p style="line-height:1.6;">Best wishes,<br>{{ recruiter_name }}</p>""",
+            cta_label=None,
+        ),
+    },
+    # --- The FINAL result (a whole test, not one round) ---------------------
+    # A round outcome moves someone along; these two end the process. Both carry
+    # `recruiter_message` — the same text the candidate reads in the app — because
+    # this is the mail recruiters were previously writing by hand, and the reason
+    # they were writing it by hand is that a fixed paragraph cannot say "we'd like
+    # you to meet the team on Tuesday".
+    #
+    # `white-space:pre-wrap` is not cosmetic: the message comes from a multi-line
+    # text field, and without it every line break the recruiter typed collapses.
+    #
+    # No call to action, for the same reason as the round-outcome pair above:
+    # `interview_link` points at a round that is finished either way.
+    {
+        "id": "builtin:test_cleared",
+        "name": "Final result — cleared every round",
+        "description": "Tells a candidate they have finished the whole process.",
+        "is_html": True,
+        "subject": "Your {{ interview_title }} result",
+        "body": _shell(
+            "Hi {{ candidate_name }},",
+            """
+      <p style="line-height:1.6;margin-top:12px;">
+        You've completed every round of <b>"{{ interview_title }}"</b> at
+        {{ company }}. Congratulations, and thank you for the time you gave it.
+      </p>
+      <p style="line-height:1.6;white-space:pre-wrap;">{{ recruiter_message }}</p>
+      <p style="line-height:1.6;">Best wishes,<br>{{ recruiter_name }}</p>""",
+            cta_label=None,
+        ),
+    },
+    {
+        "id": "builtin:test_not_selected",
+        "name": "Final result — not selected",
+        "description": "Closes the process for a candidate who is not going further.",
+        "is_html": True,
+        "subject": "Update on your {{ interview_title }} application",
+        "body": _shell(
+            "Hi {{ candidate_name }},",
+            """
+      <p style="line-height:1.6;margin-top:12px;">
+        Thank you for completing <b>"{{ interview_title }}"</b> at {{ company }}.
+      </p>
+      <p style="line-height:1.6;white-space:pre-wrap;">{{ recruiter_message }}</p>
       <p style="line-height:1.6;">
         We're genuinely grateful for your interest, and we'd welcome an
         application from you for future roles.

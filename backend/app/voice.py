@@ -31,6 +31,10 @@ DEFAULT_SAMPLE_TEXT = (
 # Guard against a long custom line turning a "sample" into a paid monologue.
 _MAX_SAMPLE_CHARS = 200
 
+# Candidates naturally pause while recalling examples. A 500ms VAD boundary
+# routinely committed a turn before they had finished their answer.
+THINKING_PAUSE_MS = 1_300
+
 
 @dataclass(frozen=True)
 class Persona:
@@ -141,6 +145,24 @@ def resolve_voice(interview: Interview) -> str:
     return persona.default_voice if persona else DEFAULT_VOICE
 
 
+def live_language_code(language: str | None) -> str:
+    """Map the recruiter's human-readable language to Live's BCP-47 field."""
+    return {
+        "english": "en-US",
+        "spanish": "es-ES",
+        "french": "fr-FR",
+        "german": "de-DE",
+        "hindi": "hi-IN",
+        "portuguese": "pt-BR",
+        "italian": "it-IT",
+        "japanese": "ja-JP",
+        "mandarin": "cmn-Hans-CN",
+        "chinese": "cmn-Hans-CN",
+        "korean": "ko-KR",
+        "dutch": "nl-NL",
+    }.get((language or "").strip().lower(), "en-US")
+
+
 def build_preview_setup(
     *,
     voice_name: str,
@@ -163,6 +185,9 @@ def build_preview_setup(
         "model": model,
         "generationConfig": {
             "responseModalities": ["AUDIO"],
+            # The next scripted question needs no deliberation; thinking reads
+            # as a broken or stalled interviewer in a live phone conversation.
+            "thinkingConfig": {"thinkingBudget": 0},
             "speechConfig": {
                 "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}
             },
@@ -193,7 +218,14 @@ def build_live_setup(interview: Interview, *, model: str) -> dict:
         "model": model,
         "generationConfig": {
             "responseModalities": ["AUDIO"],
+            # The next scripted question needs no deliberation; thinking reads
+            # as a broken or stalled interviewer in a live phone conversation.
+            "thinkingConfig": {"thinkingBudget": 0},
             "speechConfig": {
+                # This is the Live field that pins both generated speech and
+                # recognition language. Without it an Indian-English answer
+                # can be returned in Devanagari despite an English interview.
+                "languageCode": live_language_code(interview.language),
                 "voiceConfig": {
                     "prebuiltVoiceConfig": {"voiceName": resolve_voice(interview)}
                 }
@@ -213,7 +245,7 @@ def build_live_setup(interview: Interview, *, model: str) -> dict:
                 "startOfSpeechSensitivity": "START_SENSITIVITY_HIGH",
                 "endOfSpeechSensitivity": "END_SENSITIVITY_HIGH",
                 "prefixPaddingMs": 150,
-                "silenceDurationMs": 500,
+                "silenceDurationMs": THINKING_PAUSE_MS,
             }
         },
         # Lets a dropped connection resume without burning another `uses` — Google

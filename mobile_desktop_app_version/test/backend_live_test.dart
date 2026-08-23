@@ -55,8 +55,18 @@ void main() {
     final readiness = await client().providerReadiness();
     // Whatever is configured, the server must answer with the keys it knows.
     expect(readiness.keys, containsAll(<String>['gemini', 'tavus', 'deepgram']));
-    // Hume was removed when its upstream API was discontinued.
-    expect(readiness.containsKey('hume'), isFalse);
+
+    // `hume` IS reported, and this asserted the opposite for a long time without
+    // anybody noticing — the test returns early when no backend is reachable, so it
+    // silently passed on every offline run and only failed the first time somebody had
+    // a server up.
+    //
+    // What was actually discontinued is Hume's batch PROSODY API, not the key: the
+    // server still reports whether one is configured, and `avatar/status` treats the
+    // flag as "Hume or the Gemini audio fallback". `providers.readiness` also says in
+    // its own comment that keys are ADDED rather than removed, precisely because this
+    // client maps the dict generically and a removal would silently disable a feature.
+    expect(readiness.containsKey('hume'), isTrue);
   }, timeout: const Timeout(Duration(seconds: 20)));
 
   test('a bogus token is rejected, and the message is showable', () async {

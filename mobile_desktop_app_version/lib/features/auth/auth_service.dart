@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:talbotiq/features/auth/app_role.dart';
+import 'package:talbotiq/features/auth/company_key.dart';
 
 /// Thin wrapper over Firebase Auth that also resolves the signed-in user's
 /// role + display name from Firestore. Exposes the current user, auth-state and
@@ -35,6 +36,7 @@ class AuthService {
     required String password,
     required AppRole role,
     String? name,
+    String? company,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -44,11 +46,22 @@ class AuthService {
     if (name != null && name.trim().isNotEmpty) {
       await user.updateDisplayName(name.trim());
     }
+    final companyKey = normalizeCompanyKey(company);
     await _users.doc(user.uid).set({
       'email': user.email,
       'emailLower': (user.email ?? email).trim().toLowerCase(),
       'role': role.wire,
       if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      // BOTH forms, and both are needed — written in the exact shape the web client
+      // uses (see AuthProvider.tsx), so an account created here behaves identically
+      // there and vice versa.
+      //
+      // `company` is what they typed, kept for display. `companyKey` is the
+      // normalised form and the only thing ever compared, so "TalbotIQ" and
+      // "talbotiq" are one company. Written ONLY when given: an empty key must never
+      // become a bucket that every company-less account falls into.
+      if (companyKey.isNotEmpty) 'company': normalizeCompanyDisplay(company),
+      if (companyKey.isNotEmpty) 'companyKey': companyKey,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return user;

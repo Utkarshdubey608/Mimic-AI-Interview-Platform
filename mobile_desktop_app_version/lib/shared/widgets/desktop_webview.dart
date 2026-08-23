@@ -19,6 +19,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:talbotiq/shared/widgets/iframe_host_allowlist.dart';
+import 'package:talbotiq/core/constants/colors.dart';
 
 class DesktopWebView extends StatefulWidget {
   final String url;
@@ -98,7 +99,7 @@ class _DesktopWebViewState extends State<DesktopWebView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.videocam_off, color: Colors.redAccent, size: 40),
+              const Icon(Icons.videocam_off, color: AppColors.danger, size: 40),
               const SizedBox(height: 12),
               Text(
                 _error!,

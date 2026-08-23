@@ -22,7 +22,18 @@ from fastapi.responses import JSONResponse
 from app import mailer, providers, web
 from app.config import get_settings
 from app.providers.base import ProviderNotConfigured, UpstreamError, aclose
-from app.routers import ai, emails, evaluations, realtime, resume, templates, twoway
+from app.routers import (
+    ai,
+    emails,
+    evaluations,
+    feedback as feedback_routes,
+    mcq as mcq_routes,
+    mcq_sets as mcq_sets_routes,
+    realtime,
+    resume,
+    templates,
+    twoway,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -95,6 +106,14 @@ def create_app() -> FastAPI:
     app.include_router(evaluations.router)
     app.include_router(twoway.router)
     app.include_router(ai.router)
+    # Candidate feedback. Additive: a new path on the frozen surface, and the half
+    # that was missing — the prompt used to exist only in the browser.
+    app.include_router(feedback_routes.router)
+    # MCQ, on the SHARED surface. It was web-only because its runtime lived inside
+    # `web_sessions` with the answer key; see app/mcq_runtime.py.
+    app.include_router(mcq_routes.router)
+    # Authoring, also shared. Both clients build papers through app/mcq_authoring.py.
+    app.include_router(mcq_sets_routes.router)
 
     # The web surface, mounted at /api/web/*. One call by design: everything it
     # adds is registered inside the package, so removing it is deleting

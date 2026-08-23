@@ -28,6 +28,11 @@ class AdaptiveNavScaffold extends StatelessWidget {
   final Widget body;
   final Color? backgroundColor;
 
+  /// Primary create affordance. On narrow windows it rides inside the bottom
+  /// bar; the wide/rail layout has room for page-level actions instead, so it
+  /// is ignored there.
+  final FloatingNavAction? action;
+
   const AdaptiveNavScaffold({
     super.key,
     required this.currentIndex,
@@ -35,6 +40,7 @@ class AdaptiveNavScaffold extends StatelessWidget {
     required this.items,
     required this.body,
     this.backgroundColor,
+    this.action,
   });
 
   @override
@@ -45,14 +51,27 @@ class AdaptiveNavScaffold extends StatelessWidget {
         final isWide = constraints.maxWidth >= kDesktopNavBreakpoint;
         if (!isWide) {
           return Scaffold(
-            backgroundColor: backgroundColor ?? theme.scaffoldBackgroundColor,
-            body: body,
-            bottomNavigationBar: FloatingNavBar(
-              currentIndex: currentIndex,
-              onSelect: onSelect,
-              items: items,
-            ),
-          );
+              backgroundColor: Colors.transparent,
+              body: Stack(
+                children: [
+                  Positioned.fill(
+                    child: body,
+                  ),
+
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: FloatingNavBar(
+                      currentIndex: currentIndex,
+                      onSelect: onSelect,
+                      items: items,
+                      action: action,
+                    ),
+                  ),
+                ],
+              ),
+            );
         }
 
         final cs = theme.colorScheme;

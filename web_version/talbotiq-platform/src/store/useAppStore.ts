@@ -26,17 +26,22 @@ export interface Draft {
 }
 
 interface AppState {
-  // API keys.
-  // HYBRID: deepgram/hume/gemini secrets live on the SERVER — these fields hold a
-  // non-secret sentinel ('server' when the backend reports the key configured, else
-  // '') purely so the ported UI's truthiness gating still works. The Tavus key is a
-  // real runtime key entered in Settings (never compiled into the bundle).
-  tavusKey: string
+  // NON-SECRET configured-flags, hydrated from the server.
+  //
+  // Every vendor secret lives in the deployment environment. These fields hold a
+  // sentinel ('server' when the backend reports it configured, else '') purely so the
+  // ported UI's truthiness gating still works — no secret has ever been in them.
+  //
+  // Tavus used to be the exception: "a real runtime key entered in Settings". That
+  // input is gone, along with every route that accepted a credential from a browser,
+  // so it is a flag like the rest — see `tavusConfigured`.
   deepgramKey: string
   humeKey: string
   geminiKey: string
   awsProxyUrl: string
   webhookUrl: string
+  /** Whether the SERVER has Tavus configured. Never a key. */
+  tavusConfigured: boolean
 
   // Defaults
   defaultReplicaId: string
@@ -73,7 +78,6 @@ interface AppState {
   deepgramConnected: boolean
 
   // Actions
-  setTavusKey: (k: string) => void
   setDeepgramKey: (k: string) => void
   setHumeKey: (k: string) => void
   setGeminiKey: (k: string) => void
@@ -104,12 +108,12 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      tavusKey: '',
       deepgramKey: '',
       humeKey: '',
       geminiKey: '',
       awsProxyUrl: `${httpBase()}/avatar/analyze-face`,
       webhookUrl: '',
+      tavusConfigured: false,
       defaultReplicaId: '',
       defaultPersonaId: '',
       currentConversation: null,
@@ -133,7 +137,6 @@ export const useAppStore = create<AppState>()(
       sessionTranscript: [],
       deepgramConnected: false,
 
-      setTavusKey: (k) => set({ tavusKey: k }),
       setDeepgramKey: (k) => set({ deepgramKey: k }),
       setHumeKey: (k) => set({ humeKey: k }),
       setGeminiKey: (k) => set({ geminiKey: k }),
@@ -189,10 +192,11 @@ export const useAppStore = create<AppState>()(
       // they were storing secrets in localStorage for no functional reason and
       // have been removed entirely.
       //
-      // `tavusKey` — the last secret held client-side — went with the common-
-      // backend migration: src/services/tavus.ts now calls the backend proxy,
-      // which attaches the credential server-side. The in-memory field remains
-      // only as UI state for the Settings page's save-to-server input.
+      // `tavusKey` is GONE, field and all. It survived the common-backend migration
+      // as "UI state for the Settings page's save-to-server input" — which is to say
+      // the browser still had a box to type a vendor credential into, and a route to
+      // send it to. Credentials come from the deployment environment; there is no
+      // input, no field, and no route. See app/web/routes/settings.py.
       partialize: (s) => ({
         webhookUrl: s.webhookUrl,
         defaultReplicaId: s.defaultReplicaId,
@@ -216,13 +220,14 @@ export const useAppStore = create<AppState>()(
 export function refreshServiceStatus() {
   fetch(`${httpBase()}/avatar/status`)
     .then((r) => (r.ok ? r.json() : null))
-    .then((s: { deepgram?: boolean; hume?: boolean; gemini?: boolean; rekognition?: boolean } | null) => {
+    .then((s: { deepgram?: boolean; hume?: boolean; gemini?: boolean; rekognition?: boolean; tavus?: boolean } | null) => {
       if (!s) return
       useAppStore.setState({
         deepgramKey: s.deepgram ? 'server' : '',
         humeKey: s.hume ? 'server' : '',
         geminiKey: s.gemini ? 'server' : '',
         awsProxyUrl: s.rekognition ? `${httpBase()}/avatar/analyze-face` : '',
+        tavusConfigured: !!s.tavus,
       })
     })
     .catch(() => { /* offline / server down — panels show their own "not configured" states */ })

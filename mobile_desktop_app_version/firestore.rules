@@ -56,6 +56,52 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // practice_sessions: a candidate's OWN self-serve rehearsal history.
+    //
+    // Written by the client, unlike an interview score, and that is deliberate rather
+    // than an oversight: practice is self-serve, nothing gates on it, and no recruiter
+    // ever reads it. An assigned interview's score is the opposite on all three counts,
+    // which is why `interviews` forbids a candidate writing `result` and the server
+    // writes it with the Admin SDK instead.
+    //
+    // Nested under the uid so the rule is ONE comparison rather than a field check on
+    // every document — and so there is no shape of query that returns somebody else's
+    // history, which a top-level collection with a `uid` field would allow if a filter
+    // were ever dropped.
+    match /practice_sessions/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+
+      match /runs/{runId} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // mcq_sets / mcq_attempts: SERVER-WRITTEN ONLY. No client may read or write
+    // either one, and both are listed explicitly rather than left to the default
+    // deny — because the reason is not obvious and the next person to add a rule
+    // needs to see it stated.
+    //
+    // `mcq_sets` is a recruiter's assessment paper, and a paper CONTAINS THE
+    // ANSWER KEY. A candidate who could read the collection would not need to sit
+    // the test. Recruiters author papers through `/api/mcq-sets`, which filters on
+    // a `recruiterId` stamped server-side from the auth token — never from the
+    // client — so ownership is enforced where it can be trusted rather than by a
+    // rule reading a field the writer controls.
+    //
+    // `mcq_attempts` is a candidate's answers, and unlike `practice_sessions` next
+    // door it DECIDES A SCORE. Practice is self-serve and nothing gates on it,
+    // which is why the client writes it directly; an attempt is the input to a
+    // grade, so the candidate being graded must not be able to write it. Answers
+    // go through POST /api/interviews/{id}/mcq/answers and are scored with the
+    // Admin SDK, which bypasses these rules.
+    match /mcq_sets/{setId} {
+      allow read, write: if false;
+    }
+
+    match /mcq_attempts/{interviewId} {
+      allow read, write: if false;
+    }
+
     // tests: per-batch metadata (title/type/createdAt) for the recruiter
     // dashboard's test list. Owned solely by the recruiter who created it;
     // candidates never read it (they only ever see their own interview doc).
@@ -136,7 +182,14 @@ service cloud.firestore {
                         // same way — a candidate legitimately writes it when they
                         // finish an interview round — which is exactly why the
                         // résumé path was moved server-side instead.
-                        && unchanged('resume'));
+                        && unchanged('resume')
+                        // `conclusion` is the recruiter's decision about the
+                        // candidate's whole run at the test, plus the message
+                        // they wrote them. Unlike `result`, a candidate never
+                        // legitimately writes it — nothing on their device
+                        // produces one — so it is locked the same way `resume`
+                        // is, rather than being left writable and trusted.
+                        && unchanged('conclusion'));
 
       allow delete: if isRecruiter()
                      && resource.data.recruiterId == request.auth.uid;
