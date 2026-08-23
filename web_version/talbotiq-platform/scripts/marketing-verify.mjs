@@ -56,6 +56,9 @@ const opt = (name, dflt) => { const i = argv.indexOf(name); return i >= 0 ? argv
 const rIdx = argv.indexOf('--routes')
 const ROUTES = rIdx >= 0 ? argv.slice(rIdx + 1).filter((a) => a.startsWith('/')) : routesFromContent()
 const REDUCED = flag('--reduced-motion')
+/* `prefers-contrast: more` is emulable; `prefers-reduced-transparency` is not,
+   so that block is verified by inspection rather than here. */
+const CONTRAST = flag('--contrast')
 const VIEWPORTS = opt('--width', null)
   ? [{ width: Number(opt('--width')), height: Number(opt('--height', 900)) }]
   : [{ width: 1440, height: 900 }, { width: 390, height: 844 }]
@@ -70,12 +73,14 @@ let failed = 0
 
 for (const vp of VIEWPORTS) {
   const label = `${vp.width}x${vp.height}`
-  const outDir = join(ROOT, 'marketing-verify', REDUCED ? `${label}-reduced` : label)
+  const suffix = REDUCED ? '-reduced' : CONTRAST ? '-contrast' : ''
+  const outDir = join(ROOT, 'marketing-verify', label + suffix)
   mkdirSync(outDir, { recursive: true })
   const ctx = await browser.newContext({
     viewport: vp,
     deviceScaleFactor: 1,
     ...(REDUCED ? { reducedMotion: 'reduce' } : {}),
+    ...(CONTRAST ? { contrast: 'more' } : {}),
   })
 
   console.log(`\n══ ${label}${REDUCED ? ' (reduced motion)' : ''} — ${ROUTES.length} routes ══`)
@@ -172,7 +177,7 @@ for (const vp of VIEWPORTS) {
 
     const pass = problems.length === 0
     if (!pass) failed++
-    report.push({ viewport: label, reduced: REDUCED, route, pass, problems, checks })
+    report.push({ viewport: label, reduced: REDUCED, contrast: CONTRAST, route, pass, problems, checks })
     console.log(`${pass ? '  ok  ' : '  FAIL'} ${route}${pass ? '' : '\n        ' + problems.join('\n        ')}`)
     await page.close()
   }

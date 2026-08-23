@@ -22,3 +22,10 @@ public/mediapipe/wasm/
 e2e/shots/
 playwright-report/
 test-results/
+
+# Visual-verification output. The harnesses are committed
+# (scripts/marketing-verify.mjs, scripts/marketing-void-audit.mjs); their
+# screenshots and reports are build artefacts and run to ~150MB.
+marketing-verify/
+look/
+shots-final/
