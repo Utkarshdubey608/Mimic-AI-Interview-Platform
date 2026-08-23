@@ -146,26 +146,26 @@ for (const vp of VIEWPORTS) {
         }
         scrollTo({ top: 0, behavior: 'instant' })
 
-        /* Wait for the CONDITION, not for a duration.
+        /* Ask each straggler DIRECTLY.
          *
-         * IntersectionObserver dispatches its callbacks asynchronously, so
-         * "every reveal has been scrolled past" and "every reveal has been
-         * told" are different moments, and under load — 73 routes in one run
-         * with .webm demos decoding — the gap between them exceeds any fixed
-         * sleep I picked. Poll until nothing is left untriggered, or until the
-         * count stops moving, so a page that genuinely strands content still
-         * fails instead of hanging. */
-        const left = () => document.querySelectorAll('.reveal:not(.in)').length
-        let prev = -1
-        let same = 0
-        for (let i = 0; i < 40; i++) {
-          const n = left()
-          if (n === 0) break
-          same = n === prev ? same + 1 : 0
-          if (same >= 6) break
-          prev = n
-          await new Promise((r) => setTimeout(r, 100))
+         * Polling a global count was still wrong: under load the count sits
+         * still while an IntersectionObserver callback is queued but not yet
+         * dispatched, so "the number stopped moving" fired before the observer
+         * had finished and the failures just moved to different demo pages
+         * between runs.
+         *
+         * So stop inferring. For anything still untriggered, scroll it to the
+         * centre of the viewport and wait for its own class, with its own
+         * timeout. What survives that is a real finding: an element that never
+         * fires even when it is the thing on screen. Per-element, so there is
+         * no global timing left to guess at. */
+        const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+        for (const el of [...document.querySelectorAll('.reveal:not(.in)')]) {
+          el.scrollIntoView({ block: 'center', behavior: 'instant' })
+          for (let i = 0; i < 30 && !el.classList.contains('in'); i++) await sleep(50)
         }
+        scrollTo({ top: 0, behavior: 'instant' })
+        await sleep(200)
       })
 
       Object.assign(checks, await page.evaluate(() => {
