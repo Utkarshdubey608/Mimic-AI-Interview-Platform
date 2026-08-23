@@ -6,23 +6,34 @@
  * than a build-time dependency on a package it does not otherwise need. If a
  * track is ever added there, add it here too.
  */
-type TrackType = 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way'
+type TrackType = 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way' | 'mcq'
 
 /**
  * Which format each demo video shows, and where it lives.
  *
  * One naming contract, consumed by three call sites — the hero, the format
- * cards on /mimic, and the five Platform track pages — plus the recorder that
+ * cards on /mimic, and the Platform track pages — plus the recorder that
  * produces the files. Keys are the product's own TrackType values, so a format
  * is named the same thing in the seed data, the recorder and the site.
  *
- * The sixth track (`video`, recorded video) is absent on purpose. It has no nav
- * entry and no platform page, and scripts/audit-marketing-claims.ts pins the
- * advertised count at five. Adding it here means writing that page first.
+ * `video` (one-way recorded video) is still absent on purpose: it has no nav
+ * entry and no platform page, so advertising it would send buyers looking for a
+ * page nobody has written.
+ *
+ * `mcq` was in the same position and is not any more. It is a first-class track
+ * in the product — shared/types.ts lists it in TrackType, McqStage.tsx is its
+ * candidate screen, and /mcq-sets is where a recruiter authors one under the
+ * name "Assessments" — so it is advertised here, with the platform page written
+ * to match (see plat('assessments', …) in content.ts).
+ *
+ * The note this replaces said adding a track meant "restoring the count in
+ * scripts/audit-marketing-claims.ts". That file does not exist. The count that
+ * actually holds this honest is the assertion in demoAssets.test.ts, which is
+ * run by `npm test`.
  */
-export type DemoTrack = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'two_way' | 'chat'>
+export type DemoTrack = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'two_way' | 'chat' | 'mcq'>
 
-export const DEMO_TRACKS: readonly DemoTrack[] = ['chatbot', 'voice', 'video_avatar', 'two_way', 'chat']
+export const DEMO_TRACKS: readonly DemoTrack[] = ['chatbot', 'voice', 'video_avatar', 'two_way', 'chat', 'mcq']
 
 /**
  * Which formats actually have footage on disk right now.
@@ -112,6 +123,10 @@ export const DEMO_COPY: Record<DemoTrack, {
   two_way: {
     caption: 'A live call with a real interviewer, recorded with consent and scored on the same rubric.',
     alt: 'A Mimic live two-way interview from the candidate’s side: the recruiter’s video tile, the candidate’s own tile, and the live call controls showing the call is being recorded.',
+  },
+  mcq: {
+    caption: 'A timed assessment paper, answered one question at a time and marked on submission.',
+    alt: 'A Mimic assessment in progress: one multiple-choice question on screen with its options, a per-question timer counting down beside it, the candidate selecting an answer and moving to the next question, and the paper submitting for marking at the end.',
   },
   chat: {
     caption: 'The preparation timer, the STAR prompt, and the answer box that unlocks when the clock starts.',

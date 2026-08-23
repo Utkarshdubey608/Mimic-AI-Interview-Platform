@@ -12,9 +12,9 @@ function assert(label: string, cond: boolean, extra = '') {
 
 // The five advertised formats, and ONLY those. The sixth track (`video`) is
 // deliberately unadvertised — see MimicSite.tsx and audit-marketing-claims.ts.
-assert('exactly five demo tracks', DEMO_TRACKS.length === 5, `got ${DEMO_TRACKS.length}`)
+assert('exactly six demo tracks', DEMO_TRACKS.length === 6, `got ${DEMO_TRACKS.length}`)
 assert('recorded video is not advertised', !(DEMO_TRACKS as readonly string[]).includes('video'))
-for (const t of ['chatbot', 'voice', 'video_avatar', 'two_way', 'chat'] as const) {
+for (const t of ['chatbot', 'voice', 'video_avatar', 'two_way', 'chat', 'mcq'] as const) {
   assert(`${t} is present`, (DEMO_TRACKS as readonly string[]).includes(t))
 }
 
