@@ -81,5 +81,28 @@ assert('every sectionTo points at a hub or home',
 assert('PAGE_BY_SLUG covers every page', Object.keys(PAGE_BY_SLUG).length === PAGES.length)
 assert('PAGE_BY_SLUG keys match slugs', PAGES.every((p) => PAGE_BY_SLUG[p.slug] === p))
 
+/* ── The kicker is the breadcrumb's data source ─────────────────────────────
+ * Both the visible crumb and the BreadcrumbList in the JSON-LD derive their
+ * leaf from `kicker.split('·').pop()`, so the kicker is not decoration — it is
+ * the third segment of a published breadcrumb and a structured-data field
+ * search engines read. The convention is `Category · Leaf`.
+ *
+ * company/about was authored the other way round, 'About · Company', so its
+ * crumb rendered "Mimic / Company / Company" and shipped that duplicate to
+ * search as well. Nothing caught it: it is a valid string in a valid field, on
+ * the one page nobody clicks through while checking slugs.
+ */
+const SECTIONS = new Set(PAGES.map((p) => p.section))
+const crumbLeaf = (p: MktPage) => (p.kicker.includes('·') ? p.kicker.split('·').pop()!.trim() : p.h1)
+
+assert('every non-hub kicker carries the Category · Leaf separator',
+  PAGES.every((p) => p.tier === 'hub' || p.kicker.includes('·')),
+  PAGES.filter((p) => p.tier !== 'hub' && !p.kicker.includes('·')).map((p) => p.slug).join(' | '))
+
+const reversed = PAGES.filter((p) => p.tier !== 'hub' && SECTIONS.has(crumbLeaf(p)))
+assert('no crumb leaf repeats a section name (kicker written backwards)',
+  reversed.length === 0,
+  reversed.map((p) => `${p.slug} -> ${p.kicker}`).join(' | '))
+
 console.log(failures === 0 ? '\n✅ ALL ROUTE TESTS PASSED' : `\n❌ ${failures} ROUTE TEST(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

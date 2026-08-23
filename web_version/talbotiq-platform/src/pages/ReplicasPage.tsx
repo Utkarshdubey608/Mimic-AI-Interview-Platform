@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { AlertTriangle, ExternalLink, KeyRound, Plus, RefreshCw, ScanFace, Trash2 } from 'lucide-react'
 import { useReplicas, useDeleteReplica, useUpdateReplica } from '@/hooks/useTavus'
 import { useAppStore } from '@/store/useAppStore'
-import { Button, Card, Badge, Modal, Input, EmptyState, PageHeader, InfoRow } from '@/components/ui'
+import { pageVariants } from '@/design/motion'
+import { Button, Card, Badge, Modal, Input, EmptyState, PageHeader, InfoRow, Skeleton, cn } from '@/components/ui'
 import type { TavusReplica } from '@/types/tavus.types'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -16,7 +18,7 @@ function StatusBadge({ status }: { status: TavusReplica['status'] }) {
 /* ── Face placeholder for replicas without a preview video ──────────────────── */
 function PlaceholderFace() {
   return (
-    <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-neutral-300">
+    <div className="flex h-full w-full items-center justify-center bg-surface-hover text-ink-disabled">
       <svg
         width="40" height="40" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
@@ -29,41 +31,74 @@ function PlaceholderFace() {
   )
 }
 
-/* ── Loading placeholder that mirrors the real card ─────────────────────────── */
+/* ── Loading placeholder that mirrors the real card ─────────────────────────
+   Same media height, same paddings, same rule position and the same squared
+   badge and button shapes as the loaded card, so nothing moves or changes
+   silhouette when the list arrives. */
 function ReplicaCardSkeleton() {
   return (
     <Card className="overflow-hidden">
-      <div className="h-44 w-full animate-pulse bg-neutral-100" />
+      <Skeleton className="h-44 w-full rounded-none" />
       <div className="p-4">
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3.5 w-3/5 animate-pulse rounded bg-neutral-100" />
-            <div className="h-2.5 w-2/5 animate-pulse rounded bg-neutral-100" />
+            <Skeleton className="h-3.5 w-3/5" />
+            <Skeleton className="h-3 w-2/5" />
           </div>
-          <div className="h-5 w-16 flex-shrink-0 animate-pulse rounded-full bg-neutral-100" />
+          <Skeleton className="h-5 w-16 flex-shrink-0" />
         </div>
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <div className="h-2.5 w-24 animate-pulse rounded bg-neutral-100" />
-          <div className="h-2.5 w-12 animate-pulse rounded bg-neutral-100" />
+        <div className="flex items-center justify-between gap-2 border-t border-rule pt-3">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-6 w-16 rounded-md" />
         </div>
       </div>
     </Card>
   )
 }
 
-function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusReplica) => void }) {
+function ReplicaCard({ r, selected, onSelect }: {
+  r: TavusReplica
+  /** The card the details modal is currently about. */
+  selected?: boolean
+  onSelect: (r: TavusReplica) => void
+}) {
   const del = useDeleteReplica()
   const progress = Math.max(0, Math.min(100, r.training_progress ?? 0))
 
   return (
-    <Card hover className="group flex flex-col overflow-hidden cursor-pointer" onClick={() => onSelect(r)}>
-      <div className="relative h-44 w-full overflow-hidden rounded-t-2xl bg-neutral-100">
+    <Card
+      hover
+      onClick={() => onSelect(r)}
+      className={cn(
+        'group flex cursor-pointer flex-col overflow-hidden',
+        selected && 'border-action ring-1 ring-signal',
+      )}
+    >
+      {/* The card already clips to its own 8px radius, so the media needs no
+          radius of its own — it used to carry a 10px top radius that did not
+          match the card and left a hairline of surface in each top corner. */}
+      <div className="relative h-44 w-full overflow-hidden bg-surface-hover">
         {r.thumbnail_video_url
-          ? <video src={r.thumbnail_video_url} className="h-full w-full object-cover" muted loop autoPlay playsInline />
-          : <PlaceholderFace />
+          ? (
+            <video
+              src={r.thumbnail_video_url}
+              // The one animated thing on this card, and only the media moves:
+              // transform, 240ms, and nothing at all under reduced motion.
+              className="h-full w-full object-cover transition-transform duration-base ease-out motion-safe:group-hover:scale-[1.02]"
+              muted loop autoPlay playsInline
+            />
+          )
+          : (
+            <div className="h-full w-full transition-transform duration-base ease-out motion-safe:group-hover:scale-[1.02]">
+              <PlaceholderFace />
+            </div>
+          )
         }
         {r.replica_type === 'stock' && (
-          <span className="absolute left-2.5 top-2.5 rounded-full border border-white/40 bg-neutral-900/55 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+          // Ground-INDEPENDENT on purpose, like a toast: this chip floats over
+          // a photographic frame that is dark on both grounds, so a chip that
+          // followed the ground would turn white-on-white in the record.
+          <span className="absolute left-2.5 top-2.5 rounded-sm border border-[color:var(--toast-rule)] bg-[color:color-mix(in_srgb,var(--toast-bg)_78%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[color:var(--toast-ink)] backdrop-blur-sm">
             Stock
           </span>
         )}
@@ -72,8 +107,8 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-neutral-900">{r.replica_name}</p>
-            <p className="mt-0.5 truncate font-mono text-xs text-neutral-400">{r.replica_id}</p>
+            <p className="truncate text-sm font-semibold text-ink">{r.replica_name}</p>
+            <p className="mt-0.5 truncate font-mono text-xs text-ink-faint">{r.replica_id}</p>
           </div>
           <StatusBadge status={r.status} />
         </div>
@@ -81,23 +116,28 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
         {r.status === 'training' && (
           <div className="mb-3">
             <div className="mb-1.5 flex items-baseline justify-between text-xs">
-              <span className="font-medium text-neutral-500">Training</span>
-              <span className="font-bold tabular-nums text-neutral-700">{progress}%</span>
+              <span className="font-medium text-ink-muted">Training</span>
+              <span className="font-bold tabular-nums text-ink-body">{progress}%</span>
             </div>
-            <div className="h-[5px] overflow-hidden rounded-sm bg-neutral-200">
-              <div className="h-full rounded-sm bg-primary-700 transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-[5px] overflow-hidden rounded-sm bg-surface-hover">
+              {/* scaleX, not width: width is a layout property and this rail
+                  updates while a training poll is in flight. */}
+              <div
+                className="h-full w-full origin-left rounded-sm bg-action transition-transform duration-base ease-out"
+                style={{ transform: `scaleX(${progress / 100})` }}
+              />
             </div>
           </div>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
-          <span className="truncate text-xs text-neutral-400">
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-rule pt-3">
+          <span className="truncate text-xs text-ink-faint">
             {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
           </span>
           <button
             type="button"
             onClick={e => { e.stopPropagation(); if (confirm(`Delete "${r.replica_name}"?`)) del.mutate(r.replica_id, { onSuccess: () => toast.success('Replica deleted'), onError: (e: any) => toast.error(e.message) }) }}
-            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold text-ink-faint transition-colors duration-fast ease-out hover:bg-risk-bg hover:text-risk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1"
             aria-label={`Delete replica ${r.replica_name}`}
           >
             <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
@@ -110,6 +150,7 @@ function ReplicaCard({ r, onSelect }: { r: TavusReplica; onSelect: (r: TavusRepl
 }
 
 export default function ReplicasPage() {
+  const reduce = useReducedMotion() ?? false
   const { data: replicas, isLoading, isError, error, refetch, isFetching } = useReplicas()
   const { tavusConfigured } = useAppStore()
   const navigate = useNavigate()
@@ -120,12 +161,35 @@ export default function ReplicasPage() {
   const total = replicas?.length ?? 0
   const trainingCount = replicas?.filter(r => r.status === 'training').length ?? 0
 
+  /* Inventory line — only once there is something to count. It belongs to the
+     page head rather than under it: as a free-floating row it needed a -mt-4 to
+     claw back the head's own bottom rhythm, which put it on no scale at all. */
+  const inventory = !isLoading && !isError && total > 0
+    ? (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-muted">
+        <span className="font-semibold tabular-nums text-ink-body">{total}</span>
+        <span>replica{total !== 1 ? 's' : ''} available</span>
+        {trainingCount > 0 && (
+          <>
+            <span className="h-3 w-px bg-rule" aria-hidden="true" />
+            <span className="badge badge-warning tabular-nums">{trainingCount} training</span>
+          </>
+        )}
+      </div>
+    )
+    : undefined
+
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8">
+    <motion.div
+      variants={pageVariants(reduce)}
+      initial="initial"
+      animate="animate"
+      className="max-w-[1440px] mx-auto px-6 py-8"
+    >
       <PageHeader
-        kicker="Avatar management"
         title="Replicas"
         description="The AI faces available to your interviews. Select any card to view its details or rename it."
+        meta={inventory}
         action={
           <Button
             icon={<Plus size={15} strokeWidth={2.5} aria-hidden="true" />}
@@ -135,20 +199,6 @@ export default function ReplicasPage() {
           </Button>
         }
       />
-
-      {/* Inventory line — only once there is something to count */}
-      {!isLoading && !isError && total > 0 && (
-        <div className="-mt-4 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-neutral-500">
-          <span className="font-semibold tabular-nums text-neutral-700">{total}</span>
-          <span>replica{total !== 1 ? 's' : ''} available</span>
-          {trainingCount > 0 && (
-            <>
-              <span className="h-3 w-px bg-border" />
-              <span className="badge badge-warning tabular-nums">{trainingCount} training</span>
-            </>
-          )}
-        </div>
-      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -203,7 +253,14 @@ export default function ReplicasPage() {
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {replicas.map(r => <ReplicaCard key={r.replica_id} r={r} onSelect={r => { setSelected(r); setEditName(r.replica_name) }} />)}
+          {replicas.map(r => (
+            <ReplicaCard
+              key={r.replica_id}
+              r={r}
+              selected={selected?.replica_id === r.replica_id}
+              onSelect={r => { setSelected(r); setEditName(r.replica_name) }}
+            />
+          ))}
         </div>
       )}
 
@@ -215,11 +272,11 @@ export default function ReplicasPage() {
                 src={selected.thumbnail_video_url}
                 controls
                 playsInline
-                className="max-h-52 w-full rounded-xl border border-border bg-neutral-100 object-contain"
+                className="max-h-52 w-full rounded-lg border border-rule bg-surface-hover object-contain"
               />
             )}
 
-            <div className="overflow-hidden rounded-xl border border-border px-4">
+            <div className="overflow-hidden rounded-lg border border-rule px-4">
               <InfoRow label="Replica ID" value={<span className="font-mono text-xs">{selected.replica_id}</span>} />
               <InfoRow label="Status" value={<StatusBadge status={selected.status} />} />
               <InfoRow label="Type" value={<span className="capitalize">{selected.replica_type ?? '—'}</span>} />
@@ -236,7 +293,7 @@ export default function ReplicasPage() {
               hint="Shown wherever recruiters pick a face."
             />
 
-            <div className="flex justify-end gap-3 border-t border-border pt-5">
+            <div className="flex justify-end gap-3 border-t border-rule pt-5">
               <Button variant="secondary" onClick={() => setSelected(null)}>Cancel</Button>
               <Button
                 loading={update.isPending}
@@ -248,6 +305,6 @@ export default function ReplicasPage() {
           </div>
         )}
       </Modal>
-    </div>
+    </motion.div>
   )
 }

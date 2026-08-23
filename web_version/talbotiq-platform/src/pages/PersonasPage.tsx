@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
   AlertTriangle, Bot, Camera, Cpu, Ear, Eye, Pencil, Plus, RefreshCw, SquareUser, Trash2, Volume2, X,
 } from 'lucide-react'
 import { usePersonas, useCreatePersona, useUpdatePersona, useDeletePersona, useReplicas } from '@/hooks/useTavus'
-import { Button, Card, Modal, Input, Textarea, Select, Toggle, Slider, JsonPreview, SectionTitle, EmptyState, Badge, PageHeader } from '@/components/ui'
+import { pageVariants } from '@/design/motion'
+import { Button, Card, Modal, Input, Textarea, Select, Toggle, Slider, JsonPreview, SectionTitle, EmptyState, Badge, PageHeader, Skeleton } from '@/components/ui'
 import { cn } from '@/components/ui'
 import { ReplicaPicker } from '@/components/tavus/ReplicaPicker'
 import type { CreatePersonaInput, PersonaLayers, EmotionTag } from '@/types/tavus.types'
@@ -39,11 +41,14 @@ function LayerTitle({ icon, children }: { icon: ReactNode; children: ReactNode }
   )
 }
 
-/* ── Small capability chip on a persona card ────────────────────────────────── */
+/* ── Small capability chip on a persona card ────────────────────────────────
+   `.pill` is the system's squared meta label; the chip used to draw its own
+   fully-rounded box, which read as a different product from the badges beside
+   it. Only the glyph slot is local. */
 function LayerChip({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-neutral-50 px-2.5 py-1 text-[11px] font-medium text-neutral-600">
-      <span className="text-neutral-400">{icon}</span>
+    <span className="pill">
+      <span className="text-ink-faint" aria-hidden="true">{icon}</span>
       {children}
     </span>
   )
@@ -52,38 +57,46 @@ function LayerChip({ icon, children }: { icon: ReactNode; children: ReactNode })
 /* ── Grouped, bordered well for optional sub-settings ───────────────────────── */
 function SubPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-neutral-50 p-4">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-500">{title}</p>
+    <div className="space-y-4 rounded-lg border border-rule bg-surface-sunk p-4">
+      <p className="section-label">{title}</p>
       {children}
     </div>
   )
 }
 
-/* ── Loading placeholder that mirrors the real persona card ─────────────────── */
+/* ── Loading placeholder that mirrors the real persona card ─────────────────
+   Shape for shape with the loaded card: same padding, same gap, same rows —
+   including the capability-chip row, which the previous skeleton omitted, so
+   the grid grew by a row's height the moment the data landed. */
 function PersonaCardSkeleton() {
   return (
     <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="h-3.5 w-3/5 animate-pulse rounded bg-neutral-100" />
-          <div className="h-2.5 w-2/5 animate-pulse rounded bg-neutral-100" />
+          <Skeleton className="h-3.5 w-3/5" />
+          <Skeleton className="h-3 w-2/5" />
         </div>
-        <div className="h-5 w-16 flex-shrink-0 animate-pulse rounded-full bg-neutral-100" />
+        <Skeleton className="h-5 w-16 flex-shrink-0" />
       </div>
-      <div className="space-y-2 py-1">
-        <div className="h-2.5 w-full animate-pulse rounded bg-neutral-100" />
-        <div className="h-2.5 w-11/12 animate-pulse rounded bg-neutral-100" />
-        <div className="h-2.5 w-2/3 animate-pulse rounded bg-neutral-100" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-11/12" />
+        <Skeleton className="h-3 w-2/3" />
       </div>
-      <div className="mt-auto flex gap-2 border-t border-border pt-3">
-        <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-100" />
-        <div className="h-8 w-20 animate-pulse rounded-full bg-neutral-100" />
+      <div className="flex gap-1.5">
+        <Skeleton className="h-[22px] w-16" />
+        <Skeleton className="h-[22px] w-20" />
+      </div>
+      <div className="mt-auto flex gap-2 border-t border-rule pt-3">
+        <Skeleton className="h-8 w-20 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
       </div>
     </Card>
   )
 }
 
 export default function PersonasPage() {
+  const reduce = useReducedMotion() ?? false
   const { data: personas, isLoading, isError, error, refetch, isFetching } = usePersonas()
   const { data: replicas } = useReplicas()
   const create = useCreatePersona(); const update = useUpdatePersona(); const del = useDeletePersona()
@@ -126,9 +139,13 @@ export default function PersonasPage() {
   )
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8">
+    <motion.div
+      variants={pageVariants(reduce)}
+      initial="initial"
+      animate="animate"
+      className="max-w-[1440px] mx-auto px-6 py-8"
+    >
       <PageHeader
-        kicker="AI behaviour"
         title="Personas"
         description="Configure how your AI avatar thinks (LLM), speaks (TTS), listens (STT), and perceives the room."
         action={<Button icon={<Plus size={15} strokeWidth={2.5} aria-hidden="true" />} onClick={openCreate}>New persona</Button>}
@@ -166,13 +183,13 @@ export default function PersonasPage() {
               <Card key={p.persona_id} hover className="flex flex-col gap-3 p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-neutral-900">{p.persona_name}</p>
-                    <p className="mt-0.5 truncate font-mono text-xs text-neutral-400">{p.persona_id}</p>
+                    <p className="truncate text-sm font-semibold text-ink">{p.persona_name}</p>
+                    <p className="mt-0.5 truncate font-mono text-xs text-ink-faint">{p.persona_id}</p>
                   </div>
                   {p.layers?.llm?.model && <Badge variant="info" className="flex-shrink-0">{p.layers.llm.model}</Badge>}
                 </div>
 
-                <p className="line-clamp-3 flex-1 text-xs leading-relaxed text-neutral-500">{p.system_prompt}</p>
+                <p className="line-clamp-3 flex-1 text-xs leading-relaxed text-ink-muted">{p.system_prompt}</p>
 
                 {(ttsEngine || sttEngine || camera) && (
                   <div className="flex flex-wrap gap-1.5">
@@ -182,7 +199,7 @@ export default function PersonasPage() {
                   </div>
                 )}
 
-                <div className="mt-auto flex gap-2 border-t border-border pt-3">
+                <div className="mt-auto flex gap-2 border-t border-rule pt-3">
                   <Button variant="ghost" size="sm" icon={<Pencil size={12} strokeWidth={2.25} aria-hidden="true" />} onClick={() => openEdit(p.persona_id)}>Edit</Button>
                   <Button variant="danger" size="sm" icon={<Trash2 size={12} strokeWidth={2.25} aria-hidden="true" />} onClick={() => del.mutate(p.persona_id, { onSuccess: () => toast.success('Deleted'), onError: (e: any) => toast.error(e.message) })}>Delete</Button>
                 </div>
@@ -240,18 +257,18 @@ export default function PersonasPage() {
                       <button key={tag} type="button" aria-pressed={active}
                         onClick={() => { const cur = tts.voice_settings?.emotion ?? []; const next = active ? cur.filter(t => t !== tag) : [...cur, tag]; setLayer('tts', { voice_settings: { ...(tts.voice_settings ?? {}), emotion: next } }) }}
                         className={cn(
-                          'inline-flex h-8 items-center rounded-full border px-3.5 text-xs font-semibold capitalize',
-                          'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
+                          'inline-flex h-8 items-center rounded-md border px-3 text-xs font-semibold capitalize',
+                          'transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
                           active
-                            ? 'border-primary-700 bg-primary-700 text-white'
-                            : 'border-border bg-white text-neutral-500 hover:border-primary-300 hover:text-primary-700',
+                            ? 'border-action bg-action text-action-ink'
+                            : 'border-rule-input bg-surface text-ink-muted hover:border-ink-faint hover:text-ink',
                         )}>
                         {tag}
                       </button>
                     )
                   })}
                 </div>
-                <p className="text-xs text-neutral-400">Colours the avatar's delivery. Select as many as fit the role.</p>
+                <p className="text-xs text-ink-faint">Colours the avatar's delivery. Select as many as fit the role.</p>
               </div>
             </section>
 
@@ -259,7 +276,7 @@ export default function PersonasPage() {
               <LayerTitle icon={<Ear size={13} strokeWidth={2.25} aria-hidden="true" />}>STT layer</LayerTitle>
               <Select label="STT Engine" options={STT_OPTS} value={stt.stt_engine ?? 'tavus'} onChange={e => setLayer('stt', { stt_engine: e.target.value as any })} />
               <Slider label="Pause Sensitivity" min={0} max={1} step={0.05} value={stt.participant_pause_sensitivity ?? 0.5} onChange={v => setLayer('stt', { participant_pause_sensitivity: v })} hint="Low (0.00) · Medium (0.50) · High (1.00)" />
-              <div className="rounded-xl border border-border bg-neutral-50 px-4">
+              <div className="rounded-lg border border-rule bg-surface-sunk px-4">
                 <Toggle checked={stt.smart_turn_detection ?? true} onChange={v => setLayer('stt', { smart_turn_detection: v })} label="Smart Turn Detection" description="Detects natural speech pauses to know when the avatar should respond" />
               </div>
             </section>
@@ -269,7 +286,7 @@ export default function PersonasPage() {
               <div className="flex flex-col gap-2">
                 <span className="field-label">Ambient Awareness Queries</span>
                 {queries.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-xs leading-relaxed text-neutral-400">
+                  <p className="rounded-lg border border-dashed border-rule-strong bg-surface-sunk px-4 py-3 text-xs leading-relaxed text-ink-faint">
                     None yet — add a question the avatar quietly keeps checking during the call, such as room noise or lighting.
                   </p>
                 ) : (
@@ -282,7 +299,7 @@ export default function PersonasPage() {
                           onClick={() => { const arr = [...(perception.ambient_awareness_queries ?? [])]; arr.splice(i, 1); setLayer('perception', { ambient_awareness_queries: arr }) }}
                           aria-label={`Remove ambient awareness query ${i + 1}`}
                           title="Remove query"
-                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger/40">
+                          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-ink-faint transition-colors duration-fast ease-out hover:bg-risk-bg hover:text-risk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1">
                           <X size={15} strokeWidth={2.25} aria-hidden="true" />
                         </button>
                       </div>
@@ -301,7 +318,7 @@ export default function PersonasPage() {
 
             <section className="space-y-4">
               <LayerTitle icon={<Camera size={13} strokeWidth={2.25} aria-hidden="true" />}>VQA layer</LayerTitle>
-              <div className="rounded-xl border border-border bg-neutral-50 px-4">
+              <div className="rounded-lg border border-rule bg-surface-sunk px-4">
                 <Toggle checked={vqa.enable_camera ?? false} onChange={v => setLayer('vqa', { enable_camera: v })} label="Enable Camera (VQA)" description="Allow the avatar to see and respond to the candidate's visual environment" />
               </div>
             </section>
@@ -314,8 +331,8 @@ export default function PersonasPage() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5 lg:hidden">{formActions}</div>
+        <div className="mt-6 flex justify-end gap-3 border-t border-rule pt-5 lg:hidden">{formActions}</div>
       </Modal>
-    </div>
+    </motion.div>
   )
 }

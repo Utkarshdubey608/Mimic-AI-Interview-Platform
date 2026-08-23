@@ -26,7 +26,7 @@ function fmtSize(bytes: number) {
  * handing over a CV to an automated system is entitled to know what it will be
  * used for before they upload it, not after.
  */
-export function ResumeUpload({ branding, steps, busy, onUpload }: Props) {
+export function ResumeUpload({ steps, busy, onUpload }: Props) {
   const [fullName, setFullName] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)

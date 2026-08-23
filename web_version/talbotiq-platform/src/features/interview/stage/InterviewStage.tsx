@@ -282,7 +282,7 @@ export function StageTimer({
    plainly, once, up front, and available on demand is the respectful version. */
 
 function HelpSheet({
-  open, onClose, branding, track,
+  open, onClose, track,
 }: {
   open: boolean
   onClose: () => void

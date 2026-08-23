@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Send, Loader2, CheckCircle2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
+import { Send, Loader2, Lightbulb, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/components/ui'
 import type { BrandingConfig } from '@shared/types'
 import { useChatbotSession } from '../useChatbotSession'
@@ -184,7 +184,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
     // the way a timed one does. This used to be a bespoke card with its own
     // wording, its own accent bar and its own tick plate.
     return (
-      <InterviewStage branding={branding} track="chatbot" ground="record">
+      <InterviewStage branding={branding} track="chatbot">
         <Completion branding={branding} sessionId={sessionId} />
       </InterviewStage>
     )

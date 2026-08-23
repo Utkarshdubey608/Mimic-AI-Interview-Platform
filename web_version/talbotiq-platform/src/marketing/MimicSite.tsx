@@ -21,7 +21,7 @@
    finish review, the verdict, and DESIGN.md.
    ══════════════════════════════════════════════════════════════════════════ */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 // The application's own API-origin helper. It resolves to exactly the same
 // `/api/web` prefix the standalone site's apiBase() produced, so the lead POST
@@ -29,51 +29,24 @@ import { Link } from 'react-router-dom'
 import { httpBase } from '@/lib/apiOrigin'
 import './mimicSite.css'
 import { MarketingLayout } from './MarketingLayout'
-import { Magnetic, Parallax, Reveal, useInView } from './motion'
+import { CursorLight, Magnetic, Parallax, Reveal, Tilt, useInView } from './motion'
 import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
+import { HeroIntelligence } from './HeroIntelligence'
+import { InkTrail } from './ink/InkTrail'
 import { DemoVideo } from './DemoVideo'
-import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
+import { DEMO_COPY, demoPosterSrc, demoVideoSrc } from './demoAssets'
+import { HOME_SEO } from './content'
 import { Ico } from './icons'
+import { AdFilm } from './AdFilm'
+import { FormatShowcase } from './formats/FormatShowcase'
 
-/* ── Interview formats. Five advertised tracks; the sixth card states the rule
-      the other five obey, so it spans the row rather than repeating the pattern.
-
-      The product also has a one-way `video` track, which the site deliberately
-      does not advertise — it has no nav entry and no platform page, so listing
-      it here sent buyers looking for a page that was never written. Adding it
-      back means writing that page and restoring the count in scripts/
-      audit-marketing-claims.ts, which pins the advertised number to five. */
-const TRACKS = [
-  { name: 'Conversational chat', tag: 'Async', icon: 'chat' as const, track: 'chatbot' as const,
-    desc: 'A text interview candidates finish on a phone in minutes. Best for hourly and high volume roles.',
-    meta: ['No scheduling', 'Mobile first'], bg: '#EAF4F3', fg: '#0F766E' },
-  { name: 'Voice screening', tag: 'Async', icon: 'mic' as const, track: 'voice' as const,
-    desc: 'A spoken conversation with an AI interviewer. Answers are transcribed, then scored on content and delivery together.',
-    meta: ['Live transcript', 'Interruptible'], bg: '#EEEFFB', fg: '#4338CA' },
-  { name: 'AI video avatar', tag: 'Async', icon: 'video' as const, track: 'video_avatar' as const,
-    desc: 'A configured presenter asks each question on camera, reacts to the answer, and follows up when one is thin.',
-    meta: ['Personas', 'Replicas'], bg: '#FCF0F5', fg: '#BE185D' },
-  { name: 'Live two-way call', tag: 'Live', icon: 'users' as const, track: 'two_way' as const,
-    desc: 'Your interviewer leads a real video call. Mimic records it with consent, transcribes it and scores the same rubric.',
-    meta: ['Host room', 'Star rating'], bg: '#EAF3F9', fg: '#0369A1' },
-  { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
-    desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
-    meta: ['Timer on every question', 'Integrity checks'], bg: '#FBF2E7', fg: '#B45309' },
-]
-
-/* Five cards do not divide into the 3-column grid, so the last one widens to
-   close the row instead of leaving a hole above the statement card. Derived
-   from the count rather than hard-coded, so adding or removing a track keeps
-   the grid whole: a trailing remainder of 2 widens the last card, a remainder
-   of 1 leaves it alone (a lone card on its own row reads as intentional). */
-const WIDEN_LAST = TRACKS.length % 3 === 2
 
 /* ── The five steps of the real workflow, with the actual route each lives on. */
 const STEPS = [
   { t: 'Configure once', r: 'Templates',
     b: 'Pick the format, where questions come from, the rubric weights and the timing. Save it as a template your whole team reuses.',
-    d: ['Five interview formats on one configuration', 'Weighted criteria you define, rescaled automatically', 'Branding and integrity rules per template'] },
+    d: ['Six interview formats on one configuration', 'Weighted criteria you define, rescaled automatically', 'Branding and integrity rules per template'] },
   { t: 'Invite in bulk', r: 'Sessions → Invite candidates',
     b: 'Drop in a spreadsheet or an ATS export. Mimic reads every address, personalises each email and sends a link bound to that candidate.',
     d: ['CSV, Excel, PDF, DOCX or plain text', 'Each link opens only for the address it was sent to', 'Test the exact email on yourself before sending'] },
@@ -88,8 +61,21 @@ const STEPS = [
     d: ['Drag to advance, or take everyone above a score or the top N', 'Rejection emails are off by default', 'Export the selected list as CSV'] },
 ]
 
-/* ── The rubric, dramatised. These are the product's six real default criteria
-      with their real default weights; the answer and scores are synthetic. */
+/* ── The rubric, dramatised ────────────────────────────────────────────────
+      The product's six real default criteria with their real default weights;
+      the answer and the scores beside them are synthetic. It is the one source of
+      truth on this page for what Mimic measures.
+
+      There is deliberately NO OUTCOME STATISTIC here — no time-to-hire, no
+      cost-per-hire, no completion rate — because none of them has been verified.
+      See PRODUCT.md, Evidence on Hand, and the note on CountUp in motion.tsx. A
+      diagram of what gets measured is honest; a number about how well it works is
+      not, until someone has cleared one.
+
+      This block used to carry a second list too, `UNSTRUCTURED` — the same six
+      criteria as a letter grade, a five-point scale, a percentage and two blanks,
+      which was the left half of the "Five interviewers, five interviews" section's
+      argument. That section has been removed, so the list went with it. */
 const RUBRIC = [
   { k: 'Communication Clarity',      v: 88 },
   { k: 'Relevance to Question',      v: 91 },
@@ -104,7 +90,14 @@ const RUBRIC = [
       file delivered with baked-in padding renders smaller than its box, so
       matching box heights across a row does not match what the eye sees. */
 type ClientLogo = { name: string; srcs: string[]; h?: number; crop?: string }
-const withExts = (base: string) => ['png', 'svg', 'jpg', 'jpeg', 'webp'].map((e) => `${base}.${e}`)
+/* The extension that actually exists goes FIRST; the rest stay as a safety net
+   for a logo dropped in later with a different one.
+   `aisling` ships as .webp, so a png-first list 404'd on png, svg, jpg AND jpeg
+   before reaching it — and the row renders twice for the marquee, so the home
+   page paid up to 48 failed requests on every load to fetch two images. A
+   fallback chain is insurance, not the happy path. */
+const withExts = (base: string, real = 'webp') =>
+  [real, ...['webp', 'png', 'svg', 'jpg', 'jpeg'].filter((e) => e !== real)].map((e) => `${base}.${e}`)
 /* Sized by AREA, not by height.
 
    Measured ink boxes, meaning the mark itself with the padding in the file
@@ -126,8 +119,8 @@ const withExts = (base: string) => ['png', 'svg', 'jpg', 'jpeg', 'webp'].map((e)
    Aisling still needs its crop: 76% of that file is empty padding, so without
    it `h` sizes the padding instead of the mark. */
 const CLIENTS: ClientLogo[] = [
-  { name: 'Total IT Global', srcs: withExts('/mimic-logos/total-it-global'), h: 45 },
-  { name: 'Aisling', srcs: withExts('/mimic-logos/aisling'), h: 30, crop: '180 / 43' },
+  { name: 'Total IT Global', srcs: withExts('/mimic-logos/total-it-global', 'png'), h: 45 },
+  { name: 'Aisling', srcs: withExts('/mimic-logos/aisling', 'webp'), h: 30, crop: '180 / 43' },
   { name: 'TalbotIQ', srcs: ['/talbotiq-logo.png'], h: 41 },
 ]
 function LogoSlot({ name, srcs, h, crop }: ClientLogo) {
@@ -178,79 +171,6 @@ const FAQS = [
 type FormState = { firstName: string; lastName: string; email: string; hiresPerYear: string }
 const EMPTY: FormState = { firstName: '', lastName: '', email: '', hiresPerYear: '' }
 
-/**
- * A format card that plays that format's own recording while it is hovered.
- *
- * Four things this has to get right:
- *
- *  · Lazy. The source attaches on the FIRST hover, never on load — five videos
- *    pulled eagerly would undo the payload work the rest of this page does.
- *  · Pointer only. A touch device has no hover, and a card that starts playing
- *    on the same tap that navigates is a bug, not a flourish.
- *  · Reduced motion gets nothing moving at all, matching DemoVideo.
- *  · The <article> stays the same element in the same position, because
- *    mimicSite.css seats each card's colour by :nth-of-type. The video layer
- *    goes INSIDE it rather than wrapping it.
- *
- * The video is aria-hidden: it carries no information the card's own heading
- * and copy do not already give in text, and announcing an unlabelled decorative
- * video on focus would be noise.
- */
-function TrackCard({ t, wide }: { t: (typeof TRACKS)[number]; wide: boolean }) {
-  const [seen, setSeen] = useState(false)   // source attached
-  const [on, setOn] = useState(false)       // playing
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-
-  const canPlay = () =>
-    hasDemo(t.track) &&                       // no footage for this format yet
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: hover)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-  const enter = () => {
-    if (!canPlay()) return
-    setSeen(true)
-    setOn(true)
-    void videoRef.current?.play().catch(() => { /* autoplay refused; the copy stays */ })
-  }
-  const leave = () => {
-    setOn(false)
-    videoRef.current?.pause()
-  }
-
-  return (
-    <article
-      className={`track${wide ? ' wide' : ''}${on ? ' is-playing' : ''}`}
-      onMouseEnter={enter}
-      onMouseLeave={leave}
-      onFocus={enter}
-      onBlur={leave}
-      tabIndex={0}
-    >
-      <div className="top">
-        <span className="ic" style={{ background: t.bg, color: t.fg }}><Ico n={t.icon} /></span>
-        <span className="tag">{t.tag}</span>
-      </div>
-      <h3>{t.name}</h3>
-      <p>{t.desc}</p>
-      <div className="meta">{t.meta.map((m) => <span key={m}>{m}</span>)}</div>
-      {seen && (
-        <video
-          ref={videoRef}
-          className="track-vid"
-          src={demoVideoSrc(t.track)}
-          poster={demoPosterSrc(t.track)}
-          muted
-          loop
-          playsInline
-          preload="none"
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      )}
-    </article>
-  )
-}
 
 export default function MimicSite() {
   // Drives the scoring sequence on the rubric card once it reaches the viewport.
@@ -266,8 +186,10 @@ export default function MimicSite() {
   // title/meta/OG/canonical + JSON-LD on mount and restore on unmount.
   useEffect(() => {
     const prevTitle = document.title
-    document.title = 'Mimic by TalbotIQ, AI Interviews for Every Candidate'
-    const desc = 'Mimic interviews and scores every applicant the day they apply (across chat, voice, AI video and live rounds), on one rubric, with the evidence attached. Book a demo.'
+    // Both strings come from HOME_SEO, because the build prerenders the same
+    // two into dist/index.html and a second copy here is how they drift apart.
+    document.title = HOME_SEO.metaTitle
+    const desc = HOME_SEO.metaDesc
     const added: HTMLElement[] = []
     const meta = (sel: string, attr: string, key: string, content: string) => {
       let el = document.head.querySelector<HTMLMetaElement>(sel)
@@ -336,80 +258,83 @@ export default function MimicSite() {
     <MarketingLayout>
       <main id="top">
 
-        {/* ── HERO ── */}
-        <section className="hero centered" aria-labelledby="hero-h1">
-          {/* A WebGL card field was built for this hero and never mounted. It was
-              removed rather than left shelved: the composition had no negative
-              space for it, and three passes at art direction could not fix what
-              was a placement problem. The lesson worth keeping is that one —
-              decide where a scene goes before deciding what it looks like. It is
-              in git history if it is ever wanted back. */}
-          <div className="wrap hero-in">
-            <div>
-              <span className="eyebrow">AI native interview screening</span>
-              <h1 id="hero-h1"><SplitText delay={90}>Screening intelligence, decided by humans.</SplitText></h1>
-              <p className="sub">
-                Mimic interviews every applicant the day they apply (across chat, voice, AI video
-                and a live round), and scores every answer against one rubric you define, with the
-                evidence attached.
-              </p>
-              <div className="hero-cta">
-                {/* Magnetic is pointer-gated and capped at ~6px — enough to feel
-                    responsive under the cursor, not enough to become a toy. */}
-                <Magnetic><a className="btn btn-primary btn-lg" href="#demo">Book a demo</a></Magnetic>
-                <Magnetic><a className="btn btn-ghost btn-lg" href="#scoring">See how scoring works</a></Magnetic>
+        {/* ── HERO — THE ROOM ──
+            The first viewport is the interview room itself: a dark panel set
+            into the light record, the way the product's own two grounds work.
+            Inside it, the page's one permitted proof — the real avatar round,
+            running — with the intelligence rail underneath annotating what the
+            machine is doing with it (listening → thinking → scoring). Nothing
+            here is a fabricated interface: the footage is real, the states are
+            the product's real states, and the rail's numbers are the same
+            disclosed dramatisation the scoring section uses. */}
+        <section className="hero room" aria-labelledby="hero-h1">
+          <div className="wrap">
+            <div className="hero-room">
+              {/* The ink field built for the site's dark surfaces — layered
+                  light, WebGL when the device can afford it, CSS when not. */}
+              <Field seed={7} />
+              {/* The room answers the visitor's hand: a faint light tracks the
+                  cursor across the panel. Atmosphere, not information. */}
+              <CursorLight />
+              {/* And the hand leaves a mark: a real advected dye field, so the
+                  trail keeps moving and softens after the cursor has gone
+                  instead of fading dot by dot. Enhancement only — pointer
+                  devices, no reduced motion, after first paint, and the loop
+                  parks itself once the ink has run down. */}
+              <InkTrail />
+              <div className="hero-room-in">
+                <div className="hero-copy">
+                  <span className="eyebrow">AI native interview screening</span>
+                  <h1 id="hero-h1"><SplitText delay={90}>Screening intelligence, decided by humans.</SplitText></h1>
+                  <p className="sub">
+                    Mimic interviews every applicant the day they apply (across chat, voice, AI video
+                    and a live round), and scores every answer against one rubric you define, with the
+                    evidence attached.
+                  </p>
+                  <div className="hero-cta">
+                    {/* Magnetic is pointer-gated and capped at ~6px — enough to feel
+                        responsive under the cursor, not enough to become a toy. */}
+                    <Magnetic><a className="btn btn-light btn-lg" href="#demo">Book a demo</a></Magnetic>
+                    <Magnetic><a className="btn btn-ghost-dark btn-lg" href="#scoring">See how scoring works</a></Magnetic>
+                  </div>
+                  <p className="hero-note">
+                    <Ico n="check" />
+                    Candidates interview in the browser. No scheduling, no app to install.
+                  </p>
+                </div>
+
+                {/* The recording is the real product: a real Tavus replica
+                    asking a real question over the live pipeline. `priority`,
+                    because this is above the fold — the lazy arming that is
+                    right for the demos further down would paint an empty box on
+                    first load. Parallax is kept, gentler than before: inside a
+                    panel a large lean reads as the panel failing, not depth. */}
+                <div className="hero-stage">
+                  {/* Parallax owns scroll travel; Tilt owns pointer depth — two
+                      transforms on two elements, no conflict. The tilt is what
+                      makes the footage an object IN the room. */}
+                  <Parallax strength={12}>
+                    <Reveal>
+                      <Tilt>
+                      <div className="hero-shot">
+                        <DemoVideo
+                          priority
+                          src={demoVideoSrc('video_avatar')}
+                          poster={demoPosterSrc('video_avatar')}
+                          still={demoPosterSrc('video_avatar')}
+                          caption={DEMO_COPY.video_avatar.caption}
+                          alt={DEMO_COPY.video_avatar.alt}
+                          disclosure={DEMO_COPY.video_avatar.disclosure}
+                          contentAspect={DEMO_COPY.video_avatar.contentAspect}
+                        />
+                      </div>
+                      </Tilt>
+                    </Reveal>
+                  </Parallax>
+                  <HeroIntelligence />
+                </div>
               </div>
-              <p className="hero-note">
-                <Ico n="check" />
-                Candidates interview in the browser. No scheduling, no app to install.
-              </p>
             </div>
-
-            {/* The hero is the AI video avatar interview, running.
-
-                What stood here was a hand-built `.frame` — five invented
-                candidates in a drawn sessions list, captioned "Illustrative
-                data" — which is the exact thing this page's thesis argues
-                against: a depiction standing in for evidence. It was the last
-                fabricated interface on the page.
-
-                The recording is the real product: a real Tavus replica asking a
-                real question over the live pipeline. It replaced the voice
-                recording here because the avatar round is the format buyers ask
-                to see, and a presenter on camera reads as an interview in one
-                frame where an audio waveform does not. Voice keeps its own card
-                and its platform page, so nothing was lost from the site.
-
-                `priority`, because this is above the fold — the lazy arming
-                that is right for the demos further down would paint an empty
-                box on first load. Parallax is kept: it is the hero's only depth
-                cue now that the WebGL layer is unmounted. */}
-            {/* `shots` is what breaks the recording out of the prose column.
-                The footage is the page's only permitted proof, so it gets the
-                widest measure here rather than being sized to the paragraph
-                above it. Same primitive the sections below use, so the frame,
-                caption measure and controls behave identically throughout. */}
-            {/* Reveal inside Parallax, not instead of it. Parallax owns the
-                transform on its own element; Reveal owns the entrance on a
-                nested one, and the desk under the frame settles from .988 via
-                `.reveal .shots` — so the hero's evidence is SET DOWN rather than
-                simply appearing. Two elements, two transforms, no conflict. */}
-            <Parallax strength={22}>
-              <Reveal>
-              <div className="shots">
-                <DemoVideo
-                  priority
-                  src={demoVideoSrc('video_avatar')}
-                  poster={demoPosterSrc('video_avatar')}
-                  still={demoPosterSrc('video_avatar')}
-                  caption={DEMO_COPY.video_avatar.caption}
-                  alt={DEMO_COPY.video_avatar.alt}
-                  disclosure={DEMO_COPY.video_avatar.disclosure}
-                  contentAspect={DEMO_COPY.video_avatar.contentAspect}
-                />
-              </div>
-              </Reveal>
-            </Parallax>
           </div>
         </section>
 
@@ -417,219 +342,87 @@ export default function MimicSite() {
         <section className="logos" aria-label="Customers">
           <div className="wrap">
             <p className="lead">Teams already screening with Mimic</p>
-            {/* Continuous horizontal scroll. The track translates by exactly
-                half its width, so the loop closes on itself with no jump — but
-                that only looks seamless if the remaining half is still wider
-                than the visible strip, otherwise a gap opens at the wrap point.
-                Twelve sets keeps half the track (~1.6k px) comfortably past the
-                1140px container at every breakpoint.
+            {/* Three logos, shown three times each, moving continuously — that
+                was the previous design, and its own comment gave the reason it
+                could not work: the gap had to be tuned until "roughly two
+                cycles are visible", which is another way of saying the row was
+                padded until the repetition stopped being the first thing you
+                noticed.
 
-                Only the first set is in the accessibility tree — the repeats are
-                presentational, and a screen reader should hear three customers,
-                not thirty-six. Under prefers-reduced-motion the animation is off
-                and the row sits static, which is the design this replaced. */}
-            <div className="logo-marquee">
-              <div className="logo-track">
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((set) => (
-                  <div className="logo-set" key={set} aria-hidden={set > 0 ? true : undefined}>
-                    {/* Spread, not field-by-field: listing props here meant a
-                        new one on ClientLogo was silently dropped at the call
-                        site while typechecking clean, because every prop is
-                        optional. */}
-                    {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
-                  </div>
-                ))}
-              </div>
+                Three is what we have, so three is what we show. A perpetual
+                loop is the kind of motion this surface is meant not to have —
+                it never ends, it says nothing, and it is the one animation a
+                reader cannot dismiss. It also cost 36 <img> elements and 12
+                duplicate DOM subtrees to display three files.
+
+                The static row was already the reduced-motion fallback here. It
+                is simply the design now, so everyone sees the same page. */}
+          </div>
+          {/* Full bleed, outside the measure: a row that slides has to run off both
+              edges of the page, or it reads as a carousel in a box.
+
+              SIX copies of three logos, and the number is arithmetic rather than
+              taste — arrived at by measuring, after four turned out to be wrong.
+              A seamless loop is two identical halves with the keyframe moving
+              exactly one of them, and each half has to be at least as wide as the
+              window it slides through. Three logos at this size come to ~451px a
+              copy, not the ~820 I assumed, so four copies gave a 903px half
+              against a 1280px window and would have shown a gap on every lap.
+              Three copies a half is 1354px, and the stylesheet holds the window to
+              the 1216px measure so that stays true at any viewport.
+              Eighteen images, where the version that was removed from this spot
+              needed thirty-six.
+
+              Only the first set is in the accessibility tree. The rest are the
+              same three names again and a screen reader should hear them once. */}
+          <div className="logo-marquee">
+            <div className="logo-track">
+              {[0, 1, 2, 3, 4, 5].map((copy) => (
+                <div className="logo-row" key={copy} aria-hidden={copy > 0 || undefined}>
+                  {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ── THE MECHANISM — proof by demonstration, not by borrowed statistic ── */}
-        <section className="section" id="scoring" aria-labelledby="mech-h">
+        {/* ── HOW IT WORKS, AS A FILM ──
+            The slot the problem section used to hold. A reader who has just seen
+            who else screens with Mimic is at the point of asking what the thing
+            actually does, and a film answers that faster than any section on this
+            page — so it is offered here, and OFFERED rather than played: the file
+            is 12.7MB, which is not something to spend on a visitor's behalf.
+
+            Deliberately not DemoVideo. That component arms itself from an observer
+            as the reader approaches, which is right for a one-or-two megabyte
+            product capture and wrong for this — it would fetch twelve megabytes for
+            anybody who merely scrolled past. AdFilm shows the poster and fetches
+            nothing at all until the play control is pressed. */}
+        <section className="section film-sec" aria-labelledby="film-h">
           <div className="wrap">
             <div className="sec-head">
-              <span className="eyebrow">How scoring works</span>
-              <h2 className="h2" id="mech-h">A score you can check, line by line.</h2>
+              <h2 className="h2" id="film-h">How it works.</h2>
               <p className="lede">
-                Most screening tools hand you a number. Mimic hands you the number, the criteria it
-                came from, and the sentence in the candidate’s own answer that earned it.
+                The product doing the job, end to end — an invite going out, a candidate
+                answering, a scored report coming back.
               </p>
             </div>
-
-            <div className="mech">
-              <Reveal>
-                {/* The page's thesis, animated: the rubric marking a real answer.
-                    Bars grow, evidence highlights sweep in, and the weighted total
-                    counts up — the scoring SHOWN rather than asserted. Driven by
-                    scaleX and a CSS custom property, never by animating width,
-                    which would relayout the card on every frame. */}
-                <div ref={scoreRef} className={`mech-card${scored ? ' is-scored' : ''}`}>
-                  <div className="mech-q">
-                    <span className="lbl">Question 3 of 6</span>
-                    <p>Tell me about a time you had to de-escalate a situation on a night shift with no senior nurse on the floor.</p>
-                  </div>
-                  <div className="mech-a">
-                    <span className="lbl">Candidate answer</span>
-                    <p>
-                      “We had a patient just out of surgery becoming agitated around 2am and the on-call was forty
-                      minutes out. <mark>I moved him to the quiet bay first so the ward settled</mark>, then
-                      checked his chart for the analgesia timing — he was overdue.{' '}
-                      <mark>I called the on-call with the drug chart already in front of me</mark> so we
-                      could agree a dose in one conversation instead of three, and I stayed with him
-                      until it took. <mark>Afterwards I wrote it up and flagged the gap in the handover</mark>{' '}
-                      so the day team knew to watch the timing.”
-                    </p>
-                  </div>
-                  <div className="mech-scores">
-                    <span className="lbl">Scored against your rubric</span>
-                    {RUBRIC.map((k, i) => (
-                      <div className="kpi" key={k.k} style={{ '--i': i } as React.CSSProperties}>
-                        <div>
-                          <div className="kn">{k.k}</div>
-                          <div className="track">
-                            <div className="fill" style={{ '--v': k.v / 100 } as React.CSSProperties} />
-                          </div>
-                        </div>
-                        <div className="kv" style={{ color: k.v >= 85 ? '#15803D' : k.v >= 70 ? '#8A4308' : '#B3261E' }}>{k.v}</div>
-                      </div>
-                    ))}
-                    <div className="mech-total">
-                      <span className="lab">Overall, weighted</span>
-                      <span className="val">
-                        <span className="num">86</span>
-                        <span className="rec">Strong Yes</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Reveal>
-
-              <div>
-                <ul className="mech-points">
-                  <li>
-                    <span className="ico"><Ico n="quote" /></span>
-                    <div>
-                      <h3>The evidence is part of the score</h3>
-                      <p>
-                        Each criterion links back to the passage it was drawn from. A hiring manager
-                        who disagrees with a number can read the sentence behind it in a few seconds
-                        rather than taking the score on trust.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="scale" /></span>
-                    <div>
-                      <h3>You set the criteria and the weights</h3>
-                      <p>
-                        Six criteria ship as a starting point. Rename them, switch them off, add your
-                        own, and set what each one is worth. The weights rescale to 100% as you type,
-                        so the arithmetic is always honest.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="calc" /></span>
-                    <div>
-                      <h3>The platform does the arithmetic, not the model</h3>
-                      <p>
-                        The language model judges individual answers. The overall score is computed
-                        from your weights in ordinary code, which is why the same answers always
-                        produce the same number.
-                      </p>
-                    </div>
-                  </li>
-                  <li>
-                    <span className="ico"><Ico n="alert" /></span>
-                    <div>
-                      <h3>It tells you when it is unsure</h3>
-                      <p>
-                        If an interview captured no answers, the report says <em>not evaluated</em>{' '}
-                        rather than showing zeros. If it ran without AI, it says so on the report. A
-                        degraded result is never dressed up as a real one.
-                      </p>
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            </div>
+            <AdFilm
+              src="/mimic-shots/how-it-works.mp4"
+              poster="/mimic-shots/how-it-works-poster.jpg"
+              label="Play the walkthrough"
+              caption="The full round, from invite to scored shortlist."
+            />
           </div>
         </section>
 
         {/* ── FORMATS ── */}
-        <section className="section tinted" id="platform" aria-labelledby="tr-h">
-          <div className="wrap">
-            <div className="sec-head">
-              <span className="eyebrow">Interview formats</span>
-              <h2 className="h2" id="tr-h">Five ways to meet a candidate.</h2>
-              <p className="lede">
-                Pick the format that fits the role. Every one of them reads the candidate’s resume
-                first and scores against the same rubric, so results compare directly across formats.
-              </p>
-            </div>
-            <div className="tracks">
-              {TRACKS.map((t, i) => (
-                <TrackCard key={t.name} t={t} wide={WIDEN_LAST && i === TRACKS.length - 1} />
-              ))}
-              <article className="track statement">
-                <div>
-                  <h3>Adapted to the resume, on every track</h3>
-                  <p>
-                    Each interview reads the candidate’s own resume before it starts and rewrites its
-                    follow-ups around what that resume actually claims, then scores the result on the
-                    same rubric as everyone else applying for the role.
-                  </p>
-                </div>
-                <div className="meta">
-                  <span>Tailored to each candidate</span>
-                  <span>One rubric</span>
-                </div>
-              </article>
-            </div>
+        <FormatShowcase />
 
-            {/* The single combined reel (candidate.webm) that stood here is
-                superseded: each card above now plays its OWN format on hover,
-                so a buyer who wants to see voice screening no longer has to sit
-                through the avatar format first. The file is left on disk rather
-                than deleted, so this is reversible without a re-record. */}
-          </div>
-        </section>
-
-        {/* ── PROCESS ──
-            Scroll-driven above 1081px: the section pins and each screen of
-            scrolling advances one step, so the audit trail is read in the order
-            it happens rather than clicked through. The tablist is unchanged and
-            still keyboard-operable — a tab click calls goToStep, which scrolls,
-            and the scroll position is what selects the step. One source of
-            truth, so a click and a scroll cannot disagree.
-
-            Under reduced motion and below 1081px nothing pins and the buttons
-            behave exactly as they did before. */}
-        {/* `on-dark` turns this into a full-bleed ink field, and it is the page's
-            structural turn: paper → ink → paper → ink, an act structure rather
-            than a stack of bands. Every child colour rule the modifier needs
-            already existed in mimicSite.css, and this section's own label was
-            already written `eyebrow on-dark` — it was built for this and never
-            switched on.
-
-            It earns the ink rather than borrowing it: this is the audit trail,
-            and the audit trail is the cover of the bundle, not a page inside it.
-
-            Deliberately NOT also `section`. That class carries vertical padding,
-            and padding inside a pinned host shortens the distance the sticky box
-            actually travels without shortening the travel PinnedStage computes
-            from the host's own height — so the fifth step would be "reached"
-            after the stage had already scrolled away. The ink ground and the
-            unpinned section rhythm are supplied directly instead; see the
-            `.process.on-dark` block in mimicSite.css.
-
-            The ambient field goes through `backdrop`, not `children` — the note
-            on that prop explains why the difference decides whether this section
-            can pin at all. */}
         <PinnedStage
           steps={STEPS.length} onStep={setStep} id="process"
           className="process on-dark" labelledBy="pr-h"
-          backdrop={<Field seed={0} />}
+          backdrop={<><Field seed={0} /><InkTrail /></>}
         >
           {({ goToStep }) => (
           <div className="wrap">
@@ -748,6 +541,136 @@ export default function MimicSite() {
           </div>
         </section>
 
+        {/* ── HOW SCORING WORKS — and the page's dark beat ──
+            Moved here from third-from-top, and moved onto the ink at the same
+            time. Two reasons, and they are the same reason: this is the section
+            that has to land, and it now lands immediately before the shelf whose
+            first column is "Build your first round" — the argument for a score you
+            can audit arrives while the reader is looking at the thing that would
+            let them build one.
+
+            It also takes over the dark beat that the problem section used to hold
+            before it was removed, which is what keeps the page from running white
+            from the workspace frames all the way to the footer. The evidence card
+            inside it stays light on purpose: a document on ink, which is the
+            treatment the whole site is built on.
+
+            The field is the ambient ink light; the trail is not mounted here
+            because RoamingInk covers any surface that does not carry its own, and
+            it reads this ground as dark and blends accordingly. */}
+        <section className="section on-dark" id="scoring" aria-labelledby="mech-h">
+          <Field seed={17} />
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">How scoring works</span>
+              <h2 className="h2" id="mech-h">A score you can check, line by line.</h2>
+              <p className="lede">
+                Most screening tools hand you a number. Mimic hands you the number, the criteria it
+                came from, and the sentence in the candidate’s own answer that earned it.
+              </p>
+            </div>
+
+            <div className="mech">
+              <Reveal>
+                {/* The page's thesis, animated: the rubric marking a real answer.
+                    Bars grow, evidence highlights sweep in, and the weighted total
+                    counts up — the scoring SHOWN rather than asserted. Driven by
+                    scaleX and a CSS custom property, never by animating width,
+                    which would relayout the card on every frame. */}
+                <div ref={scoreRef} className={`mech-card${scored ? ' is-scored' : ''}`}>
+                  <div className="mech-q">
+                    <span className="lbl">Question 3 of 6</span>
+                    <p>Tell me about a time you had to de-escalate a situation on a night shift with no senior nurse on the floor.</p>
+                  </div>
+                  <div className="mech-a">
+                    <span className="lbl">Candidate answer</span>
+                    <p>
+                      “We had a patient just out of surgery becoming agitated around 2am and the on-call was forty
+                      minutes out. <mark>I moved him to the quiet bay first so the ward settled</mark>, then
+                      checked his chart for the analgesia timing — he was overdue.{' '}
+                      <mark>I called the on-call with the drug chart already in front of me</mark> so we
+                      could agree a dose in one conversation instead of three, and I stayed with him
+                      until it took. <mark>Afterwards I wrote it up and flagged the gap in the handover</mark>{' '}
+                      so the day team knew to watch the timing.”
+                    </p>
+                  </div>
+                  <div className="mech-scores">
+                    <span className="lbl">Scored against your rubric</span>
+                    {RUBRIC.map((k, i) => (
+                      <div className="kpi" key={k.k} style={{ '--i': i } as React.CSSProperties}>
+                        <div>
+                          <div className="kn">{k.k}</div>
+                          <div className="track">
+                            <div className="fill" style={{ '--v': k.v / 100 } as React.CSSProperties} />
+                          </div>
+                        </div>
+                        <div className="kv" style={{ color: k.v >= 85 ? '#15803D' : k.v >= 70 ? '#8A4308' : '#B3261E' }}>{k.v}</div>
+                      </div>
+                    ))}
+                    <div className="mech-total">
+                      <span className="lab">Overall, weighted</span>
+                      <span className="val">
+                        <span className="num">86</span>
+                        <span className="rec">Strong Yes</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+
+              <div>
+                <ul className="mech-points">
+                  <li>
+                    <span className="ico"><Ico n="quote" /></span>
+                    <div>
+                      <h3>The evidence is part of the score</h3>
+                      <p>
+                        Each criterion links back to the passage it was drawn from. A hiring manager
+                        who disagrees with a number can read the sentence behind it in a few seconds
+                        rather than taking the score on trust.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="scale" /></span>
+                    <div>
+                      <h3>You set the criteria and the weights</h3>
+                      <p>
+                        Six criteria ship as a starting point. Rename them, switch them off, add your
+                        own, and set what each one is worth. The weights rescale to 100% as you type,
+                        so the arithmetic is always honest.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="calc" /></span>
+                    <div>
+                      <h3>The platform does the arithmetic, not the model</h3>
+                      <p>
+                        The language model judges individual answers. The overall score is computed
+                        from your weights in ordinary code, which is why the same answers always
+                        produce the same number.
+                      </p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="ico"><Ico n="alert" /></span>
+                    <div>
+                      <h3>It tells you when it is unsure</h3>
+                      <p>
+                        If an interview captured no answers, the report says <em>not evaluated</em>{' '}
+                        rather than showing zeros. If it ran without AI, it says so on the report. A
+                        degraded result is never dressed up as a real one.
+                      </p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
         {/* ── RESOURCES ── */}
         <section className="section" id="resources" aria-labelledby="res-h">
           <div className="wrap">
@@ -810,6 +733,7 @@ export default function MimicSite() {
               two surfaces catching the same light rather than one mechanism
               driving both in lockstep. */}
           <Field seed={11} />
+          <InkTrail />
           <div className="wrap cta-in">
             <div>
               <h2 id="cta-h">Give the first round back to your recruiters.</h2>

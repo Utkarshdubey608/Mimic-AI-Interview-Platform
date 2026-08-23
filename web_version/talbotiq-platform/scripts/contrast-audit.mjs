@@ -95,6 +95,10 @@ const add = (ground, groundName, scope) => {
   on('--accent-ink', '--surface', 4.5, 'links, accent text')
   on('--intel-fg', '--intel-bg', 4.5, 'AI-generated content marker')
   on('--live-fg', '--live-bg', 4.5, 'live connection marker')
+  // Machine presence — the AI accent must hold as text everywhere it appears.
+  on('--ai-fg', '--ai-bg', 4.5, 'AI state / insight text on its own tint')
+  on('--ai-fg', '--surface', 4.5, 'AI state / insight text on a panel')
+  on('--ai-fg', ground, 4.5, 'AI state / insight text on the page ground')
   on('--ok', '--ok-bg', 4.5, 'pass / healthy')
   on('--warn', '--warn-bg', 4.5, 'attention')
   on('--risk', '--risk-bg', 4.5, 'flagged / rejected / destructive')
@@ -162,7 +166,7 @@ function tsEntries(name) {
 // constants declared once at :root; the value a surface actually paints with is
 // `--intel-fg` / `--live-fg`, which each ground rebinds. tokens.ts stores the
 // painted value, so it must be compared against the -fg pair.
-const ALIAS = { intel: '--intel-fg', live: '--live-fg' }
+const ALIAS = { intel: '--intel-fg', live: '--live-fg', ai: '--ai-fg' }
 const kebab = (s) => ALIAS[s] ?? '--' + s.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
 
 const drift = []

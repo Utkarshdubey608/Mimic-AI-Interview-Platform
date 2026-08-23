@@ -50,7 +50,7 @@ export function AuthLoading() {
         </div>
         <p className="text-sm font-medium text-ink-muted">Checking your session…</p>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-rule" aria-hidden>
-          <span className="block h-full w-1/3 animate-pulse rounded-full bg-primary-300" />
+          <span className="block h-full w-1/3 animate-pulse rounded-full bg-ink-disabled" />
         </div>
       </div>
     </FullScreen>

@@ -107,8 +107,6 @@ export function VideoStage({ sessionId, state, remaining, secondsLeft, busy, rec
 
   if (!question) return null
 
-  const accent = branding.accentColor
-
   return (
     <motion.div
       initial={reduce ? false : { opacity: 0, x: 24 }}

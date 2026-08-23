@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { motion, useReducedMotion } from 'framer-motion'
 import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles, Trophy, RotateCw, CalendarClock } from 'lucide-react'
 import {
   PageHeader, Card, Button, Input, Select, Badge, EmptyState, ErrorState, RecordRows,
-  ExhibitTab, Citation, Modal, Toggle, cn,
+  ExhibitTab, Citation, Modal, Toggle, StatFigure, cn,
 } from '@/components/ui'
+import { staggerVariants, staggerChild } from '@/design/motion'
 import { templatesApi, sessionsApi, settingsApi, describeFetchError } from '@/lib/api'
 import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
@@ -31,13 +33,21 @@ const statusVariant: Record<string, 'success' | 'warning' | 'neutral' | 'info' |
  */
 const filingRef = (id: string) => id.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase().padStart(6, '0')
 
-/** Score ink by band: strong / borderline / low. */
+/**
+ * Score ink by band: strong / borderline / low.
+ *
+ * The bands are unchanged; the tokens are. `success`/`warning` are legacy
+ * aliases pinned to fixed light-ground hexes, so a score column that was
+ * readable on paper went muddy the moment the same table was read in a room.
+ * `ok`/`warn` resolve per ground and are contrast-gated on both.
+ */
 const scoreTone = (score: number) =>
-  score >= 80 ? 'text-success' : score >= 65 ? 'text-warning' : 'text-neutral-900'
+  score >= 80 ? 'text-ok' : score >= 65 ? 'text-warn' : 'text-ink'
 
 export default function SessionsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const reduce = !!useReducedMotion()
   const [open, setOpen] = useState(false)
   const [genOpen, setGenOpen] = useState(false)
   const [decideOpen, setDecideOpen] = useState(false)
@@ -108,6 +118,27 @@ export default function SessionsPage() {
     setTrack('')
     setOpen(true)
   }
+
+  /* ── THE OVERVIEW BAND, DERIVED ─────────────────────────────────────────
+     Every figure below is read off the record that is already on screen —
+     no second request, and nothing the rows themselves cannot account for.
+
+     `averageScore` is the one figure that can be honestly absent. Until a
+     session has been scored there is no mean, and rendering 0 or "—" in a
+     figure that large states a result the product does not have. So the
+     figure is not rendered at all; the band closes over the gap. */
+  const list = sessions.data ?? []
+  const completedCount = list.filter((s) => s.status === 'completed').length
+  const inProgressCount = list.filter((s) => s.status === 'in_progress').length
+  const scoredCount = list.filter((s) => typeof s.overallScore === 'number').length
+  const averageScore = scoredCount
+    ? Math.round(
+        list.reduce((sum, s) => sum + (typeof s.overallScore === 'number' ? s.overallScore : 0), 0) / scoredCount,
+      )
+    : null
+
+  const stagger = staggerVariants(reduce)
+  const child = staggerChild(reduce)
 
   /* How many interviews could actually be ranked. Absent scores are excluded, not
      treated as 0 — an unscored interview has no rank. See DecideRoundModal. */
@@ -193,189 +224,259 @@ export default function SessionsPage() {
           />
         </Card>
       ) : !sessions.data?.length ? (
-        <Card className="p-0">
-          <EmptyState
-            icon={<FileStack strokeWidth={1.75} />}
-            title="The record is empty"
-            description="Invite candidates, or create a single link to test a template yourself. Completed interviews are filed here with their scores and evidence."
-            action={<Button onClick={openCreate} icon={<Plus size={15} />}>Create a single link</Button>}
-          />
+        /* An empty desk is still the product's desk. One key light behind the
+           icon plate — the same localised illumination the AI presence gets
+           everywhere else, at the halo token's very low alpha — so the first
+           screen a new recruiter sees has depth rather than a blank panel.
+           `overflow-hidden` keeps the wash inside the card's radius. */
+        <Card className="overflow-hidden p-0">
+          <div className="keylight-ai relative">
+            <EmptyState
+              icon={<FileStack strokeWidth={1.75} />}
+              title="The record is empty"
+              description="Invite candidates, or create a single link to test a template yourself. Completed interviews are filed here with their scores and evidence."
+              action={<Button onClick={openCreate} icon={<Plus size={15} />}>Create a single link</Button>}
+            />
+          </div>
         </Card>
       ) : (
-        /* THE BUNDLE INDEX.
-           One row per filed record. The reference is quotable, the exhibit tab
-           encodes the interview format so a recruiter reads format before words,
-           and scores sit in one tabular-mono column so a scan compares digits
-           rather than hunting across differently-shaped chips. */
-        <Card className="overflow-hidden p-0">
-          <div className="record-head flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-            <span className="section-label">Bundle index</span>
-            <span className="font-mono nums text-[11px] text-neutral-500">
-              {sessions.data.length} record{sessions.data.length === 1 ? '' : 's'}
-              {' · '}
-              {sessions.data.filter((s) => s.status === 'completed').length} filed
-            </span>
+        /* THE DAILY SURFACE.
+           The state of the record, then the record itself. The band arrives
+           first and the index behind it, so a dense screen reads as composed
+           rather than dumped — one stagger, capped, transform and opacity
+           only, and no travel at all under a reduced-motion preference. */
+        <motion.div initial="initial" animate="animate" variants={stagger}>
+          {/* THE OVERVIEW BAND.
+              Four figures is the category's hero-metric template, so these are
+              deliberately not four identical tiles: the total is the figure the
+              page is about and takes the wide seat and the larger digits, the
+              two counts qualify it, and the mean sits last because it is the
+              one that can be legitimately absent. Nothing here is fetched and
+              nothing is estimated — every value is counted off the rows below,
+              so a recruiter can audit the band by reading the index. */}
+          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <motion.div
+              variants={child}
+              /* With the mean present the band is a four-across rank; without
+                 it the anchor widens to keep the row whole rather than leaving
+                 a hole where a figure the product cannot state would have sat. */
+              className={cn('col-span-2', averageScore === null ? 'lg:col-span-2' : 'lg:col-span-1')}
+            >
+              <StatFigure
+                label="On the record"
+                value={list.length}
+                /* Raised only in a room, where --surface-raised actually lifts;
+                   on paper it resolves to the same white and the hierarchy is
+                   carried by the seat width and the digit size instead. */
+                className="h-full bg-surface-raised [&>p.font-mono]:text-[34px]"
+              />
+            </motion.div>
+            <motion.div variants={child}>
+              <StatFigure label="Completed" value={completedCount} className="h-full" />
+            </motion.div>
+            <motion.div variants={child}>
+              <StatFigure label="In progress" value={inProgressCount} className="h-full" />
+            </motion.div>
+            {averageScore !== null && (
+              <motion.div variants={child} className="col-span-2 lg:col-span-1">
+                <StatFigure
+                  label="Average score"
+                  value={averageScore}
+                  /* The mean names its own denominator. A single scored session
+                     and forty produce very different claims from one number. */
+                  sub={`${scoredCount} scored`}
+                  className="h-full"
+                />
+              </motion.div>
+            )}
           </div>
 
-          {/* The index scrolls inside its own container and the page body never
-              scrolls sideways. `min-w` is load-bearing: without it the columns
-              squeezed to fit a phone, wrapping "Software Engineer — invite" onto
-              three lines and inflating rows to 84px. A wide table should keep
-              its natural column widths and scroll, not compress and wrap. */}
-          <div className="hidden w-full overflow-x-auto md:block">
-            <table className="w-full min-w-[880px] text-sm">
-              <caption className="sr-only">Interview records, newest first</caption>
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
-                  <th scope="col" className="px-4 py-2.5 font-bold">Ref</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Candidate</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Standard applied</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Format</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Status</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-bold">Score</th>
-                  <th scope="col" className="px-4 py-2.5 font-bold">Evidence</th>
-                  <th scope="col" className="px-4 py-2.5 text-right font-bold"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody>
+          {/* THE BUNDLE INDEX.
+              One row per filed record. The reference is quotable, the exhibit tab
+              encodes the interview format so a recruiter reads format before words,
+              and scores sit in one tabular-mono column so a scan compares digits
+              rather than hunting across differently-shaped chips. */}
+          <motion.div variants={child}>
+            <Card className="overflow-hidden p-0">
+              <div className="record-head flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                <span className="section-label">Bundle index</span>
+                <span className="font-mono nums text-[11px] text-ink-muted">
+                  {sessions.data.length} record{sessions.data.length === 1 ? '' : 's'}
+                  {' · '}
+                  {completedCount} filed
+                </span>
+              </div>
+
+              {/* The index scrolls inside its own container and the page body never
+                  scrolls sideways. `min-w` is load-bearing: without it the columns
+                  squeezed to fit a phone, wrapping "Software Engineer — invite" onto
+                  three lines and inflating rows to 84px. A wide table should keep
+                  its natural column widths and scroll, not compress and wrap. */}
+              <div className="hidden w-full overflow-x-auto md:block">
+                <table className="w-full min-w-[880px] text-sm">
+                  <caption className="sr-only">Interview records, newest first</caption>
+                  <thead>
+                    <tr className="border-b border-rule text-left text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+                      <th scope="col" className="px-4 py-2.5 font-bold">Ref</th>
+                      <th scope="col" className="px-4 py-2.5 font-bold">Candidate</th>
+                      <th scope="col" className="px-4 py-2.5 font-bold">Standard applied</th>
+                      <th scope="col" className="px-4 py-2.5 font-bold">Format</th>
+                      <th scope="col" className="px-4 py-2.5 font-bold">Status</th>
+                      <th scope="col" className="px-4 py-2.5 text-right font-bold">Score</th>
+                      <th scope="col" className="px-4 py-2.5 font-bold">Evidence</th>
+                      <th scope="col" className="px-4 py-2.5 text-right font-bold"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessions.data.map((s: SessionListItem) => (
+                      /* The row responds to the pointer at --dur-fast: a scan
+                         down a hundred records needs the cursor's row to
+                         separate instantly. --surface-hover, not --surface-sunk
+                         — a hovered row should lift off the page, and on the
+                         room ground the sunk value moved it the wrong way. */
+                      <tr
+                        key={s.id}
+                        className="border-b border-rule last:border-0 transition-colors duration-fast hover:bg-surface-hover"
+                      >
+                        <td className="px-4 py-3 align-middle">
+                          <span className="font-mono nums text-[11px] text-ink-muted">{filingRef(s.id)}</span>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-ink">{s.candidate.name}</div>
+                            {/* Unnamed candidates fall back to their email in the
+                                line above; repeating it here reads as a bug. */}
+                            {s.candidate.email && s.candidate.email !== s.candidate.name && (
+                              <div className="truncate text-xs text-ink-muted">{s.candidate.email}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-middle text-ink-body">{s.templateName}</td>
+                        <td className="px-4 py-3 align-middle">
+                          <ExhibitTab track={s.track} />
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <Badge variant={statusVariant[s.status] ?? 'neutral'}>{s.status.replace('_', ' ')}</Badge>
+                        </td>
+                        <td className="px-4 py-3 align-middle text-right">
+                          {typeof s.overallScore === 'number' ? (
+                            <span className={cn('font-mono nums text-[17px] font-medium', scoreTone(s.overallScore))}>
+                              {s.overallScore}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-ink-faint" aria-label="Not yet scored">—</span>
+                          )}
+                        </td>
+                        {/* The thesis, made operable: a score never stands alone —
+                            it carries the route to the record that produced it. */}
+                        <td className="px-4 py-3 align-middle">
+                          {/* A real count, derived server-side from the report's
+                              scored answers — the score never appears without the
+                              weight of evidence behind it. */}
+                          {s.status === 'completed' ? (
+                            <Citation count={s.citedAnswers} label="see record" onOpen={() => navigate(`/sessions/${s.id}/report`)} />
+                          ) : (
+                            <Citation />
+                          )}
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
+                                toast.success('Candidate link copied')
+                              }}
+                              className="text-xs font-medium text-ink-muted transition-colors duration-fast hover:text-ink"
+                            >
+                              Copy link
+                            </button>
+                            {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
+                              <Link to={`/live/${s.id}`} className="text-xs font-semibold text-ink hover:underline">
+                                Join call
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* MOBILE — a stacked record per candidate, not the desktop table
+                  turned sideways. An 880px table in a horizontal scroller clipped
+                  "Standard applied" mid-word and pushed format, status and score —
+                  the three columns this concept is built on — entirely off the
+                  first view. A bundle page is portrait anyway. */}
+              <ul className="divide-y divide-rule md:hidden">
                 {sessions.data.map((s: SessionListItem) => (
-                  <tr
-                    key={s.id}
-                    className="border-b border-border last:border-0 transition-colors duration-150 hover:bg-neutral-50"
-                  >
-                    <td className="px-4 py-3 align-middle">
-                      <span className="font-mono nums text-[11px] text-neutral-500">{filingRef(s.id)}</span>
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold text-neutral-900">{s.candidate.name}</div>
-                        {/* Unnamed candidates fall back to their email in the
-                            line above; repeating it here reads as a bug. */}
-                        {s.candidate.email && s.candidate.email !== s.candidate.name && (
-                          <div className="truncate text-xs text-neutral-500">{s.candidate.email}</div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 align-middle text-neutral-600">{s.templateName}</td>
-                    <td className="px-4 py-3 align-middle">
-                      <ExhibitTab track={s.track} />
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <Badge variant={statusVariant[s.status] ?? 'neutral'}>{s.status.replace('_', ' ')}</Badge>
-                    </td>
-                    <td className="px-4 py-3 align-middle text-right">
+                  <li key={s.id} className="px-4 py-3.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="font-mono nums text-[11px] text-ink-muted">{filingRef(s.id)}</span>
                       {typeof s.overallScore === 'number' ? (
-                        <span className={cn('font-mono nums text-[17px] font-medium', scoreTone(s.overallScore))}>
+                        <span className={cn('font-mono nums text-[19px] font-medium leading-none', scoreTone(s.overallScore))}>
                           {s.overallScore}
                         </span>
                       ) : (
-                        <span className="font-mono text-neutral-400" aria-label="Not yet scored">—</span>
+                        <span className="font-mono text-ink-faint leading-none" aria-label="Not yet scored">—</span>
                       )}
-                    </td>
-                    {/* The thesis, made operable: a score never stands alone —
-                        it carries the route to the record that produced it. */}
-                    <td className="px-4 py-3 align-middle">
-                      {/* A real count, derived server-side from the report's
-                          scored answers — the score never appears without the
-                          weight of evidence behind it. */}
-                      {s.status === 'completed' ? (
-                        <Citation count={s.citedAnswers} label="see record" onOpen={() => navigate(`/sessions/${s.id}/report`)} />
-                      ) : (
-                        <Citation />
+                    </div>
+
+                    <p className="mt-1.5 font-semibold text-ink">{s.candidate.name}</p>
+                    {s.candidate.email && s.candidate.email !== s.candidate.name && (
+                      <p className="truncate text-xs text-ink-muted">{s.candidate.email}</p>
+                    )}
+                    <p className="mt-1 text-xs text-ink-body">{s.templateName}</p>
+
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <ExhibitTab track={s.track} />
+                      <Badge variant={statusVariant[s.status] ?? 'neutral'}>{s.status.replace('_', ' ')}</Badge>
+                    </div>
+
+                    {/* One baseline, one type size. Previously `Open record` rendered
+                        larger and bolder than its neighbours, so three actions read
+                        as a fault rather than a set. */}
+                    <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2 text-xs">
+                      {s.status === 'completed'
+                        ? <Citation count={s.citedAnswers} label="see record" onOpen={() => navigate(`/sessions/${s.id}/report`)} />
+                        : <Citation />}
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
+                          toast.success('Candidate link copied')
+                        }}
+                        className="font-medium text-ink-muted transition-colors duration-fast hover:text-ink"
+                      >
+                        Copy link
+                      </button>
+                      {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
+                        <Link to={`/live/${s.id}`} className="font-medium text-ink hover:underline">
+                          Join call
+                        </Link>
                       )}
-                    </td>
-                    <td className="px-4 py-3 align-middle">
-                      <div className="flex items-center justify-end gap-3 whitespace-nowrap">
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
-                            toast.success('Candidate link copied')
-                          }}
-                          className="text-xs font-medium text-neutral-500 transition-colors duration-150 hover:text-primary-700"
-                        >
-                          Copy link
-                        </button>
-                        {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
-                          <Link to={`/live/${s.id}`} className="text-xs font-semibold text-primary-700 hover:underline">
-                            Join call
-                          </Link>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* MOBILE — a stacked record per candidate, not the desktop table
-              turned sideways. An 880px table in a horizontal scroller clipped
-              "Standard applied" mid-word and pushed format, status and score —
-              the three columns this concept is built on — entirely off the
-              first view. A bundle page is portrait anyway. */}
-          <ul className="divide-y divide-border md:hidden">
-            {sessions.data.map((s: SessionListItem) => (
-              <li key={s.id} className="px-4 py-3.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono nums text-[11px] text-neutral-500">{filingRef(s.id)}</span>
-                  {typeof s.overallScore === 'number' ? (
-                    <span className={cn('font-mono nums text-[19px] font-medium leading-none', scoreTone(s.overallScore))}>
-                      {s.overallScore}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-neutral-400 leading-none" aria-label="Not yet scored">—</span>
-                  )}
-                </div>
-
-                <p className="mt-1.5 font-semibold text-neutral-900">{s.candidate.name}</p>
-                {s.candidate.email && s.candidate.email !== s.candidate.name && (
-                  <p className="truncate text-xs text-neutral-500">{s.candidate.email}</p>
-                )}
-                <p className="mt-1 text-xs text-neutral-600">{s.templateName}</p>
-
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <ExhibitTab track={s.track} />
-                  <Badge variant={statusVariant[s.status] ?? 'neutral'}>{s.status.replace('_', ' ')}</Badge>
-                </div>
-
-                {/* One baseline, one type size. Previously `Open record` rendered
-                    larger and bolder than its neighbours, so three actions read
-                    as a fault rather than a set. */}
-                <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2 text-xs">
-                  {s.status === 'completed'
-                    ? <Citation count={s.citedAnswers} label="see record" onOpen={() => navigate(`/sessions/${s.id}/report`)} />
-                    : <Citation />}
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${getCandidateLinkOrigin()}/take/${s.id}`)
-                      toast.success('Candidate link copied')
-                    }}
-                    className="font-medium text-neutral-500 hover:text-primary-700"
-                  >
-                    Copy link
-                  </button>
-                  {s.track === 'two_way' && s.status !== 'completed' && s.status !== 'expired' && (
-                    <Link to={`/live/${s.id}`} className="font-medium text-primary-700 hover:underline">
-                      Join call
-                    </Link>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+              </ul>
+            </Card>
+          </motion.div>
+        </motion.div>
       )}
 
       <Modal open={open} onClose={() => setOpen(false)} title="New interview session" description="Generates a shareable candidate link.">
         {createdLink ? (
           <div className="space-y-5">
-            <div className="flex items-start gap-3 rounded-md border border-success-border bg-success-bg p-4">
-              <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm bg-success text-white">
+            {/* Ground-following status, not the fixed light-ground `success`
+                aliases: this notice used to paint a near-white panel into the
+                dark room the workspace renders in by default. Same values on
+                paper, correct ones in a room. */}
+            <div className="flex items-start gap-3 rounded-md border border-ok-rule bg-ok-bg p-4">
+              <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-sm bg-ok text-surface">
                 <Check size={13} strokeWidth={2.5} />
               </span>
               <div>
-                <p className="text-sm font-semibold text-neutral-900">Interview link ready</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-neutral-600">
+                <p className="text-sm font-semibold text-ink">Interview link ready</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-body">
                   Share it with the candidate — the link opens their interview directly.
                 </p>
               </div>
@@ -398,7 +499,7 @@ export default function SessionsPage() {
                 </Button>
               </div>
             </div>
-            <div className="flex justify-end gap-2 border-t border-border pt-4">
+            <div className="flex justify-end gap-2 border-t border-rule pt-4">
               <Button variant="ghost" onClick={() => setOpen(false)}>Close</Button>
               <a href={createdLink} target="_blank" rel="noreferrer">
                 <Button icon={<ExternalLink size={14} />}>Open as candidate</Button>
@@ -417,7 +518,7 @@ export default function SessionsPage() {
               <button
                 type="button"
                 onClick={() => { setOpen(false); setGenOpen(true) }}
-                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:underline"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
               >
                 <Sparkles size={13} /> Generate questions from a résumé instead
               </button>
@@ -454,18 +555,18 @@ export default function SessionsPage() {
                 ]}
               />
               {track === 'video_avatar' && avatarApplied.data?.configured && (
-                <p className="mt-1.5 flex items-start gap-1.5 text-xs text-success">
+                <p className="mt-1.5 flex items-start gap-1.5 text-xs text-ok">
                   <Check size={13} strokeWidth={2.5} className="mt-0.5 flex-shrink-0" />
                   <span>
                     Uses your applied avatar{avatarApplied.data.replicaId ? <> (<span className="font-mono">{avatarApplied.data.replicaId}</span>)</> : null} —{' '}
-                    <button type="button" className="font-semibold text-primary-700 underline underline-offset-2" onClick={() => { setOpen(false); navigate('/setup', { state: { returnTo: '/sessions' } }) }}>
+                    <button type="button" className="font-semibold text-ink underline underline-offset-2" onClick={() => { setOpen(false); navigate('/setup', { state: { returnTo: '/sessions' } }) }}>
                       edit avatar setup
                     </button>
                   </span>
                 </p>
               )}
             </div>
-            <div className="space-y-3 rounded-md border border-border bg-neutral-50 p-4">
+            <div className="space-y-3 rounded-md border border-rule bg-surface-sunk p-4">
               <Toggle
                 label="Per-question timer"
                 description="Each question gets its own answer countdown (greetings, “are you ready?” and wrap-up are never timed). Applies to the Chatbot and Timed Q&A tracks."
@@ -483,7 +584,7 @@ export default function SessionsPage() {
                 />
               )}
             </div>
-            <div className="flex justify-end gap-2 border-t border-border pt-4">
+            <div className="flex justify-end gap-2 border-t border-rule pt-4">
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
               <Button loading={create.isPending} disabled={!templateId} onClick={() => create.mutate()}>
                 Create session

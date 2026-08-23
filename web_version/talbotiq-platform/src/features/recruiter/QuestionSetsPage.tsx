@@ -28,21 +28,21 @@ function SortableQuestion({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-white p-3.5 shadow-xs transition-[border-color,box-shadow] duration-150',
+        'group flex gap-3 rounded-xl border bg-surface p-3.5 shadow-xs transition-[border-color,box-shadow] duration-150',
         isDragging
-          ? 'border-primary-300 shadow-lg'
-          : 'border-border focus-within:border-primary-200 hover:border-neutral-300 hover:shadow-sm',
+          ? 'border-rule-strong shadow-lg'
+          : 'border-border focus-within:border-rule hover:border-rule-strong hover:shadow-sm',
       )}
     >
       <button
         {...attributes}
         {...listeners}
-        className="mt-1 cursor-grab touch-none self-start rounded-lg p-1 text-neutral-300 transition-colors duration-150 group-hover:text-neutral-500 hover:bg-neutral-100 active:cursor-grabbing"
+        className="mt-1 cursor-grab touch-none self-start rounded-lg p-1 text-ink-disabled transition-colors duration-150 group-hover:text-ink-muted hover:bg-surface-hover active:cursor-grabbing"
         aria-label={`Drag to reorder question ${index + 1}`}
       >
         <GripVertical size={16} />
       </button>
-      <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold tabular-nums text-primary-800">
+      <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-bold tabular-nums text-ink">
         {index + 1}
       </span>
       <div className="min-w-0 flex-1 space-y-2">
@@ -58,7 +58,7 @@ function SortableQuestion({
         />
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="relative">
-            <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input
               value={q.category ?? ''}
               onChange={(e) => onChange({ category: e.target.value })}
@@ -68,7 +68,7 @@ function SortableQuestion({
             />
           </div>
           <div className="relative">
-            <Target size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Target size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input
               value={q.idealAnswerNotes ?? ''}
               onChange={(e) => onChange({ idealAnswerNotes: e.target.value })}
@@ -81,7 +81,7 @@ function SortableQuestion({
       </div>
       <button
         onClick={onRemove}
-        className="self-start rounded-lg p-1.5 text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+        className="self-start rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
         aria-label={`Remove question ${index + 1}`}
       >
         <Trash2 size={15} />
@@ -200,11 +200,11 @@ export default function QuestionSetsPage() {
 
             <div className="mt-7 flex items-baseline justify-between px-1">
               <span className="section-label">Your sets</span>
-              <span className="text-xs font-semibold tabular-nums text-neutral-400">{(sets.data ?? []).length}</span>
+              <span className="text-xs font-semibold tabular-nums text-ink-faint">{(sets.data ?? []).length}</span>
             </div>
 
             {(sets.data ?? []).length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-5 text-center text-xs leading-relaxed text-neutral-500">
+              <p className="mt-3 rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-4 py-5 text-center text-xs leading-relaxed text-ink-muted">
                 No sets yet. Create one above, or build a set from a candidate’s résumé.
               </p>
             ) : (
@@ -218,18 +218,18 @@ export default function QuestionSetsPage() {
                     className={cn(
                       'group flex w-full items-center gap-2.5 rounded-xl border p-3 text-left transition-all duration-150',
                       activeId === s.id
-                        ? 'border-primary-300 bg-primary-50 shadow-xs'
-                        : 'border-border bg-white hover:border-primary-200 hover:bg-primary-50/40',
+                        ? 'border-rule-strong bg-surface-hover shadow-xs'
+                        : 'border-border bg-surface hover:border-rule hover:bg-surface-hover/40',
                     )}
                   >
                     <FileText
                       size={15}
                       className={cn(
                         'flex-shrink-0 transition-colors duration-150',
-                        activeId === s.id ? 'text-primary-700' : 'text-neutral-400 group-hover:text-primary-400',
+                        activeId === s.id ? 'text-ink' : 'text-ink-faint group-hover:text-ink-faint',
                       )}
                     />
-                    <span className={cn('min-w-0 flex-1 truncate text-sm', activeId === s.id ? 'font-semibold text-primary-800' : 'font-medium text-neutral-800')}>
+                    <span className={cn('min-w-0 flex-1 truncate text-sm', activeId === s.id ? 'font-semibold text-ink' : 'font-medium text-ink')}>
                       {s.name}
                     </span>
                     <Badge variant={activeId === s.id ? 'info' : 'neutral'} className="tabular-nums">{s.questions.length}</Badge>
@@ -258,15 +258,15 @@ export default function QuestionSetsPage() {
                     onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                     aria-label="Set name"
                     placeholder="Untitled set"
-                    className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-transparent px-3 font-display text-lg font-bold tracking-[-0.02em] text-neutral-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-neutral-400 hover:border-neutral-200 hover:bg-white focus:border-primary-700 focus:bg-white focus:shadow-[0_0_0_3px_rgba(11,122,69,0.12)]"
+                    className="h-11 w-full rounded-xl border-[1.5px] border-transparent bg-transparent px-3 font-display text-lg font-bold tracking-[-0.02em] text-ink outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-ink-faint hover:border-rule hover:bg-surface focus:border-action focus:bg-surface focus:shadow-[0_0_0_3px_rgba(11,122,69,0.12)]"
                   />
-                  <p className="mt-1 px-3 text-xs text-neutral-500">
+                  <p className="mt-1 px-3 text-xs text-ink-muted">
                     <span className="tabular-nums">{draft.questions.length}</span> question{draft.questions.length === 1 ? '' : 's'} · edits apply once you save
                   </p>
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-1.5 pt-0.5">
                   <Button variant="ghost" size="sm" icon={<Copy size={14} />} loading={duplicate.isPending} onClick={() => duplicate.mutate(draft.id)}>Duplicate</Button>
-                  <button onClick={() => { if (confirm(`Delete “${draft.name}”?`)) remove.mutate(draft.id) }} className="rounded-lg p-2 text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger" aria-label="Delete set"><Trash2 size={15} /></button>
+                  <button onClick={() => { if (confirm(`Delete “${draft.name}”?`)) remove.mutate(draft.id) }} className="rounded-lg p-2 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger" aria-label="Delete set"><Trash2 size={15} /></button>
                   <Button size="sm" icon={<Save size={14} />} loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
                 </div>
               </div>
@@ -297,7 +297,7 @@ export default function QuestionSetsPage() {
                   </DndContext>
                   <button
                     onClick={addQuestion}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-neutral-300 py-3 text-sm font-semibold text-neutral-500 transition-colors duration-150 hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-700"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-rule-strong py-3 text-sm font-semibold text-ink-muted transition-colors duration-150 hover:border-rule-strong hover:bg-surface-hover/50 hover:text-ink"
                   >
                     <Plus size={15} />
                     Add question

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Mic, AlertTriangle, CheckCircle2, Captions, ShieldCheck, Loader2 } from 'lucide-react'
+import { Mic, AlertTriangle, Captions, ShieldCheck } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
+import { AISignal, type AIState } from '@/components/ai/AISignal'
 import { InterviewStage } from '../stage/InterviewStage'
 import { Transport, ConnectionMeter, type ConnectionQuality } from '../stage/Transport'
 import { VoiceOrb } from '../stage/VoiceOrb'
@@ -139,7 +140,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
      boundary before requesting the permission rather than after. */
   if (!gestured) {
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -176,7 +177,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
     // saw depended on which format their recruiter happened to pick.
     if (v.endedGraceful) {
       return (
-        <InterviewStage branding={branding} track="voice" ground="record">
+        <InterviewStage branding={branding} track="voice">
           <Completion branding={branding} sessionId={sessionId} />
         </InterviewStage>
       )
@@ -185,7 +186,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
     // Telling someone "all done, thank you" when their connection died mid-answer
     // is a lie the product would be telling at the worst possible moment.
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -205,7 +206,7 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
 
   if (v.phase === 'error') {
     return (
-      <InterviewStage branding={branding} track="voice" ground="record">
+      <InterviewStage branding={branding} track="voice">
         <PreflightCard
           step="systemcheck"
           steps={['systemcheck']}
@@ -233,12 +234,28 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
   const quality: ConnectionQuality = v.reconnecting ? 'lost' : connecting ? 'connecting' : 'good'
   const statusLabel = v.reconnecting ? 'Reconnecting' : PHASE_LABEL[v.phase]
 
+  /* Whose turn it is, for the indicator's tint and mark.
+
+     Only two phases are the machine's. `greeting` is deliberately absent: the
+     session hook is ear-accurate and never surfaces it — a greeting that is
+     still being generated reads as `thinking`, and one that is audible reads as
+     `speaking`, which is what a candidate actually experiences.
+
+     `listening` is deliberately NOT a machine turn either. That turn belongs to
+     the candidate, and tinting it would put the machine's colour on the moment
+     they are being asked to perform. */
+  const signalState: AIState =
+    v.phase === 'speaking' ? 'speaking'
+      : v.phase === 'thinking' ? 'thinking'
+        : 'idle'
+  const machineTurn = signalState !== 'idle'
+
   return (
     <InterviewStage
       branding={branding}
       track="voice"
       layout="focus"
-      ground="record"
+     
       connection={<ConnectionMeter quality={quality} />}
       transport={
         /* `busy` is deliberately not passed. It previously carried `connecting`,
@@ -262,12 +279,27 @@ export function VoiceStage({ sessionId, branding, personaName = 'AI Interviewer'
 
         {/* The turn indicator. `aria-live` so a candidate who cannot see the orb
             is told when it is their turn, which for this format is not a
-            nicety, it is the interview. */}
+            nicety, it is the interview.
+
+            The spinner that used to sit here while connecting is gone. A
+            spinner says "wait"; the signal says WHAT is happening, and it is
+            the same mark the rest of the product uses for machine states — so
+            a candidate who has seen the pre-flight already knows how to read
+            it. While the interviewer is thinking or speaking the pill takes the
+            machine-presence tint; on the candidate's own turn it stays neutral,
+            because that turn belongs to them. */}
         <p
           aria-live="polite"
-          className="mt-3 inline-flex items-center gap-2 rounded-md border border-rule bg-surface px-4 py-1.5 text-sm font-semibold text-ink-body"
+          className={cn(
+            'mt-3 inline-flex items-center gap-2 rounded-md border px-4 py-1.5 text-sm font-semibold transition-colors duration-base',
+            machineTurn
+              ? 'border-ai-rule bg-ai-bg text-ai'
+              : 'border-rule bg-surface text-ink-body',
+          )}
         >
-          {connecting && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+          {(connecting || machineTurn) && (
+            <AISignal state={connecting ? 'thinking' : signalState} size={16} />
+          )}
           {statusLabel}
         </p>
 

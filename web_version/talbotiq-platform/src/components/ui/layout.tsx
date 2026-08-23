@@ -113,9 +113,13 @@ export function PageHeader({
       {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
-          <h1 className="font-display text-[30px] font-bold text-ink sm:text-4xl">{title}</h1>
+          {/* 22px, not 30-36. A workspace page is a place someone works all day;
+              its name is wayfinding, not a cover line. The display voice keeps
+              its widened character at a size that reads as confident rather than
+              loud — the marketing site is where the 68px voice lives. */}
+          <h1 className="font-display text-[21px] font-bold tracking-[-0.015em] text-ink sm:text-[23px]">{title}</h1>
           {description && (
-            <p className="measure mt-2 text-sm leading-relaxed text-ink-muted">{description}</p>
+            <p className="measure mt-1.5 text-sm leading-relaxed text-ink-muted">{description}</p>
           )}
           {meta && <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div>}
         </div>
@@ -201,9 +205,41 @@ export function RecordSection({
 /* ═══ Card ═════════════════════════════════════════════════════════════════ */
 
 export function Card({
-  children, className, hover, ...p
-}: React.HTMLAttributes<HTMLDivElement> & { hover?: boolean }) {
-  return <div className={cn('card', hover && 'card-hover', className)} {...p}>{children}</div>
+  children, className, hover, interactive, ...p
+}: React.HTMLAttributes<HTMLDivElement> & {
+  /** Hover elevation only: the card responds, but nothing happens on click. */
+  hover?: boolean
+  /**
+   * The card IS the target — a template tile, a pipeline card, a link block.
+   * Adds a 1px lift to `hover`'s elevation change, so the object rises off the
+   * desk rather than only brightening. Default off; `hover` is unchanged.
+   */
+  interactive?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'card',
+        (hover || interactive) && 'card-hover',
+        interactive && [
+          // `.card-hover` declares its own `transition` for shadow and border.
+          // A bare `transition-transform` utility would REPLACE that property
+          // list (utilities beat the components layer) and silently kill the
+          // elevation fade, so the full list is restated here instead.
+          'transition-[transform,box-shadow,border-color] duration-fast ease-out',
+          // One pixel. Two is a card that jumps; the shadow is doing most of the
+          // work and the lift only has to make the shadow believable.
+          'motion-safe:hover:-translate-y-px',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+          p.onClick && 'cursor-pointer',
+        ],
+        className,
+      )}
+      {...p}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function Divider({ className }: { className?: string }) {
@@ -269,44 +305,85 @@ export function Citation({
 
    The big-number-in-a-box tile is the category's laziest scaffold, and four in a
    row is the hero-metric template. Here a figure is set like an entry in a
-   schedule: label above a rule, value in tabular mono so a row aligns to the
-   digit, movement stated in words rather than only as a coloured arrow. */
+   schedule: a label, a rule under it, then the value — and movement stated by a
+   glyph and a word rather than only by a coloured arrow.
+
+   The value sets in the DISPLAY voice with tabular figures, not in the mono. The
+   mono is the product's measurement voice and it stays that way for scores,
+   timers, IDs and gutter numbers — values read inside a line of type, where
+   monospacing is the thing that keeps a column honest. A figure is not read
+   inside a line; it is the object the card exists for, so it takes the widened
+   editorial face and `nums` does the column-alignment job on its own. */
+
+/** Trend is carried by a glyph FIRST and a tone second, so it survives a
+ *  monochrome export, a projector and a red-green deficit. `flat` exists so a
+ *  figure that has not moved says so, rather than going silent. */
+const TREND: Record<'up' | 'down' | 'flat', { glyph: string; tone: string; said: string }> = {
+  up:   { glyph: '▲', tone: 'text-ok',        said: 'Up' },
+  down: { glyph: '▼', tone: 'text-risk',      said: 'Down' },
+  flat: { glyph: '—', tone: 'text-ink-muted', said: 'Unchanged' },
+}
 
 export function StatFigure({
-  label, value, sub, trend, cite, className,
+  label, value, unit, sub, trend, cite, className,
 }: {
   label: string
   value: string | number
+  /** A scale, set quieter than the value: `%`, `min`, `/100`. */
+  unit?: string
   sub?: string
-  trend?: 'up' | 'down'
+  trend?: 'up' | 'down' | 'flat'
   /** The evidence behind the figure. A number that cannot be traced is a claim. */
   cite?: React.ReactNode
   className?: string
 }) {
+  const t = trend ? TREND[trend] : null
+
   return (
     <div className={cn('rounded-lg border border-rule bg-surface px-4 py-3.5', className)}>
       <p className="section-label">{label}</p>
-      <p className="mt-2 font-mono text-[27px] font-medium leading-none nums text-ink">{value}</p>
-      {sub && (
-        <p className={cn(
-          'mt-2 text-xs font-medium',
-          // The arrow is redundant with the word, which is the point: the word
-          // survives when the colour does not.
-          trend === 'up' ? 'text-ok' : trend === 'down' ? 'text-risk' : 'text-ink-muted',
-        )}>
-          {trend === 'up' ? '▲ ' : trend === 'down' ? '▼ ' : ''}{sub}
+      {/* The rule the file's own description has always claimed: label ABOVE a
+          rule, value below it. It is what turns four of these in a row from
+          metric tiles into entries in a schedule. */}
+      <div className="mt-2 h-px bg-rule" aria-hidden="true" />
+      {/* The display voice, widened, at 26px — the figure is the one thing on
+          the card worth setting, and `nums` keeps a row of them aligned to the
+          digit, which was the whole job the mono was doing here.
+
+          The type classes stay on the <p> itself rather than on an inner span:
+          a caller that wants a bigger anchor figure overrides it with a child
+          selector, and burying the size a level down would break that quietly.
+          NOTE for the sessions lane — SessionsPage.tsx targets `[&>p.font-mono]`
+          to reach this line; that selector now needs to be `[&>p]`. */}
+      <p className="mt-2.5 font-display text-[26px] font-bold leading-none tracking-[-0.02em] nums text-ink">
+        {value}
+        {unit && <span className="ml-1.5 text-sm font-medium text-ink-faint">{unit}</span>}
+      </p>
+      {(sub || t) && (
+        <p className={cn('mt-2.5 flex items-baseline gap-1.5 text-xs font-medium', t ? t.tone : 'text-ink-muted')}>
+          {t && (
+            <>
+              {/* The glyph is redundant with the tone, which is the point: the
+                  glyph survives when the colour does not, and the word behind it
+                  reaches a screen reader either way. */}
+              <span aria-hidden="true" className="font-mono text-[10px] leading-none">{t.glyph}</span>
+              <span className="sr-only">{t.said}.</span>
+            </>
+          )}
+          {sub && <span className="min-w-0">{sub}</span>}
         </p>
       )}
-      {cite && <div className="mt-2">{cite}</div>}
+      {cite && <div className="mt-2.5">{cite}</div>}
     </div>
   )
 }
 
 /** Legacy name for `StatFigure`. `color` was always ignored — figures are ink. */
-export function StatCard({ label, value, sub, trend }: {
-  label: string; value: string | number; sub?: string; trend?: 'up' | 'down'; color?: string
+export function StatCard({ label, value, sub, trend, className }: {
+  label: string; value: string | number; sub?: string; trend?: 'up' | 'down' | 'flat'
+  color?: string; className?: string
 }) {
-  return <StatFigure label={label} value={value} sub={sub} trend={trend} />
+  return <StatFigure label={label} value={value} sub={sub} trend={trend} className={className} />
 }
 
 /* ═══ InfoRow ══════════════════════════════════════════════════════════════ */

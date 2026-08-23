@@ -58,7 +58,7 @@ function FormSection({ title, description, className, children }: {
     <section>
       <SectionTitle>{title}</SectionTitle>
       <Card className={cn('p-6', className)}>
-        {description && <p className="text-sm leading-relaxed text-neutral-500">{description}</p>}
+        {description && <p className="text-sm leading-relaxed text-ink-muted">{description}</p>}
         {children}
       </Card>
     </section>
@@ -77,14 +77,14 @@ function Notice({ children }: { children: React.ReactNode }) {
 
 /** Column header inside the candidate preview panel. */
 function PreviewLabel({ children }: { children: React.ReactNode }) {
-  return <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{children}</span>
+  return <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{children}</span>
 }
 
 /** A step chip in the per-question flow strip. */
 function FlowStep({ children, accent }: { children: React.ReactNode; accent?: string }) {
   return accent
     ? <span className="rounded-full px-2.5 py-1 text-xs font-semibold text-white" style={{ background: accent }}>{children}</span>
-    : <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-600">{children}</span>
+    : <span className="rounded-full bg-surface-hover px-2.5 py-1 text-xs font-medium text-ink-body">{children}</span>
 }
 
 /** One rubric row: enable switch · label + description · weight · normalized share. */
@@ -97,7 +97,7 @@ function KpiRow({ kpi, pct, onPatch, onRemove }: {
   return (
     <div className={cn(
       'flex items-start gap-3 rounded-xl border border-border p-3 transition-colors duration-150',
-      kpi.enabled ? 'bg-white' : 'bg-neutral-50',
+      kpi.enabled ? 'bg-surface' : 'bg-surface-sunk',
     )}>
       <span className="flex h-9 flex-shrink-0 items-center">
         <button
@@ -105,11 +105,11 @@ function KpiRow({ kpi, pct, onPatch, onRemove }: {
           role="switch" aria-checked={kpi.enabled}
           aria-label={`${kpi.enabled ? 'Disable' : 'Enable'} ${kpi.label || 'KPI'}`}
           className={cn(
-            'relative h-[22px] w-10 rounded-full transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
-            kpi.enabled ? 'bg-primary-700' : 'bg-neutral-200',
+            'relative h-[22px] w-10 rounded-full transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
+            kpi.enabled ? 'bg-action' : 'bg-surface-hover',
           )}
         >
-          <span className={cn('absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm transition-all duration-200', kpi.enabled ? 'left-[22px]' : 'left-[3px]')} />
+          <span className={cn('absolute top-[3px] h-4 w-4 rounded-full bg-surface shadow-sm transition-all duration-200', kpi.enabled ? 'left-[22px]' : 'left-[3px]')} />
         </button>
       </span>
 
@@ -125,7 +125,7 @@ function KpiRow({ kpi, pct, onPatch, onRemove }: {
           value={kpi.description}
           onChange={(e) => onPatch({ description: e.target.value })}
           placeholder="What a strong answer looks like — guides AI scoring"
-          className="input-base h-9 text-xs text-neutral-500"
+          className="input-base h-9 text-xs text-ink-muted"
           aria-label="KPI description"
         />
       </div>
@@ -139,7 +139,7 @@ function KpiRow({ kpi, pct, onPatch, onRemove }: {
         />
         <span className={cn(
           'w-11 text-right text-sm font-bold tabular-nums transition-colors duration-150',
-          kpi.enabled ? 'text-primary-700' : 'text-neutral-400',
+          kpi.enabled ? 'text-ink' : 'text-ink-faint',
         )}>
           {pct}%
         </span>
@@ -148,7 +148,7 @@ function KpiRow({ kpi, pct, onPatch, onRemove }: {
       <span className="flex h-9 flex-shrink-0 items-center">
         <button
           onClick={onRemove}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
           aria-label={`Remove ${kpi.label || 'KPI'}`}
         >
           <Trash2 size={14} />
@@ -187,7 +187,7 @@ export default function TemplateEditorPage() {
   const backLink = (
     <button
       onClick={() => navigate('/templates')}
-      className="mb-3 inline-flex items-center gap-1.5 rounded-full text-sm font-medium text-neutral-500 transition-colors duration-150 hover:text-neutral-800"
+      className="mb-3 inline-flex items-center gap-1.5 rounded-full text-sm font-medium text-ink-muted transition-colors duration-150 hover:text-ink"
     >
       <ArrowLeft size={15} /> Templates
     </button>
@@ -345,14 +345,14 @@ export default function TemplateEditorPage() {
                   <Button variant="outline" size="sm" icon={<Sparkles size={14} />} onClick={() => setGenOpen(true)}>
                     Generate set from résumé
                   </Button>
-                  <span className="text-xs text-neutral-500">Gemini drafts a set from a candidate&rsquo;s PDF résumé.</span>
+                  <span className="text-xs text-ink-muted">Gemini drafts a set from a candidate&rsquo;s PDF résumé.</span>
                 </div>
               </div>
             ) : conversational ? (
-              <div className="rounded-xl border border-border bg-neutral-50 p-4 text-sm leading-relaxed text-neutral-600">
+              <div className="rounded-xl border border-border bg-surface-sunk p-4 text-sm leading-relaxed text-ink-body">
                 Questions are generated live from the résumé. Set{' '}
-                <b className="font-semibold text-neutral-800">style, difficulty, and count</b> under{' '}
-                <b className="font-semibold text-neutral-800">Conversation</b> below.
+                <b className="font-semibold text-ink">style, difficulty, and count</b> under{' '}
+                <b className="font-semibold text-ink">Conversation</b> below.
               </div>
             ) : (
               <Input
@@ -476,7 +476,7 @@ export default function TemplateEditorPage() {
                 }}
                 options={(voiceCat.data?.personas ?? []).map((p) => ({ value: p.id, label: p.name }))}
               />
-              <p className="-mt-1 text-sm leading-relaxed text-neutral-500">
+              <p className="-mt-1 text-sm leading-relaxed text-ink-muted">
                 {voiceCat.data?.personas.find((p) => p.id === (t.voice?.personaId ?? 'friendly_hr'))?.description}
               </p>
 
@@ -494,21 +494,21 @@ export default function TemplateEditorPage() {
                         <div
                           key={voice.id}
                           className={cn(
-                            'flex items-center gap-2 rounded-xl border-[1.5px] bg-white p-2.5 transition-[border-color,box-shadow] duration-150',
-                            active ? 'shadow-sm' : 'border-border hover:border-primary-200',
+                            'flex items-center gap-2 rounded-xl border-[1.5px] bg-surface p-2.5 transition-[border-color,box-shadow] duration-150',
+                            active ? 'shadow-sm' : 'border-border hover:border-rule',
                           )}
                           style={active ? { borderColor: accent } : undefined}
                         >
                           <button className="min-w-0 flex-1 text-left" onClick={() => patchVoice({ voiceId: voice.id })} aria-pressed={active}>
-                            <span className="block truncate text-sm font-semibold text-neutral-800">{voice.label}</span>
-                            <span className="block truncate text-[11px] text-neutral-400">
+                            <span className="block truncate text-sm font-semibold text-ink">{voice.label}</span>
+                            <span className="block truncate text-[11px] text-ink-faint">
                               {[voice.gender, voice.description].filter(Boolean).join(' · ')}
                             </span>
                           </button>
                           <button
                             onClick={() => previewVoice(voice.id)}
                             disabled={previewing !== null}
-                            className="ml-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white shadow-xs transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2 disabled:opacity-40"
+                            className="ml-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white shadow-xs transition-opacity duration-150 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 disabled:opacity-40"
                             style={{ background: accent }}
                             aria-label={`Preview ${voice.label}`}
                           >
@@ -558,7 +558,7 @@ export default function TemplateEditorPage() {
                       )}
                     </div>
                     {/* Live preview of the ring the candidate will see. */}
-                    <div className="flex flex-col items-center justify-start gap-3 rounded-2xl border border-border bg-neutral-50 p-5 md:w-[212px]">
+                    <div className="flex flex-col items-center justify-start gap-3 rounded-2xl border border-border bg-surface-sunk p-5 md:w-[212px]">
                       <PreviewLabel>Live preview</PreviewLabel>
                       <CircularCountdown
                         remaining={t.chatbotTimer?.perQuestionSeconds ?? 120}
@@ -568,7 +568,7 @@ export default function TemplateEditorPage() {
                         accentColor={accent}
                         size={120}
                       />
-                      <span className="text-center text-xs leading-relaxed text-neutral-500">Shown only while the candidate is answering</span>
+                      <span className="text-center text-xs leading-relaxed text-ink-muted">Shown only while the candidate is answering</span>
                     </div>
                   </div>
                   {/* Optional per-question overrides — only meaningful for a fixed set, where
@@ -577,22 +577,22 @@ export default function TemplateEditorPage() {
                     <>
                       <Divider className="my-1" />
                       <div>
-                        <p className="text-sm font-semibold text-neutral-800">Per-question overrides <span className="font-medium text-neutral-400">(optional)</span></p>
-                        <p className="mb-3 mt-0.5 text-xs leading-relaxed text-neutral-500">
+                        <p className="text-sm font-semibold text-ink">Per-question overrides <span className="font-medium text-ink-faint">(optional)</span></p>
+                        <p className="mb-3 mt-0.5 text-xs leading-relaxed text-ink-muted">
                           Give specific questions a different answer time. Leave blank to use the default of {t.chatbotTimer?.perQuestionSeconds ?? 120}s.
                         </p>
                         {selectedSet ? (
                           <div className="overflow-hidden rounded-xl border border-border">
-                            <div className="flex items-center gap-3 border-b border-border bg-neutral-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                            <div className="flex items-center gap-3 border-b border-border bg-surface-sunk px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
                               <span className="min-w-0 flex-1">Question</span>
                               <span className="w-[92px] flex-shrink-0 text-right">Answer time</span>
                             </div>
                             {selectedSet.questions.map((q, i) => (
                               <div key={q.id} className="flex h-12 items-center gap-3 border-b border-border px-3 last:border-b-0">
-                                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold tabular-nums text-primary-800">
+                                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-[11px] font-bold tabular-nums text-ink">
                                   {i + 1}
                                 </span>
-                                <span className="min-w-0 flex-1 truncate text-xs text-neutral-600" title={q.text}>{q.text}</span>
+                                <span className="min-w-0 flex-1 truncate text-xs text-ink-body" title={q.text}>{q.text}</span>
                                 <span className="flex w-[92px] flex-shrink-0 items-center justify-end gap-1.5">
                                   <input
                                     type="number"
@@ -603,7 +603,7 @@ export default function TemplateEditorPage() {
                                     className="input-base h-8 w-[68px] px-2 text-center text-sm tabular-nums"
                                     aria-label={`Answer seconds for question ${i + 1}`}
                                   />
-                                  <span className="text-xs text-neutral-400">s</span>
+                                  <span className="text-xs text-ink-faint">s</span>
                                 </span>
                               </div>
                             ))}
@@ -622,7 +622,7 @@ export default function TemplateEditorPage() {
           {t.track === 'chat' && (
             <FormSection
               title="Timing"
-              description={<>These per-question limits also apply when a candidate takes this interview as the conversational <b className="font-semibold text-neutral-700">Chatbot</b> track — the answer countdown carries over.</>}
+              description={<>These per-question limits also apply when a candidate takes this interview as the conversational <b className="font-semibold text-ink-body">Chatbot</b> track — the answer countdown carries over.</>}
               className="space-y-4"
             >
               <div className="grid gap-4 sm:grid-cols-3">
@@ -642,7 +642,7 @@ export default function TemplateEditorPage() {
             description="Toggle the KPIs the AI scores against, edit their wording, and set relative weights — weights are normalized to 100% automatically."
             className="space-y-3"
           >
-            <div className="flex items-center gap-3 px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            <div className="flex items-center gap-3 px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
               <span className="w-10 flex-shrink-0">On</span>
               <span className="min-w-0 flex-1">KPI</span>
               <span className="flex flex-shrink-0 items-center gap-2">
@@ -663,16 +663,16 @@ export default function TemplateEditorPage() {
             ))}
 
             {t.rubric.kpis.length === 0 && (
-              <p className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
+              <p className="rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-4 py-6 text-center text-sm text-ink-muted">
                 No KPIs yet — add one to tell the AI what to score.
               </p>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <Button variant="outline" size="sm" icon={<Plus size={14} />} onClick={addKpi}>Add custom KPI</Button>
-              <span className="text-xs text-neutral-500">
-                <b className="font-bold tabular-nums text-neutral-700">{enabledKpis.length}</b> of{' '}
-                <b className="font-bold tabular-nums text-neutral-700">{t.rubric.kpis.length}</b> KPIs scored
+              <span className="text-xs text-ink-muted">
+                <b className="font-bold tabular-nums text-ink-body">{enabledKpis.length}</b> of{' '}
+                <b className="font-bold tabular-nums text-ink-body">{t.rubric.kpis.length}</b> KPIs scored
               </span>
             </div>
           </FormSection>
@@ -687,7 +687,7 @@ export default function TemplateEditorPage() {
                     type="color"
                     value={t.branding.accentColor}
                     onChange={(e) => patchBranding({ accentColor: e.target.value })}
-                    className="h-11 w-12 flex-shrink-0 cursor-pointer rounded-xl border-[1.5px] border-neutral-300 bg-white p-1"
+                    className="h-11 w-12 flex-shrink-0 cursor-pointer rounded-xl border-[1.5px] border-rule-strong bg-surface p-1"
                     aria-label="Accent color picker"
                   />
                   <input
@@ -719,19 +719,19 @@ export default function TemplateEditorPage() {
         <div className="lg:sticky lg:top-20 lg:self-start">
           <SectionTitle>Live preview</SectionTitle>
           <Card className="overflow-hidden rounded-2xl p-0 shadow-lg">
-            <div className="flex items-center gap-2 border-b border-border bg-neutral-50 px-5 py-3">
+            <div className="flex items-center gap-2 border-b border-border bg-surface-sunk px-5 py-3">
               <span className="live-dot" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">What the candidate sees</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">What the candidate sees</span>
             </div>
 
             <div className="space-y-6 p-5">
               <div>
                 <PreviewLabel>Branding</PreviewLabel>
-                <div className="mt-2 flex items-center gap-2.5 rounded-xl border border-border bg-white p-3">
+                <div className="mt-2 flex items-center gap-2.5 rounded-xl border border-border bg-surface p-3">
                   <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ background: accent }}>
                     {t.branding.companyName.charAt(0) || 'T'}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-neutral-900">{t.branding.companyName}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{t.branding.companyName}</span>
                   <Badge variant={t.track === 'chat' ? 'neutral' : 'info'}>{TRACK_LABEL[t.track] ?? 'Chat'}</Badge>
                 </div>
               </div>
@@ -743,37 +743,37 @@ export default function TemplateEditorPage() {
                     t.mode === 'timed' ? (
                       <>
                         <FlowStep>Think {t.conversationTiming?.thinkingSeconds ?? 30}s</FlowStep>
-                        <ChevronRight size={12} className="flex-shrink-0 text-neutral-300" aria-hidden />
+                        <ChevronRight size={12} className="flex-shrink-0 text-ink-disabled" aria-hidden />
                         <FlowStep accent={accent}>Answer {t.conversationTiming?.perQuestionSeconds ?? 120}s</FlowStep>
-                        <ChevronRight size={12} className="flex-shrink-0 text-neutral-300" aria-hidden />
+                        <ChevronRight size={12} className="flex-shrink-0 text-ink-disabled" aria-hidden />
                         <FlowStep>{t.adaptive?.allowFollowUps ? 'Follow-ups' : 'Next'}</FlowStep>
                       </>
                     ) : (
                       <>
                         <FlowStep accent={accent}>Conversational</FlowStep>
-                        <ChevronRight size={12} className="flex-shrink-0 text-neutral-300" aria-hidden />
+                        <ChevronRight size={12} className="flex-shrink-0 text-ink-disabled" aria-hidden />
                         <FlowStep>{t.adaptive?.allowFollowUps ? `up to ${t.adaptive?.maxFollowUpsPerQuestion ?? 1} follow-up(s)/Q` : 'no follow-ups'}</FlowStep>
                       </>
                     )
                   ) : (
                     <>
                       <FlowStep>Prep {t.timing.prepSeconds}s</FlowStep>
-                      <ChevronRight size={12} className="flex-shrink-0 text-neutral-300" aria-hidden />
+                      <ChevronRight size={12} className="flex-shrink-0 text-ink-disabled" aria-hidden />
                       <FlowStep accent={accent}>Answer {t.timing.answerSeconds}s</FlowStep>
-                      <ChevronRight size={12} className="flex-shrink-0 text-neutral-300" aria-hidden />
+                      <ChevronRight size={12} className="flex-shrink-0 text-ink-disabled" aria-hidden />
                       <FlowStep>Auto-submit</FlowStep>
                     </>
                   )}
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-border bg-neutral-50 px-3 py-2.5">
-                    <p className="font-display text-xl font-extrabold leading-none tracking-[-0.02em] text-neutral-900 tabular-nums">{questionCount || '—'}</p>
-                    <p className="mt-1.5 text-[11px] font-medium text-neutral-500">questions</p>
+                  <div className="rounded-xl border border-border bg-surface-sunk px-3 py-2.5">
+                    <p className="font-display text-xl font-extrabold leading-none tracking-[-0.02em] text-ink tabular-nums">{questionCount || '—'}</p>
+                    <p className="mt-1.5 text-[11px] font-medium text-ink-muted">questions</p>
                   </div>
-                  <div className="rounded-xl border border-border bg-neutral-50 px-3 py-2.5">
-                    <p className="font-display text-xl font-extrabold leading-none tracking-[-0.02em] text-neutral-900 tabular-nums">~{totalMin || '—'}</p>
-                    <p className="mt-1.5 text-[11px] font-medium text-neutral-500">minutes total</p>
+                  <div className="rounded-xl border border-border bg-surface-sunk px-3 py-2.5">
+                    <p className="font-display text-xl font-extrabold leading-none tracking-[-0.02em] text-ink tabular-nums">~{totalMin || '—'}</p>
+                    <p className="mt-1.5 text-[11px] font-medium text-ink-muted">minutes total</p>
                   </div>
                 </div>
 
@@ -790,16 +790,16 @@ export default function TemplateEditorPage() {
                   <div className="mt-2.5 space-y-2">
                     {enabledKpis.map((k) => (
                       <div key={k.id} className="flex items-center gap-2.5">
-                        <span className="w-24 truncate text-xs font-medium text-neutral-600" title={k.label}>{k.label}</span>
-                        <span className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-100">
+                        <span className="w-24 truncate text-xs font-medium text-ink-body" title={k.label}>{k.label}</span>
+                        <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-hover">
                           <span className="block h-full rounded-full bg-brand-field transition-[width] duration-200" style={{ width: `${pctOf(k)}%` }} />
                         </span>
-                        <span className="w-9 text-right text-[11px] font-bold tabular-nums text-neutral-700">{pctOf(k)}%</span>
+                        <span className="w-9 text-right text-[11px] font-bold tabular-nums text-ink-body">{pctOf(k)}%</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-3 py-3 text-xs leading-relaxed text-neutral-500">
+                  <p className="mt-2 rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-3 py-3 text-xs leading-relaxed text-ink-muted">
                     No KPIs enabled — answers won&rsquo;t receive a weighted score.
                   </p>
                 )}

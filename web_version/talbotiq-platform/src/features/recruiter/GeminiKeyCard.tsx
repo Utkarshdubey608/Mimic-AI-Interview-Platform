@@ -37,11 +37,11 @@ export function GeminiKeyCard() {
   return (
     <Card className="divide-y divide-border">
       <div className="record-head px-5 py-2.5">
-        <h2 className="font-display text-[14px] font-bold text-neutral-900">
+        <h2 className="font-display text-[14px] font-bold text-ink">
           Gemini — scoring &amp; question generation
         </h2>
       </div>
-      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-neutral-500 measure">
+      <p className="border-b border-border px-5 py-3 text-xs leading-relaxed text-ink-muted measure">
         Configured on the server. Interview scoring, question generation and résumé
         screening all run through it.
       </p>
@@ -52,7 +52,7 @@ export function GeminiKeyCard() {
             className={
               configured
                 ? 'badge badge-success'
-                : 'inline-flex items-center gap-1.5 rounded-md border border-border bg-neutral-50 px-2.5 py-1 text-xs font-semibold text-neutral-500'
+                : 'inline-flex items-center gap-1.5 rounded-md border border-border bg-surface-sunk px-2.5 py-1 text-xs font-semibold text-ink-muted'
             }
           >
             {configured ? <span className="live-dot" /> : null}
@@ -61,13 +61,13 @@ export function GeminiKeyCard() {
           {/* The model is shown because it is the one thing a recruiter might need to
               quote when a score looks off. It is not a control. */}
           {configured && status?.model ? (
-            <span className="ml-2 text-xs text-neutral-500">
+            <span className="ml-2 text-xs text-ink-muted">
               model <span className="font-mono">{status.model}</span>
             </span>
           ) : null}
         </div>
 
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-ink-muted">
           {configured
             ? 'Set in the deployment environment.'
             : /* Says who can fix it, and does NOT imply the recruiter can. */

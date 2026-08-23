@@ -9,8 +9,8 @@ import { sampleName } from './InviteEmailStep'
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border py-2 last:border-0">
-      <dt className="flex-shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">{label}</dt>
-      <dd className="min-w-0 truncate text-sm text-neutral-800">{value}</dd>
+      <dt className="flex-shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">{label}</dt>
+      <dd className="min-w-0 truncate text-sm text-ink">{value}</dd>
     </div>
   )
 }
@@ -49,16 +49,16 @@ export function ReviewSend({
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Recipients */}
       <div className="space-y-3">
-        <div className="rounded-2xl border border-border bg-white p-5 shadow-xs">
+        <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+            <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink">
               <Users size={19} />
             </span>
             <div className="min-w-0">
-              <p className="font-display text-base font-extrabold tracking-[-0.02em] text-neutral-900">
+              <p className="font-display text-base font-extrabold tracking-[-0.02em] text-ink">
                 <span className="tabular-nums">{candidates.length}</span> recipient{candidates.length === 1 ? '' : 's'}
               </p>
-              <p className="text-xs text-neutral-500">Ready to send — nothing goes out until you confirm.</p>
+              <p className="text-xs text-ink-muted">Ready to send — nothing goes out until you confirm.</p>
             </div>
           </div>
           <dl className="mt-4">
@@ -68,10 +68,10 @@ export function ReviewSend({
           </dl>
         </div>
 
-        <div className="max-h-[420px] overflow-y-auto overflow-x-auto rounded-2xl border border-border bg-white">
+        <div className="max-h-[420px] overflow-y-auto overflow-x-auto rounded-2xl border border-border bg-surface">
           <table className="w-full text-sm">
             <thead className="sticky top-0 z-5">
-              <tr className="border-b border-border bg-neutral-50 text-left text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+              <tr className="border-b border-border bg-surface-sunk text-left text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                 <th className="w-10 px-4 py-2.5 text-right font-bold">#</th>
                 <th className="px-4 py-2.5 font-bold">Email</th>
                 <th className="px-4 py-2.5 font-bold">Role</th>
@@ -80,23 +80,23 @@ export function ReviewSend({
             <tbody>
               {candidates.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-neutral-400">
+                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-ink-faint">
                     No valid recipients yet — go back to Candidates to add some.
                   </td>
                 </tr>
               ) : candidates.map((c, i) => (
-                <tr key={c.email} className="h-11 border-b border-border last:border-0 transition-colors duration-150 hover:bg-neutral-50">
-                  <td className="px-4 text-right text-xs tabular-nums text-neutral-400">{i + 1}</td>
-                  <td className="px-4 font-mono text-xs text-neutral-800">{c.email}</td>
-                  <td className="px-4 text-xs text-neutral-500">{c.role || role}</td>
+                <tr key={c.email} className="h-11 border-b border-border last:border-0 transition-colors duration-150 hover:bg-surface-sunk">
+                  <td className="px-4 text-right text-xs tabular-nums text-ink-faint">{i + 1}</td>
+                  <td className="px-4 font-mono text-xs text-ink">{c.email}</td>
+                  <td className="px-4 text-xs text-ink-muted">{c.role || role}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
 
-        <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-neutral-500">
-          <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-neutral-400" />
+        <p className="flex items-start gap-2 px-1 text-xs leading-relaxed text-ink-muted">
+          <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-ink-faint" />
           Each recipient gets their own unique interview link tied to this exact email address.
         </p>
       </div>

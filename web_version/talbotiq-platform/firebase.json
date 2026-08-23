@@ -1,6 +1,8 @@
 {
   "hosting": {
     "public": "dist",
+    "//trailingSlash": "The marketing routes are prerendered as dist/<slug>/index.html (scripts/prerender-marketing-seo.ts). The moment those directories exist, Hosting's default behaviour 301s /trust/eu-ai-act to /trust/eu-ai-act/ — so every already-indexed URL gained a redirect hop and pointed at a shape that disagreed with its own canonical tag. false serves the no-slash form directly, which is the shape the canonicals, the nav and the sitemap all use.",
+    "trailingSlash": false,
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }],
     "headers": [

@@ -52,7 +52,10 @@ export function VoiceOrb({ phase, muted }: { phase: VoicePhase; muted?: boolean 
   // alert, and it still inverts correctly: near-black on paper, near-white in a room.
   // Listening keeps the live colour, because THAT is a state and is the one moment the
   // candidate must recognise instantly.
-  const color = listening ? 'var(--live-fg)' : speaking ? 'var(--action)' : 'var(--ink-faint)'
+  // Thinking carries the machine-presence accent — the one hue that means "the
+  // model is working" — so the three turn-states differ in colour as well as in
+  // their direction of motion.
+  const color = listening ? 'var(--live-fg)' : speaking ? 'var(--action)' : thinking ? 'var(--ai-fg)' : 'var(--ink-faint)'
 
   // The gyroscope runs from the moment there is a conversation until it ends —
   // through every phase, not just one — because its job is to say the session is

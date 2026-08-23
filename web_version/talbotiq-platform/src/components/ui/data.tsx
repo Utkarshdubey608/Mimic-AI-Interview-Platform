@@ -82,7 +82,12 @@ export function SearchField({
           type="button"
           onClick={() => onChange('')}
           aria-label="Clear search"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-ink-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className={cn(
+            'absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 text-ink-muted',
+            'transition-[color,background-color] duration-fast ease-out',
+            'hover:bg-surface-hover hover:text-ink',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
         >
           <X size={13} strokeWidth={2.25} />
         </button>
@@ -269,15 +274,25 @@ export function Table<T>({
                 aria-selected={selected ? isSelected : undefined}
                 className={cn(
                   'border-b border-rule transition-colors duration-fast last:border-0',
-                  activate && 'cursor-pointer hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
+                  // Press feedback on a row is colour, not travel: a row that
+                  // translates drags the whole ruled index out of alignment.
+                  activate && 'cursor-pointer hover:bg-surface-hover active:bg-surface-sunk focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
                   isSelected && 'bg-signal-soft',
                 )}
               >
-                {columns.map((c) => (
+                {columns.map((c, ci) => (
                   <td
                     key={c.key}
                     className={cn(
                       'px-4 py-3 align-middle text-ink-body',
+                      // The selected row is seated at its left edge, the same
+                      // way an exhibit tab is seated at its bottom edge. The
+                      // tint alone would be the only carrier of "this one" —
+                      // and on the room ground a soft indigo wash against a lit
+                      // panel is very nearly nothing. Drawn on the first cell
+                      // rather than the row because a collapsed-border <tr>
+                      // does not reliably paint a box-shadow.
+                      isSelected && ci === 0 && 'shadow-[inset_3px_0_0_0_var(--accent)]',
                       c.align === 'right' && 'text-right',
                       c.align === 'center' && 'text-center',
                       c.hideBelow && HIDE[c.hideBelow],

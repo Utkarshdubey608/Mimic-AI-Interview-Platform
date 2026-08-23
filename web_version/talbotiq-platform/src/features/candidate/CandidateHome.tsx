@@ -8,6 +8,8 @@ import { AmbientField } from '@/components/shell/AmbientField'
 import { MimicLockup } from '@/components/brand/MimicMark'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { ThemeToggle } from '@/features/theme/ThemeToggle'
+import { useDocumentGround, useWorkspaceGround } from '@/lib/workspaceGround'
 import type { CandidateAssignedSession, CandidateOutcome } from '@shared/types'
 
 /**
@@ -23,6 +25,8 @@ import type { CandidateAssignedSession, CandidateOutcome } from '@shared/types'
  */
 export default function CandidateHome() {
   const { user, signOutUser } = useAuth()
+  const ground = useWorkspaceGround()
+  useDocumentGround(ground)
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['my-sessions'],
     queryFn: sessionsApi.mine,
@@ -31,14 +35,24 @@ export default function CandidateHome() {
   const pending = data?.filter((s) => s.status !== 'completed' && s.status !== 'expired') ?? []
 
   return (
-    <div className="relative min-h-screen bg-ground">
-      <AmbientField variant="record" />
+    // FOLLOWS THE READER. This was pinned to the room on the argument that a
+    // candidate's whole path should read as one dark product. The path is still
+    // continuous — it is continuous with whatever they chose, which is the only
+    // version of that argument that survives appearance being a preference. The
+    // interview stages keep choosing their own ground per surface and still do:
+    // a room is a room whatever the lobby looks like.
+    <div data-ground={ground} className="relative min-h-screen bg-ground">
+      <AmbientField variant={ground === 'room' ? 'room' : 'record'} />
 
-      <header className="relative z-sticky border-b border-rule bg-surface">
+      <header className="relative z-sticky border-b border-rule bg-surface/80 backdrop-blur-sm">
         <div className="mx-auto flex h-[60px] max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
           <MimicLockup />
           <div className="flex items-center gap-3">
             <span className="hidden text-sm text-ink-muted sm:inline">{user?.email}</span>
+            {/* Compact: this header is 60px and already carries an address and a
+                button, so the words go and the icons carry it. The accessible
+                name keeps "Light" and "Dark". */}
+            <ThemeToggle compact />
             <Button variant="secondary" size="sm" onClick={() => void signOutUser()} icon={<LogOut size={14} />}>
               Sign out
             </Button>
@@ -48,7 +62,7 @@ export default function CandidateHome() {
 
       <main className="relative z-raised">
         <Page width="reading">
-          <h1 className="font-display text-[28px] font-bold tracking-[-0.03em] text-ink">Your interviews</h1>
+          <h1 className="font-display text-[23px] font-bold tracking-[-0.02em] text-ink">Your interviews</h1>
           <p className="mt-1.5 text-sm text-ink-muted">
             {/* States the count rather than only listing rows: a candidate wants
                 to know how many things are outstanding before they read any. */}

@@ -2,18 +2,38 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
 } from 'recharts'
 import { Activity } from 'lucide-react'
+import { palette, series, type Ground } from '@/design/tokens'
+import { useWorkspaceGround } from '@/lib/workspaceGround'
 import type { EmotionSnapshot, EmotionCategory } from '@/types/hume.types'
 
-// Brand series palette — teal leads, then indigo / magenta / amber. Distinct
-// at a glance without leaving the exhibit ramp.
-const SERIES: { key: EmotionCategory; color: string; label: string }[] = [
-  { key: 'positive_high', color: '#0F766E', label: 'Energy' },
-  { key: 'positive_calm', color: '#4338CA', label: 'Calm' },
-  { key: 'cognitive',     color: '#BE185D', label: 'Focus' },
-  { key: 'negative',      color: '#B45309', label: 'Stress' },
+/* Four of the six categories, plotted. The series indices match
+   EmotionCategoryPanel and EmotionHeatmap so a line and its heat column are the
+   same colour, and both follow the ground. */
+const SERIES: { key: EmotionCategory; idx: number; label: string }[] = [
+  { key: 'positive_high', idx: 2, label: 'Energy' },
+  { key: 'positive_calm', idx: 4, label: 'Calm' },
+  { key: 'cognitive',     idx: 3, label: 'Focus' },
+  { key: 'negative',      idx: 1, label: 'Stress' },
 ]
 
-const GRID = '#E7E7EA'
+/** Chart chrome for a ground. Recharts needs literals; these are the tokens. */
+function chrome(ground: Ground) {
+  const pal = palette(ground)
+  return {
+    pal,
+    tooltip: {
+      background: pal.surface,
+      border: `1px solid ${pal.rule}`,
+      borderRadius: 10,
+      color: pal.ink,
+      fontSize: 12,
+      fontFamily: 'Archivo, system-ui, sans-serif',
+      boxShadow: ground === 'room'
+        ? '0 12px 28px -8px rgb(0 0 0 / 0.6)'
+        : '0 8px 24px -4px rgb(14 20 32 / 0.10), 0 4px 10px -4px rgb(14 20 32 / 0.06)',
+    },
+  }
+}
 
 interface Props {
   timeline: EmotionSnapshot[]
@@ -21,15 +41,18 @@ interface Props {
 }
 
 export function EmotionTimeline({ timeline }: Props) {
+  const ground = useWorkspaceGround()
+  const { pal, tooltip } = chrome(ground)
+
   if (timeline.length === 0) {
     return (
-      <div className="h-80 flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-neutral-50">
-        <span className="w-11 h-11 rounded-full bg-white border border-border text-neutral-400 flex items-center justify-center">
+      <div className="h-80 flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-rule bg-surface-sunk">
+        <span className="w-11 h-11 rounded-full bg-surface border border-rule text-ink-faint flex items-center justify-center">
           <Activity size={20} strokeWidth={1.75} />
         </span>
         <div className="text-center">
-          <p className="text-sm font-semibold text-neutral-700">No emotion timeline yet</p>
-          <p className="text-xs text-neutral-500 mt-1">Prosody predictions appear here once the audio analysis completes.</p>
+          <p className="text-sm font-semibold text-ink-body">No emotion timeline yet</p>
+          <p className="text-xs text-ink-muted mt-1">Prosody predictions appear here once the audio analysis completes.</p>
         </div>
       </div>
     )
@@ -54,16 +77,16 @@ export function EmotionTimeline({ timeline }: Props) {
     <div className="w-full h-80">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 20, left: -4, bottom: 4 }}>
-          <CartesianGrid stroke={GRID} strokeDasharray="4 4" vertical={false} />
+          <CartesianGrid stroke={pal.rule} strokeDasharray="4 4" vertical={false} />
           <XAxis
             dataKey="t"
-            tick={{ fill: '#5B6067', fontSize: 11 }}
+            tick={{ fill: pal.inkMuted, fontSize: 11 }}
             tickFormatter={v => `${v}s`}
-            axisLine={{ stroke: GRID }}
+            axisLine={{ stroke: pal.rule }}
             tickLine={false}
           />
           <YAxis
-            tick={{ fill: '#5B6067', fontSize: 11 }}
+            tick={{ fill: pal.inkMuted, fontSize: 11 }}
             domain={[0, yMax]}
             tickFormatter={v => `${v}%`}
             axisLine={false}
@@ -71,17 +94,9 @@ export function EmotionTimeline({ timeline }: Props) {
             tickCount={6}
           />
           <Tooltip
-            cursor={{ stroke: GRID }}
-            contentStyle={{
-              background: '#ffffff',
-              border: '1px solid #E7E7EA',
-              borderRadius: 10,
-              color: '#0E1420',
-              fontSize: 12,
-              fontFamily: 'Archivo, system-ui, sans-serif',
-              boxShadow: '0 8px 24px -4px rgb(14 20 32 / 0.10), 0 4px 10px -4px rgb(14 20 32 / 0.06)',
-            }}
-            labelStyle={{ color: '#0E1420', fontWeight: 600 }}
+            cursor={{ stroke: pal.rule }}
+            contentStyle={tooltip}
+            labelStyle={{ color: pal.ink, fontWeight: 600 }}
             formatter={(v: number, name: string) => {
               const s = SERIES.find(s => s.key === name)
               return [`${v}%`, s?.label ?? name]
@@ -94,20 +109,23 @@ export function EmotionTimeline({ timeline }: Props) {
             wrapperStyle={{ paddingTop: 10, fontSize: 12 }}
             formatter={(value) => {
               const s = SERIES.find(s => s.key === value)
-              return <span style={{ color: '#4A5566', fontWeight: 500 }}>{s?.label ?? value}</span>
+              return <span style={{ color: pal.inkBody, fontWeight: 500 }}>{s?.label ?? value}</span>
             }}
           />
-          {SERIES.map(sr => (
-            <Line
-              key={sr.key}
-              type="monotone"
-              dataKey={sr.key}
-              stroke={sr.color}
-              strokeWidth={2.25}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0, fill: sr.color }}
-            />
-          ))}
+          {SERIES.map(sr => {
+            const stroke = series[ground][sr.idx]
+            return (
+              <Line
+                key={sr.key}
+                type="monotone"
+                dataKey={sr.key}
+                stroke={stroke}
+                strokeWidth={2.25}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0, fill: stroke }}
+              />
+            )
+          })}
         </LineChart>
       </ResponsiveContainer>
     </div>

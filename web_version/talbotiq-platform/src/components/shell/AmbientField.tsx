@@ -216,49 +216,9 @@ function RecordField() {
 }
 
 /* ═══ Mesh ═════════════════════════════════════════════════════════════════
-   A faint structural field. Deliberately NOT a tiled dot or square grid — that
-   pattern reads as graph paper and is the most recognisable generated-UI tell
-   there is. This is a set of long, irregularly spaced diagonals with a radial
-   mask, so it reads as structure catching light rather than as a texture swatch. */
-
-function MeshLines({ opacity = 0.06, ground = 'room' }: { opacity?: number; ground?: 'room' | 'record' }) {
-  // On paper the structural field is drawn in the hairline colour, not in the
-  // accent: a blue mesh on white reads as a decorative graphic, while a grey one
-  // reads as the ruling of a page.
-  const stroke = ground === 'record' ? '#E3E6ED' : '#8AA6F0'
-  return (
-    <svg
-      className="absolute inset-0 h-full w-full"
-      style={{ opacity }}
-      preserveAspectRatio="none"
-      viewBox="0 0 1200 800"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient id="mimic-mesh-stroke" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={stroke} stopOpacity="0" />
-          <stop offset="45%" stopColor={stroke} stopOpacity="1" />
-          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
-        </linearGradient>
-        <radialGradient id="mimic-mesh-mask" cx="50%" cy="40%" r="65%">
-          <stop offset="0%" stopColor="white" stopOpacity="1" />
-          <stop offset="100%" stopColor="white" stopOpacity="0" />
-        </radialGradient>
-        <mask id="mimic-mesh-fade">
-          <rect width="1200" height="800" fill="url(#mimic-mesh-mask)" />
-        </mask>
-      </defs>
-      <g mask="url(#mimic-mesh-fade)" stroke="url(#mimic-mesh-stroke)" strokeWidth="1" fill="none">
-        {/* Irregular spacing — 0, 137, 291, 468, 664, 881 — so the eye never
-            resolves a repeat. An even interval is what makes a pattern read as
-            wallpaper. */}
-        {[0, 137, 291, 468, 664, 881, 1119].map((x) => (
-          <line key={`d-${x}`} x1={x} y1="-100" x2={x + 420} y2="900" />
-        ))}
-        {[96, 233, 407, 598].map((y) => (
-          <line key={`h-${y}`} x1="-100" y1={y} x2="1300" y2={y + 60} />
-        ))}
-      </g>
-    </svg>
-  )
-}
+   REMOVED. A `MeshLines` layer used to live here: a faint structural field of
+   long, irregularly spaced diagonals under a radial mask — deliberately NOT a
+   tiled dot or square grid, since that pattern reads as graph paper and is the
+   most recognisable generated-UI tell there is. No variant ever mounted it, so
+   it has been deleted rather than left parked. Git history has the full
+   implementation if the structural field is ever wanted again. */

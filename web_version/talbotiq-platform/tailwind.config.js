@@ -60,6 +60,12 @@ export default {
           DEFAULT: 'var(--action)',
           hover: 'var(--action-hover)',
           ink: 'var(--on-action)',
+          /* The control's own boundary. Equal to the fill for the default
+             scheme, so the border is present and invisible; a chosen pastel
+             gives it the deep tone of that hue, because a pastel fill cannot
+             reach 3:1 against a white page and WCAG 1.4.11 asks for the
+             boundary, not the fill. Gated in src/design/schemes.test.ts. */
+          edge: 'var(--action-edge, var(--action))',
         },
 
         /* Registrar blue. Links, the focus ring, the progress rail. Never a
@@ -87,6 +93,11 @@ export default {
         ok:   { DEFAULT: 'var(--ok)',   bg: 'var(--ok-bg)',   rule: 'var(--ok-rule)' },
         warn: { DEFAULT: 'var(--warn)', bg: 'var(--warn-bg)', rule: 'var(--warn-rule)' },
         risk: { DEFAULT: 'var(--risk)', bg: 'var(--risk-bg)', rule: 'var(--risk-rule)' },
+
+        /* Machine presence — the AI accent. Functional state coding only:
+           AI speaking/listening/thinking, AI-written content, the intelligence
+           signal. Never a large fill. Gated by scripts/contrast-audit.mjs. */
+        ai: { DEFAULT: 'var(--ai-fg)', bg: 'var(--ai-bg)', rule: 'var(--ai-rule)' },
 
         /* ── EXHIBIT RAMP — the six interview formats ────────────────────
            Index-tab coding: the colour IS the format. The only place saturation

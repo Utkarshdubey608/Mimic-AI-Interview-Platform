@@ -22,7 +22,7 @@ interface Props {
  *     submit-answer call (SubmitAnswerRequest.videoUrl) so the recruiter view
  *     can play it back.
  */
-export function CameraRecorder({ active, accentColor }: Props) {
+export function CameraRecorder({ active }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)

@@ -59,15 +59,24 @@ export function JsonPreview({
   endpoint?: string
 }) {
   return (
+    // Sunk, not black. This used a fixed near-black ground with mint-green
+    // monospace — the 1990s terminal costume, and a hue that appears nowhere
+    // else in the system. What makes a request body read as a request body is
+    // the MONO and the method chip, not the colour of a phosphor screen. So it
+    // is now a recessed well on whichever ground it sits on, and the payload
+    // sets in the same ink as the rest of the page.
     <div className="overflow-hidden rounded-lg border border-rule font-mono text-xs">
-      <div className="flex items-center justify-between border-b border-brand-border bg-brand-black px-4 py-2.5">
-        <span className="text-brand-gray">{title}</span>
-        <div className="flex items-center gap-2">
-          <span className="rounded-sm bg-brand-card px-2 py-0.5 text-[10px] font-bold text-brand-gold">{method}</span>
-          <span className="text-[10px] text-brand-gray">tavusapi.com{endpoint}</span>
+      <div className="flex items-center justify-between gap-3 border-b border-rule bg-surface-sunk px-4 py-2.5">
+        {/* nowrap: the label is two words and the endpoint beside it is the
+            flexible one — without this the label wrapped and the header grew a
+            line taller than the chip next to it. */}
+        <span className="section-label whitespace-nowrap">{title}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="rounded-sm border border-ai-rule bg-ai-bg px-2 py-0.5 text-[10px] font-bold text-ai">{method}</span>
+          <span className="truncate text-[10px] text-ink-muted">tavusapi.com{endpoint}</span>
         </div>
       </div>
-      <pre className="max-h-80 overflow-x-auto bg-brand-void p-4 leading-relaxed text-brand-green-light">
+      <pre className="max-h-80 overflow-x-auto bg-ground-sunk p-4 leading-relaxed text-ink-body">
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>

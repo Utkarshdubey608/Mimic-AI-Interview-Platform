@@ -151,7 +151,7 @@ export default function TakeInterviewPage() {
 
   if (s.status === 'completed' || s.status === 'expired') {
     return (
-      <InterviewStage branding={branding} track={s.track} ground="record">
+      <InterviewStage branding={branding} track={s.track}>
         <Completion branding={branding} sessionId={sessionId} />
       </InterviewStage>
     )
@@ -272,7 +272,7 @@ export default function TakeInterviewPage() {
   const step: PreflightStep = fixedFormat && preStep === 'track' ? 'welcome' : preStep
 
   return (
-    <InterviewStage branding={branding} track={s.track} ground="record">
+    <InterviewStage branding={branding} track={s.track}>
       <AnimatePresence mode="wait">
         {step === 'track' && (
           <TrackSelect

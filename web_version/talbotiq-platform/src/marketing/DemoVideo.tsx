@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react'
  *    system for less motion should not be handed a play button as a consolation
  *    — the still frame carries the same information.
  */
-export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synthetic candidates', contentAspect, startAt = 0, priority = false }: {
+export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synthetic candidates', contentAspect, startAt = 0, priority = false, hold = false, posterEager = false }: {
   src: string
   poster: string
   still: string
@@ -33,6 +33,46 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
    * recorder produced.
    */
   contentAspect?: string
+  /**
+   * Suppress arming while true, and RELEASE the source if it was already
+   * armed. The poster still shows; nothing is fetched, decoded or held in a
+   * decoder.
+   *
+   * Releasing matters as much as gating. Gating alone meant each panel armed as
+   * the reader settled on it and then stayed armed for the rest of the visit —
+   * four live decoders by the end of one pass — and the section degraded run
+   * over run (83, 80, 62, 30 frames across four passes) while the stage next
+   * door held flat at 82-85 in the same passes. At most one source is attached
+   * now. Re-arming re-reads from the HTTP cache, so going back is cheap.
+   *
+   * Exists for the horizontal format showcase. The arm observer below uses a
+   * 600px rootMargin, which is right for a page you scroll DOWN — the source
+   * attaches a screen early so playback has started by the time the frame
+   * arrives. In a horizontal track the panels sit side by side, so every
+   * neighbour is permanently inside that margin and all of them armed at once:
+   * four multi-megabyte files fetching and decoding during the travel, which
+   * cost a 157ms stall on a scroll that is otherwise a flat 17ms. Held until a
+   * panel is the one being read, the same scroll runs at 85 frames with a 19ms
+   * worst case — identical to the section next door.
+   */
+  hold?: boolean
+  /**
+   * Attach the poster now, without waiting to be armed.
+   *
+   * The default is not to, for the reason on the attribute below: a poster is
+   * fetched the moment the attribute exists, so two below-fold demos were pulling
+   * their stills into the initial payload for a video nobody had scrolled to.
+   *
+   * The format deck needs the opposite trade. Six panels share one frame there and
+   * only one is on stage, so a panel that has not armed yet has nothing to show
+   * but the video element's own background — a grey rectangle, for as long as it
+   * takes the source to attach and buffer. That grey is the gap the deck was
+   * reported for. The caller turns this on once the SECTION is on screen, so the
+   * stills are still out of the initial payload; they arrive together, shortly
+   * before anyone can look at them, and every switch after shows a real frame at
+   * once.
+   */
+  posterEager?: boolean
   /**
    * The provenance chip beside the caption. Defaults to "Synthetic candidates",
    * which is true of every recording scripts/record-mode-demos.mjs produces —
@@ -89,10 +129,41 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
     return () => mq.removeEventListener('change', sync)
   }, [])
 
+  /* Play once the source arrives, if the frame is on screen.
+   *
+   * The play/pause observer below only acts on an intersection CHANGE. A held
+   * video becomes visible first and is armed second, so that observer fires
+   * while there is still no source to play — and nothing moves afterwards to
+   * fire it again, leaving a visible frame paused on its poster. This covers the
+   * arming edge, which the observer cannot see. */
+  useEffect(() => {
+    if (!armed || reduced) return
+    const host = hostRef.current
+    const v = videoRef.current
+    if (!host || !v) return
+    const r = host.getBoundingClientRect()
+    const onScreen = r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth
+    if (onScreen) void v.play().catch(() => { /* autoplay refused; controls remain */ })
+  }, [armed, reduced])
+
   useEffect(() => {
     if (reduced) return
     const host = hostRef.current
     if (!host || typeof IntersectionObserver === 'undefined') return
+
+    // Held: tear down. Pause, detach the source and tell the element to reload
+    // from nothing, which is what actually frees the decoder — clearing the
+    // React state alone leaves the media element holding its buffers.
+    if (hold) {
+      const v = videoRef.current
+      if (v) {
+        v.pause()
+        v.removeAttribute('src')
+        v.load()
+      }
+      if (armed) setArmed(false)
+      return
+    }
 
     // Attach the source a screen early, so playback starts as it arrives rather
     // than after a visible stall. A priority video is armed from mount, so it
@@ -118,7 +189,7 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
     play.observe(host)
 
     return () => { arm?.disconnect(); play.disconnect() }
-  }, [reduced, priority])
+  }, [reduced, priority, hold, armed])
 
   // Both the video and the reduced-motion still are cut from the same frames,
   // so a letterboxed source needs the identical crop on each — otherwise the
@@ -143,7 +214,7 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
           // below-the-fold demos were pulling their posters into the initial
           // payload for a video nobody had scrolled to yet. That was the 4 kB
           // that put the page over budget.
-          poster={armed ? poster : undefined}
+          poster={armed || posterEager ? poster : undefined}
           muted
           playsInline
           preload={priority ? 'metadata' : 'none'}

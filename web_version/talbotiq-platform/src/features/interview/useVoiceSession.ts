@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { VoiceClient } from '@/lib/voiceClient'
 import { isSpeechRecognitionSupported } from '@/lib/speechRecognition'
-import { applyLocal, applyRemote, type MergedCaption } from './captionMerge'
+import { applyRemote, type MergedCaption } from './captionMerge'
 import type { VoicePhase, TimeOfDay } from '@shared/types'
 
 export type { MergedCaption }
@@ -52,7 +52,7 @@ export function useVoiceSession(sessionId: string) {
   const clientRef = useRef<VoiceClient | null>(null)
   const startedRef = useRef(false)
   const everSpokeRef = useRef(false) // agent audio has been audible at least once
-  const [live, setLive] = useState(false) // the call is up: run the local recogniser
+  const [, setLive] = useState(false) // the call is up: run the local recogniser
 
   const start = useCallback(async () => {
     if (startedRef.current) return

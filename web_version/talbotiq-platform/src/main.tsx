@@ -2,6 +2,16 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+/* Imported for its side effect, and it has to be imported HERE.
+ *
+ * colourScheme.ts writes the chosen palette onto the document at module load
+ * rather than from a React effect, so the first painted frame is already the
+ * right colour. That only works if something loads the module — and until this
+ * line, the only importer was the settings page, which meant a workspace that had
+ * chosen Peach saw it on the one screen where it picked Peach and nowhere else.
+ * The marketing site is unaffected: it has its own palette and reads none of
+ * these properties. */
+import '@/lib/colourScheme'
 
 /* The cinematic splash is NOT mounted here any more.
  *

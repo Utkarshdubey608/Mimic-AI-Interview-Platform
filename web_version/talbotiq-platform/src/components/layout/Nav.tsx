@@ -8,6 +8,7 @@ import { cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { MimicMark } from '@/components/brand/MimicMark'
+import { setWorkspaceGround, useWorkspaceGround } from '@/lib/workspaceGround'
 
 /**
  * THE SPINE — the bundle's cover, carrying its sections.
@@ -71,20 +72,64 @@ const GROUPS: Group[] = [
 ]
 const ALL: Dest[] = GROUPS.flatMap((g) => g.items)
 
-/** The chevron mark, on ink. A confirmed brand asset — kept, re-grounded. */
-function Mark() {
+/* The chevron mark, on ink — a confirmed brand asset — used to be inlined here
+   as a local `Mark` component. It has been REMOVED: the shared
+   `MimicMark` above is the single source for it and is what this spine renders.
+   Git history has the inline version. */
+
+/**
+ * The ground switch — the workspace read in the ROOM (dark) or on the RECORD
+ * (light). Product vocabulary rather than a sun/moon glyph, because the two
+ * grounds are named concepts here, not generic themes. Lives in the spine's
+ * footer with the other secondary signals; the spine itself is the bundle's
+ * ink cover and does not change with the ground.
+ */
+/* LIGHT AND DARK, not "room" and "record".
+   The previous labels were the product's own words for the two grounds, and the
+   comment defending them was right that both are real vocabulary — but they were
+   the only control in the app that used it, and the word for the value is not the
+   word for the choice. The same switch now exists on the entry screen and in the
+   candidate header, and the first-run picker offers the two by these names, so a
+   spine that says "record" is the one place the same control disagrees with
+   itself. The ground names are unchanged everywhere they matter: in the store, in
+   `data-ground`, in the token layer and in every comment about them. */
+function GroundSwitch({ compact = false }: { compact?: boolean }) {
+  const ground = useWorkspaceGround()
   return (
-    <span className="grid place-items-center h-8 w-8 rounded-md border border-brand-border bg-brand-card">
-      <svg viewBox="0 0 32 32" className="h-[17px] w-[17px]" aria-hidden="true">
-        <path d="M7 21V11l5 6 4-6 4 6 5-6v10" fill="none" stroke="#E8E8ED" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
+    <div
+      role="group"
+      aria-label="Workspace ground"
+      className={cn(
+        'grid grid-cols-1 xl:grid-cols-2 rounded-md border border-brand-border bg-brand-black p-0.5',
+        compact ? 'w-full' : '',
+      )}
+    >
+      {([['room', 'Dark'], ['record', 'Light']] as const).map(([g, label]) => (
+        <button
+          key={g}
+          onClick={() => setWorkspaceGround(g)}
+          aria-pressed={ground === g}
+          className={cn(
+            // Tighter in the collapsed rail: two words have to fit a 48px inner
+            // width there, and neither can be abbreviated away.
+            'min-h-[28px] xl:min-h-[30px] rounded-[4px] px-0.5 xl:px-2 text-[10px] xl:text-[11px] font-semibold transition-colors duration-150',
+            ground === g
+              ? 'bg-brand-card text-brand-gold-light'
+              : 'text-brand-gray hover:text-brand-gold-light',
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   )
 }
 
 function itemClass(isActive: boolean) {
   return cn(
-    'group relative flex items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 text-sm transition-colors duration-150',
+    'group relative flex items-center gap-2.5 rounded-md py-2 text-sm transition-colors duration-150',
+    // Collapsed, the row is a centred glyph; at lg it becomes a labelled row.
+    'justify-center px-2 xl:justify-start xl:pl-3 xl:pr-2.5',
     // The seated-tab mark: an accent edge and a lifted ground.
     isActive
       ? 'bg-brand-card text-brand-gold-light font-semibold before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[2px] before:rounded-full before:bg-brand-gold'
@@ -117,15 +162,15 @@ export function Nav() {
   return (
     <>
       {/* ── Desktop: the spine ──────────────────────────────────────────── */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[15rem] flex-col bg-brand-black border-r border-brand-border">
-        <div className="flex items-center gap-2.5 px-4 h-[60px] flex-shrink-0">
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-spine-collapsed xl:w-spine flex-col bg-brand-black border-r border-brand-border">
+        <div className="flex items-center justify-center xl:justify-start gap-2.5 px-3 xl:px-4 h-[60px] flex-shrink-0">
           <button
             onClick={() => navigate('/sessions')}
             className="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-gold rounded-md"
             aria-label="Mimic home"
           >
             <MimicMark size="md" tone="plain" className="border border-brand-border bg-brand-card text-brand-gold-light" />
-            <span className="font-display text-[19px] font-bold tracking-[-0.03em] text-white">Mimic</span>
+            <span className="hidden xl:inline font-display text-[19px] font-bold tracking-[-0.03em] text-white">Mimic</span>
           </button>
         </div>
 
@@ -136,15 +181,15 @@ export function Nav() {
             screen, browser zoom, mobile chrome — hid it completely, and it was
             reported missing twice for exactly that reason. At the top it cannot
             be clipped, and it is where sidebar products put account anyway. */}
-        <div className="flex-shrink-0 border-y border-brand-border px-2.5 py-2.5">
-          <div className="flex items-center gap-2.5 px-1 pb-2">
+        <div className="flex-shrink-0 border-y border-brand-border px-2 xl:px-2.5 py-2.5">
+          <div className="flex items-center justify-center xl:justify-start gap-2.5 xl:px-1 pb-2" title={label}>
             <span
               aria-hidden="true"
               className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-md border border-brand-border bg-brand-card text-[10px] font-bold text-brand-gold-light"
             >
               {initialsOf(label)}
             </span>
-            <span className="min-w-0 flex-1">
+            <span className="hidden xl:block min-w-0 flex-1">
               <span className="block truncate text-xs text-brand-gold-light">{label}</span>
               {user?.admin && <span className="block text-[10px] text-brand-gray">Administrator</span>}
             </span>
@@ -152,24 +197,40 @@ export function Nav() {
           <button
             onClick={() => void signOutUser()}
             aria-label="Sign out"
-            className="flex w-full min-h-[38px] items-center gap-2.5 rounded-md pl-3 pr-2.5 py-2 text-sm font-medium text-brand-gray transition-colors duration-150 hover:bg-brand-card hover:text-brand-gold-light"
+            title="Sign out"
+            className="flex w-full min-h-[38px] items-center justify-center xl:justify-start gap-2.5 rounded-md px-2 xl:pl-3 xl:pr-2.5 py-2 text-sm font-medium text-brand-gray transition-colors duration-150 hover:bg-brand-card hover:text-brand-gold-light"
           >
             <LogOut size={15} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
-            Sign out
+            <span className="hidden xl:inline">Sign out</span>
           </button>
         </div>
 
-        <nav aria-label="Sections" className="flex-1 overflow-y-auto px-2.5 pb-3">
-          {GROUPS.map((g) => (
-            <div key={g.label} className="mb-5 last:mb-0">
-              <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-brand-gray/70">
+        <nav aria-label="Sections" className="flex-1 overflow-y-auto px-2 xl:px-2.5 pb-3">
+          {GROUPS.map((g, gi) => (
+            <div key={g.label} className="mb-3 xl:mb-5 last:mb-0">
+              {/* Collapsed, a group heading has nowhere to go — 4rem cannot hold
+                  "Configuration". It becomes a hairline instead, so the grouping
+                  the spine is built on survives as rhythm rather than vanishing.
+                  Not before the first group: a rule under the account block
+                  would read as a double border. */}
+              <p className="hidden xl:block px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-brand-gray/70">
                 {g.label}
               </p>
+              {gi > 0 && <div aria-hidden="true" className="xl:hidden mx-2 mb-2 h-px bg-brand-border" />}
               <div className="flex flex-col gap-0.5">
                 {g.items.map((d) => (
-                  <NavLink key={d.to} to={d.to} className={({ isActive }) => itemClass(isActive)}>
+                  <NavLink
+                    key={d.to}
+                    to={d.to}
+                    /* The label is the accessible name at every width; `title`
+                       is what gives a sighted pointer user the same word while
+                       the rail is collapsed. */
+                    title={d.label}
+                    className={({ isActive }) => itemClass(isActive)}
+                  >
                     <d.icon size={15} strokeWidth={1.75} className="flex-shrink-0" aria-hidden="true" />
-                    {d.label}
+                    <span className="hidden xl:inline">{d.label}</span>
+                    <span className="sr-only xl:hidden">{d.label}</span>
                   </NavLink>
                 ))}
               </div>
@@ -180,20 +241,21 @@ export function Nav() {
         {/* Footer now holds only secondary signals. Nothing essential lives at
             the bottom edge, because the bottom edge is the first thing a short
             viewport loses. */}
-        <div className="flex-shrink-0 border-t border-brand-border p-2.5 space-y-2 empty:hidden">
-          {liveMark && <div className="px-1">{liveMark}</div>}
+        <div className="flex-shrink-0 border-t border-brand-border p-2 xl:p-2.5 space-y-2">
+          {liveMark && <div className="hidden xl:block px-1">{liveMark}</div>}
 
           {!tavusConfigured && (
             <button
               onClick={() => navigate('/settings')}
-              className="flex w-full items-center gap-2 rounded-md border border-warning/35 bg-warning/10 px-2.5 py-1.5 text-left text-xs font-medium text-warning transition-colors hover:bg-warning/15"
+              title="Add an API key"
+              className="flex w-full items-center justify-center xl:justify-start gap-2 rounded-md border border-warning/35 bg-warning/10 px-2 xl:px-2.5 py-1.5 text-left text-xs font-medium text-warning transition-colors hover:bg-warning/15"
             >
               <KeyRound size={13} strokeWidth={2} className="flex-shrink-0" aria-hidden="true" />
-              Add an API key
+              <span className="hidden xl:inline">Add an API key</span>
             </button>
           )}
 
-
+          <GroundSwitch compact />
         </div>
       </aside>
 
@@ -268,6 +330,10 @@ export function Nav() {
                 <KeyRound size={14} strokeWidth={2} aria-hidden="true" /> Add an API key
               </button>
             )}
+
+            <div className="mt-3">
+              <GroundSwitch compact />
+            </div>
           </div>
         )}
       </header>

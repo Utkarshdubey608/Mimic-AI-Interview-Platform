@@ -1,8 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
-import { humeService } from '@/services/hume'
 import { audioStore } from '@/services/audioStore'
 import { useAppStore } from '@/store/useAppStore'
-import type { EviUserMessage, EviInboundMessage } from '@/types/hume.types'
 
 export function useHumeStream(enabled: boolean) {
   const store = useAppStore()

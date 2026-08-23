@@ -25,7 +25,7 @@ import { scrollToY } from './ScrollProvider'
  * exactly as they did before.
  */
 export function PinnedStage({
-  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, backdrop, children,
+  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, backdrop, onProgress, children,
 }: {
   steps: number
   onStep: (i: number) => void
@@ -55,6 +55,15 @@ export function PinnedStage({
    * simply be skipped.
    */
   vhPerStep?: number
+  /**
+   * Raw 0‥1 progress across the stage, on every scroll frame while pinned, and
+   * 0 once it stops pinning.
+   *
+   * For a stage whose content moves continuously rather than stepping. Write to
+   * the DOM directly from here — this fires at frame rate, so setting React
+   * state in it would re-render the whole stage sixty times a second.
+   */
+  onProgress?: (p: number) => void
   children: (api: { step: number; pinned: boolean; goToStep: (i: number) => void }) => ReactNode
 }) {
   const hostRef = useRef<HTMLElement | null>(null)
@@ -67,6 +76,10 @@ export function PinnedStage({
   // on every render and tear the scroll listener down mid-scroll.
   const onStepRef = useRef(onStep)
   onStepRef.current = onStep
+  // Same reason as onStep: held in a ref so an inline arrow from the caller does
+  // not re-run the effect on every render and tear the listener down mid-scroll.
+  const onProgressRef = useRef(onProgress)
+  onProgressRef.current = onProgress
 
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -84,6 +97,17 @@ export function PinnedStage({
       // the top of the viewport, 1 when its bottom reaches the bottom.
       const travel = r.height - window.innerHeight
       const p = travel > 0 ? clamp01(-r.top / travel) : 0
+      /* Raw progress, for a stage that moves CONTINUOUSLY with the scroll rather
+         than stepping — a horizontal track, say.
+         Handed over as a CALLBACK, not as a CSS custom property on this host.
+         The custom-property version was measured and it was the wrong tool: a
+         custom property set here invalidates computed style for every descendant
+         that inherits it, on every scroll frame, and custom properties are not
+         compositor-animatable — so a transform depending on one is recomputed on
+         the main thread each frame. Scrolling this section ran at 61 frames per
+         1400ms against 85 for the stage next door. A callback lets the consumer
+         write `transform` straight onto the one element that moves. */
+      onProgressRef.current?.(p)
       const next = stepProgress(p, steps).step
       if (next !== stepRef.current) {
         stepRef.current = next
@@ -150,6 +174,7 @@ export function PinnedStage({
         stepRef.current = 0
         setStep(0)
         onStepRef.current(0)
+        onProgressRef.current?.(0)
       }
     }
     // Whether the content fits is not something a media query can report: a

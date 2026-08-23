@@ -18,7 +18,7 @@ function Stars({ value }: { value: number }) {
           key={n}
           size={13}
           strokeWidth={2}
-          className={n <= value ? 'text-neutral-900' : 'text-neutral-300'}
+          className={n <= value ? 'text-ink' : 'text-ink-disabled'}
           style={n <= value ? { fill: 'currentColor' } : undefined}
         />
       ))}
@@ -84,7 +84,7 @@ export function FeedbackPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <SectionTitle className="mb-1.5">Candidate feedback</SectionTitle>
-          <p className="text-xs leading-relaxed text-neutral-500">
+          <p className="text-xs leading-relaxed text-ink-muted">
             What candidates said about the experience. Never part of their assessment.
           </p>
         </div>
@@ -108,19 +108,19 @@ export function FeedbackPanel() {
       </div>
 
       <div className="mt-5 grid grid-cols-3 gap-3">
-        <div className="rounded-xl border border-border bg-neutral-50 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Average</p>
-          <p className="font-display text-2xl font-extrabold tabular-nums text-neutral-900" data-testid="feedback-average">
+        <div className="rounded-xl border border-border bg-surface-sunk p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Average</p>
+          <p className="font-display text-2xl font-extrabold tabular-nums text-ink" data-testid="feedback-average">
             {shown.average === null ? '—' : shown.average.toFixed(1)}
           </p>
         </div>
-        <div className="rounded-xl border border-border bg-neutral-50 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Responses</p>
-          <p className="font-display text-2xl font-extrabold tabular-nums text-neutral-900">{shown.count}</p>
+        <div className="rounded-xl border border-border bg-surface-sunk p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Responses</p>
+          <p className="font-display text-2xl font-extrabold tabular-nums text-ink">{shown.count}</p>
         </div>
-        <div className={`rounded-xl border p-4 ${shown.issues ? 'border-warning-border bg-warning-bg' : 'border-border bg-neutral-50'}`}>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Technical issues</p>
-          <p className="font-display text-2xl font-extrabold tabular-nums text-neutral-900" data-testid="feedback-issues-count">
+        <div className={`rounded-xl border p-4 ${shown.issues ? 'border-warning-border bg-warning-bg' : 'border-border bg-surface-sunk'}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Technical issues</p>
+          <p className="font-display text-2xl font-extrabold tabular-nums text-ink" data-testid="feedback-issues-count">
             {shown.issues}
           </p>
         </div>
@@ -149,10 +149,10 @@ export function FeedbackPanel() {
                 {typeof i.rating === 'number' ? (
                   <Stars value={i.rating} />
                 ) : (
-                  <span className="text-xs font-medium text-neutral-400">No rating</span>
+                  <span className="text-xs font-medium text-ink-faint">No rating</span>
                 )}
-                <span className="text-sm font-semibold text-neutral-900">{i.candidateName || 'Candidate'}</span>
-                <span className="text-xs text-neutral-400">
+                <span className="text-sm font-semibold text-ink">{i.candidateName || 'Candidate'}</span>
+                <span className="text-xs text-ink-faint">
                   {TRACK_LABEL[i.track as TrackType] ?? i.track}
                   {i.role ? ` · ${i.role}` : ''}
                   {i.createdAt ? ` · ${new Date(i.createdAt).toLocaleDateString()}` : ''}
@@ -163,7 +163,7 @@ export function FeedbackPanel() {
                   </span>
                 )}
                 {i.comment && (
-                  <p className="w-full text-sm leading-relaxed text-neutral-500">“{i.comment}”</p>
+                  <p className="w-full text-sm leading-relaxed text-ink-muted">“{i.comment}”</p>
                 )}
               </li>
             ))}

@@ -71,7 +71,7 @@ export interface TailorConfig {
 function Stepper({ step }: { step: number }) {
   const current = STEPS.find((s) => s.n === step)
   return (
-    <div className="rounded-2xl border border-border bg-white px-5 py-4 shadow-xs">
+    <div className="rounded-2xl border border-border bg-surface px-5 py-4 shadow-xs">
       <ol className="flex items-center" aria-label={`Step ${step} of ${STEPS.length}`}>
         {STEPS.map((s, i) => {
           const done = step > s.n
@@ -83,28 +83,28 @@ function Stepper({ step }: { step: number }) {
                   aria-current={active ? 'step' : undefined}
                   className={cn(
                     'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums transition-all duration-200',
-                    done ? 'bg-primary-700 text-white shadow-primary-sm'
-                      : active ? 'bg-primary-700 text-white ring-4 ring-primary-100 shadow-primary-sm'
-                      : 'border border-border bg-white text-neutral-400',
+                    done ? 'bg-action text-action-ink shadow-primary-sm'
+                      : active ? 'bg-action text-action-ink ring-4 ring-signal shadow-primary-sm'
+                      : 'border border-border bg-surface text-ink-faint',
                   )}
                 >
                   {done ? <Check size={15} strokeWidth={3} /> : s.n}
                 </span>
                 <div className="hidden sm:block">
-                  <p className={cn('whitespace-nowrap text-[13px] font-semibold leading-tight', active ? 'text-neutral-900' : done ? 'text-neutral-700' : 'text-neutral-400')}>{s.title}</p>
-                  <p className="hidden whitespace-nowrap text-[11px] leading-tight text-neutral-400 lg:block">{s.hint}</p>
+                  <p className={cn('whitespace-nowrap text-[13px] font-semibold leading-tight', active ? 'text-ink' : done ? 'text-ink-body' : 'text-ink-faint')}>{s.title}</p>
+                  <p className="hidden whitespace-nowrap text-[11px] leading-tight text-ink-faint lg:block">{s.hint}</p>
                 </div>
               </div>
               {i < STEPS.length - 1 && (
                 <div className="mx-2.5 h-[2px] min-w-[14px] flex-1 overflow-hidden rounded-full bg-border sm:mx-3">
-                  <div className={cn('h-full rounded-full bg-primary-700 transition-all duration-300', done ? 'w-full' : 'w-0')} />
+                  <div className={cn('h-full rounded-full bg-action transition-all duration-300', done ? 'w-full' : 'w-0')} />
                 </div>
               )}
             </li>
           )
         })}
       </ol>
-      <p className="mt-3 text-xs font-medium text-neutral-500 sm:hidden">
+      <p className="mt-3 text-xs font-medium text-ink-muted sm:hidden">
         Step <span className="tabular-nums">{step}</span> of <span className="tabular-nums">{STEPS.length}</span> · {current?.title}
       </p>
     </div>
@@ -117,8 +117,8 @@ function StepSection({ title, hint, action, children }: { title: string; hint?: 
     <section>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display text-base font-extrabold tracking-[-0.02em] text-neutral-900">{title}</h2>
-          {hint && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-500">{hint}</p>}
+          <h2 className="font-display text-base font-extrabold tracking-[-0.02em] text-ink">{title}</h2>
+          {hint && <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-muted">{hint}</p>}
         </div>
         {action}
       </div>
@@ -135,28 +135,28 @@ function SelectCard({ selected, onClick, icon, title, blurb, children }: {
     <button
       type="button" onClick={onClick} aria-pressed={selected}
       className={cn(
-        'relative flex items-start gap-3.5 rounded-2xl border bg-white p-4 pr-10 text-left transition-all duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2',
+        'relative flex items-start gap-3.5 rounded-2xl border bg-surface p-4 pr-10 text-left transition-all duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2',
         selected
-          ? 'border-primary-700 bg-primary-50/40 shadow-primary-sm ring-1 ring-primary-700'
-          : 'border-border hover:border-primary-300 hover:shadow-sm',
+          ? 'border-action bg-surface-hover/40 shadow-primary-sm ring-1 ring-signal'
+          : 'border-border hover:border-rule-strong hover:shadow-sm',
       )}
     >
       <span className={cn(
         'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
         selected
-          ? 'border-neutral-900 bg-neutral-900 text-white'
-          : 'border-border bg-neutral-50 text-neutral-500',
+          ? 'border-action bg-action text-action-ink'
+          : 'border-border bg-surface-sunk text-ink-muted',
       )}>
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-neutral-900">{title}</span>
-        <span className="mt-1 block text-xs leading-relaxed text-neutral-500">{blurb}</span>
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-ink-muted">{blurb}</span>
         {children}
       </span>
       {selected && (
-        <span className="absolute right-3.5 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-primary-700 text-white">
+        <span className="absolute right-3.5 top-4 flex h-5 w-5 items-center justify-center rounded-full bg-action text-action-ink">
           <Check size={12} strokeWidth={3} />
         </span>
       )}
@@ -167,16 +167,16 @@ function SelectCard({ selected, onClick, icon, title, blurb, children }: {
 /** Segmented pill group — one row of mutually exclusive choices (button semantics kept). */
 function Segmented({ label, children, size = 'md' }: { label: string; children: React.ReactNode; size?: 'sm' | 'md' }) {
   return (
-    <div className={cn('flex rounded-full bg-neutral-100 p-1', size === 'sm' && 'p-0.5')} role="group" aria-label={label}>
+    <div className={cn('flex rounded-full bg-surface-hover p-1', size === 'sm' && 'p-0.5')} role="group" aria-label={label}>
       {children}
     </div>
   )
 }
 const segItem = (selected: boolean, size: 'sm' | 'md' = 'md') => cn(
   'flex-1 rounded-full font-semibold transition-all duration-150 whitespace-nowrap',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
   size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3 py-1.5 text-sm',
-  selected ? 'bg-primary-700 text-white shadow-primary-sm' : 'text-neutral-500 hover:text-neutral-900',
+  selected ? 'bg-action text-action-ink shadow-primary-sm' : 'text-ink-muted hover:text-ink',
 )
 
 /** Sticky footer row for every step: back/cancel on the left, hint + primary on the right. */
@@ -185,7 +185,7 @@ function StepFooter({ left, hint, right }: { left: React.ReactNode; hint?: strin
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
       <div className="flex items-center gap-2">{left}</div>
       <div className="flex items-center gap-3">
-        {hint && <p className="hidden text-xs text-neutral-400 sm:block">{hint}</p>}
+        {hint && <p className="hidden text-xs text-ink-faint sm:block">{hint}</p>}
         {right}
       </div>
     </div>
@@ -273,11 +273,11 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
     setDomainDraft('')
   }
   return (
-    <div className="mt-4 rounded-2xl border border-border bg-white p-5 shadow-xs">
+    <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-xs">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
         <div className="min-w-0">
-          <h3 className="text-sm font-bold leading-tight text-neutral-900">Tailoring settings</h3>
-          <p className="mt-0.5 text-xs text-neutral-500">Applied to every candidate’s generated question set.</p>
+          <h3 className="text-sm font-bold leading-tight text-ink">Tailoring settings</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">Applied to every candidate’s generated question set.</p>
         </div>
         <Badge variant={total >= 1 && total <= 25 ? 'info' : 'danger'}>
           <span className="tabular-nums">{total}</span> question{total === 1 ? '' : 's'}
@@ -288,8 +288,8 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
         {/* role (read-only, from Step 1) */}
         <div>
           <label className="field-label mb-1.5 block">Role</label>
-          <div className="flex h-11 items-center rounded-xl border border-border bg-neutral-50 px-3.5 text-sm text-neutral-700">
-            <span className="truncate">{role}</span> <span className="ml-2 flex-shrink-0 text-xs text-neutral-400">(set in Step 1)</span>
+          <div className="flex h-11 items-center rounded-xl border border-border bg-surface-sunk px-3.5 text-sm text-ink-body">
+            <span className="truncate">{role}</span> <span className="ml-2 flex-shrink-0 text-xs text-ink-faint">(set in Step 1)</span>
           </div>
         </div>
 
@@ -339,7 +339,7 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
 
         {/* domains (focus topics) */}
         <div>
-          <label className="field-label mb-1.5 block">Domains <span className="font-normal normal-case tracking-normal text-neutral-400">(optional focus areas)</span></label>
+          <label className="field-label mb-1.5 block">Domains <span className="font-normal normal-case tracking-normal text-ink-faint">(optional focus areas)</span></label>
           <div className="flex gap-2">
             <input value={domainDraft} onChange={(e) => setDomainDraft(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addDomain() } }}
@@ -350,9 +350,9 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
           {cfg.domains.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {cfg.domains.map((d) => (
-                <span key={d} className="inline-flex items-center gap-1.5 rounded-full border border-primary-100 bg-primary-50 py-1 pl-3 pr-2 text-xs font-medium text-primary-700">
+                <span key={d} className="inline-flex items-center gap-1.5 rounded-full border border-rule bg-surface-hover py-1 pl-3 pr-2 text-xs font-medium text-ink">
                   {d}
-                  <button onClick={() => setCfg({ ...cfg, domains: cfg.domains.filter((x) => x !== d) })} aria-label={`Remove ${d}`} className="rounded-full p-0.5 text-primary-400 transition-colors duration-150 hover:bg-primary-100 hover:text-primary-700"><X size={12} /></button>
+                  <button onClick={() => setCfg({ ...cfg, domains: cfg.domains.filter((x) => x !== d) })} aria-label={`Remove ${d}`} className="rounded-full p-0.5 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink"><X size={12} /></button>
                 </span>
               ))}
             </div>
@@ -360,10 +360,10 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
         </div>
 
         {/* model */}
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-neutral-50 px-3.5 py-2.5">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-sunk px-3.5 py-2.5">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.08em] text-neutral-500">Model</p>
-            <p className="mt-0.5 text-xs text-neutral-400">Flash is faster; Pro reasons deeper.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-ink-muted">Model</p>
+            <p className="mt-0.5 text-xs text-ink-faint">Flash is faster; Pro reasons deeper.</p>
           </div>
           <Segmented label="Model" size="sm">
             {(['gemini-2.5-flash', 'gemini-2.5-pro'] as GeminiModel[]).map((m) => (
@@ -653,14 +653,14 @@ export default function InviteWizard() {
 
   return (
     <div className="mx-auto max-w-[900px] px-6 py-8">
-      <button onClick={() => navigate('/sessions')} className="mb-5 inline-flex items-center gap-1.5 rounded-full text-sm font-medium text-neutral-500 transition-colors duration-150 hover:text-neutral-900">
+      <button onClick={() => navigate('/sessions')} className="mb-5 inline-flex items-center gap-1.5 rounded-full text-sm font-medium text-ink-muted transition-colors duration-150 hover:text-ink">
         <ArrowLeft size={15} /> Back to sessions
       </button>
 
       <div className="mb-6">
         <span className="pill mb-2.5 inline-flex">Invite candidates</span>
-        <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-neutral-900">Set up an interview & invite</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-500">
+        <h1 className="font-display text-[28px] font-extrabold leading-tight tracking-[-0.03em] text-ink">Set up an interview & invite</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
           Configure the interview once, add your recipients, then send every invitation from one place.
         </p>
       </div>
@@ -672,11 +672,11 @@ export default function InviteWizard() {
       )}
 
       {!result && step <= 3 && (
-        <div className="mb-7 flex items-start gap-3 rounded-2xl border border-primary-100 bg-primary-50/60 p-4 text-sm text-neutral-600">
-          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-700"><Info size={15} /></span>
+        <div className="mb-7 flex items-start gap-3 rounded-2xl border border-rule bg-surface-hover/60 p-4 text-sm text-ink-body">
+          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-surface-hover text-ink"><Info size={15} /></span>
           <p className="leading-relaxed">
             You don’t upload résumés here. Configure the interview once, then invite candidates by email —
-            <span className="font-medium text-neutral-800"> each candidate uploads their own résumé when they begin</span>, and the interview auto-configures to these settings.
+            <span className="font-medium text-ink"> each candidate uploads their own résumé when they begin</span>, and the interview auto-configures to these settings.
           </p>
         </div>
       )}
@@ -686,13 +686,13 @@ export default function InviteWizard() {
         <div className="space-y-5">
           <div className="rounded-3xl border border-mint-border bg-mint-bg/70 p-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-mint text-mint-ink shadow-mint-sm"><CheckCircle2 size={28} /></div>
-            <h2 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-neutral-900">
+            <h2 className="font-display text-2xl font-extrabold tracking-[-0.03em] text-ink">
               <span className="tabular-nums">{result.created.length}</span> invite{result.created.length === 1 ? '' : 's'} created
             </h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-neutral-600">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-body">
               {result.dryRun
                 ? 'Emails are in dry-run — nothing has been sent yet. Add the SMTP login and a verified sender to send for real.'
-                : <><span className="font-semibold tabular-nums text-neutral-800">{result.emailed}</span> invitation email{result.emailed === 1 ? '' : 's'} sent. Candidates can start as soon as they open their link.</>}
+                : <><span className="font-semibold tabular-nums text-ink">{result.emailed}</span> invitation email{result.emailed === 1 ? '' : 's'} sent. Candidates can start as soon as they open their link.</>}
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <span className="badge badge-neutral">Batch <span className="ml-1 font-mono">{result.testId.slice(0, 8)}</span></span>
@@ -700,10 +700,10 @@ export default function InviteWizard() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border bg-white">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-neutral-50 text-left text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+                <tr className="border-b border-border bg-surface-sunk text-left text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                   <th className="px-4 py-2.5 font-bold">Candidate</th>
                   <th className="px-4 py-2.5 font-bold">Status</th>
                   <th className="px-4 py-2.5 font-bold">Invite link</th>
@@ -716,8 +716,8 @@ export default function InviteWizard() {
                   const variant = c.status === 'delivered' ? 'success' : c.status === 'accepted' ? 'info' : failed ? 'danger' : 'neutral'
                   const label = c.status ?? (c.sent ? 'accepted' : 'pending')
                   return (
-                    <tr key={c.id} className="h-12 border-b border-border last:border-0 transition-colors duration-150 hover:bg-neutral-50">
-                      <td className="px-4 text-neutral-800">{c.email}</td>
+                    <tr key={c.id} className="h-12 border-b border-border last:border-0 transition-colors duration-150 hover:bg-surface-sunk">
+                      <td className="px-4 text-ink">{c.email}</td>
                       <td className="px-4">
                         <span className="flex items-center gap-2">
                           <Badge variant={variant}>{label}</Badge>
@@ -729,9 +729,9 @@ export default function InviteWizard() {
                           )}
                         </span>
                       </td>
-                      <td className="px-4"><span className="block max-w-[300px] truncate font-mono text-xs text-neutral-500">{c.link}</span></td>
+                      <td className="px-4"><span className="block max-w-[300px] truncate font-mono text-xs text-ink-muted">{c.link}</span></td>
                       <td className="px-4 text-right">
-                        <button onClick={() => { navigator.clipboard.writeText(c.link); toast.success('Link copied') }} className="rounded-lg p-1.5 text-neutral-400 transition-colors duration-150 hover:bg-neutral-100 hover:text-neutral-800" aria-label={`Copy invite link for ${c.email}`}><Copy size={14} /></button>
+                        <button onClick={() => { navigator.clipboard.writeText(c.link); toast.success('Link copied') }} className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink" aria-label={`Copy invite link for ${c.email}`}><Copy size={14} /></button>
                       </td>
                     </tr>
                   )
@@ -788,7 +788,7 @@ export default function InviteWizard() {
                     blurb={m.blurb}
                   >
                     {m.value === 'video_avatar' && mode === m.value && avatarApplied.data?.configured && (
-                      <span className="mt-2 flex items-center gap-1 text-xs font-medium text-primary-700">
+                      <span className="mt-2 flex items-center gap-1 text-xs font-medium text-ink">
                         <Check size={12} strokeWidth={3} className="flex-shrink-0" /> Uses your applied avatar —{' '}
                         <span role="link" tabIndex={0} className="cursor-pointer font-semibold underline underline-offset-2"
                           onClick={(e) => { e.stopPropagation(); navigate('/setup', { state: { returnTo: '/sessions/new' } }) }}
@@ -805,8 +805,8 @@ export default function InviteWizard() {
 
           <section>
             <div className="mb-4">
-              <label htmlFor="role" className="block font-display text-base font-extrabold tracking-[-0.02em] text-neutral-900">Candidate role</label>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-500">The position you’re interviewing for. Every invite in this batch uses it (you can override per candidate in Step 3).</p>
+              <label htmlFor="role" className="block font-display text-base font-extrabold tracking-[-0.02em] text-ink">Candidate role</label>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-ink-muted">The position you’re interviewing for. Every invite in this batch uses it (you can override per candidate in Step 3).</p>
             </div>
             <input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Senior Backend Engineer" className="input-base max-w-md" autoFocus />
           </section>
@@ -862,9 +862,9 @@ export default function InviteWizard() {
                         <Skeleton className="h-[62px]" />
                       </div>
                     ) : (mcqSets.data ?? []).length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 px-5 py-6 text-center">
-                        <p className="text-sm font-semibold text-neutral-900">No MCQ sets yet</p>
-                        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-neutral-500">
+                      <div className="rounded-2xl border border-dashed border-rule-strong bg-surface-sunk px-5 py-6 text-center">
+                        <p className="text-sm font-semibold text-ink">No MCQ sets yet</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
                           Build one in MCQ sets — questions, options and the correct answer — then it appears here.
                         </p>
                         <Button className="mt-3" size="sm" variant="outline" onClick={() => navigate('/mcq-sets')}>
@@ -884,20 +884,20 @@ export default function InviteWizard() {
                               className={cn(
                                 'flex w-full items-center gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-colors duration-150',
                                 sel
-                                  ? 'border-primary-700 bg-primary-50/40 ring-1 ring-primary-700'
-                                  : 'border-border bg-white hover:border-neutral-300',
+                                  ? 'border-action bg-surface-hover/40 ring-1 ring-signal'
+                                  : 'border-border bg-surface hover:border-rule-strong',
                               )}
                             >
-                              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+                              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink">
                                 <ListChecks size={17} />
                               </span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-bold text-neutral-900">{set.name}</span>
-                                <span className="mt-0.5 block text-xs text-neutral-500">
+                                <span className="block truncate text-sm font-bold text-ink">{set.name}</span>
+                                <span className="mt-0.5 block text-xs text-ink-muted">
                                   {set.questions.length} question{set.questions.length === 1 ? '' : 's'} · {points} point{points === 1 ? '' : 's'}
                                 </span>
                               </span>
-                              {sel && <Check size={16} className="flex-shrink-0 text-primary-700" />}
+                              {sel && <Check size={16} className="flex-shrink-0 text-ink" />}
                             </button>
                           )
                         })}
@@ -906,11 +906,11 @@ export default function InviteWizard() {
                   </StepSection>
                 </div>
               ) : mode === 'two_way' ? (
-                <div className="flex items-start gap-3.5 rounded-2xl border border-border bg-white p-5 shadow-xs">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Users size={20} /></span>
+                <div className="flex items-start gap-3.5 rounded-2xl border border-border bg-surface p-5 shadow-xs">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink"><Users size={20} /></span>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-neutral-900">No scripted questions to configure</p>
-                    <p className="mt-1 text-sm leading-relaxed text-neutral-500">
+                    <p className="text-sm font-bold text-ink">No scripted questions to configure</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-muted">
                       Two-way Interview is a live recruiter-led video call — there’s no résumé-tailored or saved
                       question set to pick here. Continue to invite candidates.
                     </p>
@@ -940,22 +940,22 @@ export default function InviteWizard() {
 
                   {/* Set picker */}
                   {source === 'set' && (
-                    <div className="mt-4 rounded-2xl border border-border bg-white p-5 shadow-xs">
+                    <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-xs">
                       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
                         <div className="min-w-0">
-                          <h3 className="text-sm font-bold leading-tight text-neutral-900">Choose a question set</h3>
-                          <p className="mt-0.5 text-xs text-neutral-500">Every candidate in this batch answers the same questions.</p>
+                          <h3 className="text-sm font-bold leading-tight text-ink">Choose a question set</h3>
+                          <p className="mt-0.5 text-xs text-ink-muted">Every candidate in this batch answers the same questions.</p>
                         </div>
                         <Button size="xs" variant="secondary" icon={<Plus size={13} />} onClick={() => setGenOpen(true)}>Create new set</Button>
                       </div>
                       {sets.isLoading ? (
                         <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
                       ) : !sets.data?.length ? (
-                        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-neutral-50 px-6 py-8 text-center">
-                          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary-100 bg-primary-50 text-primary-700"><Layers size={20} /></span>
+                        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-surface-sunk px-6 py-8 text-center">
+                          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-rule bg-surface-hover text-ink"><Layers size={20} /></span>
                           <div>
-                            <p className="text-sm font-bold text-neutral-900">No question sets yet</p>
-                            <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">Build one from a sample résumé or configure it manually — it stays private to your account.</p>
+                            <p className="text-sm font-bold text-ink">No question sets yet</p>
+                            <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-muted">Build one from a sample résumé or configure it manually — it stays private to your account.</p>
                           </div>
                           <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setGenOpen(true)}>Create a question set</Button>
                         </div>
@@ -966,13 +966,13 @@ export default function InviteWizard() {
                             return (
                               <button key={s.id} type="button" onClick={() => setSelectedSetId(s.id)} aria-pressed={sel}
                                 className={cn('flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-150',
-                                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
-                                  sel ? 'border-primary-700 bg-primary-50 ring-1 ring-primary-700' : 'border-border hover:border-primary-300 hover:bg-neutral-50')}>
+                                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
+                                  sel ? 'border-action bg-surface-hover ring-1 ring-signal' : 'border-border hover:border-rule-strong hover:bg-surface-sunk')}>
                                 <span className="min-w-0">
-                                  <span className="block truncate text-sm font-semibold text-neutral-900">{s.name}</span>
-                                  <span className="mt-0.5 block text-xs text-neutral-500"><span className="tabular-nums">{s.questions.length}</span> question{s.questions.length !== 1 ? 's' : ''}</span>
+                                  <span className="block truncate text-sm font-semibold text-ink">{s.name}</span>
+                                  <span className="mt-0.5 block text-xs text-ink-muted"><span className="tabular-nums">{s.questions.length}</span> question{s.questions.length !== 1 ? 's' : ''}</span>
                                 </span>
-                                <span className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150', sel ? 'bg-primary-700 text-white' : 'border border-border')}>
+                                <span className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150', sel ? 'bg-action text-action-ink' : 'border border-border')}>
                                   {sel && <Check size={12} strokeWidth={3} />}
                                 </span>
                               </button>
@@ -1019,17 +1019,17 @@ export default function InviteWizard() {
               className={cn(
                 'flex cursor-pointer flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-150',
                 dragOver
-                  ? 'border-primary-700 bg-primary-50'
-                  : 'border-border bg-neutral-50 hover:border-primary-200 hover:bg-primary-50/40',
+                  ? 'border-action bg-surface-hover'
+                  : 'border-border bg-surface-sunk hover:border-rule hover:bg-surface-hover/40',
                 extracting && 'pointer-events-none opacity-70',
               )}
             >
               <span className={cn('flex h-12 w-12 items-center justify-center rounded-2xl border transition-colors duration-150',
-                dragOver ? 'border-primary-200 bg-white text-primary-700' : 'border-border bg-white text-primary-700')}>
+                dragOver ? 'border-rule bg-surface text-ink' : 'border-border bg-surface text-ink')}>
                 {extracting ? <Loader2 size={22} className="animate-spin" /> : <UploadCloud size={22} />}
               </span>
-              <span className="text-sm font-semibold text-neutral-800">{extracting ? 'Reading your file…' : 'Drag a file here, or click to choose'}</span>
-              <span className="text-xs text-neutral-400">CSV · Excel · PDF · DOCX · TXT — max 10 MB</span>
+              <span className="text-sm font-semibold text-ink">{extracting ? 'Reading your file…' : 'Drag a file here, or click to choose'}</span>
+              <span className="text-xs text-ink-faint">CSV · Excel · PDF · DOCX · TXT — max 10 MB</span>
               <input
                 ref={fileInput}
                 type="file"
@@ -1073,9 +1073,9 @@ export default function InviteWizard() {
           {candidates.length > 0 && (
             <section>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-semibold text-neutral-900">
+                <p className="text-sm font-semibold text-ink">
                   <span className="tabular-nums">{candidates.length}</span> candidate{candidates.length === 1 ? '' : 's'}
-                  <span className="ml-2 text-xs font-normal text-neutral-500">
+                  <span className="ml-2 text-xs font-normal text-ink-muted">
                     <span className="tabular-nums">{validCount}</span> valid{validCount !== candidates.length ? ` · ${candidates.length - validCount} to fix` : ''}
                   </span>
                 </p>
@@ -1087,10 +1087,10 @@ export default function InviteWizard() {
                 </div>
               </div>
 
-              <div className="max-h-[46vh] overflow-y-auto overflow-x-auto rounded-2xl border border-border bg-white">
+              <div className="max-h-[46vh] overflow-y-auto overflow-x-auto rounded-2xl border border-border bg-surface">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 z-5">
-                    <tr className="border-b border-border bg-neutral-50 text-left text-[11px] font-bold uppercase tracking-wide text-neutral-500">
+                    <tr className="border-b border-border bg-surface-sunk text-left text-[11px] font-bold uppercase tracking-wide text-ink-muted">
                       <th className="w-12 px-4 py-2.5 font-bold"><span className="sr-only">Status</span></th>
                       <th className="px-4 py-2.5 font-bold">Email</th>
                       <th className="px-4 py-2.5 font-bold">Role</th>
@@ -1113,17 +1113,17 @@ export default function InviteWizard() {
                           <td className="px-4">
                             <input value={c.email} onChange={(e) => setCandidates((cs) => cs.map((x) => x.id === c.id ? { ...x, email: e.target.value } : x))}
                               aria-label="Candidate email"
-                              className={cn('w-full rounded-lg border bg-white px-2.5 py-1.5 font-mono text-xs text-neutral-800 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-primary-700/20',
-                                ok ? 'border-transparent hover:border-border focus:border-primary-700' : 'border-danger bg-danger-bg/40')} />
+                              className={cn('w-full rounded-lg border bg-surface px-2.5 py-1.5 font-mono text-xs text-ink transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-signal/20',
+                                ok ? 'border-transparent hover:border-border focus:border-action' : 'border-danger bg-danger-bg/40')} />
                           </td>
                           <td className="px-4">
                             <input value={c.role} onChange={(e) => setCandidates((cs) => cs.map((x) => x.id === c.id ? { ...x, role: e.target.value } : x))}
                               aria-label="Candidate role"
                               placeholder={role}
-                              className="w-full rounded-lg border border-transparent bg-white px-2.5 py-1.5 text-xs text-neutral-700 transition-colors duration-150 hover:border-border focus:border-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-700/20" />
+                              className="w-full rounded-lg border border-transparent bg-surface px-2.5 py-1.5 text-xs text-ink-body transition-colors duration-150 hover:border-border focus:border-action focus:outline-none focus:ring-2 focus:ring-signal/20" />
                           </td>
                           <td className="px-4 text-right">
-                            <button onClick={() => setCandidates((cs) => cs.filter((x) => x.id !== c.id))} className="rounded-lg p-1.5 text-neutral-300 transition-colors duration-150 hover:bg-danger-bg hover:text-danger" aria-label={`Remove ${c.email || 'candidate'}`}><Trash2 size={14} /></button>
+                            <button onClick={() => setCandidates((cs) => cs.filter((x) => x.id !== c.id))} className="rounded-lg p-1.5 text-ink-disabled transition-colors duration-150 hover:bg-danger-bg hover:text-danger" aria-label={`Remove ${c.email || 'candidate'}`}><Trash2 size={14} /></button>
                           </td>
                         </tr>
                       )

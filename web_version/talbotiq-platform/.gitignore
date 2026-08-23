@@ -22,3 +22,16 @@ public/mediapipe/wasm/
 e2e/shots/
 playwright-report/
 test-results/
+
+# Visual-verification output. The harnesses are committed
+# (scripts/marketing-verify.mjs, scripts/marketing-void-audit.mjs); their
+# screenshots and reports are build artefacts and run to ~150MB.
+marketing-verify/
+look/
+shots-final/
+# Before/after comparison captures for the redesign record.
+before/
+after/
+# Same rule for the format deck's harness: scripts/formats-verify.mjs IS
+# committed, its screenshots are not.
+.artifacts/

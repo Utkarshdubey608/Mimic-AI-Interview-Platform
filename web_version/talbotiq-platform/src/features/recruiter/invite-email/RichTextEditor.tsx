@@ -61,8 +61,8 @@ export function RichTextEditor({
       onMouseDown={(e) => { e.preventDefault(); on() }}
       className={cn(
         'flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
-        active ? 'bg-primary-100 text-primary-700' : 'text-neutral-500 hover:bg-white hover:text-neutral-900',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
+        active ? 'bg-surface-hover text-ink' : 'text-ink-muted hover:bg-surface hover:text-ink',
       )}
     >
       {children}
@@ -71,10 +71,10 @@ export function RichTextEditor({
 
   return (
     <div className={cn(
-      'overflow-hidden rounded-xl border border-neutral-300 bg-white transition-all duration-150',
-      'focus-within:border-primary-700 focus-within:ring-[3px] focus-within:ring-primary-700/12',
+      'overflow-hidden rounded-xl border border-rule-strong bg-surface transition-all duration-150',
+      'focus-within:border-action focus-within:ring-[3px] focus-within:ring-signal/12',
     )}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border bg-neutral-50 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-1 border-b border-border bg-surface-sunk px-2 py-1.5">
         <Btn title="Bold" active={editor.isActive('bold')} on={() => editor.chain().focus().toggleBold().run()}><Bold size={15} /></Btn>
         <Btn title="Italic" active={editor.isActive('italic')} on={() => editor.chain().focus().toggleItalic().run()}><Italic size={15} /></Btn>
         <Btn title="Heading" active={editor.isActive('heading', { level: 2 })} on={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={15} /></Btn>
@@ -96,7 +96,7 @@ export function RichTextEditor({
         <div className="relative ml-auto">
           <select
             aria-label="Insert a merge variable"
-            className="h-8 cursor-pointer appearance-none rounded-full border border-border bg-white pl-7 pr-7 text-xs font-semibold text-neutral-600 transition-colors duration-150 hover:border-primary-300 hover:text-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1"
+            className="h-8 cursor-pointer appearance-none rounded-full border border-border bg-surface pl-7 pr-7 text-xs font-semibold text-ink-body transition-colors duration-150 hover:border-rule-strong hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1"
             value=""
             onChange={(e) => {
               const tok = e.target.value
@@ -109,8 +109,8 @@ export function RichTextEditor({
               <option key={v.token} value={v.token}>{v.label}</option>
             ))}
           </select>
-          <Variable size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-primary-700" />
-          <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <Variable size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink" />
+          <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint" />
         </div>
       </div>
       <EditorContent editor={editor} />

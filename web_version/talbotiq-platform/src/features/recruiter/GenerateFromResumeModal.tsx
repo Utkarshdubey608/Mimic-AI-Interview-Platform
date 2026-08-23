@@ -39,8 +39,8 @@ function ChoiceChip({ selected, onClick, children }: { selected: boolean; onClic
       className={cn(
         'rounded-full border-[1.5px] px-3 py-1.5 text-xs font-semibold transition-colors duration-150',
         selected
-          ? 'border-primary-700 bg-primary-50 text-primary-800'
-          : 'border-border bg-white text-neutral-500 hover:border-primary-200 hover:bg-primary-50/50 hover:text-neutral-700',
+          ? 'border-action bg-surface-hover text-ink'
+          : 'border-border bg-surface text-ink-muted hover:border-rule hover:bg-surface-hover/50 hover:text-ink-body',
       )}
     >
       {children}
@@ -153,17 +153,17 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
           <div>
             <label className="field-label">Résumé (PDF)</label>
             {file ? (
-              <div className="flex items-center gap-3 rounded-xl border border-border bg-neutral-50 p-3">
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-sunk p-3">
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink">
                   <FileText size={18} strokeWidth={1.75} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-neutral-900">{file.name}</p>
-                  <p className="text-xs text-neutral-500">PDF · <span className="tabular-nums">{(file.size / 1024 / 1024).toFixed(2)} MB</span></p>
+                  <p className="truncate text-sm font-semibold text-ink">{file.name}</p>
+                  <p className="text-xs text-ink-muted">PDF · <span className="tabular-nums">{(file.size / 1024 / 1024).toFixed(2)} MB</span></p>
                 </div>
                 <button
                   onClick={() => setFile(null)}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-neutral-400 transition-colors duration-150 hover:bg-neutral-200 hover:text-neutral-700"
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink-body"
                   aria-label="Remove résumé"
                 >
                   <X size={16} />
@@ -180,15 +180,15 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
                   className={cn(
                     'flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed p-8 text-center transition-colors duration-150',
                     dragOver
-                      ? 'border-primary-700 bg-primary-50'
-                      : 'border-neutral-300 bg-neutral-50 hover:border-primary-300 hover:bg-primary-50/50',
+                      ? 'border-action bg-surface-hover'
+                      : 'border-rule-strong bg-surface-sunk hover:border-rule-strong hover:bg-surface-hover/50',
                   )}
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-primary-700 shadow-xs">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-ink shadow-xs">
                     <UploadCloud size={20} strokeWidth={1.75} />
                   </span>
-                  <span className="text-sm font-semibold text-neutral-800">Drop a PDF résumé here, or click to browse</span>
-                  <span className="text-xs text-neutral-500">PDF only · up to {MAX_MB} MB</span>
+                  <span className="text-sm font-semibold text-ink">Drop a PDF résumé here, or click to browse</span>
+                  <span className="text-xs text-ink-muted">PDF only · up to {MAX_MB} MB</span>
                 </button>
                 <input ref={fileInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
               </>
@@ -245,12 +245,12 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
           </div>
 
           {/* model + key */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-neutral-50 px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface-sunk px-3.5 py-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-neutral-800">Model</p>
-              <p className="text-xs text-neutral-500">Flash is quicker; Pro reasons more deeply.</p>
+              <p className="text-sm font-semibold text-ink">Model</p>
+              <p className="text-xs text-ink-muted">Flash is quicker; Pro reasons more deeply.</p>
             </div>
-            <div className="flex flex-shrink-0 gap-1 rounded-full border border-border bg-white p-1">
+            <div className="flex flex-shrink-0 gap-1 rounded-full border border-border bg-surface p-1">
               {(['gemini-2.5-flash', 'gemini-2.5-pro'] as GeminiModel[]).map((m) => (
                 <button
                   key={m}
@@ -259,7 +259,7 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
                   aria-pressed={model === m}
                   className={cn(
                     'rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors duration-150',
-                    model === m ? 'bg-primary-700 text-white' : 'text-neutral-500 hover:text-neutral-800',
+                    model === m ? 'bg-action text-action-ink' : 'text-ink-muted hover:text-ink',
                   )}
                 >
                   {m.replace('gemini-2.5-', '')}
@@ -272,9 +272,9 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
             <div>
               <label className="field-label" htmlFor="gemini-api-key">Gemini API key</label>
               <input id="gemini-api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIza…" className="input-base font-mono text-xs" />
-              <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
                 No key saved yet — enter one here, or{' '}
-                <Link to="/settings" className="font-semibold text-primary-700 underline underline-offset-2 hover:text-primary-800" onClick={onClose}>save it in Settings</Link>.
+                <Link to="/settings" className="font-semibold text-ink underline underline-offset-2 hover:text-ink" onClick={onClose}>save it in Settings</Link>.
               </p>
             </div>
           )}
@@ -298,30 +298,30 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
           <Input label="Question set name" value={name} onChange={(e) => setName(e.target.value)} />
 
           <div className="flex items-center justify-between gap-3 border-b border-border pb-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-              Questions <span className="ml-1 font-bold tabular-nums text-neutral-700">{questions.length}</span>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+              Questions <span className="ml-1 font-bold tabular-nums text-ink-body">{questions.length}</span>
             </p>
             <button
               onClick={() => setQuestions((qs) => [...qs, { _id: crypto.randomUUID(), text: '', type: 'technical', category: '', difficulty: 'medium', skillTag: '', rationale: '' }])}
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-primary-700 transition-colors duration-150 hover:bg-primary-50"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold text-ink transition-colors duration-150 hover:bg-surface-hover"
             >
               <Plus size={13} /> Add question
             </button>
           </div>
 
           {questions.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-8 text-center">
-              <p className="text-sm font-semibold text-neutral-800">No questions left</p>
-              <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-neutral-500">
+            <div className="rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-4 py-8 text-center">
+              <p className="text-sm font-semibold text-ink">No questions left</p>
+              <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-muted">
                 Add one manually, or go back and generate a fresh set from the résumé.
               </p>
             </div>
           ) : (
             <div className="max-h-[42vh] space-y-2.5 overflow-y-auto pr-1">
               {questions.map((q, i) => (
-                <div key={q._id} className="rounded-xl border border-border bg-white p-3 shadow-xs transition-colors duration-150 hover:border-neutral-300">
+                <div key={q._id} className="rounded-xl border border-border bg-surface p-3 shadow-xs transition-colors duration-150 hover:border-rule-strong">
                   <div className="flex items-start gap-2.5">
-                    <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold tabular-nums text-primary-800">
+                    <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-bold tabular-nums text-ink">
                       {i + 1}
                     </span>
                     <textarea
@@ -333,7 +333,7 @@ export function GenerateFromResumeModal({ open, onClose, defaultRole, onSaved }:
                     />
                     <button
                       onClick={() => setQuestions((qs) => qs.filter((x) => x._id !== q._id))}
-                      className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+                      className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
                       aria-label={`Remove question ${i + 1}`}
                     >
                       <Trash2 size={15} />

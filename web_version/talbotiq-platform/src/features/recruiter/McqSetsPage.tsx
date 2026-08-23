@@ -78,12 +78,12 @@ function OptionRow({
           isMulti ? 'rounded-md' : 'rounded-full',
           checked
             ? 'border-ok bg-ok text-white'
-            : 'border-rule-input bg-white text-transparent hover:border-ink-faint',
+            : 'border-rule-input bg-surface text-transparent hover:border-ink-faint',
         )}
       >
         {checked ? <Check size={13} strokeWidth={3} /> : <CircleDot size={12} className="opacity-0" />}
       </button>
-      <span className="w-4 flex-shrink-0 text-xs font-bold text-neutral-400">{letter}</span>
+      <span className="w-4 flex-shrink-0 text-xs font-bold text-ink-faint">{letter}</span>
       <input
         value={option.text}
         onChange={(e) => onText(e.target.value)}
@@ -96,7 +96,7 @@ function OptionRow({
         onClick={onRemove}
         disabled={!canRemove}
         aria-label={`Remove option ${letter}`}
-        className="rounded-lg p-1.5 text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400"
+        className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
       >
         <Trash2 size={14} />
       </button>
@@ -226,23 +226,23 @@ function SortableMcq({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-white p-3.5 shadow-xs transition-[border-color,box-shadow] duration-150',
+        'group flex gap-3 rounded-xl border bg-surface p-3.5 shadow-xs transition-[border-color,box-shadow] duration-150',
         isDragging
-          ? 'border-primary-300 shadow-lg'
+          ? 'border-rule-strong shadow-lg'
           : fault
             ? 'border-warn-rule'
-            : 'border-border focus-within:border-primary-200 hover:border-neutral-300 hover:shadow-sm',
+            : 'border-border focus-within:border-rule hover:border-rule-strong hover:shadow-sm',
       )}
     >
       <button
         {...attributes}
         {...listeners}
-        className="mt-1 cursor-grab touch-none self-start rounded-lg p-1 text-neutral-300 transition-colors duration-150 group-hover:text-neutral-500 hover:bg-neutral-100 active:cursor-grabbing"
+        className="mt-1 cursor-grab touch-none self-start rounded-lg p-1 text-ink-disabled transition-colors duration-150 group-hover:text-ink-muted hover:bg-surface-hover active:cursor-grabbing"
         aria-label={`Drag to reorder question ${index + 1}`}
       >
         <GripVertical size={16} />
       </button>
-      <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold tabular-nums text-primary-800">
+      <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-bold tabular-nums text-ink">
         {index + 1}
       </span>
 
@@ -270,15 +270,15 @@ function SortableMcq({
                 className={cn(
                   'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-fast',
                   (q.type ?? 'single') === t.value
-                    ? 'bg-primary-700 text-white'
-                    : 'text-neutral-500 hover:text-neutral-900',
+                    ? 'bg-action text-action-ink'
+                    : 'text-ink-muted hover:text-ink',
                 )}
               >
                 {t.label}
               </button>
             ))}
           </div>
-          <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-neutral-400">
+          <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
             <Lock size={10} /> Correct answer — never sent to the candidate
           </span>
         </div>
@@ -291,7 +291,7 @@ function SortableMcq({
           <button
             type="button"
             onClick={() => onChange({ code: '' })}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-700 hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"
           >
             <Code size={12} /> Add a code snippet
           </button>
@@ -319,7 +319,7 @@ function SortableMcq({
              row-for-row is the answer. It shuffles the two columns independently
              and checks the result is not the pairing before sending it. */
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-neutral-400">
+            <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
               <span className="flex-1">Item</span>
               <span className="flex-1">Matches with</span>
               <span className="w-7" />
@@ -345,7 +345,7 @@ function SortableMcq({
                   disabled={pairs.length <= 2}
                   aria-label={`Remove pair ${i + 1}`}
                   title={pairs.length <= 2 ? 'A pairing needs at least two rows' : 'Remove row'}
-                  className="rounded-lg p-1.5 text-neutral-400 transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-neutral-400"
+                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -382,7 +382,7 @@ function SortableMcq({
             </Button>
           )}
           <div className="relative min-w-[9rem] flex-1">
-            <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+            <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input
               value={q.topic ?? ''}
               onChange={(e) => onChange({ topic: e.target.value })}
@@ -428,7 +428,7 @@ function SortableMcq({
 
       <button
         onClick={onRemove}
-        className="self-start rounded-lg p-1.5 text-neutral-400 transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+        className="self-start rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
         aria-label={`Remove question ${index + 1}`}
       >
         <Trash2 size={15} />
@@ -590,11 +590,11 @@ export default function McqSetsPage() {
 
             <div className="mt-7 flex items-baseline justify-between px-1">
               <span className="section-label">Your assessments</span>
-              <span className="text-xs font-semibold tabular-nums text-neutral-400">{(sets.data ?? []).length}</span>
+              <span className="text-xs font-semibold tabular-nums text-ink-faint">{(sets.data ?? []).length}</span>
             </div>
 
             {(sets.data ?? []).length === 0 ? (
-              <p className="mt-3 rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-5 text-center text-xs leading-relaxed text-neutral-500">
+              <p className="mt-3 rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-4 py-5 text-center text-xs leading-relaxed text-ink-muted">
                 No assessments yet. Create one above — these are yours alone, because they hold the answers.
               </p>
             ) : (
@@ -606,12 +606,12 @@ export default function McqSetsPage() {
                     className={cn(
                       'w-full rounded-xl border px-3.5 py-2.5 text-left transition-colors duration-150',
                       s.id === activeId
-                        ? 'border-primary-700 bg-primary-50/40 ring-1 ring-primary-700'
-                        : 'border-border bg-white hover:border-neutral-300',
+                        ? 'border-action bg-surface-hover/40 ring-1 ring-signal'
+                        : 'border-border bg-surface hover:border-rule-strong',
                     )}
                   >
-                    <span className="block truncate text-sm font-semibold text-neutral-900">{s.name}</span>
-                    <span className="mt-0.5 block text-xs text-neutral-500">
+                    <span className="block truncate text-sm font-semibold text-ink">{s.name}</span>
+                    <span className="mt-0.5 block text-xs text-ink-muted">
                       {s.questions.length} question{s.questions.length === 1 ? '' : 's'}
                       {s.ready === false && <span className="text-warn"> · unfinished</span>}
                     </span>

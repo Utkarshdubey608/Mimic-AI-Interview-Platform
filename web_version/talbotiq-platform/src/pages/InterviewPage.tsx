@@ -30,7 +30,7 @@ export default function InterviewPage() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [revealedIdx, setRevealedIdx] = useState(-1)   // which question index is currently revealed
   const [avatarSpeaking, setAvatarSpeaking] = useState(false)
-  const [autoAdvance, setAutoAdvance] = useState(true)
+  const [autoAdvance] = useState(true)
   const [callJoined, setCallJoined] = useState(false)  // gates the SECOND camera open
   const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -52,8 +52,6 @@ export default function InterviewPage() {
   useHumePoll()
 
   const questions = storeQuestions.filter(Boolean)
-  // Question text is only shown once the avatar has reached this question
-  const questionRevealed = revealedIdx === currentQ
 
   useEffect(() => { autoAdvanceRef.current = autoAdvance }, [autoAdvance])
 

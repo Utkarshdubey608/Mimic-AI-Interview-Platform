@@ -85,3 +85,23 @@ export function sectionProgress(rect: { top: number; height: number }, viewportH
   if (span <= 0) return 0
   return clamp01((viewportH - rect.top) / span)
 }
+
+/**
+ * Which panel of `n` is centre stage, fractionally, at stage progress `p`.
+ *
+ * A companion to `stepProgress` for a stage whose panels TRAVEL rather than
+ * switch. The two divide the same scroll differently and have to: `stepProgress`
+ * cuts the travel into n equal bands, one per panel, while a deck of n panels has
+ * only n-1 transitions between them. Driving a deck from the band index put the
+ * rail one panel ahead of the picture for half of every scroll.
+ *
+ * The first and last half-band are spent HOLDING panel 0 and panel n-1 instead of
+ * moving. Two reasons: without the hold, panel 0 sat half off-stage at p=0, so
+ * the section appeared to arrive already mid-transition; and half a band is
+ * exactly where `PinnedStage.goToStep` scrolls to, so clicking a rail entry
+ * centres the panel it names rather than landing between two.
+ */
+export function deckHead(p: number, n: number): number {
+  if (n < 2) return 0
+  return clamp01((p * n - 0.5) / (n - 1)) * (n - 1)
+}

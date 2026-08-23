@@ -97,6 +97,21 @@
 
   input[type='checkbox'], input[type='radio'] { accent-color: var(--accent); }
 
+  /* Date fields. The field itself is `.input-base` like every other control;
+     what gave it away as a browser default was the calendar button — full
+     opacity, no hover, and no relationship to the ink around it. `color-scheme`
+     (set per ground in tokens.css) already flips the glyph light in a room, so
+     this only has to give it the same quiet-until-hovered manners as the rest
+     of the system. */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+    transition: opacity var(--dur-fast) ease;
+  }
+  input[type='date']:hover::-webkit-calendar-picker-indicator,
+  input[type='date']:focus::-webkit-calendar-picker-indicator { opacity: 1; }
+
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
@@ -337,6 +352,95 @@
   .badge-live    { background: var(--live-bg);  color: var(--live-fg);  border-color: var(--live-bg); }
 
   .divider { width: 100%; height: 1px; background: var(--rule); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   THE INTELLIGENCE SIGNAL — see src/components/ai/AISignal.tsx.
+
+   The product's signature mark, and its four machine states. Kept here rather
+   than in the component because it is a state machine expressed in keyframes:
+   four states x three arcs is unreadable as inline style objects, and every
+   animation must be interruptible by the global reduced-motion policy, which
+   works on `animation` in the cascade.
+
+   Colour comes from --ai-fg (machine presence) so the mark is correct on both
+   grounds and cannot drift from the token layer. Everything animated is
+   transform or opacity: this mark can appear thirty times on one page and sits
+   next to a live WebRTC call, so it must cost nothing on the main thread.
+───────────────────────────────────────────────────────────────────────────── */
+.mimic-signal { color: var(--ai-fg); }
+.mimic-signal .signal-arc { stroke: currentColor; opacity: 0.34; transform-origin: 24px 24px; }
+.mimic-signal .signal-core { fill: currentColor; opacity: 0.9; transform-origin: 24px 24px; }
+.mimic-signal .signal-sweep { stroke: currentColor; opacity: 0; transform-origin: 24px 24px; }
+
+/* ── idle ── the composed still frame. Present, not working. */
+.mimic-signal[data-state='idle'] .signal-arc { opacity: 0.22; }
+.mimic-signal[data-state='idle'] .signal-core { opacity: 0.55; }
+
+/* ── listening ── the arcs draw inward, the core breathes. An aperture. */
+.mimic-signal[data-state='listening'] .signal-arc {
+  animation: signalInward 2.8s var(--ease-in-out) infinite;
+}
+.mimic-signal[data-state='listening'] .signal-arc-2 { animation-delay: 0.22s; }
+.mimic-signal[data-state='listening'] .signal-arc-3 { animation-delay: 0.44s; }
+.mimic-signal[data-state='listening'] .signal-core {
+  animation: signalBreathe 2.8s var(--ease-in-out) infinite;
+}
+
+/* ── speaking ── energy leaves the core. Same arcs, opposite direction, faster:
+   speech is more insistent than attention. */
+.mimic-signal[data-state='speaking'] .signal-arc {
+  animation: signalOutward 1.9s var(--ease-out) infinite;
+}
+.mimic-signal[data-state='speaking'] .signal-arc-2 { animation-delay: 0.3s; }
+.mimic-signal[data-state='speaking'] .signal-arc-3 { animation-delay: 0.6s; }
+.mimic-signal[data-state='speaking'] .signal-core { opacity: 1; }
+
+/* ── thinking ── the arcs hold still and dim; one sweep rotates. Nobody's turn.
+   This is the state that replaces the word "Loading…". */
+.mimic-signal[data-state='thinking'] .signal-arc { opacity: 0.16; }
+.mimic-signal[data-state='thinking'] .signal-core {
+  opacity: 0.75;
+  animation: signalPulse 1.4s var(--ease-in-out) infinite;
+}
+.mimic-signal[data-state='thinking'] .signal-sweep {
+  opacity: 0.95;
+  animation: signalSweep 1.5s linear infinite;
+}
+
+@keyframes signalInward {
+  0%, 100% { transform: scale(1); opacity: 0.34; }
+  50%      { transform: scale(0.9); opacity: 0.6; }
+}
+@keyframes signalOutward {
+  0%   { transform: scale(0.72); opacity: 0.62; }
+  100% { transform: scale(1.16); opacity: 0; }
+}
+@keyframes signalBreathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.14); }
+}
+@keyframes signalPulse {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+@keyframes signalSweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Reduced motion: the mark keeps its geometry and loses its travel. The state
+   is still carried by the label beside it (AIStateBadge) and by aria-label, so
+   nothing depends on the animation. The global policy in @layer base already
+   sets `animation-duration: 0.01ms`, which would freeze arcs mid-travel at an
+   arbitrary scale — so the outward/inward transforms are explicitly reset here
+   to the composed frame rather than left wherever the animation stopped. */
+@media (prefers-reduced-motion: reduce) {
+  .mimic-signal .signal-arc,
+  .mimic-signal .signal-core { animation: none !important; transform: none !important; opacity: 0.3; }
+  .mimic-signal .signal-core { opacity: 0.85; }
+  .mimic-signal .signal-sweep { animation: none !important; opacity: 0; }
+  .mimic-signal[data-state='thinking'] .signal-sweep { opacity: 0.9; transform: rotate(-45deg); }
+}
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -391,6 +495,27 @@
     background-image:
       radial-gradient(58rem 38rem at 8% -12%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 62%),
       radial-gradient(46rem 32rem at 96% 110%, color-mix(in srgb, var(--ink) 10%, transparent), transparent 64%);
+    background-repeat: no-repeat;
+  }
+
+  /* ── Key light ──────────────────────────────────────────────────────────
+     Localised illumination behind the one object a screen is about — the AI
+     presence, the sign-in card, a hero visual. One light per region, never a
+     page-wide gradient. Position is steerable per use through --key-x/--key-y.
+     These paint with the halo tokens, which exist only at very low alpha, so
+     they can never carry text and never need a contrast gate. */
+  .keylight-ai {
+    background-image: radial-gradient(
+      44rem 30rem at var(--key-x, 50%) var(--key-y, 36%),
+      var(--halo-ai), transparent 68%
+    );
+    background-repeat: no-repeat;
+  }
+  .keylight-accent {
+    background-image: radial-gradient(
+      44rem 30rem at var(--key-x, 50%) var(--key-y, 36%),
+      var(--halo-accent), transparent 68%
+    );
     background-repeat: no-repeat;
   }
 

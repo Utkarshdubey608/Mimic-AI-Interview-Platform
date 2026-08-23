@@ -17,7 +17,14 @@ export function Reveal({ children, delay = 0, as: Tag = 'div', className = '' }:
     if (!el || typeof IntersectionObserver === 'undefined') { setInView(true); return }
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => { if (e.isIntersecting) { setInView(true); io.disconnect() } })
-    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+      // The trigger is GEOMETRIC, not proportional. A 0.12 threshold asks that
+      // 12% of the element's OWN area be on screen, which a tall section can
+      // never satisfy: past roughly seven viewports of height, 12% of it does
+      // not fit at once, the reveal never fires, and the content sits at
+      // opacity 0 permanently. Asking instead that the element's top has risen
+      // above 88% of the viewport behaves the same for a card and cannot be
+      // starved by height.
+    }, { threshold: 0, rootMargin: '0px 0px -12% 0px' })
     io.observe(el)
     return () => io.disconnect()
   }, [])
@@ -291,6 +298,99 @@ export function Magnetic({ children, className = '' }: { children: ReactNode; cl
     return () => { el.removeEventListener('pointermove', onMove); el.removeEventListener('pointerleave', onLeave) }
   }, [])
   return <span ref={ref} className={`mm-magnetic ${className}`.trim()}>{children}</span>
+}
+
+/**
+ * Cursor-tracked 3D depth — the element rotates a few degrees toward the
+ * pointer, with an inertial settle, so a flat frame reads as an object in the
+ * room rather than a picture on the page.
+ *
+ * The rotation is capped low (default 3.2°) because the point is depth, not a
+ * gimmick: past ~5° a video frame starts to shear its own content. Pointer-fine
+ * gated (never fires on touch), skipped entirely under reduced motion, and the
+ * loop runs only while the element is settling — no idle rAF.
+ */
+export function Tilt({ children, max = 3.2, className = '' }: { children: ReactNode; max?: number; className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (prefersReduced()) return
+    const el = ref.current
+    if (!el || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    let frame = 0
+    let active = false
+    let tx = 0, ty = 0   // target rotation, deg
+    let cx = 0, cy = 0   // current rotation, deg
+    const step = () => {
+      cx += (tx - cx) * 0.14
+      cy += (ty - cy) * 0.14
+      el.style.transform = `perspective(900px) rotateX(${cy.toFixed(3)}deg) rotateY(${cx.toFixed(3)}deg)`
+      if (active || Math.abs(tx - cx) > 0.02 || Math.abs(ty - cy) > 0.02) {
+        frame = requestAnimationFrame(step)
+      } else {
+        frame = 0
+      }
+    }
+    const start = () => { if (!frame) frame = requestAnimationFrame(step) }
+    const onMove = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect()
+      const dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2)
+      const dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2)
+      tx = Math.max(-1, Math.min(1, dx)) * max
+      ty = -Math.max(-1, Math.min(1, dy)) * max
+      active = true
+      start()
+    }
+    const onLeave = () => { active = false; tx = 0; ty = 0; start() }
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerleave', onLeave)
+    return () => {
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerleave', onLeave)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [max])
+  return <div ref={ref} className={`mm-tilt ${className}`.trim()}>{children}</div>
+}
+
+/**
+ * A light that follows the cursor across a dark panel. Renders as a zero-cost
+ * absolutely-positioned layer inside the panel; the parent's pointer drives two
+ * custom properties and the gradient repaints on the compositor. The light is
+ * atmosphere, never information — it is aria-hidden, faint, and absent for
+ * touch and reduced-motion visitors.
+ */
+export function CursorLight({ className = '' }: { className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (prefersReduced()) return
+    const el = ref.current
+    const host = el?.parentElement
+    if (!el || !host || !window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
+    let frame = 0
+    let px = 0, py = 0
+    const onMove = (e: PointerEvent) => {
+      px = e.clientX; py = e.clientY
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        const r = host.getBoundingClientRect()
+        el.style.setProperty('--mx', `${(((px - r.left) / r.width) * 100).toFixed(2)}%`)
+        el.style.setProperty('--my', `${(((py - r.top) / r.height) * 100).toFixed(2)}%`)
+      })
+    }
+    const onEnter = () => { el.style.opacity = '1' }
+    const onLeave = () => { el.style.opacity = '0' }
+    host.addEventListener('pointermove', onMove)
+    host.addEventListener('pointerenter', onEnter)
+    host.addEventListener('pointerleave', onLeave)
+    return () => {
+      host.removeEventListener('pointermove', onMove)
+      host.removeEventListener('pointerenter', onEnter)
+      host.removeEventListener('pointerleave', onLeave)
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [])
+  return <div ref={ref} className={`mm-cursorlight ${className}`.trim()} aria-hidden="true" />
 }
 
 /**
