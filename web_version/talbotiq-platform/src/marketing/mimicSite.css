@@ -2540,3 +2540,35 @@
   .mimic-site .step:active,
   .mimic-site .track:active{transform:none}
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The ink trail.
+
+   Sits directly on the hero's ink field, under the content. `screen` blending
+   because the ground is near-black and the dye is light: screen adds the glow
+   without the halo edges going grey the way plain alpha does over a gradient.
+
+   pointer-events off, and the canvas is never focusable — this is the mark the
+   cursor leaves, not a control.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .mm-ink{
+  position:absolute;inset:0;z-index:0;
+  display:block;width:100%;height:100%;
+  pointer-events:none;
+  border-radius:inherit;
+  mix-blend-mode:screen;
+  opacity:0;
+  transition:opacity .5s var(--mm-ease);
+}
+.mimic-site .mm-ink.is-lit{opacity:1}
+
+/* The content sits above it. Stated rather than left to source order, because a
+   canvas is exactly the kind of element that ends up on top by accident. */
+.mimic-site .hero.room .hero-room-in{position:relative;z-index:1}
+
+/* Someone who asked for less motion never mounts it; these are belt and braces,
+   and they match the calls the ink fields already make. */
+@media (prefers-reduced-motion:reduce){ .mimic-site .mm-ink{display:none} }
+@media (prefers-reduced-transparency:reduce){ .mimic-site .mm-ink{display:none} }
+@media (prefers-contrast:more){ .mimic-site .mm-ink{display:none} }
