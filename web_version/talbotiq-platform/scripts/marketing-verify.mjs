@@ -145,7 +145,27 @@ for (const vp of VIEWPORTS) {
           await new Promise((r) => setTimeout(r, 80))
         }
         scrollTo({ top: 0, behavior: 'instant' })
-        await new Promise((r) => setTimeout(r, 500))
+
+        /* Wait for the CONDITION, not for a duration.
+         *
+         * IntersectionObserver dispatches its callbacks asynchronously, so
+         * "every reveal has been scrolled past" and "every reveal has been
+         * told" are different moments, and under load — 73 routes in one run
+         * with .webm demos decoding — the gap between them exceeds any fixed
+         * sleep I picked. Poll until nothing is left untriggered, or until the
+         * count stops moving, so a page that genuinely strands content still
+         * fails instead of hanging. */
+        const left = () => document.querySelectorAll('.reveal:not(.in)').length
+        let prev = -1
+        let same = 0
+        for (let i = 0; i < 40; i++) {
+          const n = left()
+          if (n === 0) break
+          same = n === prev ? same + 1 : 0
+          if (same >= 6) break
+          prev = n
+          await new Promise((r) => setTimeout(r, 100))
+        }
       })
 
       Object.assign(checks, await page.evaluate(() => {
