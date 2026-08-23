@@ -54,23 +54,6 @@ import type { InkFluid } from './inkFluid'
 const HOSTS = 'section, .foot'
 
 /**
- * Make sure a section's own content sits above z-index 0, and say whether it does.
- *
- * Only needed on the ink grounds, where the trail has to clear an opaque field
- * layer. Returns false when there is nothing to lift, which is the caller's cue to
- * stay underneath rather than risk painting over the type.
- */
-function liftContent(host: HTMLElement): boolean {
-  const wrap = host.querySelector(':scope > .wrap') as HTMLElement | null
-  if (!wrap) return false
-  const cs = getComputedStyle(wrap)
-  if (cs.zIndex !== 'auto' && Number(cs.zIndex) >= 1) return true
-  if (cs.position === 'static') wrap.style.position = 'relative'
-  wrap.style.zIndex = '1'
-  return true
-}
-
-/**
  * Relative luminance of the first real background at or above `el`.
  *
  * Backgrounds are painted on section elements and most sections declare none, so
@@ -142,18 +125,24 @@ export function RoamingInk() {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    /* THE SAME BLUE THE DARK TRAILS USE. Registrar blue was the first choice and
-       it was wrong: it is a near-navy meant for rules and links, and under
-       multiply on white it came out as a heavy indigo smear — the trail read as a
-       stain rather than as the same effect the rest of the page has. `--mm-ai` is
-       the ink's own colour, so the trail is now one colour everywhere and only the
-       blend differs: added as light on the ink grounds, laid down as dye on paper.
+    /* LIGHT BLUE, and the third colour tried here, so the reasoning is worth
+       keeping. Registrar blue was a near-navy meant for rules and links and came
+       out under multiply as a heavy indigo stain. `--mm-ai` was the ink's own cyan
+       and looked right on the dark grounds — but multiply pulls red down about
+       twice as hard as green and blue, so on paper it landed as saturated
+       turquoise. Measured: white went to rgb(152,192,198), which is teal, not the
+       light blue it was asked to be.
+
+       `--mm-on-ink-accent` is the accent that already exists for light-on-dark,
+       and its hue survives both blends: under multiply on white it lays down a
+       periwinkle blue, and under screen on ink it lifts to the same blue. One
+       colour for the whole site, which was the point.
 
        Read off the CANVAS, not off the document root. The palette is declared on
        `.mimic-site`, so `documentElement` resolves it to an empty string — and
        because a missing colour makes this effect bail before it binds a listener,
        the symptom was a layer that existed and never once appeared. */
-    const color = parseColor(getComputedStyle(canvas).getPropertyValue('--mm-ai'))
+    const color = parseColor(getComputedStyle(canvas).getPropertyValue('--mm-on-ink-accent'))
     if (!color) return
 
     let fluid: InkFluid | null = null
@@ -230,7 +219,28 @@ export function RoamingInk() {
          effect, and painting over the type is a broken page. */
       const light = groundLuma(next) > 0.35
       canvas.style.mixBlendMode = light ? 'multiply' : 'screen'
-      canvas.style.zIndex = light ? '-1' : (liftContent(next) ? '0' : '-1')
+      /* ABOVE the content, and this is a reversal. It used to sit at -1, below
+         every descendant, which is what let it work with no markup — but a layer
+         below the content is hidden by every opaque thing in front of it, and
+         these sections are mostly opaque things. Measured: sweeping the pointer
+         inside the walkthrough film panel changed ZERO pixels, and the same in the
+         workspace video. Seventy per cent of the hero, forty-five of the film
+         band, thirty-seven of the workspace could not be painted at all. What the
+         reader saw was ink in the margins and none of it where the cursor was.
+
+         Painting over the content is safe here for a reason particular to these
+         two blends, not by luck. `multiply` can only ever darken and `screen` can
+         only ever lighten, so on paper the type gets darker along with its ground
+         and on ink it gets lighter along with its. Neither blend can move text
+         toward its background. Measured at the strongest point: dark type on the
+         darkest ink the trail makes still reads about 8:1. */
+      canvas.style.zIndex = '4'
+      /* And because it is over the type now, it is held back. At full strength the
+         wash competes with body copy for attention; a little over half reads as
+         the paper being marked rather than as something laid on top of it.
+         `opacity` scales the layer before it blends, so this is one declaration
+         rather than a shader uniform. */
+      canvas.style.opacity = light ? '0.5' : '0.85'
       next.appendChild(canvas)
       fade = 0
       fluid?.resize()
@@ -257,10 +267,17 @@ export function RoamingInk() {
            only geometrically inside — an open nav menu, say. */
         const under = document.elementFromPoint(px, py)
         let section = under ? (under.closest(HOSTS) as HTMLElement | null) : null
-        /* A surface with its own trail keeps it. Those canvases are anchored to
-           their section and fade with it; roaming a second one in on top would put
-           two dye fields on one ground. */
-        if (section && section.querySelector(':scope > .mm-ink')) section = null
+        /* A surface with its own trail keeps it, and the search is for ANY
+           descendant — not a direct child, which is what this used to check and
+           what made it wrong on half its targets. Three sections keep their trail
+           nested: the hero's is inside its dark card, two levels down, and the
+           format and process stages keep theirs inside the sticky box. All three
+           read as "no trail of its own", so a second live fluid field was attached
+           on top of the first — the exact thing this line exists to prevent. On the
+           hero it was worse than redundant: the roaming canvas sat behind the
+           opaque card and could only show in the white gutter beside it, reading as
+           a stray smudge while still paying for a resize observer and a loop. */
+        if (section && section.querySelector('.mm-ink')) section = null
         attach(section)
         if (!section) return
         const r = section.getBoundingClientRect()

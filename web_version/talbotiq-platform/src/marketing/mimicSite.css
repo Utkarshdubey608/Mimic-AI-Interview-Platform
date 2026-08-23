@@ -2685,19 +2685,17 @@
   display:block;width:100%;height:100%;
   pointer-events:none;
   border-radius:inherit;
-  /* NEGATIVE, and this is the whole reason no section needs marking up. At
-     z-index 0 a positioned canvas paints over in-flow content, so every host
-     would have had to lift its own content above it — one rule per section, on
-     74 routes. At -1 it paints below the content and above the host's own
-     background, which is exactly the layer the blend wants, and the type on top
-     is untouched. It only works because the host is made a stacking context when
-     the canvas moves in; otherwise -1 escapes and hides behind the background.
+  /* Depth, blend and opacity are all set from RoamingInk.tsx, from the measured
+     ground — see the note there. This value is only what the element carries
+     before it is ever attached to anything.
 
-     The blend mode AND the z-index are both set there, from the measured ground:
-     paper takes -1, ink takes 0 so the trail clears the opaque field layer those
-     sections carry. This value is only the starting point. */
-  z-index:-1
-}
+     It used to be -1, and the comment here used to explain that as the trick that
+     let the layer work with no per-section markup. It was a trick that did not
+     work: below the content means hidden behind every opaque card, and a sweep
+     inside the walkthrough film panel painted zero pixels. It sits above now, and
+     that is safe because `multiply` can only darken and `screen` can only lighten
+     — neither can move type toward its own background. */
+  z-index:4}
 
 /* Same three calls the rest of the ink makes. */
 @media (prefers-reduced-motion:reduce){ .mimic-site .mm-ink-light{display:none} }
