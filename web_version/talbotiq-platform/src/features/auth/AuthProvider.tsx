@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { companyKey, companyDisplay } from '@/lib/companyKey'
+import { clearGroundChoice } from '@/lib/workspaceGround'
 import { firebaseAuth, firestore, firebaseConfigured, getIdTokenOrNull } from '@/lib/firebase'
 import { httpBase, commonBase } from '@/lib/apiOrigin'
 import type { AppUser, UserRole } from '@shared/types'
@@ -189,6 +190,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOutUser = useCallback(async () => {
     await signOut(firebaseAuth())
     setRole(null); setName(null)
+    /* Forget that a ground was CHOSEN, but keep which one. The next person at
+       this browser is asked again rather than silently inheriting the last one's
+       appearance — and because the value survives, "Go to workspace" on the
+       picker still has a previous mode to go with, which is the whole point of
+       storing the two separately. */
+    clearGroundChoice()
   }, [])
 
   const user: AppUser | null =

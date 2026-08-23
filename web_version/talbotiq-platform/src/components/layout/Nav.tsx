@@ -84,6 +84,15 @@ const ALL: Dest[] = GROUPS.flatMap((g) => g.items)
  * footer with the other secondary signals; the spine itself is the bundle's
  * ink cover and does not change with the ground.
  */
+/* LIGHT AND DARK, not "room" and "record".
+   The previous labels were the product's own words for the two grounds, and the
+   comment defending them was right that both are real vocabulary — but they were
+   the only control in the app that used it, and the word for the value is not the
+   word for the choice. The same switch now exists on the entry screen and in the
+   candidate header, and the first-run picker offers the two by these names, so a
+   spine that says "record" is the one place the same control disagrees with
+   itself. The ground names are unchanged everywhere they matter: in the store, in
+   `data-ground`, in the token layer and in every comment about them. */
 function GroundSwitch({ compact = false }: { compact?: boolean }) {
   const ground = useWorkspaceGround()
   return (
@@ -95,22 +104,21 @@ function GroundSwitch({ compact = false }: { compact?: boolean }) {
         compact ? 'w-full' : '',
       )}
     >
-      {(['room', 'record'] as const).map((g) => (
+      {([['room', 'Dark'], ['record', 'Light']] as const).map(([g, label]) => (
         <button
           key={g}
           onClick={() => setWorkspaceGround(g)}
           aria-pressed={ground === g}
           className={cn(
             // Tighter in the collapsed rail: two words have to fit a 48px inner
-            // width there, and both are real product vocabulary, so neither can
-            // be abbreviated away.
-            'min-h-[28px] xl:min-h-[30px] rounded-[4px] px-0.5 xl:px-2 text-[10px] xl:text-[11px] font-semibold capitalize transition-colors duration-150',
+            // width there, and neither can be abbreviated away.
+            'min-h-[28px] xl:min-h-[30px] rounded-[4px] px-0.5 xl:px-2 text-[10px] xl:text-[11px] font-semibold transition-colors duration-150',
             ground === g
               ? 'bg-brand-card text-brand-gold-light'
               : 'text-brand-gray hover:text-brand-gold-light',
           )}
         >
-          {g}
+          {label}
         </button>
       ))}
     </div>

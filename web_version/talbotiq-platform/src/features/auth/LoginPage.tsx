@@ -4,6 +4,9 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { AlertCircle, Briefcase, Building2, Lock, Mail, ShieldCheck, User as UserIcon } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
 import { AmbientField } from '@/components/shell/AmbientField'
+import { ThemeChoice } from '@/features/theme/ThemeChoice'
+import { ThemeToggle } from '@/features/theme/ThemeToggle'
+import { hasGroundChoice, useWorkspaceGround } from '@/lib/workspaceGround'
 import { MimicMark } from '@/components/brand/MimicMark'
 import { pageVariants } from '@/design/motion'
 import { useAuth } from './AuthProvider'
@@ -64,7 +67,8 @@ export default function LoginPage() {
   const { configured, loading, isAuthenticated, role, signInWithEmail, signUpWithEmail, sendPasswordReset } = useAuth()
   const location = useLocation()
   const reduce = useReducedMotion() ?? false
-  useDocumentGround('room')
+  const ground = useWorkspaceGround()
+  useDocumentGround(ground)
 
   const [mode, setMode] = useState<Mode>('signin')
   const [roleIntent, setRoleIntent] = useState<UserRole>('candidate')
@@ -76,6 +80,13 @@ export default function LoginPage() {
   const [err, setErr] = useState<string | null>(null)
   /** Set once a reset link has gone out, so the notice replaces the link. */
   const [resetSent, setResetSent] = useState(false)
+  /* Up here with the other hooks, ABOVE the three early returns below — a hook
+     after `if (!configured) return …` runs on some renders and not others, which
+     is the one thing hooks may not do.
+     Read ONCE into state rather than watched: choosing a ground inside the picker
+     writes the flag, and a live read would unmount the picker mid-interaction the
+     instant the first card was clicked. */
+  const [choosing, setChoosing] = useState(() => !hasGroundChoice())
 
   if (!configured) return <FirebaseNotConfigured />
   if (isAuthenticated && role && !loading) {
@@ -104,14 +115,15 @@ export default function LoginPage() {
   }
 
   return (
-    // The entry surface is the ROOM. The public site now opens on the dark room
-    // hero and the workspace defaults to the room ground, so a dark entry is the
-    // continuous path — the paper version this replaces was continuous with a
-    // light-first site that no longer exists. The one rule survives unchanged:
-    // nothing may delay signing in — the atmosphere is CSS, present from the
-    // first frame, and the form is interactive immediately.
-    <div data-ground="room" className="relative flex min-h-screen flex-col bg-ground">
-      <AmbientField variant="room" />
+    // The entry surface follows the READER, not a hardcoded ground. It used to be
+    // pinned to the room on the argument that a dark entry was continuous with a
+    // dark site — true, and beside the point once appearance is a preference: an
+    // entry screen that ignores the choice made on it is the one place the
+    // preference visibly does not apply. The one rule survives unchanged: nothing
+    // may delay signing in. The atmosphere is CSS, present from the first frame,
+    // and the form is interactive immediately.
+    <div data-ground={ground} className="relative flex min-h-screen flex-col bg-ground">
+      <AmbientField variant={ground === 'room' ? 'room' : 'record'} />
       {/* One key light behind the card — localized, not a page gradient. */}
       <div
         aria-hidden="true"
@@ -119,7 +131,19 @@ export default function LoginPage() {
         style={{ '--key-y': '46%' } as React.CSSProperties}
       />
 
-      <main className="relative z-raised flex flex-1 items-center justify-center px-5 py-10">
+      {/* Top right, out of the form's way. Present on the picker too, so the
+          words "Light" and "Dark" are visible while the two previews are being
+          compared — the cards say which is which, but the switch is where the
+          choice lives afterwards and it should be in the same place from the
+          start. */}
+      <div className="relative z-raised flex justify-end px-5 pt-5">
+        <ThemeToggle />
+      </div>
+
+      <main className="relative z-raised flex flex-1 items-center justify-center px-5 pb-10 pt-4">
+        {choosing ? (
+          <ThemeChoice onDone={() => setChoosing(false)} />
+        ) : (
         <motion.div
           variants={pageVariants(reduce)}
           initial="initial"
@@ -313,6 +337,7 @@ export default function LoginPage() {
             </div>
           </div>
         </motion.div>
+        )}
       </main>
     </div>
   )

@@ -38,6 +38,21 @@ export function useDocumentGround(ground: WorkspaceGround): void {
 
 const KEY = 'mimic-workspace-ground'
 
+/**
+ * Whether a person has ever actually PICKED, as opposed to being defaulted.
+ *
+ * `readStored` cannot answer this and must not try: it falls back to `room`, so
+ * an untouched browser and a deliberate choice of the dark ground are the same
+ * value. The first-run picker needs to tell those apart — offering someone a
+ * choice they already made is as wrong as never offering it — so the fact of
+ * having chosen is stored separately from what was chosen.
+ *
+ * Cleared on sign-out, which is what makes the picker come back for the next
+ * person at this browser rather than quietly handing them the last one's
+ * preference.
+ */
+const CHOSEN = 'mimic-workspace-ground-chosen'
+
 function readStored(): WorkspaceGround {
   try {
     return localStorage.getItem(KEY) === 'record' ? 'record' : 'room'
@@ -46,10 +61,36 @@ function readStored(): WorkspaceGround {
   }
 }
 
+export function hasGroundChoice(): boolean {
+  try {
+    return localStorage.getItem(CHOSEN) === '1'
+  } catch {
+    // Private mode: no memory, so every visit is a first run. Better to ask
+    // again than to assume a preference nobody can store.
+    return false
+  }
+}
+
+/** Record that the choice was made deliberately. `setWorkspaceGround` does this. */
+function markChosen(): void {
+  try { localStorage.setItem(CHOSEN, '1') } catch { /* nothing to remember it with */ }
+}
+
+/** Forget only the FACT of choosing, never the value — so "Go to workspace"
+ *  still has a previous mode to go with. Called on sign-out. */
+export function clearGroundChoice(): void {
+  try { localStorage.removeItem(CHOSEN) } catch { /* nothing stored it anyway */ }
+}
+
 let current: WorkspaceGround = readStored()
 const listeners = new Set<() => void>()
 
 export function setWorkspaceGround(ground: WorkspaceGround): void {
+  /* Marked BEFORE the early return. Picking the ground you are already on is a
+     real choice and the commonest one on first run — the default is `room` and
+     dark is what most people keep — so returning early without recording it
+     would show the picker again on the next visit. */
+  markChosen()
   if (ground === current) return
   current = ground
   try {
