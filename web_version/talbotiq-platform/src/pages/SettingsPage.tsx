@@ -1,11 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { PlugZap, XCircle } from 'lucide-react'
 import { pageVariants } from '@/design/motion'
 import { Button, Card, Toggle, PageHeader, Input, cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
-import { tavus } from '@/services/tavus'
 import { settingsApi } from '@/lib/api'
 import type { AvatarSettingsStatus } from '@shared/types'
 import { httpBase } from '@/lib/apiOrigin'
@@ -102,21 +100,20 @@ function PanelHead({ title, children }: { title: string; children: ReactNode }) 
   )
 }
 
-/** Live result of the last connection test. */
-function ConnChip({ state }: { state: 'idle' | 'testing' | 'ok' | 'fail' }) {
-  if (state === 'ok')      return <span className="badge badge-success"><span className="live-dot" />Connected</span>
-  if (state === 'fail')    return <span className="badge badge-danger"><XCircle size={11} aria-hidden />Failed</span>
-  if (state === 'testing') return <span className="badge badge-neutral animate-pulse">Testing…</span>
-  return null
-}
+/* ── What used to be here ──────────────────────────────────────────────────
+   A `ConnChip` and a `testConnection` that called the Tavus API directly, plus
+   the two pieces of state behind the key field. All four were already dead on
+   arrival: the rebrand removed the key input and the Test connection button —
+   credentials come from the deployment environment now, and no route accepts one
+   from a browser — but left the scaffolding standing, which is eight unused
+   symbols and a failing lint gate. Removed rather than silenced, because none of
+   it can be reached and there is nothing left for it to talk to. The argument for
+   the removal itself is in GeminiKeyCard. */
 
 export default function SettingsPage() {
   const reduce = useReducedMotion() ?? false
   const store = useAppStore()
-  const [tavusKey, setTavusKeyLocal] = useState('')
-  const [showTavus, setShowTavus] = useState(false)
   const [webhook, setWebhook] = useState('')
-  const [connState, setConnState] = useState<'idle' | 'testing' | 'ok' | 'fail'>('idle')
   const [status, setStatus] = useState<StatusMap | null>(null)
   const [whiteLabelMode, setWhiteLabelMode] = useState(false)
   const [gdprAuto, setGdprAuto] = useState(true)
@@ -129,22 +126,6 @@ export default function SettingsPage() {
     // still degrades to a null status panel, exactly as before.
     fetch(`${httpBase()}/avatar/status`).then(r => (r.ok ? r.json() : null)).then(setStatus).catch(() => setStatus(null))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // The browser holds no Tavus key anymore — every call goes through the
-  // backend proxy, which attaches the SERVER-side key. So "Test connection"
-  // exercises the key currently saved on the server (Save first to test a
-  // freshly pasted key).
-  async function testConnection() {
-    setConnState('testing')
-    try {
-      const reps = await tavus.listReplicas()
-      setConnState('ok')
-      toast.success(`Connected — ${Array.isArray(reps) ? reps.length : 0} replica(s) found`)
-    } catch (e) {
-      setConnState('fail')
-      toast.error((e as Error).message ?? 'Connection failed')
-    }
-  }
 
   const [saving, setSaving] = useState(false)
 
