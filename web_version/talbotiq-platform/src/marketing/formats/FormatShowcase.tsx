@@ -40,6 +40,7 @@ import { Link } from 'react-router-dom'
 
 import { DemoVideo } from '../DemoVideo'
 import { Field } from '../Field'
+import { InkTrail } from '../ink/InkTrail'
 import { deckHead, PinnedStage } from '../scroll'
 import { MODES, noFilmReason } from './modes'
 
@@ -423,7 +424,23 @@ export function FormatShowcase() {
         id="platform"
         className="mm-formats on-dark"
         labelledBy="fmt-h"
-        backdrop={<Field seed={5} />}
+        /* The field and the ink, the same pair every other ink section on this page
+           carries — this was the one dark section without the trail.
+
+           Both go in the `backdrop` slot rather than into the children, and that
+           is load-bearing twice over. PinnedStage measures the tallest IN-FLOW
+           child of its sticky box to decide whether it may pin at all, and skips
+           absolutely positioned ones; an `inset:0` layer measures as tall as
+           whatever holds it, so anywhere else it would report the stage as too
+           tall for its own viewport and the deck would never engage. And the slot
+           puts them inside the sticky box, so they are the 100vh the reader is
+           looking at rather than the four screens the host is tall.
+
+           The ink takes its own parent as its host, which here is the sticky box —
+           so the trail follows the pointer across exactly the area the deck
+           occupies. Content sits above it: `.fmt-in` carries `z-index:1` against
+           the canvas's 0. */
+        backdrop={<><Field seed={5} /><InkTrail /></>}
       >
         {({ pinned, goToStep }) => (
           <FormatDeck
@@ -611,6 +628,26 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
       if (el) el.inert = pinned && i !== cur
     }
   }, [pinned, cur, slides])
+
+  /* Nothing holds a film while the section is off screen.
+     `settled` names the panel worth a source, and it had no value meaning "none" —
+     so one film stayed attached for the rest of the visit after the reader had
+     scrolled away, paused but still holding its buffers and its decoder. The
+     verification harness asserts zero armed once the section is above the fold and
+     it was right to: `hold` exists to keep at most one film attached, and once
+     there is no film being read the answer is none.
+     A separate observer from the per-panel one below, on the host rather than the
+     panels, because the question is different: not WHICH panel is being read but
+     whether the section is on screen at all. */
+  useEffect(() => {
+    const host = slides.current.find(Boolean)?.closest('.mm-formats')
+    if (!host || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver((es) => {
+      if (es.some((e) => !e.isIntersecting)) setSettled(-1)
+    }, { rootMargin: '200px' })
+    io.observe(host)
+    return () => io.disconnect()
+  }, [slides])
 
   /* Which film to arm, by visibility rather than by index.
      By index would be wrong in list mode, where there is no index — every panel
