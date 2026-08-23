@@ -1063,6 +1063,88 @@
   display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
   gap:var(--mm-s-6) clamp(2.5rem,6vw,5.5rem);
 }
+/* ── The client row, drifting ──────────────────────────────────────────────
+   This row used to be a marquee, it was taken out, and it is one again — so the
+   objections in the note above are worth answering rather than deleting, because
+   they were good ones.
+
+   "It cost 36 images and 12 duplicate subtrees to display three files." That was
+   the real problem and it is fixed here by arithmetic rather than by guessing: a
+   seamless loop needs exactly two identical halves and each half only has to be
+   at least as wide as the window it slides through. Three logos at ~200px with
+   this gap is ~1640px per half of two copies, against a 1216px measure — so four
+   copies, twelve images, and no tuning "until roughly two cycles are visible".
+
+   "The gap had to be tuned." It does not, now. The track is `width:max-content`
+   and the keyframe moves it exactly -50%, which is one half, whatever the logos
+   turn out to measure. Add a fourth client and nothing here changes.
+
+   "It is the one animation a reader cannot dismiss." Two answers. It stops on
+   hover and on keyboard focus, so anyone who wants to read a mark can hold it
+   still. And under `prefers-reduced-motion` the duplicates are removed from the
+   layout entirely and the row is the centred static one it was — not a paused
+   marquee with three logos sitting off to one side.
+
+   The edges are masked rather than cut. A logo sliced by a hard border reads as
+   a layout fault; a logo fading out reads as a row that continues. */
+.mimic-site .logo-marquee{
+  position:relative;
+  /* HELD TO THE MEASURE, not run full bleed, and this is what keeps the image
+     count finite. A seamless loop needs each half to be at least as wide as the
+     window it slides through, so a full-bleed row on a 1920px display would need
+     five copies a half — ten copies, thirty images, which is the cost the version
+     that was removed from this spot was rightly criticised for. Bounding the
+     window at the page's own measure bounds the requirement: three copies a half,
+     six in all, at every viewport there is. Measured: 1354px a half against a
+     1216px window. */
+  max-width:76rem;margin:var(--mm-s-5) auto 0;
+  overflow:hidden;
+  /* Both spellings: -webkit- for Safari, which still needs it here. */
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);
+}
+.mimic-site .logo-track{
+  display:flex;
+  width:max-content;
+  animation:mm-logo-drift 46s linear infinite;
+}
+/* Held still on hover and on focus-within, so a mark can be read. */
+.mimic-site .logo-marquee:hover .logo-track,
+.mimic-site .logo-marquee:focus-within .logo-track{animation-play-state:paused}
+/* `flex:none` is not tidiness. A flex item shrinks by default, so the rows were
+   being squeezed inside the track and the marks drew ON TOP OF each other —
+   TALBOTIQ through the middle of TOTAL IT. Nothing about the track's
+   `width:max-content` prevents that; the item has to refuse to shrink.
+
+   And the space between copies is TRAILING PADDING on each row, not a `gap` on the
+   track. With a gap, six rows have five gaps, so half the track is three rows plus
+   two-and-a-half gaps — which is not the repeat unit, and the loop would slip half
+   a gap every lap and show it. Folded into the row, every copy is exactly one
+   repeat unit wide and -50% lands precisely on the seam. */
+.mimic-site .logo-track .logo-row{
+  flex:none;flex-wrap:nowrap;margin:0;
+  padding-right:clamp(2.5rem,6vw,5.5rem)
+}
+
+@keyframes mm-logo-drift{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(-50%,0,0)}
+}
+
+/* Reduced motion: not a paused marquee — the row it was. The copies leave the
+   layout, the one remaining set centres itself, and the mask comes off so nothing
+   fades at an edge there is no longer any content behind. */
+@media (prefers-reduced-motion:reduce){
+  .mimic-site .logo-marquee{
+    -webkit-mask-image:none;mask-image:none;overflow:visible
+  }
+  .mimic-site .logo-track{
+    width:auto;animation:none;justify-content:center
+  }
+  .mimic-site .logo-track .logo-row[aria-hidden]{display:none}
+  .mimic-site .logo-track .logo-row{flex-wrap:wrap}
+}
+
 /* Centred, with its label. Three marks left-aligned in a 1440px row leaves 60%
    of it empty on one side — the same one-sided hole the inner pages had, at a
    smaller scale. The row is short, so it belongs on the page's centre line. */
@@ -2610,7 +2692,10 @@
      background, which is exactly the layer the blend wants, and the type on top
      is untouched. It only works because the host is made a stacking context when
      the canvas moves in; otherwise -1 escapes and hides behind the background.
-     The blend mode is set there too, from the measured ground. */
+
+     The blend mode AND the z-index are both set there, from the measured ground:
+     paper takes -1, ink takes 0 so the trail clears the opaque field layer those
+     sections carry. This value is only the starting point. */
   z-index:-1
 }
 

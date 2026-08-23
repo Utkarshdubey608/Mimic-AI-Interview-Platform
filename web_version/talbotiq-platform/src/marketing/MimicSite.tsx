@@ -357,8 +357,31 @@ export default function MimicSite() {
 
                 The static row was already the reduced-motion fallback here. It
                 is simply the design now, so everyone sees the same page. */}
-            <div className="logo-row">
-              {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
+          </div>
+          {/* Full bleed, outside the measure: a row that slides has to run off both
+              edges of the page, or it reads as a carousel in a box.
+
+              SIX copies of three logos, and the number is arithmetic rather than
+              taste — arrived at by measuring, after four turned out to be wrong.
+              A seamless loop is two identical halves with the keyframe moving
+              exactly one of them, and each half has to be at least as wide as the
+              window it slides through. Three logos at this size come to ~451px a
+              copy, not the ~820 I assumed, so four copies gave a 903px half
+              against a 1280px window and would have shown a gap on every lap.
+              Three copies a half is 1354px, and the stylesheet holds the window to
+              the 1216px measure so that stays true at any viewport.
+              Eighteen images, where the version that was removed from this spot
+              needed thirty-six.
+
+              Only the first set is in the accessibility tree. The rest are the
+              same three names again and a screen reader should hear them once. */}
+          <div className="logo-marquee">
+            <div className="logo-track">
+              {[0, 1, 2, 3, 4, 5].map((copy) => (
+                <div className="logo-row" key={copy} aria-hidden={copy > 0 || undefined}>
+                  {CLIENTS.map((l) => <LogoSlot key={l.name} {...l} />)}
+                </div>
+              ))}
             </div>
           </div>
         </section>

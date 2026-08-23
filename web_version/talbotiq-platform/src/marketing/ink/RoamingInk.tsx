@@ -54,6 +54,23 @@ import type { InkFluid } from './inkFluid'
 const HOSTS = 'section, .foot'
 
 /**
+ * Make sure a section's own content sits above z-index 0, and say whether it does.
+ *
+ * Only needed on the ink grounds, where the trail has to clear an opaque field
+ * layer. Returns false when there is nothing to lift, which is the caller's cue to
+ * stay underneath rather than risk painting over the type.
+ */
+function liftContent(host: HTMLElement): boolean {
+  const wrap = host.querySelector(':scope > .wrap') as HTMLElement | null
+  if (!wrap) return false
+  const cs = getComputedStyle(wrap)
+  if (cs.zIndex !== 'auto' && Number(cs.zIndex) >= 1) return true
+  if (cs.position === 'static') wrap.style.position = 'relative'
+  wrap.style.zIndex = '1'
+  return true
+}
+
+/**
  * Relative luminance of the first real background at or above `el`.
  *
  * Backgrounds are painted on section elements and most sections declare none, so
@@ -196,8 +213,24 @@ export function RoamingInk() {
       /* Light or dark decides the blend, not the call site. On paper the dye is
          laid down (multiply); on ink it is added as light (screen), which is what
          the dark sections' own trails already do — this only matters for a dark
-         band that has no trail of its own. */
-      canvas.style.mixBlendMode = groundLuma(next) > 0.35 ? 'multiply' : 'screen'
+         band that has no trail of its own.
+
+         IT ALSO DECIDES THE DEPTH, and getting that wrong is why the trail was
+         missing from the scoring section entirely. A dark band carries a `Field`:
+         an opaque canvas at z-index 0, created with `alpha:false`, which owns the
+         whole ground once it lights. At -1 the trail was painting BEHIND it and
+         could not be seen at all. The sections' own trails sit at 0 and come after
+         the field in document order, which is how they land on top of it.
+
+         So: paper gets -1, which needs nothing lifted above it and is what makes
+         this work on 74 routes without markup. Ink gets 0, above the field — but
+         only when the section's content is already lifted clear, which
+         `.section.on-dark .wrap` guarantees and a stray dark band might not. When
+         it is not liftable, -1 is the fallback: hidden behind a field is a missing
+         effect, and painting over the type is a broken page. */
+      const light = groundLuma(next) > 0.35
+      canvas.style.mixBlendMode = light ? 'multiply' : 'screen'
+      canvas.style.zIndex = light ? '-1' : (liftContent(next) ? '0' : '-1')
       next.appendChild(canvas)
       fade = 0
       fluid?.resize()
