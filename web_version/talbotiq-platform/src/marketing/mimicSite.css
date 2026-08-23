@@ -2839,6 +2839,27 @@
    ink in list mode too — a phone would otherwise get a white pill floating under
    the film. Scoped to this section, so the workspace frames further down the page
    keep the light treatment they were designed for. */
+/* Light catching the top edge of the film as it comes forward — the same
+   treatment the nav and the ink fields get, and the reason the film reads as a
+   panel of glass on the ink rather than a picture pasted onto it. Inset from the
+   corners and faded at both ends so it follows the frame's radius instead of
+   cutting across it.
+
+   Deliberately static. The panel's own opacity already carries it in and out, so
+   there is nothing here for the scroll loop to write. */
+/* On the FILM, not on the column that holds it. Two of the six formats have no
+   recording and show a bordered card instead, and a lamp edge across the top of a
+   card that is explaining why there is no film is a light with nothing to catch. */
+.mimic-site .mm-formats .shot{position:relative}
+.mimic-site .mm-formats .shot::after{
+  content:"";position:absolute;left:7%;right:7%;top:0;height:1px;
+  z-index:2;pointer-events:none;
+  background:linear-gradient(90deg,
+    transparent,
+    var(--mm-lamp-edge) 26%,
+    var(--mm-lamp) 70%,
+    transparent)
+}
 .mimic-site .mm-formats .shot figcaption{color:var(--mm-on-ink-2)}
 .mimic-site .mm-formats .shot .ph{
   background:var(--mm-on-ink-card);border-color:var(--mm-on-ink-line);color:var(--mm-on-ink-2)
@@ -2854,14 +2875,23 @@
 .mimic-site .fmt-nav,
 .mimic-site .fmt-sr{display:none}
 
-/* ── Deck mode ───────────────────────────────────────────────────────────
-   The height floor matters as much as the width one. The panels stack into a
-   single grid cell here, and a panel is roughly 400px of copy — on a 480px
-   window that does not fit, PinnedStage correctly refuses to pin, and an
-   undriven stack is six panels painted on top of each other. 600px is measured
-   against the tallest the copy column gets, with the film capped in vh below so
-   it shrinks with the window instead of setting the floor. */
-@media (min-width:1081px) and (min-height:600px) and (prefers-reduced-motion:no-preference){
+/* ── Deck mode ───────────────────────────────────────────────────
+   The height floor matters as much as the width one, and it was set too high.
+   At 600px it excluded the most common laptop there is: a 1920×1080 panel at
+   150% Windows scaling reports a 583px CSS viewport — seventeen pixels short. So
+   that machine got the vertical list, and only saw the deck after its reader
+   zoomed the browser out to 90%.
+
+   480 is measured rather than guessed. The floor exists so that this query and
+   PinnedStage's fit test agree about which mode is in force: the stage pins only
+   when its content plus 24px clears the viewport, and a query that matched while
+   the pin refused would stack six panels with nothing driving them. What sets a
+   panel's height at short viewports is the COPY column — the film is capped in vh
+   below, so it shrinks with the window instead of setting the floor — and the
+   copy plus the rail measures a little over 400px. 480 clears that with room for
+   a larger default font size, and the degradation below still covers a viewport
+   that somehow does not. */
+@media (min-width:1081px) and (min-height:480px) and (prefers-reduced-motion:no-preference){
   .mimic-site .mm-formats{padding-bottom:0}
 
   /* ONE grid cell, six panels in it. Not `position:absolute`, which would leave
@@ -2899,6 +2929,21 @@
   }
   .mimic-site .fmt-slide[data-live]{visibility:visible}
 
+  /* The frame line. It lives in the GAP between two panels and is only lit while
+     it is actually between them, which turns the dark ground the panels are
+     spaced by into a deliberate frame edge rather than a hole in the section.
+     Placed by JavaScript with the same arithmetic that places the panels.
+
+     A full-width box with a 1px left border, rather than a 1px box: translating
+     by a percentage moves an element by a percentage of ITS OWN width, so a 1px
+     element can only ever move a pixel. At full deck width, 100% is one panel
+     step and the arithmetic matches the panels' exactly. */
+  .mimic-site .fmt-seam{
+    position:absolute;top:8%;bottom:8%;left:0;width:100%;
+    border-left:1px solid var(--mm-on-ink-line);
+    opacity:0;pointer-events:none;z-index:0
+  }
+
   .mimic-site .fmt-copy{gap:var(--mm-s-3)}
   /* The description gets a short measure so it reads as a paragraph beside the
      film rather than a wide slab. NOT the meta line, which is also a `p`: at 34ch
@@ -2911,8 +2956,11 @@
      outgrowing it — this is what keeps the fit test passing, and with it the
      agreement between this media query and the pin. */
   .mimic-site .fmt-stage{justify-self:end;width:100%;max-width:41rem}
+  /* 46vh rather than 40: at 40 the film came out SHORTER than the copy column
+     beside it on a 583px viewport, so the copy set the panel's height either way
+     and the difference went to nothing but empty ground. */
   .mimic-site .fmt-stage .shot video,
-  .mimic-site .fmt-stage .shot img{max-height:min(23rem,40vh);object-fit:cover}
+  .mimic-site .fmt-stage .shot img{max-height:min(23rem,46vh);object-fit:cover}
 
   /* The rail: six labels under the deck, the current one underlined by a
      hairline that draws left to right. It is the section's table of contents and

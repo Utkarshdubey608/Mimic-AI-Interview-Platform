@@ -73,11 +73,17 @@ const SPREAD = 1.14
  * rather than against distance is what makes it exact: the curve provably reaches
  * zero at the same instant the panel has no visible area left.
  *
- * That mattered. Faded against distance instead, the opacity was still 0.21 when
- * `edge` was a thousandth short of 1 — and a thousandth of a deck width is a 1px
- * strip of the NEXT panel, at a fifth opacity, hard against the deck's edge. A
- * hairline that reads as a rendering fault, and the artifact the verification
- * harness caught here.
+ * That mattered, and it goes on mattering. Faded against distance instead, the
+ * opacity was still 0.21 when `edge` was a thousandth short of 1 — and a
+ * thousandth of a deck width is a 1px strip of the NEXT panel, at a fifth
+ * opacity, hard against the deck's edge. A hairline that reads as a rendering
+ * fault, and the artifact the verification harness caught here.
+ *
+ * It is also what makes the tilt below safe. A `rotateY` under perspective
+ * magnifies the half of the film that swings toward the viewer, so the film's
+ * near edge reaches about 11px OUTSIDE its own box — which for a panel on its way
+ * out is 11px past the deck's clip. That sliver only exists where `edge` is near
+ * 1, where this curve has already taken the whole panel to zero.
  *
  * The exponent keeps the curve nearly flat where the panels are actually being
  * read (0.98 a fifth of the way out, 0.76 at the halfway point of a transition) so
@@ -85,20 +91,75 @@ const SPREAD = 1.14
  * in the middle, which is a cross-dissolve, not a pass.
  */
 const FADE_POW = 2.5
-const RECEDE = 0.05   // scale lost per deck width, on the panel's contents
+/** Scale the panel's contents lose per deck width off centre. */
+const RECEDE = 0.05
 /**
- * Percent of its own width the copy leads by, and the film trails by.
+ * Degrees the film turns as its panel travels, under an inline perspective.
  *
- * Two rates, not one. One rate for everything is a slide deck; the light text
- * arriving ahead of the heavy film is depth, and it is the whole difference
- * between this and a carousel.
+ * The one piece of real depth in the section. The film is the only object with
+ * enough surface to read as a plane rather than as text that happens to be
+ * moving, so it is the only thing that turns: on its way out it angles away from
+ * the reader, on its way in it comes square. Six degrees — enough to see the
+ * near edge lift, not enough to distort the interface inside it, which is
+ * evidence and has to stay readable.
+ *
+ * Deliberately NOT on the panel. A rotation on the panel would move the panel's
+ * own edges, and the panel's edges are what the deck clips against.
  */
-const LAG = 12
+const TILT = 6
+/**
+ * Rem of extra displacement the copy's own lines take, on top of the panel's.
+ *
+ * This is the difference between a panel that slides and a panel that ASSEMBLES.
+ * Each line in the copy carries its own multiplier (STAGE below), so the heading
+ * arrives first and settles, then the tag, then the sentence, then the meta, and
+ * the button last — and on the way out they leave in the same order. The panel
+ * still moves as one object; the reading order inside it is what staggers.
+ */
+const LEAD = 2.6
+/**
+ * Per-line multipliers, in the copy's DOM order: counter, heading, tag,
+ * description, meta, button.
+ *
+ * A SMALLER number means the line sits closer to its resting place, so it arrives
+ * sooner. The heading is lowest because it is the thing being announced and every
+ * other line is subordinate to it; the button is highest because it is the last
+ * thing anyone needs. Read down the column and the numbers are the reading order.
+ */
+const STAGE = [0.9, 0.3, 0.55, 0.75, 1, 1.2]
+/**
+ * How hard the reader's scroll speed shows in the panel.
+ *
+ * Fast motion with perfectly crisp edges reads as a slideshow advancing, not as
+ * something moving fast — the eye expects speed to smear. Real motion blur is not
+ * available at a price worth paying, and `filter:blur` on a 1200px panel every
+ * frame is not it, so this is the standard approximation: the contents stretch
+ * along the direction of travel and thin across it, in proportion to how fast the
+ * panel is actually moving. At a slow read it is not there at all; on a flick it
+ * is what makes the flick feel like one.
+ *
+ * `RUSH_GAIN` converts panels-per-second into a 0‥1 amount, saturating at about
+ * half a panel per second — roughly the speed of a deliberate wheel scroll.
+ */
+const RUSH_GAIN = 2.2
+const RUSH_STRETCH = 0.05
+const RUSH_THIN = 0.022
+/** Below this, in panels per second, the smear has finished relaxing. */
+const RUSH_REST = 0.005
 
 export function FormatShowcase() {
   const slides = useRef<(HTMLElement | null)[]>([])
   const copies = useRef<(HTMLElement | null)[]>([])
+  /* The copy's own lines, captured when the block's ref lands rather than queried
+     per frame. `children` is a live collection, so this stays correct if React
+     ever swaps a line out. */
+  const copyKids = useRef<HTMLElement[][]>([])
   const films = useRef<(HTMLElement | null)[]>([])
+  const seamRef = useRef<HTMLDivElement | null>(null)
+  /** Scroll state carried between frames: position, previous position, eased
+      velocity in panels per second, the last frame's timestamp, and the pending
+      relaxation frame. */
+  const motion = useRef({ p: 0, pp: 0, v: 0, t: 0, raf: 0 })
   /** True only while PinnedStage is actually pinned and driving this deck. */
   const driving = useRef(false)
   const [cur, setCur] = useState(0)
@@ -114,10 +175,25 @@ export function FormatShowcase() {
    * main thread. PinnedStage's own comment records the measurement — 61 frames
    * per 1400ms against 85 for the stage next door.
    */
-  const onProgress = useCallback((p: number) => {
-    if (!driving.current) return
+  /**
+   * Every moving style in the section, written for one moment.
+   *
+   * Called straight from the scroll callback so the panels move in the SAME frame
+   * the scroll was read — scheduling a rAF from inside PinnedStage's rAF would
+   * have painted one frame late, and a scroll-linked transform that lags by 16ms
+   * stops feeling attached to the wheel. The relaxation loop below calls it too,
+   * which is the only reason it takes `rush` as an argument rather than reading
+   * it: the loop needs to keep painting after the scrolling has stopped.
+   */
+  const paint = useCallback((p: number, rush: number) => {
     const n = MODES.length
     const head = deckHead(p, n)
+
+    /* The stretch is along the direction of travel, so it is signed by nothing —
+       a smear looks the same whichever way the thing is going. Computed once, not
+       per panel. */
+    const sx = 1 + rush * RUSH_STRETCH
+    const sy = 1 - rush * RUSH_THIN
 
     for (let i = 0; i < n; i++) {
       const el = slides.current[i]
@@ -135,18 +211,101 @@ export function FormatShowcase() {
       // one — so "unhiding" that way hid it instead.
       if (el.style.visibility !== 'visible') el.style.visibility = 'visible'
       el.style.opacity = String(1 - edge ** FADE_POW)
+      // Translate and nothing else. The panel's edges are what the deck clips
+      // against, so anything that moves them — a scale, a rotation — puts a
+      // sliver of an off-stage panel against the deck's edge.
       el.style.transform = `translate3d(${off * SPREAD * 100}%,0,0)`
 
-      const scale = `scale(${1 - edge * RECEDE})`
-      const copy = copies.current[i]
-      if (copy) copy.style.transform = `translate3d(${off * LAG}%,0,0) ${scale}`
+      const recede = 1 - edge * RECEDE
+
+      const kids = copyKids.current[i]
+      if (kids) {
+        for (let k = 0; k < kids.length; k++) {
+          const m = STAGE[k] ?? 1
+          kids[k].style.transform =
+            `translate3d(${off * LEAD * m}rem,0,0) scale3d(${recede * sx},${recede * sy},1)`
+        }
+      }
+
       const film = films.current[i]
-      if (film) film.style.transform = `translate3d(${off * -LAG}%,0,0) ${scale}`
+      if (film) {
+        // `perspective()` first, so the rotation and the scale after it are the
+        // ones it applies to. The film trails the copy, turns as it goes, and
+        // recedes — one write.
+        film.style.transform =
+          `translate3d(${off * -LEAD * 0.8}rem,0,0) perspective(1200px) `
+          + `rotateY(${off * TILT}deg) scale3d(${recede * sx},${recede * sy},1)`
+      }
+    }
+
+    /* The seam: a single hairline living in the GAP between two panels, so the
+       gap reads as a frame line on a film strip rather than as a hole. Placed by
+       the same arithmetic as the panels — the gap after panel k starts where
+       panel k ends — and lit only while it is actually between two of them, which
+       is the middle of a transition and nowhere else. */
+    const seam = seamRef.current
+    if (seam) {
+      const k = Math.floor(head)
+      const frac = head - k
+      seam.style.transform = `translate3d(${((k - head) * SPREAD + 1 + (SPREAD - 1) / 2) * 100}%,0,0)`
+      seam.style.opacity = String(Math.sin(Math.PI * frac) * 0.5)
     }
 
     const next = Math.round(head)
     if (next !== curRef.current) { curRef.current = next; setCur(next) }
   }, [])
+
+  /**
+   * One step of the motion: measure how fast the deck is travelling, paint, and
+   * keep painting until the speed has decayed to nothing.
+   *
+   * The loop exists for the smear alone. Without it, the last scroll frame leaves
+   * the stretch frozen into the panel at whatever value it had when the reader
+   * stopped — a panel sitting still, permanently smeared. The velocity is eased
+   * rather than taken raw so that a wheel's stutter does not show, and its target
+   * is `(p - previous p) / dt`, which is zero on its own the moment the scroll
+   * stops: the same expression handles the drive and the relaxation.
+   */
+  const step = useCallback(() => {
+    const s = motion.current
+    s.raf = 0
+    const now = performance.now()
+    const dt = s.t ? Math.min((now - s.t) / 1000, 1 / 15) : 1 / 60
+    s.t = now
+    const target = (s.p - s.pp) / dt
+    s.pp = s.p
+    s.v += (target - s.v) * (1 - Math.exp(-dt * 14))
+
+    paint(s.p, Math.min(1, Math.abs(s.v) * RUSH_GAIN))
+
+    if (Math.abs(s.v) > RUSH_REST) s.raf = requestAnimationFrame(step)
+    else { s.v = 0; s.t = 0 }
+  }, [paint])
+
+  /**
+   * Stop the motion dead.
+   *
+   * A relaxation frame is already queued whenever the reader stops mid-scroll, and
+   * it outlives the pin: unpinning clears the inline styles, then the queued frame
+   * runs and paints them all back on. `driving` alone does not cover it — that
+   * gate is on the scroll callback, not on the loop.
+   */
+  const stop = useCallback(() => {
+    const s = motion.current
+    if (s.raf) cancelAnimationFrame(s.raf)
+    s.raf = 0; s.v = 0; s.t = 0; s.pp = s.p
+  }, [])
+
+  const onProgress = useCallback((p: number) => {
+    if (!driving.current) return
+    const s = motion.current
+    s.p = p
+    // Any pending relaxation frame is stale the moment a real scroll arrives, and
+    // running both in one frame would halve the measured dt and under-read the
+    // speed.
+    if (s.raf) { cancelAnimationFrame(s.raf); s.raf = 0 }
+    step()
+  }, [step])
 
   /**
    * PinnedStage's own step mapping, used ONLY when this deck is not driving.
@@ -201,8 +360,11 @@ export function FormatShowcase() {
             goToStep={goToStep}
             slides={slides}
             copies={copies}
+            copyKids={copyKids}
             films={films}
+            seamRef={seamRef}
             driving={driving}
+            stop={stop}
             resetCur={onStep}
           />
         )}
@@ -217,14 +379,17 @@ export function FormatShowcase() {
  * off-stage panels out of the tab order, and handing the inline styles back to
  * the stylesheet when the stage stops driving.
  */
-function FormatDeck({ pinned, cur, goToStep, slides, copies, films, driving, resetCur }: {
+function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, seamRef, driving, stop, resetCur }: {
   pinned: boolean
   cur: number
   goToStep: (i: number) => void
   slides: React.MutableRefObject<(HTMLElement | null)[]>
   copies: React.MutableRefObject<(HTMLElement | null)[]>
+  copyKids: React.MutableRefObject<HTMLElement[][]>
   films: React.MutableRefObject<(HTMLElement | null)[]>
+  seamRef: React.MutableRefObject<HTMLDivElement | null>
   driving: React.MutableRefObject<boolean>
+  stop: () => void
   resetCur: (i: number) => void
 }) {
   /* Which panel is settled on, and so worth holding a video for. Debounced:
@@ -249,6 +414,7 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, films, driving, res
       window.dispatchEvent(new Event('scroll'))
       return
     }
+    stop()
     resetCur(0)
     for (const el of slides.current) {
       if (!el) continue
@@ -257,8 +423,15 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, films, driving, res
       el.style.removeProperty('transform')
     }
     for (const el of copies.current) el?.style.removeProperty('transform')
+    for (const kids of copyKids.current) for (const el of kids) el.style.removeProperty('transform')
     for (const el of films.current) el?.style.removeProperty('transform')
-  }, [pinned, driving, slides, copies, films, resetCur])
+    const seam = seamRef.current
+    if (seam) { seam.style.removeProperty('transform'); seam.style.removeProperty('opacity') }
+  }, [pinned, driving, stop, slides, copies, copyKids, films, seamRef, resetCur])
+
+  /* Unmount, in whatever state the pin was in. The effect above only runs its
+     clean-up when `pinned` goes false; navigating away while pinned skips it. */
+  useEffect(() => stop, [stop])
 
   /* Off-stage panels are inert while the deck is driving: not focusable, not in
      the accessibility tree, not clickable. Without it, Tab walked into the five
@@ -303,6 +476,10 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, films, driving, res
   return (
     <div className="wrap fmt-in">
       <div className="fmt-deck">
+        {/* The frame line between two panels. Inside the deck so the deck's paint
+            containment clips it, and out of flow so it costs the fit test
+            nothing. */}
+        <div className="fmt-seam" ref={seamRef} aria-hidden="true" />
         {MODES.map((m, i) => (
           <article
             key={m.href}
@@ -311,7 +488,13 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, films, driving, res
             data-live={i === cur || undefined}
             aria-label={m.name}
           >
-            <div className="fmt-copy" ref={(el) => { copies.current[i] = el }}>
+            <div
+              className="fmt-copy"
+              ref={(el) => {
+                copies.current[i] = el
+                copyKids.current[i] = el ? (Array.from(el.children) as HTMLElement[]) : []
+              }}
+            >
               <span className="fmt-n">
                 {String(i + 1).padStart(2, '0')}<i>/</i>{String(MODES.length).padStart(2, '0')}
               </span>
