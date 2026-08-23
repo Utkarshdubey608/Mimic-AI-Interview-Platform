@@ -2702,9 +2702,10 @@
   color:var(--mm-faint);
 }
 
-/* The ordered side gets the accent, and a bar under each value that draws in on
-   reveal — so the reader sees the rubric fill rather than arriving filled. */
-.mimic-site .is-ordered .noise-v{color:var(--mm-on-ink-accent);font-weight:500}
+/* The ordered side reads full-strength white on the ink ground, with a bar under
+   each value that draws in on reveal — so the reader sees the rubric fill rather
+   than arriving filled. */
+.mimic-site .is-ordered .noise-v{color:var(--mm-on-ink);font-weight:500}
 .mimic-site .noise-bar{
   /* The machine cyan, not the accent: at 2px the periwinkle accent read dark
      next to the value it belongs to, and these bars are the model's own marks
@@ -2736,3 +2737,172 @@
    shorter one — so the comparison the whole section rests on started at two
    different heights. */
 .mimic-site .noise{align-items:start}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE FORMAT SHOWCASE — six formats, one at a time.
+
+   Two layouts from one markup, chosen by whether PinnedStage pinned:
+
+   STAGED (`.is-staged`, above 1081px, motion allowed). Panels share one grid
+   cell and only the live one is visible. Movement is HORIZONTAL — the outgoing
+   panel leaves to the left, the incoming one arrives from the right — because
+   the reader is advancing along a set of six, and left-to-right is what that
+   feels like. Depth carries the rest: the parked panels sit back and blur, so
+   the change reads as travel through a stack rather than a slide swap.
+
+   IN FLOW (everything else). The same panels as an ordinary vertical stack. No
+   transform, no blur, nothing hidden. A phone and a reduced-motion visitor get
+   all six formats as readable blocks — the fallback is the content, not a
+   degraded version of the effect.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mimic-site .showcase-in{position:relative;z-index:1}
+.mimic-site .showcase .sec-head{margin-bottom:var(--mm-s-6)}
+
+/* ── In flow: a stack. ───────────────────────────────────────────────────── */
+.mimic-site .showcase-rail{display:grid;gap:var(--mm-s-7)}
+.mimic-site .showcase-panel{
+  display:grid;
+  grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);
+  gap:clamp(1.5rem,4vw,3.5rem);
+  align-items:center;
+}
+@media (max-width:900px){
+  .mimic-site .showcase-panel{grid-template-columns:minmax(0,1fr);gap:var(--mm-s-4)}
+}
+
+/* ── The track: scroll-linked horizontal travel ──────────────────────────────
+   The six panels sit side by side on one track, and the track translates by
+   `--stage-p` — the raw 0‥1 scroll progress PinnedStage publishes every frame.
+   So the movement is continuous and always mid-flight while the reader scrolls,
+   and it stops exactly where they stop. A stepped version was built first, with
+   discrete states and a CSS transition between them, and it read as a slideshow
+   snapping: the transition was only visible for its own 720ms and never under
+   the reader's control.
+
+   Travel is (n − 1) panel widths, from `--n` on the element, so a seventh format
+   needs no change here.
+
+   Applied by media query rather than by a class, and that is load-bearing:
+   PinnedStage decides whether to pin by measuring its content, and a rail that
+   stacks six panels measures six panels tall and can never fit a viewport. As a
+   track it is one panel tall. The breakpoint is PinnedStage's own 1081px, so the
+   layout and the pin decision agree by construction. Below it, and under reduced
+   motion, the rail is the vertical stack defined above. */
+@media (min-width:1081px) and (prefers-reduced-motion:no-preference){
+/* Clip the track to the article width, not to the viewport. The sticky box is
+   full-bleed and already hides overflow, which left a sliver of the previous and
+   next panel showing in the gutters either side at rest — so the section never
+   settled on one thing. Clipped here, exactly one panel is visible when the
+   travel stops, and the neighbours appear only while it is moving. */
+.mimic-site .showcase-in{overflow:hidden}
+.mimic-site .showcase-rail{
+  display:flex;
+  gap:0;
+  width:calc(var(--n) * 100%);
+  transform:translate3d(calc(var(--stage-p, 0) * (1 - var(--n)) * 100% / var(--n)), 0, 0);
+  /* No transition. The scroll IS the timing — a transition here would fight the
+     reader's own hand and add lag to a gesture that should feel direct. */
+  will-change:transform;
+}
+.mimic-site .showcase-rail .showcase-panel{
+  flex:0 0 calc(100% / var(--n));
+  min-width:0;
+  /* A gutter inside each panel, so mid-travel the boundary between two panels
+     reads as two things passing rather than as one confused row of someone
+     else's video beside this one's copy. */
+  padding-inline:clamp(1rem,3vw,3rem);
+  /* The panel not being read recedes very slightly, which is what gives the
+     travel depth instead of reading as a flat slide. Small: at 0.97 it is felt
+     and not seen. */
+  transform:scale(.97);
+  opacity:.5;
+  transition:transform .5s var(--mm-ease), opacity .5s var(--mm-ease);
+}
+.mimic-site .showcase-rail .showcase-panel[data-live]{
+  transform:none;
+  opacity:1;
+}
+}
+
+/* ── The copy column ────────────────────────────────────────────────────── */
+.mimic-site .showcase-copy{min-width:0}
+.mimic-site .showcase-n{
+  display:block;
+  font-family:'Chivo Mono',ui-monospace,monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:var(--mm-t-caption);letter-spacing:.04em;
+  color:var(--mm-on-ink-2);margin-bottom:var(--mm-s-2);
+}
+/* The slash is quieter than the numbers either side of it. */
+.mimic-site .showcase-n i{font-style:normal;opacity:.45;margin:0 .35em}
+.mimic-site .showcase-copy h3{
+  font-size:var(--mm-t-d4);line-height:1.06;letter-spacing:-.032em;
+  color:#fff;margin-bottom:var(--mm-s-2);
+}
+.mimic-site .showcase-copy .tag{color:var(--mm-on-ink-2);margin-bottom:var(--mm-s-3)}
+.mimic-site .showcase-copy p{color:var(--mm-on-ink);max-width:44ch}
+.mimic-site .showcase-copy .meta{margin:var(--mm-s-3) 0 var(--mm-s-5);color:var(--mm-on-ink-2)}
+
+/* ── The stage column ───────────────────────────────────────────────────── */
+.mimic-site .showcase-stage{min-width:0}
+/* A format with no footage says so. A bordered, quiet panel — deliberately not
+   a player-shaped box, because a box that looks like a player and never plays
+   is worse than a sentence. */
+.mimic-site .showcase-nofilm{
+  border:1px dashed var(--mm-on-ink-line);
+  border-radius:var(--mm-r-card);
+  padding:var(--mm-s-5);
+  background:rgb(255 255 255 / .02);
+}
+.mimic-site .showcase-nofilm .lbl{color:var(--mm-on-ink-2);display:block;margin-bottom:var(--mm-s-2)}
+.mimic-site .showcase-nofilm p{color:var(--mm-on-ink-2);font-size:var(--mm-t-callout);max-width:46ch}
+
+/* ── The jump nav ───────────────────────────────────────────────────────── */
+.mimic-site .showcase-nav{
+  display:flex;flex-wrap:wrap;gap:var(--mm-s-1);
+  margin-top:var(--mm-s-6);
+  padding-top:var(--mm-s-4);
+  border-top:1px solid var(--mm-on-ink-line);
+}
+.mimic-site .showcase-nav button{
+  appearance:none;background:none;border:0;cursor:pointer;
+  font-family:inherit;font-size:var(--mm-t-footnote);
+  padding:.4375rem var(--mm-s-2);border-radius:999px;
+  color:var(--mm-on-ink-2);
+  transition:color var(--mm-dur-1) var(--mm-ease),background var(--mm-dur-1) var(--mm-ease);
+}
+.mimic-site .showcase-nav button:hover{color:var(--mm-on-ink)}
+.mimic-site .showcase-nav button:active{color:#fff}
+.mimic-site .showcase-nav button[data-on]{
+  color:var(--mm-ink);background:var(--mm-on-ink);
+}
+.mimic-site .showcase-nav button:focus-visible{outline:2px solid var(--mm-on-ink-accent);outline-offset:2px}
+
+@media (prefers-reduced-motion:reduce){
+  /* PinnedStage does not pin here, so the rail is already a stack. This only
+     removes the transition from anything that still has one. */
+  .mimic-site .showcase-panel{transition:none}
+}
+
+
+/* ── The stage's own ground ───────────────────────────────────────────────
+   PinnedStage renders `<section class="showcase on-dark mm-stage">` — note what
+   is NOT there: `section`. So `.section.on-dark`, which is what gives every
+   other dark band its ink ground, never matched and the stage rendered white
+   with light text on it. The process stage never hit this because it carries its
+   own `.process.on-dark` rule; this is the equivalent, and it is why that rule
+   exists rather than being a duplicate of the shared one. */
+.mimic-site .showcase.on-dark{
+  background:var(--mm-ink);color:var(--mm-on-ink);
+  padding:var(--mm-s-6) 0;
+}
+.mimic-site .showcase.on-dark .wrap{position:relative;z-index:1}
+
+/* The heading band above the stage, and the stage's own accessible name. */
+.mimic-site .section.showcase-head{padding:var(--mm-sec-y) 0 0;background:var(--mm-ink)}
+.mimic-site .section.showcase-head .sec-head{margin-bottom:0}
+.mimic-site .showcase-sr{
+  position:absolute;width:1px;height:1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;margin:0;
+}

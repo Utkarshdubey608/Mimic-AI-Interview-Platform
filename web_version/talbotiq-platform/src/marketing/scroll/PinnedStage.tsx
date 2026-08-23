@@ -84,6 +84,14 @@ export function PinnedStage({
       // the top of the viewport, 1 when its bottom reaches the bottom.
       const travel = r.height - window.innerHeight
       const p = travel > 0 ? clamp01(-r.top / travel) : 0
+      /* Published as a CSS variable as well as a step.
+         A stage that moves CONTINUOUSLY with the scroll — a horizontal track,
+         say — needs the raw progress, not the step index, and it needs it every
+         frame. Writing it to a custom property hands it to any descendant with
+         no React re-render at all, which is the same model the rest of the
+         motion here uses: mutate a value, let the style system apply it. The
+         process stage ignores it. */
+      host.style.setProperty('--stage-p', String(p))
       const next = stepProgress(p, steps).step
       if (next !== stepRef.current) {
         stepRef.current = next
@@ -150,6 +158,7 @@ export function PinnedStage({
         stepRef.current = 0
         setStep(0)
         onStepRef.current(0)
+        hostRef.current?.style.setProperty('--stage-p', '0')
       }
     }
     // Whether the content fits is not something a media query can report: a

@@ -21,7 +21,7 @@
    finish review, the verdict, and DESIGN.md.
    ══════════════════════════════════════════════════════════════════════════ */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 // The application's own API-origin helper. It resolves to exactly the same
 // `/api/web` prefix the standalone site's apiBase() produced, so the lead POST
@@ -34,66 +34,12 @@ import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
 import { InkTrail } from './ink/InkTrail'
-import { LatticeStage } from './ink/LatticeStage'
 import { DemoVideo } from './DemoVideo'
-import { DEMO_COPY, demoPosterSrc, demoVideoSrc, hasDemo } from './demoAssets'
+import { DEMO_COPY, demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { HOME_SEO } from './content'
 import { Ico } from './icons'
+import { ModeShowcase } from './showcase/ModeShowcase'
 
-/* ── Interview formats. Six advertised tracks; the statement card states the
-      rule they obey, so it spans the row rather than repeating the pattern.
-
-      The product also has a one-way `video` track, which the site deliberately
-      does not advertise — it has no nav entry and no platform page, so listing
-      it here sent buyers looking for a page that was never written.
-
-      `mcq` was in that same position until today and is not any more: it has a
-      page now (/platform/assessments), so it is advertised as Assessments, the
-      name the product's own nav uses. The advertised count is pinned by the
-      assertion in demoAssets.test.ts — NOT by scripts/audit-marketing-claims.ts,
-      which this comment used to cite and which does not exist. */
-/* No per-track colour here any more.
-   These five entries used to carry a `bg`/`fg` pair each — teal, indigo, pink,
-   sky and amber — applied as an inline style to the icon chip. That is the same
-   five-hue palette the token file just retired, living a second life in a data
-   array where a grep for `--mm-ex-` could not find it, and it put five
-   saturated chips in a row on the most-read section of the site.
-
-   The chips are neutral now and the glyph does the work: chat, mic, video,
-   users, clock already say which format each card is, and a glyph is
-   information where a hue with no legend is decoration. The one colour event
-   per card is the accent arriving under the pointer. */
-const TRACKS = [
-  { name: 'Conversational chat', tag: 'Async', icon: 'chat' as const, track: 'chatbot' as const,
-    desc: 'A text interview candidates finish on a phone in minutes. Best for hourly and high volume roles.',
-    meta: ['No scheduling', 'Mobile first'] },
-  { name: 'Voice screening', tag: 'Async', icon: 'mic' as const, track: 'voice' as const,
-    desc: 'A spoken conversation with an AI interviewer. Answers are transcribed, then scored on content and delivery together.',
-    meta: ['Live transcript', 'Interruptible'] },
-  { name: 'AI video avatar', tag: 'Async', icon: 'video' as const, track: 'video_avatar' as const,
-    desc: 'A configured presenter asks each question on camera, reacts to the answer, and follows up when one is thin.',
-    meta: ['Personas', 'Replicas'] },
-  { name: 'Live two-way call', tag: 'Live', icon: 'users' as const, track: 'two_way' as const,
-    desc: 'Your interviewer leads a real video call. Mimic records it with consent, transcribes it and scores the same rubric.',
-    meta: ['Host room', 'Star rating'] },
-  { name: 'Timed Q&A', tag: 'Async', icon: 'clock' as const, track: 'chat' as const,
-    desc: 'Preparation and answer timers on every question, identical for every candidate. For work that happens under a clock.',
-    meta: ['Timer on every question', 'Integrity checks'] },
-  /* `calc` rather than a clipboard glyph: icons.tsx has no clipboard, and
-     arithmetic is the honest metaphor for a paper that is marked rather than
-     judged. Do not invent an icon key — Ico renders nothing for an unknown one
-     and the card would ship with an empty chip. */
-  { name: 'Assessments', tag: 'Async', icon: 'calc' as const, track: 'mcq' as const,
-    desc: 'A timed multiple-choice paper, marked the moment it is submitted. For knowledge you can check rather than discuss.',
-    meta: ['Marked on submission', 'Server-side timing'] },
-]
-
-/* Five cards do not divide into the 3-column grid, so the last one widens to
-   close the row instead of leaving a hole above the statement card. Derived
-   from the count rather than hard-coded, so adding or removing a track keeps
-   the grid whole: a trailing remainder of 2 widens the last card, a remainder
-   of 1 leaves it alone (a lone card on its own row reads as intentional). */
-const WIDEN_LAST = TRACKS.length % 3 === 2
 
 /* ── The five steps of the real workflow, with the actual route each lives on. */
 const STEPS = [
@@ -242,84 +188,10 @@ const FAQS = [
 type FormState = { firstName: string; lastName: string; email: string; hiresPerYear: string }
 const EMPTY: FormState = { firstName: '', lastName: '', email: '', hiresPerYear: '' }
 
-/**
- * A format card that plays that format's own recording while it is hovered.
- *
- * Four things this has to get right:
- *
- *  · Lazy. The source attaches on the FIRST hover, never on load — five videos
- *    pulled eagerly would undo the payload work the rest of this page does.
- *  · Pointer only. A touch device has no hover, and a card that starts playing
- *    on the same tap that navigates is a bug, not a flourish.
- *  · Reduced motion gets nothing moving at all, matching DemoVideo.
- *  · The <article> stays the same element in the same position, because
- *    mimicSite.css seats each card's colour by :nth-of-type. The video layer
- *    goes INSIDE it rather than wrapping it.
- *
- * The video is aria-hidden: it carries no information the card's own heading
- * and copy do not already give in text, and announcing an unlabelled decorative
- * video on focus would be noise.
- */
-function TrackCard({ t, wide }: { t: (typeof TRACKS)[number]; wide: boolean }) {
-  const [seen, setSeen] = useState(false)   // source attached
-  const [on, setOn] = useState(false)       // playing
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-
-  const canPlay = () =>
-    hasDemo(t.track) &&                       // no footage for this format yet
-    typeof window !== 'undefined' &&
-    window.matchMedia('(hover: hover)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-  const enter = () => {
-    if (!canPlay()) return
-    setSeen(true)
-    setOn(true)
-    void videoRef.current?.play().catch(() => { /* autoplay refused; the copy stays */ })
-  }
-  const leave = () => {
-    setOn(false)
-    videoRef.current?.pause()
-  }
-
-  return (
-    <article
-      className={`track${wide ? ' wide' : ''}${on ? ' is-playing' : ''}`}
-      onMouseEnter={enter}
-      onMouseLeave={leave}
-      onFocus={enter}
-      onBlur={leave}
-      tabIndex={0}
-    >
-      <div className="top">
-        <span className="ic"><Ico n={t.icon} /></span>
-        <span className="tag">{t.tag}</span>
-      </div>
-      <h3>{t.name}</h3>
-      <p>{t.desc}</p>
-      <div className="meta">{t.meta.map((m) => <span key={m}>{m}</span>)}</div>
-      {seen && (
-        <video
-          ref={videoRef}
-          className="track-vid"
-          src={demoVideoSrc(t.track)}
-          poster={demoPosterSrc(t.track)}
-          muted
-          loop
-          playsInline
-          preload="none"
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-      )}
-    </article>
-  )
-}
 
 export default function MimicSite() {
   // Drives the scoring sequence on the rubric card once it reaches the viewport.
   const [scoreRef, scored] = useInView<HTMLDivElement>(0.3)
-  const problemRef = useRef<HTMLElement | null>(null)
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormState>(EMPTY)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, boolean>>>({})
@@ -528,15 +400,11 @@ export default function MimicSite() {
             footer); this is now one of them. It is also the only way the field
             and the ink below can exist at all: cyan light needs a dark ground.
 
-            Three layers, all enhancements, all absent without WebGL:
+            Two layers, all enhancements, all absent without WebGL:
               Field         the site's own ambient ink light
-              LatticeStage  the argument as a field — a 3D lattice that is
-                            scattered on the left and ranked on the right, and
-                            that resolves as the reader scrolls into it
               InkTrail      the same advected dye the hero uses */}
-        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h" ref={problemRef}>
+        <section className="section problem on-dark" id="problem" aria-labelledby="problem-h">
           <Field seed={17} />
-          <LatticeStage hostRef={problemRef} />
           <InkTrail />
           <div className="wrap">
             <div className="sec-head">
@@ -702,75 +570,8 @@ export default function MimicSite() {
         </section>
 
         {/* ── FORMATS ── */}
-        <section className="section tinted" id="platform" aria-labelledby="tr-h">
-          <div className="wrap">
-            <div className="sec-head">
-              <span className="eyebrow">Interview formats</span>
-              <h2 className="h2" id="tr-h">Six ways to meet a candidate.</h2>
-              <p className="lede">
-                Pick the format that fits the role. Every one of them reads the candidate’s resume
-                first and scores against the same rubric, so results compare directly across formats.
-              </p>
-            </div>
-            <div className="tracks">
-              {TRACKS.map((t, i) => (
-                <TrackCard key={t.name} t={t} wide={WIDEN_LAST && i === TRACKS.length - 1} />
-              ))}
-              <article className="track statement">
-                <div>
-                  <h3>Adapted to the resume, on every track</h3>
-                  <p>
-                    Each interview reads the candidate’s own resume before it starts and rewrites its
-                    follow-ups around what that resume actually claims, then scores the result on the
-                    same rubric as everyone else applying for the role.
-                  </p>
-                </div>
-                <div className="meta">
-                  <span>Tailored to each candidate</span>
-                  <span>One rubric</span>
-                </div>
-              </article>
-            </div>
+        <ModeShowcase />
 
-            {/* The single combined reel (candidate.webm) that stood here is
-                superseded: each card above now plays its OWN format on hover,
-                so a buyer who wants to see voice screening no longer has to sit
-                through the avatar format first. The file is left on disk rather
-                than deleted, so this is reversible without a re-record. */}
-          </div>
-        </section>
-
-        {/* ── PROCESS ──
-            Scroll-driven above 1081px: the section pins and each screen of
-            scrolling advances one step, so the audit trail is read in the order
-            it happens rather than clicked through. The tablist is unchanged and
-            still keyboard-operable — a tab click calls goToStep, which scrolls,
-            and the scroll position is what selects the step. One source of
-            truth, so a click and a scroll cannot disagree.
-
-            Under reduced motion and below 1081px nothing pins and the buttons
-            behave exactly as they did before. */}
-        {/* `on-dark` turns this into a full-bleed ink field, and it is the page's
-            structural turn: paper → ink → paper → ink, an act structure rather
-            than a stack of bands. Every child colour rule the modifier needs
-            already existed in mimicSite.css, and this section's own label was
-            already written `eyebrow on-dark` — it was built for this and never
-            switched on.
-
-            It earns the ink rather than borrowing it: this is the audit trail,
-            and the audit trail is the cover of the bundle, not a page inside it.
-
-            Deliberately NOT also `section`. That class carries vertical padding,
-            and padding inside a pinned host shortens the distance the sticky box
-            actually travels without shortening the travel PinnedStage computes
-            from the host's own height — so the fifth step would be "reached"
-            after the stage had already scrolled away. The ink ground and the
-            unpinned section rhythm are supplied directly instead; see the
-            `.process.on-dark` block in mimicSite.css.
-
-            The ambient field goes through `backdrop`, not `children` — the note
-            on that prop explains why the difference decides whether this section
-            can pin at all. */}
         <PinnedStage
           steps={STEPS.length} onStep={setStep} id="process"
           className="process on-dark" labelledBy="pr-h"
