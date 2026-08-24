@@ -118,35 +118,132 @@ const shade = (hex: string, ground: 'record' | 'room'): string =>
   `color-mix(in srgb, ${hex} 88%, ${ground === 'record' ? 'black' : 'white'})`
 
 /**
+ * The pale wash of a scheme colour — a selected row, a chosen card, a soft chip.
+ *
+ * Mixed toward the ground's own surface, not toward white, or the room's washes
+ * would come out pale and glaring against a dark panel. The strengths differ for
+ * the same reason the tint strengths differ in tokens.css: a pastel through white
+ * shows at 18%, while through #101724 it needs 26% before it reads as anything at
+ * all.
+ */
+const wash = (hex: string, ground: 'record' | 'room'): string =>
+  ground === 'record'
+    ? `color-mix(in srgb, ${hex} 18%, #FFFFFF)`
+    : `color-mix(in srgb, ${hex} 26%, #101724)`
+
+/**
  * The CSS custom properties a chosen pair writes, for one ground.
  *
- * Deliberately eight properties and not more. `--action` and its two companions are
- * the primary action wherever it appears — the button, the selected tab, the
- * featured card — and `--accent` and its two are the rail, the link and the chart
- * series. Everything else in the palette is ground and ink, which a colour scheme
- * has no business touching: a workspace picking Peach is choosing an accent, not
- * asking for peach body text.
+ * This used to be eight properties, with a note saying "deliberately eight and not
+ * more" — the action, the accent, and their companions. That was too little, and
+ * the reason is worth keeping: the eight are all INTERACTIVE. Everything a reader
+ * actually looks at is the ground behind the cards, a table header, the row under
+ * the cursor, a hairline — and every one of those was a fixed cool neutral. So
+ * picking Peach repainted a button and a tick, and left the rest of the screen
+ * exactly as it was. Reported as the palette being "only there for name sake", and
+ * that was a fair description of eight properties on a page made of a hundred.
+ *
+ * Three things are added, and the first is the one that does the work.
+ *
+ *  · `--tint` is the chosen primary, handed to tokens.css, which decides which
+ *    neutrals take the hue and how strongly. One property here, the whole design
+ *    decision there, next to the values being tinted. `transparent` for the
+ *    default scheme, which collapses every mix in that file to its base literal —
+ *    so a workspace that has never picked a colour renders the bytes it did
+ *    before. Ink is never tinted; see the long note in tokens.css.
+ *
+ *  · `--accent-soft` was CONSUMED but never WRITTEN. tokens.css aliases it to the
+ *    registrar blue's soft tone and Tailwind exposes it as `signal-soft`, so a
+ *    workspace on Peach got peach rails and pale BLUE washes behind them. It is
+ *    written per scheme now.
+ *
+ *  · `--action-soft` is new: the same pale wash for the primary. It is what a
+ *    selected row, a chosen card and a subtle chip want, and its absence is why
+ *    those reached for the fixed `primary-50` literal instead.
+ *
+ * What is still refused: ink, `--surface`, and the semantic colours. A Mint
+ * palette must not turn an error message green, so ok/warn/risk are untouched —
+ * they carry meaning, not taste.
  */
 export function schemeVars(
   primary: Scheme,
   secondary: Scheme,
   ground: 'record' | 'room',
 ): Record<string, string> {
-  return {
-    '--action': primary.fill[ground],
-    '--action-hover': shade(primary.fill[ground], ground),
-    '--on-action': primary.on[ground],
+  const out: Record<string, string> = {}
+
+  /* THE DEFAULT EMITS NOTHING FOR ITS ROLE, and that is the mechanism rather than
+     an optimisation.
+
+     `slate` means "the values tokens.css already ships". Writing them out here
+     instead would mean two files holding the same literals, and they had already
+     drifted: this function wrote `--accent: secondary.fill[ground]`, and slate's
+     fill is INK — so choosing Default for the secondary role set the accent to
+     #0E1420 when tokens.css says #1D3FA0, and this file's own header says slate is
+     "ink for the action, registrar blue for the accent". The documentation was
+     right and the code was wrong, quietly, for every workspace that never picked a
+     colour. It surfaced when the focus ring was pointed at `--accent`: default
+     focus rings went from registrar blue to ink.
+
+     Omitting the property cannot drift. `apply()` rewrites the whole stylesheet on
+     every change, so an omitted key is REMOVED and the tokens.css declaration
+     underneath simply applies again — no literal to keep in step, and no cycle
+     from declaring `--accent: var(--accent)`.
+
+     Per ROLE, not per call: primary Default with secondary Peach has to leave the
+     action alone and still write the accent. */
+  if (primary.key !== 'slate') {
+    out['--action'] = primary.fill[ground]
+    out['--action-hover'] = shade(primary.fill[ground], ground)
+    out['--on-action'] = primary.on[ground]
     /* The control's EDGE, and it is not decoration. A pastel fill cannot reach
        3:1 against a white page — peach on white is 1.57:1, which is arithmetic,
        not a badly chosen peach — and WCAG 1.4.11 asks for the boundary of a
        control to be discernible, not its fill. So the boundary is drawn, in the
-       deep tone of the same hue, and gated at 3:1 in schemes.test.ts. For the
-       default scheme this equals the fill, so the border is there and invisible
-       and nothing about the current design changes. */
-    '--action-edge': primary.key === 'slate' ? primary.fill[ground] : primary.text[ground],
-    '--accent': secondary.fill[ground],
-    '--accent-hover': shade(secondary.fill[ground], ground),
-    '--accent-ink': secondary.text[ground],
-    '--accent-edge': secondary.key === 'slate' ? secondary.fill[ground] : secondary.text[ground],
+       deep tone of the same hue, and gated at 3:1 in schemes.test.ts. */
+    out['--action-edge'] = primary.text[ground]
+    /* The pale wash behind a selected row, a chosen card, a soft chip. Its absence
+       is why those reached for the fixed `primary-50` literal, which no palette
+       could ever reach. Gated against body text in schemes.test.ts, because a
+       selected row carries a label. */
+    out['--action-soft'] = wash(primary.fill[ground], ground)
   }
+
+  if (secondary.key !== 'slate') {
+    out['--accent'] = secondary.fill[ground]
+    out['--accent-hover'] = shade(secondary.fill[ground], ground)
+    out['--accent-ink'] = secondary.text[ground]
+    out['--accent-edge'] = secondary.text[ground]
+    /* `--accent-soft` was CONSUMED and never WRITTEN: tokens.css aliases it to the
+       registrar blue's soft tone and Tailwind exposes it as `signal-soft`, so a
+       workspace on Peach got peach rails with pale BLUE washes behind them. */
+    out['--accent-soft'] = wash(secondary.fill[ground], ground)
+  }
+
+  /* Handed to tokens.css, which owns WHAT gets tinted and by how much. One
+     property here, the whole design decision there, next to the values being
+     tinted. Always written, including as `transparent`, so the stylesheet states
+     the default rather than relying on the reader to know that an absent tint and
+     no tint are the same thing. */
+  /* The SCALAR, and it is what actually switches tinting on. See the note in
+     tokens.css: `transparent` at a non-zero percentage returns the base colour at
+     a reduced ALPHA, not the base colour — so the default has to multiply the
+     percentage by zero rather than rely on a transparent tint being a no-op.
+     Emitted only when a colour is chosen; omitted, tokens.css's own 0 applies. */
+  if (primary.key !== 'slate') out['--tint-k'] = '1'
+
+  out['--tint'] = primary.key === 'slate'
+    ? 'transparent'
+    : ground === 'record'
+      ? primary.fill[ground]
+      /* DARKENED for the room, and this is the difference between a tinted room
+         and an unreadable one. Every scheme here is a LIGHT pastel, so mixing one
+         straight into a near-black ground raises that ground's luminance while the
+         room's text stays light: measured, an 18% peach through `--surface-hover`
+         took the quietest text from 4.1:1 to 2.85:1. Taking the hue 45% toward
+         black first keeps the ground dark and still colours it, which moved the
+         safe strength from 8% to 27% with the same hue on screen. */
+      : `color-mix(in srgb, ${primary.fill[ground]} 45%, black)`
+
+  return out
 }

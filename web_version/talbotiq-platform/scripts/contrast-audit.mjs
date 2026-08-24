@@ -42,6 +42,25 @@ const room = { ...root, ...vars(block("[data-ground='room']")) }
 /** Resolve `var(--x)` chains down to a literal hex. */
 function resolve(value, scope, depth = 0) {
   if (depth > 8) throw new Error(`var() cycle at ${value}`)
+
+  /* THE TINT, resolved to what this audit is actually auditing.
+     Several neutrals are now authored as
+       color-mix(in srgb, var(--tint) calc(N% * var(--tint-k)), #BASE)
+     so a chosen colour scheme can reach the ground, the cards and the hairlines.
+     This audit reads the STYLESHEET, which is the product before anybody has
+     chosen anything — and there `--tint-k` is 0, so every one of those mixes
+     resolves to exactly #BASE at full opacity. Returning the base is therefore not
+     a simplification; it is the correct static value, and it keeps this file
+     measuring the pairs it has always measured.
+
+     The tinted variants are gated where a runtime choice can be seen at all:
+     src/design/schemes.test.ts recomputes every one of these surfaces for all
+     seven schemes on both grounds, and parses the strengths out of tokens.css so
+     the two cannot drift. */
+  const tinted = /^color-mix\(in srgb, var\(--tint\) calc\(\d+% \* var\(--tint-k\)\), (#[0-9A-Fa-f]{6})\)$/
+    .exec(value.trim())
+  if (tinted) return tinted[1]
+
   const m = /^var\((--[\w-]+)\)$/.exec(value.trim())
   if (!m) return value.trim()
   const next = scope[m[1]]
@@ -170,6 +189,37 @@ const ALIAS = { intel: '--intel-fg', live: '--live-fg', ai: '--ai-fg' }
 const kebab = (s) => ALIAS[s] ?? '--' + s.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase())
 
 const drift = []
+
+/* Keys tokens.ts holds as `var()` REFERENCES rather than literals, so a chart can
+   follow the chosen colour scheme and the page's tint. They cannot be compared by
+   value — that is the point of them — so they are checked differently: each must
+   still be a reference, and the property it names must really be declared on that
+   ground. A hex put back here, or a renamed property, fails below. See the note at
+   the top of src/design/tokens.ts. */
+const MUST_REFERENCE = {
+  ground: '--ground', groundSunk: '--ground-sunk', surface: '--surface',
+  surfaceRaised: '--surface-raised', surfaceSunk: '--surface-sunk',
+  rule: '--rule', ruleStrong: '--rule-strong',
+  action: '--action', accent: '--accent', accentSoft: '--accent-soft',
+}
+for (const [name, scope] of [['record', record], ['room', room]]) {
+  const block = tsBlock(name)
+  for (const [key, wanted] of Object.entries(MUST_REFERENCE)) {
+    /* A plain string search, not a regex. The declaration is one key per line at a
+       fixed indent, so `\n  key: '` locates it exactly — and it cannot be defeated
+       by an escape that does not survive being written into this file, which is
+       how the first version of this check came to report every key as missing. */
+    const at = block.indexOf(`\n  ${key}: '`)
+    if (at === -1) { drift.push(`${name}.${key} is missing from tokens.ts`); continue }
+    const found = block.slice(at + `\n  ${key}: '`.length, block.indexOf(`'`, at + `\n  ${key}: '`.length))
+    if (found !== `var(${wanted})`) {
+      drift.push(`${name}.${key} must follow the stylesheet: expected var(${wanted}), found ${found}`)
+      continue
+    }
+    if (!scope[wanted]) drift.push(`${name}.${key} references ${wanted}, which tokens.css does not declare`)
+  }
+}
+
 for (const [name, scope] of [['record', record], ['room', room]]) {
   for (const [key, hex] of Object.entries(tsEntries(name))) {
     const cssVar = kebab(key)

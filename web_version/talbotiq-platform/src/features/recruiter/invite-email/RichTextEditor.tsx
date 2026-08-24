@@ -34,7 +34,7 @@ export function RichTextEditor({
           '[&_h2]:mt-4 [&_h2]:mb-1.5 [&_h2]:text-base [&_h2]:font-bold [&_h2]:tracking-[-0.02em] [&_h2]:text-neutral-900',
           '[&_h3]:mt-3 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-neutral-900',
           '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5',
-          '[&_a]:font-medium [&_a]:text-primary-700 [&_a]:underline [&_a]:underline-offset-2',
+          '[&_a]:font-medium [&_a]:text-action-edge [&_a]:underline [&_a]:underline-offset-2',
           '[&_strong]:font-semibold [&_strong]:text-neutral-900',
         ].join(' '),
       },

@@ -175,16 +175,16 @@ function FaceRow({
       className={cn(
         'w-full flex items-center gap-3 rounded-xl border px-2 py-2 text-left',
         'transition-colors duration-150 focus-visible:outline-none',
-        'focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
+        'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
         selected
-          ? 'border-primary-700 bg-primary-50'
-          : 'border-transparent hover:border-primary-200 hover:bg-neutral-50',
+          ? 'border-action-edge bg-action-soft'
+          : 'border-transparent hover:border-rule-strong hover:bg-neutral-50',
       )}
     >
       <span
         className={cn(
           'relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-lg border bg-neutral-100',
-          selected ? 'border-primary-300' : 'border-border',
+          selected ? 'border-action-edge' : 'border-border',
         )}
       >
         <FaceMedia replica={replica} play={play} token={token} />
@@ -192,7 +192,7 @@ function FaceRow({
 
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className={cn('truncate text-sm font-semibold leading-tight', selected ? 'text-primary-800' : 'text-neutral-800')}>
+          <span className={cn('truncate text-sm font-semibold leading-tight', selected ? 'text-action-edge' : 'text-neutral-800')}>
             {replica.replica_name}
           </span>
           {showStatus ? (
@@ -210,7 +210,7 @@ function FaceRow({
         aria-hidden="true"
         className={cn(
           'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150',
-          selected ? 'bg-primary-700 text-white' : 'bg-transparent text-transparent',
+          selected ? 'bg-action text-action-ink' : 'bg-transparent text-transparent',
         )}
       >
         <Check size={12} strokeWidth={3} />
@@ -323,8 +323,8 @@ export function ReplicaPicker({
           aria-expanded={open}
           className={cn(
             'w-full flex items-center gap-3 text-left rounded-xl border-[1.5px] bg-white px-2.5 py-1.5 min-h-[48px] cursor-pointer',
-            'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary-700/15',
-            open ? 'border-primary-700' : 'border-neutral-300 hover:border-primary-300',
+            'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/15',
+            open ? 'border-action-edge' : 'border-neutral-300 hover:border-action-edge',
           )}
         >
           <span className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-lg border border-border bg-neutral-100">
@@ -380,7 +380,7 @@ export function ReplicaPicker({
                 </div>
               ) : custom.length + stock.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-primary-100 bg-primary-50 text-primary-700">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full border border-rule bg-action-soft text-action-edge">
                     <ScanFace size={20} strokeWidth={1.75} aria-hidden="true" />
                   </span>
                   <div>
@@ -401,23 +401,23 @@ export function ReplicaPicker({
                       className={cn(
                         'w-full flex items-center gap-3 rounded-xl border px-2 py-2 text-left',
                         'transition-colors duration-150 focus-visible:outline-none',
-                        'focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-1',
+                        'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
                         !value
-                          ? 'border-primary-700 bg-primary-50'
-                          : 'border-transparent hover:border-primary-200 hover:bg-neutral-50',
+                          ? 'border-action-edge bg-action-soft'
+                          : 'border-transparent hover:border-rule-strong hover:bg-neutral-50',
                       )}
                     >
                       <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-neutral-50 text-neutral-400">
                         <Ban size={17} strokeWidth={1.75} aria-hidden="true" />
                       </span>
-                      <span className={cn('min-w-0 flex-1 truncate text-sm font-semibold', !value ? 'text-primary-800' : 'text-neutral-700')}>
+                      <span className={cn('min-w-0 flex-1 truncate text-sm font-semibold', !value ? 'text-action-edge' : 'text-neutral-700')}>
                         {noneLabel}
                       </span>
                       <span
                         aria-hidden="true"
                         className={cn(
                           'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150',
-                          !value ? 'bg-primary-700 text-white' : 'bg-transparent text-transparent',
+                          !value ? 'bg-action text-action-ink' : 'bg-transparent text-transparent',
                         )}
                       >
                         <Check size={12} strokeWidth={3} />

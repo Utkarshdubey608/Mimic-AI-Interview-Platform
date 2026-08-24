@@ -212,7 +212,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-muted">{joinError}</p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           style={{ background: accent }}
         >
           <RefreshCw size={15} /> Try joining again
@@ -237,7 +237,7 @@ export function TwoWayStage({ sessionId, branding }: Props) {
         </p>
         <button
           onClick={() => setAttempt((a) => a + 1)}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-700 focus-visible:ring-offset-2"
+          className="mt-6 inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           style={{ background: accent }}
         >
           <RefreshCw size={15} /> Reconnect

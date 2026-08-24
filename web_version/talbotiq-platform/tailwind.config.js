@@ -66,6 +66,12 @@ export default {
              reach 3:1 against a white page and WCAG 1.4.11 asks for the
              boundary, not the fill. Gated in src/design/schemes.test.ts. */
           edge: 'var(--action-edge, var(--action))',
+          /* The pale wash of the action — a selected row, a chosen card, a soft
+             chip. Written per scheme by src/design/schemes.ts, and gated there
+             against `--ink` so the text a selected row carries stays readable.
+             Its absence is why those surfaces reached for the fixed `primary-50`
+             literal, which no palette could ever reach. */
+          soft: 'var(--action-soft, var(--surface-hover))',
         },
 
         /* Registrar blue. Links, the focus ring, the progress rail. Never a
@@ -75,6 +81,10 @@ export default {
           hover: 'var(--accent-hover)',
           soft: 'var(--accent-soft)',
           ink: 'var(--accent-ink)',
+          /* The accent's own boundary, for the same WCAG 1.4.11 reason as
+             `action.edge`. It was written by schemeVars from the start and
+             exposed nowhere, so nothing could consume it. */
+          edge: 'var(--accent-edge, var(--accent))',
         },
         /* Machine output. Deliberately neutral: the marketing site has no
            violet, so AI provenance is carried by a glyph and a word instead of
@@ -243,7 +253,14 @@ export default {
 
       backgroundImage: {
         'brand-field': 'linear-gradient(168deg,#0B0F18 0%,#131A27 58%,#1B2842 100%)',
-        'brand-band':  'linear-gradient(90deg,#0E1420 0%,#1D3FA0 55%,#3D5CB4 100%)',
+        /* Follows the palette. It was three literals — ink to registrar blue — so the
+           one gradient on the sign-in screen stayed blue under every scheme, a 2px
+           advertisement that the palette stopped at the card's edge. The third stop is
+           mixed at 86% rather than declared: that is the percentage which reproduces
+           the old #3D5CB4 from the default accent to within six values on one
+           channel, so the default screen is unchanged and every other scheme now
+           gets its own band. */
+        'brand-band':  'linear-gradient(90deg,var(--action) 0%,var(--accent) 55%,color-mix(in srgb,var(--accent) 86%,white) 100%)',
         'rule-gutter': 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--rule) 27px,var(--rule) 28px)',
       },
 

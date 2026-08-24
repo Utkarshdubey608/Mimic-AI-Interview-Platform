@@ -218,17 +218,81 @@
    Cool paper under daylight. Never warm, never lavender. Applied at :root so it
    is the default for every surface that does not opt into the room.
    ═══════════════════════════════════════════════════════════════════════════ */
+/* ───────────────────────────────────────────────────────────────────────────
+   THE TINT — how a chosen colour scheme reaches the whole product
+
+   A scheme used to write eight custom properties: the action, the accent, and
+   their companions. Every one of those is INTERACTIVE. Everything a reader
+   actually looks at — the desk behind the cards, the card itself, a table
+   header, the row under the cursor, every hairline — was a fixed cool neutral.
+   So picking Peach repainted a button and a tick and left the rest of the screen
+   exactly as it was. Reported as the palette being "only there for name sake",
+   which was a fair description of eight properties on a page made of a hundred.
+
+   So the neutrals take the hue too, and they take it HERE rather than in the
+   scheme: `--tint` and the per-token strengths below are the whole mechanism. A
+   scheme hands over one colour; this file decides what is tinted and by how
+   much. The design decision lives with the values being tinted, and a new scheme
+   cannot accidentally repaint something it was never meant to reach.
+
+   WHAT IS TINTED
+     fully     the ground and its wells, the sunk and hover surfaces, hairlines —
+               everything whose job is to sit behind content
+     lightly   `--surface` and `--surface-raised`, the cards. Held pure at first,
+               on the argument that content should sit on a neutral sheet. On a
+               product that is mostly card that argument leaves the palette
+               invisible exactly where the reader is looking, so they take a
+               single-digit tint instead.
+     never     ink. Body text does not change colour because somebody liked
+               Peach, and no amount of "strictly across the product" makes peach
+               body text a good idea.
+     never     ok / warn / risk. Those carry meaning rather than taste: a Mint
+               palette must not turn an error message green.
+
+   HOW THE STRENGTHS WERE CHOSEN — measured, not tasted. Each one is the largest
+   value that keeps the QUIETEST permissible text at or above 4.5:1 against that
+   surface for all six schemes, with headroom left over. They differ per token
+   because the headroom does: `--ground-sunk` on paper starts at 4.43:1 against
+   that text and can only take 3%, while `--surface-sunk` starts at 5.11:1 and
+   could take 18. src/design/schemes.test.ts recomputes every one of these pairs
+   per scheme, per ground, so a strength edited here fails there rather than
+   quietly costing contrast.
+
+   The room's strengths are larger, and its tint arrives pre-darkened from
+   schemeVars, because every scheme here is a light pastel: mixed straight into a
+   near-black ground it raises that ground's luminance while the room's text stays
+   light. See the note on `--tint` in src/design/schemes.ts.
+
+   `color-mix(in srgb, transparent 0%, X)` is exactly X, which is what makes all
+   of this safe: the second argument is always the value the token had when it was
+   a literal, so nothing here depends on the scheme layer having loaded, and the
+   default scheme — which sets `--tint: transparent` — renders the bytes this file
+   rendered before any of it existed.
+   ─────────────────────────────────────────────────────────────────────────── */
 :root,
 [data-ground='record'] {
-  --ground: #EEF0F4;        /* the desk the bundle sits on */
-  --ground-sunk: #E6E9F0;   /* wells, table headers, inset regions */
-  --surface: #FFFFFF;       /* the record page */
-  --surface-raised: #FFFFFF;
-  --surface-sunk: #F8F9FB;
-  --surface-hover: #F1F3F7;
+  /* No tint until a scheme writes one.
+     TWO properties, and the scalar is the load-bearing one. `--tint: transparent`
+     alone does NOT collapse a mix to its base: `transparent` is rgba(0,0,0,0), so
+     `color-mix(in srgb, transparent 16%, #E3E6ED)` returns #E3E6ED at alpha 0.84 —
+     measured, every tinted token came out 16% translucent for workspaces that had
+     chosen nothing, which is the one thing this was not allowed to do. Multiplying
+     the percentage by 0 gives `0%`, and `color-mix(in srgb, X 0%, base)` is base,
+     opaque. A chosen scheme sets the scalar to 1. */
+  --tint: transparent;
+  --tint-k: 0;
 
-  --rule: #E3E6ED;          /* hairline */
-  --rule-strong: #CBD1DC;   /* a rule meant to be noticed — STRUCTURAL, not a
+  --ground: color-mix(in srgb, var(--tint) calc(7% * var(--tint-k)), #EEF0F4);       /* the desk the bundle sits on */
+  --ground-sunk: color-mix(in srgb, var(--tint) calc(3% * var(--tint-k)), #E6E9F0); /* wells, table headers, inset regions */
+  /* 5%. The arithmetic limit is 25%; this is a warm white rather than a colour,
+     which is what a card wants. */
+  --surface: color-mix(in srgb, var(--tint) calc(5% * var(--tint-k)), #FFFFFF);       /* the record page */
+  --surface-raised: color-mix(in srgb, var(--tint) calc(5% * var(--tint-k)), #FFFFFF);
+  --surface-sunk: color-mix(in srgb, var(--tint) calc(12% * var(--tint-k)), #F8F9FB);
+  --surface-hover: color-mix(in srgb, var(--tint) calc(14% * var(--tint-k)), #F1F3F7);
+
+  --rule: color-mix(in srgb, var(--tint) calc(16% * var(--tint-k)), #E3E6ED);        /* hairline */
+  --rule-strong: color-mix(in srgb, var(--tint) calc(16% * var(--tint-k)), #CBD1DC);   /* a rule meant to be noticed — STRUCTURAL, not a
                                perceivable-boundary token. A divider is not a UI
                                component under WCAG 1.4.11, so it is deliberately
                                below 3:1; --rule-input is the one that must be
@@ -286,7 +350,12 @@
   --elev-accent-strong: 0 6px 16px -6px rgb(14 20 32 / 0.34);
 
   --scrim: rgb(14 20 32 / 0.45);
-  --focus-ring: var(--signal);
+  /* The focus ring follows the chosen ACCENT. It used to read `var(--signal)`,
+     the fixed registrar blue, so a workspace on Peach kept blue focus rings on
+     peach controls — one of the three places the palette visibly stopped. For the
+     default scheme `--accent` resolves to `--signal`, so this changes nothing
+     until somebody picks a colour. */
+  --focus-ring: var(--accent);
 
   color-scheme: light;
 }
@@ -303,15 +372,29 @@
    the same declaration as a full-screen candidate interview.
    ═══════════════════════════════════════════════════════════════════════════ */
 [data-ground='room'] {
-  --ground: #080C14;         /* the room — deepened so lit panels carry more depth */
-  --ground-sunk: #04060B;    /* the void behind a video canvas */
-  --surface: #101724;        /* a lit panel */
-  --surface-raised: #182132; /* a panel above a panel */
-  --surface-sunk: #0C121D;
-  --surface-hover: #1D2737;
+  /* The tint again, and it has to be stronger here than on paper. A pastel
+     through a near-black ground is almost nothing at single digits — the same 9%
+     that clearly warms #EEF0F4 is invisible against #080C14, because the mix is
+     dominated by the dark base. These are the strengths at which the room reads
+     as the chosen colour without any panel drifting toward the pastel itself.
+     `--surface` and `--surface-raised` stay untinted here for the same reason as
+     on paper: a lit panel is where content lives. */
+  --tint: transparent;
+  --tint-k: 0;
 
-  --rule: #232D3F;
-  --rule-strong: #33415A;    /* structural, see the record ground note above */
+  --ground: color-mix(in srgb, var(--tint) calc(20% * var(--tint-k)), #080C14);      /* the room — deepened so lit panels carry more depth */
+  --ground-sunk: color-mix(in srgb, var(--tint) calc(20% * var(--tint-k)), #04060B); /* the void behind a video canvas */
+  /* Two different strengths, measured rather than overlooked: `--surface-raised`
+     starts at 4.62:1 against the quietest text and runs out at 3%, while
+     `--surface` starts at 5.14:1 and holds to 16%. Elevation still reads — what
+     separates these two is lightness, and the tint does not disturb that order. */
+  --surface: color-mix(in srgb, var(--tint) calc(8% * var(--tint-k)), #101724);        /* a lit panel */
+  --surface-raised: color-mix(in srgb, var(--tint) calc(3% * var(--tint-k)), #182132); /* a panel above a panel */
+  --surface-sunk: color-mix(in srgb, var(--tint) calc(16% * var(--tint-k)), #0C121D);
+  --surface-hover: color-mix(in srgb, var(--tint) calc(26% * var(--tint-k)), #1D2737);
+
+  --rule: color-mix(in srgb, var(--tint) calc(30% * var(--tint-k)), #232D3F);
+  --rule-strong: color-mix(in srgb, var(--tint) calc(30% * var(--tint-k)), #33415A);    /* structural, see the record ground note above */
   --rule-input: #5D6E8A;    /* 3.37:1 on --surface, 3.71:1 on --ground */
 
   --ink: #EDF1F8;            /* headings                   — 15.39:1 worst case */
@@ -362,7 +445,11 @@
   --elev-accent-strong: 0 6px 18px -6px rgb(0 0 0 / 0.65);
 
   --scrim: rgb(4 6 11 / 0.72);
-  --focus-ring: #A8BEFA;
+  /* Follows the accent, as on paper. `--accent-hover` rather than `--accent`
+     because in the room the hover step is the LIGHTER one, and a focus ring has
+     to be the brightest thing in its neighbourhood to do its job. For the default
+     scheme it resolves to #A8BEFA — the literal this replaced. */
+  --focus-ring: var(--accent-hover);
 
   color-scheme: dark;
 }

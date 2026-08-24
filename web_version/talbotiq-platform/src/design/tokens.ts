@@ -59,21 +59,52 @@ export function trackLabel(track: string): string {
    value during render, before layout, when getComputedStyle would force a
    reflow on every data point. The contrast audit parses tokens.css and this
    file is checked against it, so the duplication cannot drift silently. */
+/* ── WHY SOME OF THESE ARE `var()` AND NOT A HEX ────────────────────────────
+   Ten of the entries below are CSS custom property references rather than
+   literals, and that is what lets a chart follow the workspace's chosen palette.
+
+   The duplication in this file exists so a chart can hand a colour straight to an
+   SVG attribute without a `getComputedStyle` per data point. That is still true —
+   a `var()` reference is just a string here, costing nothing — but a LITERAL also
+   froze those colours: measured on /analytics, switching Default to Peach
+   repainted 0 of 395 elements and 0 of 86 chart marks, while the settings copy
+   promises the secondary colour drives "Charts, meters and progress bars". It
+   did not drive any of them.
+
+   `var()` resolves in SVG presentation attributes, not only in `style` — verified,
+   not assumed: `fill="var(--accent)"`, `style="fill:var(--accent)"` and
+   `stroke="var(--accent)"` all compute to rgb(29, 63, 160) against a declared
+   `--accent`. So no chart component needed an edit.
+
+   Which are references, and why those:
+     the scheme's own    action, accent, accentSoft — the whole point
+     the tinted neutrals ground, groundSunk, surface, surfaceRaised, surfaceSunk,
+                         rule, ruleStrong — so a chart's own plate, plot area and
+                         gridlines take the tint the page around them takes
+     still literals      every ink, and ok / warn / risk / intel / ai / live. Ink
+                         is never tinted, and the status colours carry meaning
+                         rather than taste: a Mint palette must not turn a failing
+                         score green.
+
+   These ten are no longer comparable to tokens.css by value, so the drift check
+   in scripts/contrast-audit.mjs asserts something stronger about them instead —
+   that each one IS a reference and that the property it names really is declared.
+   A hex quietly put back here fails that check. */
 const record = {
-  ground: '#EEF0F4',
-  groundSunk: '#E6E9F0',
-  surface: '#FFFFFF',
-  surfaceRaised: '#FFFFFF',
-  surfaceSunk: '#F8F9FB',
-  rule: '#E3E6ED',
-  ruleStrong: '#CBD1DC',
+  ground: 'var(--ground)',
+  groundSunk: 'var(--ground-sunk)',
+  surface: 'var(--surface)',
+  surfaceRaised: 'var(--surface-raised)',
+  surfaceSunk: 'var(--surface-sunk)',
+  rule: 'var(--rule)',
+  ruleStrong: 'var(--rule-strong)',
   ink: '#0E1420',
   inkBody: '#3A4454',
   inkMuted: '#5C6879',
   inkFaint: '#626B79',
-  action: '#0E1420',
-  accent: '#1D3FA0',
-  accentSoft: '#E2E8F6',
+  action: 'var(--action)',
+  accent: 'var(--accent)',
+  accentSoft: 'var(--accent-soft)',
   intel: '#0B6C84',
   ai: '#0B6C84',
   live: '#0F766E',
@@ -83,20 +114,20 @@ const record = {
 } as const
 
 const room = {
-  ground: '#080C14',
-  groundSunk: '#04060B',
-  surface: '#101724',
-  surfaceRaised: '#182132',
-  surfaceSunk: '#0C121D',
-  rule: '#232D3F',
-  ruleStrong: '#33415A',
+  ground: 'var(--ground)',
+  groundSunk: 'var(--ground-sunk)',
+  surface: 'var(--surface)',
+  surfaceRaised: 'var(--surface-raised)',
+  surfaceSunk: 'var(--surface-sunk)',
+  rule: 'var(--rule)',
+  ruleStrong: 'var(--rule-strong)',
   ink: '#EDF1F8',
   inkBody: '#C6D0E0',
   inkMuted: '#93A0B4',
   inkFaint: '#7D8AA0',
-  action: '#EDF1F8',
-  accent: '#8AA6F0',
-  accentSoft: '#1B2842',
+  action: 'var(--action)',
+  accent: 'var(--accent)',
+  accentSoft: 'var(--accent-soft)',
   intel: '#5BD1E4',
   ai: '#5BD1E4',
   live: '#4FD1B0',

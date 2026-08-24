@@ -241,12 +241,12 @@ function DevicePicker({
               className={cn(
                 'rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150',
                 on
-                  ? 'border-primary-700 bg-primary-50'
+                  ? 'border-action-edge bg-action-soft'
                   : 'border-border bg-white hover:border-neutral-300',
                 isLast && 'cursor-not-allowed',
               )}
             >
-              <span className={cn('block text-sm font-semibold', on ? 'text-primary-700' : 'text-neutral-700')}>
+              <span className={cn('block text-sm font-semibold', on ? 'text-action-edge' : 'text-neutral-700')}>
                 {option.label}
               </span>
               <span className="mt-0.5 block text-xs text-neutral-500">{option.hint}</span>

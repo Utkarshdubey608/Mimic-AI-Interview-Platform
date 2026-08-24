@@ -8,6 +8,7 @@ import { AmbientField } from '@/components/shell/AmbientField'
 import { MimicLockup } from '@/components/brand/MimicMark'
 import { sessionsApi } from '@/lib/api'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { AppearanceButton } from '@/features/theme/AppearanceButton'
 import { ThemeToggle } from '@/features/theme/ThemeToggle'
 import { useDocumentGround, useWorkspaceGround } from '@/lib/workspaceGround'
 import type { CandidateAssignedSession, CandidateOutcome } from '@shared/types'
@@ -53,6 +54,12 @@ export default function CandidateHome() {
                 button, so the words go and the icons carry it. The accessible
                 name keeps "Light" and "Dark". */}
             <ThemeToggle compact />
+            {/* The palette, which a candidate had no way to reach at all — there
+                is no candidate settings page, and on an invite link there is no
+                account to hang one off. The one-tap light/dark switch stays beside
+                it: that is the choice people actually make in a hurry, and burying
+                it behind a second click to save 28px would be the wrong trade. */}
+            <AppearanceButton />
             <Button variant="secondary" size="sm" onClick={() => void signOutUser()} icon={<LogOut size={14} />}>
               Sign out
             </Button>

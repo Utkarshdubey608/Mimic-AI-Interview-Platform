@@ -69,10 +69,23 @@ function apply(): void {
     el.id = STYLE_ID
     document.head.appendChild(el)
   }
-  /* `:root` as well as the attribute selector, for the case where nothing has
-     stamped a ground yet — the very first frame of a cold load. */
+  /* THE GROUNDS ONLY — deliberately NOT `:root`.
+     It used to include `:root`, for "the case where nothing has stamped a ground
+     yet". Nothing in the app is in that case: the recruiter shell, the login
+     screen, the candidate lobby, the interview stages and the first-run picker all
+     stamp one. What IS in that case is the PUBLIC MARKETING SITE, which stamps no
+     ground because it has its own palette entirely — and writing the scheme to
+     `:root` handed it the workspace's private colour choice.
+
+     Measured on the home page with Peach chosen: 666 of 747 painted elements moved,
+     because Tailwind's default border colour resolves to `--rule` and the tint
+     reaches it through `:root`. A recruiter picking a palette for their own
+     workspace was quietly re-tinting the brand's front page.
+
+     Scoped to the two grounds, the app gets the scheme wherever it renders and the
+     marketing site cannot be reached by it. */
   el.textContent = [
-    block(":root,[data-ground='record']", 'record'),
+    block("[data-ground='record']", 'record'),
     block("[data-ground='room']", 'room'),
   ].join('\n')
 }
