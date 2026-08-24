@@ -68,6 +68,20 @@ class Settings(BaseSettings):
     # How many recipients of one /send call are delivered in parallel.
     send_concurrency: int = 5
 
+    # Who hears about a demo request from the marketing site.
+    #
+    # A DEFAULT rather than a required setting, because the alternative is worse:
+    # an unset variable would mean submissions are captured and silently notify
+    # nobody, which is the state this was added to fix. Set LEAD_NOTIFY_TO to
+    # redirect it; set it to an empty string to turn the notification off
+    # deliberately, which is logged as a choice rather than warned about.
+    #
+    # Delivery still depends on the mailer being configured (SMTP_USER / SMTP_PASS
+    # / MAIL_FROM, or the Gmail API triple). Unconfigured, app/mailer.py runs in
+    # dry-run and logs the message it would have sent — the lead is stored either
+    # way, so nothing is lost while credentials are pending.
+    lead_notify_to: str = "thoshith.a@talbotiq.com"
+
     # --- Third-party AI providers ---
     # These are the ONLY place these credentials exist. The app never sees them:
     # it either calls a proxy route here, or receives a short-lived Gemini Live

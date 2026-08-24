@@ -48,6 +48,56 @@ def test_leads_needs_no_token(public_client: TestClient) -> None:
     assert public_client.post("/api/web/leads", json=VALID_LEAD).status_code == 201
 
 
+def test_a_lead_notifies_a_human(public_client: TestClient, fake_store, monkeypatch) -> None:
+    """The whole reason this route exists is somebody following the lead up, and for
+    a long time nothing reached anybody: a submission was stored in a collection no
+    client can read and written to a log. This asserts the WIRING — that the route
+    schedules the notification — which the builder's own tests cannot see.
+
+    TestClient runs background tasks after the response, so the send is observable
+    here without an event loop of our own."""
+    sent: list[dict] = []
+
+    def fake_send(settings, **kwargs):
+        sent.append(kwargs)
+        from app.mailer import Delivery
+
+        return Delivery(sent=True, provider="smtp", message_id="mid-1")
+
+    from app import mailer
+
+    monkeypatch.setattr(mailer, "send", fake_send)
+
+    assert public_client.post("/api/web/leads", json=VALID_LEAD).status_code == 201
+
+    assert len(sent) == 1, "the route did not schedule a notification"
+    assert sent[0]["to_email"] == "thoshith.a@talbotiq.com"
+    assert "Ada Lovelace" in sent[0]["subject"]
+    # Replying answers the prospect, not us — and the stored, lowercased address is
+    # what is used, not the raw submission.
+    assert sent[0]["reply_to"] == "ada@example.com"
+    assert "10-50" in sent[0]["body"]
+
+
+def test_a_failing_notification_does_not_fail_the_submission(
+    public_client: TestClient, fake_store, monkeypatch
+) -> None:
+    """By the time the email is attempted the lead is durable. A relay that is down
+    is not a reason to tell a visitor their request failed, because it did not."""
+
+    def boom(settings, **kwargs):
+        raise RuntimeError("relay refused")
+
+    from app import mailer
+
+    monkeypatch.setattr(mailer, "send", boom)
+
+    response = public_client.post("/api/web/leads", json=VALID_LEAD)
+    assert response.status_code == 201
+    assert response.json() == {"ok": True}
+    assert len(list(fake_store.leads.docs.values())) == 1
+
+
 def test_an_invalid_lead_is_rejected_and_stores_nothing(
     public_client: TestClient, fake_store
 ) -> None:

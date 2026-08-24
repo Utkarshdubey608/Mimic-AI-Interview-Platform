@@ -10,6 +10,7 @@ import pytest
 
 from app.web.routes.leads import DEFAULT_SOURCE, build_lead
 from app.web.schemas import LeadCreate
+from app.web.services.lead_notify import build_notification, notify
 
 NOW = "2026-08-13T12:00:00+00:00"
 
@@ -73,3 +74,80 @@ def test_invalid_submissions_are_rejected(payload: dict) -> None:
     malformed submission never reaches storage."""
     with pytest.raises(Exception):
         _lead(**payload)
+
+
+# ── the notification ──────────────────────────────────────────────────────────
+# A submission used to be stored and logged and reach nobody. It is emailed now,
+# and what the email SAYS is tested here rather than in a mail server: the builder
+# is pure, so these run with no credentials, no event loop and no network.
+
+
+def _stored(**overrides) -> dict:
+    lead = build_lead(_lead(**overrides), NOW)
+    return lead
+
+
+def test_the_subject_carries_the_name_and_the_volume() -> None:
+    """"Demo request" alone tells you only that the form works. The name and the
+    hiring volume are what make a full inbox triageable."""
+    subject, _ = build_notification(_stored())
+    assert subject == "Demo request — Ada Lovelace (10-50/yr)"
+
+
+def test_the_body_contains_every_submitted_field() -> None:
+    """The whole point is not having to go and look the record up."""
+    _, body = build_notification(_stored())
+    for value in ("Ada", "Lovelace", "ada@example.com", "10-50", DEFAULT_SOURCE, NOW):
+        assert value in body, value
+
+
+def test_every_field_is_html_escaped() -> None:
+    """These values come from an unauthenticated public form and are rendered as
+    HTML in a mail client, which is a browser. The route's own note says nothing it
+    stores is ever rendered back to a browser by the API — that stopped being true
+    when this notification was added, so escaping is the boundary."""
+    _, body = build_notification(_stored(firstName="<script>alert(1)</script>"))
+    assert "<script>" not in body
+    assert "&lt;script&gt;" in body
+
+
+def test_the_reply_address_is_the_prospects_own() -> None:
+    """Hitting reply should answer the person who filled the form, not start a new
+    message to nobody."""
+    _, body = build_notification(_stored(email="Ada@Example.com"))
+    assert "ada@example.com" in body
+
+
+def test_a_missing_field_does_not_break_the_subject() -> None:
+    """Defensive rather than expected: the schema requires both names, but a
+    builder that raises on a partial record turns a notification into a 500."""
+    subject, body = build_notification({"email": "x@y.com"})
+    assert subject == "Demo request"
+    assert "x@y.com" in body
+
+
+def test_an_emptied_recipient_attempts_no_send() -> None:
+    """A deployment setting LEAD_NOTIFY_TO to an empty string is saying "do not
+    email me". That is a choice, not a failure, and it must not open an SMTP
+    connection to find out.
+
+    Tested against `notify` directly rather than through the route: the app builds
+    its Settings once at startup, so patching the environment after a TestClient
+    exists proves nothing — an earlier version of this test did exactly that and
+    passed for the wrong reason until its stub returned the wrong type.
+    """
+    import asyncio
+
+    from app import mailer
+    from app.config import Settings
+
+    calls: list[dict] = []
+
+    real = mailer.send
+    mailer.send = lambda settings, **kw: calls.append(kw)  # type: ignore[assignment]
+    try:
+        asyncio.run(notify(Settings(lead_notify_to=""), _stored()))
+    finally:
+        mailer.send = real  # type: ignore[assignment]
+
+    assert calls == []

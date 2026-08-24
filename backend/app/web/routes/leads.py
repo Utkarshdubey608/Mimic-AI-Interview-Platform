@@ -16,10 +16,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, BackgroundTasks, Request, status
 
 from app.web.deps import settings_of
 from app.web.schemas import LeadCreate
+from app.web.services import lead_notify
 from app.web.store import get_store
 
 logger = logging.getLogger("web.leads")
@@ -52,8 +53,11 @@ def build_lead(body: LeadCreate, now: str) -> dict:
     status_code=status.HTTP_201_CREATED,
     summary="Capture a demo request (public)",
 )
-async def create_lead(body: LeadCreate, request: Request) -> dict:
-    store = get_store(settings_of(request))
+async def create_lead(
+    body: LeadCreate, request: Request, background: BackgroundTasks
+) -> dict:
+    settings = settings_of(request)
+    store = get_store(settings)
     lead = build_lead(body, datetime.now(timezone.utc).isoformat())
 
     # `add`, not `put`: nothing looks a lead up by id, so letting Firestore
@@ -68,4 +72,15 @@ async def create_lead(body: LeadCreate, request: Request) -> dict:
         stored["hiresPerYear"],
         stored["source"],
     )
+
+    # AFTER the response, not before it. A submission used to be stored and logged
+    # and reach nobody, so the only way to learn that a visitor wanted a demo was
+    # to go looking in a collection nobody knew existed. It is emailed now — but as
+    # a BACKGROUND task, because `mailer.send` opens an SMTP connection with a 15
+    # second timeout and a stranger filling in a form should not wait on a relay to
+    # be told their request went through. The write above is what makes that safe:
+    # the lead is already durable, so a notification that fails costs a notification
+    # and nothing else.
+    background.add_task(lead_notify.notify, settings, stored)
+
     return {"ok": True}
