@@ -354,7 +354,7 @@
    acknowledge a tap is the single latency a reader feels most, and it is what
    separates a control that responds from one that merely works. */
 .mimic-site .btn:active{transform:scale(.97);transition-duration:.08s}
-.mimic-site .btn-primary{background:var(--mm-ink);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .14)}
+.mimic-site .btn-primary{background:var(--mm-ink,#0E1420);color:#fff;box-shadow:0 1px 2px 0 rgb(14 20 32 / .14)}
 .mimic-site .btn-primary:hover{
   background:#23272E;transform:translateY(-1px);
   box-shadow:0 10px 24px -8px rgb(14 20 32 / .32)
@@ -409,7 +409,7 @@
   letter-spacing:-.03em;color:var(--mm-ink);text-decoration:none;font-stretch:118%}
 .mimic-site .brand .ico,.mimic-site .brand .ic{
   display:grid;place-items:center;width:30px;height:30px;border-radius:var(--mm-r-ctl);
-  background:var(--mm-ink);color:var(--mm-on-ink)
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED)
 }
 .mimic-site .navlinks{display:flex;align-items:center;gap:.25rem;margin-left:var(--mm-s-1)}
 .mimic-site .navlinks>*{
@@ -524,7 +524,7 @@
   margin-top:var(--mm-s-2);min-height:2.75rem;padding:0 1.15rem;
   border:1px solid transparent;border-radius:var(--mm-r-ctl)
 }
-.mimic-site .mmenu > a.btn-primary{background:var(--mm-ink);color:#fff}
+.mimic-site .mmenu > a.btn-primary{background:var(--mm-ink,#0E1420);color:#fff}
 
 /* Reading rail. scaleX, never width — width forces layout every frame. */
 .mimic-site .mm-progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:110;pointer-events:none}
@@ -986,7 +986,7 @@
   border:1px solid var(--mm-line-2);background:#fff;
   font-size:var(--mm-t-caption);color:var(--mm-muted)
 }
-.mimic-site .step.on .n,.mimic-site .step.on .num{background:var(--mm-ink);border-color:var(--mm-ink);color:#fff}
+.mimic-site .step.on .n,.mimic-site .step.on .num{background:var(--mm-ink,#0E1420);border-color:var(--mm-ink);color:#fff}
 .mimic-site .step h4,.mimic-site .step h3{font-size:var(--mm-t-callout);font-weight:650;color:var(--mm-ink);margin-bottom:3px;letter-spacing:-.012em;line-height:1.3}
 .mimic-site .proc-panel{
   border:1px solid var(--mm-line);border-radius:var(--mm-r-card);background:#fff;
@@ -1188,7 +1188,7 @@
 
 /* ── Full-bleed ink field: the bundle cover, used as an anchor ────────── */
 .mimic-site .cta,.mimic-site .mech.on-dark,.mimic-site .section.on-dark{
-  background:var(--mm-ink);color:var(--mm-on-ink)
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED)
 }
 .mimic-site .cta{padding:var(--mm-sec-y) 0}
 .mimic-site .cta-in{max-width:76rem;margin:0 auto;padding:0 var(--mm-gutter)}
@@ -1368,7 +1368,7 @@
    the on-ink set, so the words stay white whether the canvas lights or the CSS
    fallback is all the visitor gets. */
 .mimic-site .foot{
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED);
   border-top:1px solid var(--mm-on-ink-line);padding:4rem 0 var(--mm-s-5)
 }
 /* Six blocks — the brand plus five nav groups — in a four-column grid, so
@@ -1885,8 +1885,28 @@
    Nothing needs the clip anyway: the ambient field lives inside the sticky box,
    which already hides its own overflow, and when the stage is not pinned the
    field is inset:0 on this box and has nothing to spill. */
+/* ── WHY THESE CARRY A LITERAL FALLBACK ────────────────────────────────────
+   `var(--mm-ink,#0E1420)` rather than `var(--mm-ink)`, on every ink ground.
+
+   This section was reported as rendering WHITE on the deployed site, with the
+   white headings invisible on it, the grey body copy surviving, and the dark
+   cards inside it looking correct. That signature is specific: it is a
+   background-only failure, which means the colour DECLARATIONS were applying and
+   `--mm-ink` was not resolving.
+
+   I could not reproduce it — production computes rgb(14,20,32) at four viewports,
+   renders correctly with the WebGL layers forced on, and stays dark under
+   reduced-motion, more-contrast and both. So this does not claim to be the
+   diagnosis. It removes the failure MODE: an unresolvable custom property is
+   "invalid at computed-value time", and the property then takes its initial value
+   — transparent — which on a white page is exactly what was reported. A second
+   declaration above it would not help, because the invalid one still wins; the
+   fallback has to be the second argument to var().
+
+   Cheap, and it means a dark section can no longer come out white however the
+   token fails to arrive. */
 .mimic-site .process.on-dark{
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED);
   position:relative;isolation:isolate
 }
 /* Belt and braces for every future stage: whatever modifiers a pinned section
@@ -2189,7 +2209,7 @@
 .mimic-site .hero.room{padding:var(--mm-s-4) 0 var(--mm-s-7)}
 .mimic-site .hero-room{
   position:relative;isolation:isolate;overflow:hidden;
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED);
   border-radius:22px;
   border:1px solid rgb(255 255 255 / .07);
   box-shadow:0 40px 90px -40px rgb(14 20 32 / .55), 0 16px 36px -24px rgb(14 20 32 / .35);
@@ -2993,7 +3013,7 @@
    trap documented at the process stage. `on-dark` alone is still on the
    element, for the descendant type colours and the accent focus ring. */
 .mimic-site .mm-formats{
-  background:var(--mm-ink);color:var(--mm-on-ink);
+  background:var(--mm-ink,#0E1420);color:var(--mm-on-ink,#E8E8ED);
   position:relative;isolation:isolate;
   padding-bottom:var(--mm-sec-y)
 }
@@ -3002,9 +3022,87 @@
    3.1:1 against its own ground, so the button keeps ink. */
 .mimic-site .mm-formats .btn-light{color:var(--mm-ink)}
 
-/* ── List mode ─────────────────────────────────────────────────────────── */
-.mimic-site .fmt-deck{display:grid;gap:var(--mm-s-7)}
-.mimic-site .fmt-slide{display:grid;gap:var(--mm-s-4);align-content:center}
+/* ── List mode is a SWIPE CAROUSEL, not a stack ───────────────────────────
+   It was six panels stacked vertically. On a 390px phone that is six screens of
+   scrolling with no way to move between formats except passing all of them, and
+   no indication that there are six — the desktop reader gets one at a time with a
+   rail, and the phone reader got a list to scroll past.
+
+   Horizontal scroll-snap rather than the deck's JavaScript. The deck exists
+   because a scroll-linked transform is what makes one panel hand over to the next
+   on a wheel; a finger already does that natively, and native snap brings
+   momentum, rubber-banding at the ends, and the platform's own feel for free.
+   Nothing is intercepted here, so nothing can trap the reader — a vertical swipe
+   still scrolls the page past the section, which on a phone is the escape hatch
+   that matters.
+
+   `overscroll-behavior-x: contain` stops a swipe past the last panel from turning
+   into a browser back-navigation, which on iOS it otherwise does. */
+.mimic-site .fmt-deck{
+  display:flex;
+  gap:var(--mm-s-4);
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x mandatory;
+  /* Room for the panel to sit clear of the page gutter at both ends, so the first
+     and last are centred rather than jammed against the edge. */
+  scroll-padding-inline:var(--mm-gutter);
+  /* The scrollbar is chrome on a control that already shows its position in the
+     rail below. Hidden, not disabled: the element still scrolls by touch, wheel
+     and keyboard. */
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  padding-bottom:var(--mm-s-2);
+}
+.mimic-site .fmt-deck::-webkit-scrollbar{display:none}
+
+.mimic-site .fmt-slide{
+  flex:0 0 100%;
+  scroll-snap-align:center;
+  display:grid;gap:var(--mm-s-4);align-content:start;
+  /* `min-width:0` on a flex item that is also a grid: without it a wide child —
+     the film — sets the item's floor and every panel grows past the viewport,
+     which is the horizontal overflow that breaks a phone page. */
+  min-width:0
+}
+
+/* The rail is the carousel's position indicator and its shortcut, so it is shown
+   here too — it was `display:none` in list mode, which was right for a stack and
+   wrong for six panels the reader cannot see the extent of. Compact: six labels
+   do not fit 390px, so they scroll with the panels they name. */
+.mimic-site .fmt-nav{
+  display:flex;gap:var(--mm-s-2);margin-top:var(--mm-s-4);
+  overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;
+  scroll-snap-type:x proximity
+}
+.mimic-site .fmt-nav::-webkit-scrollbar{display:none}
+.mimic-site .fmt-nav button{
+  position:relative;flex:0 0 auto;scroll-snap-align:center;
+  appearance:none;background:none;border:0;
+  border-top:1px solid var(--mm-on-ink-line);
+  /* 44px of vertical target from the padding, not from a height — the label sits
+     at the top of it so the hairline reads as a rule under the words. */
+  padding:var(--mm-s-2) var(--mm-s-1) var(--mm-s-4);
+  margin:0;cursor:pointer;
+  font:inherit;font-size:var(--mm-t-caption);letter-spacing:.01em;
+  color:var(--mm-on-ink-2);
+  transition:color .25s var(--mm-ease)
+}
+.mimic-site .fmt-nav button::before{
+  content:"";position:absolute;left:0;top:-1px;width:100%;height:1px;
+  background:var(--mm-ai);transform:scaleX(0);transform-origin:0 50%;
+  transition:transform .45s var(--mm-ease-out)
+}
+.mimic-site .fmt-nav button[data-on]{color:#fff}
+.mimic-site .fmt-nav button[data-on]::before{transform:scaleX(1)}
+.mimic-site .fmt-nav button span{display:block;white-space:nowrap}
+
+/* The film inside a carousel panel. Capped in vh as well as by its own width, so
+   a portrait phone does not give a 16:9 capture two thirds of the screen and push
+   the copy below the fold. */
+.mimic-site .fmt-stage .shot video,
+.mimic-site .fmt-stage .shot img{max-height:46vh;object-fit:cover}
+
 .mimic-site .fmt-copy{display:flex;flex-direction:column;align-items:flex-start;gap:var(--mm-s-2)}
 .mimic-site .fmt-copy h3{color:#fff;font-size:var(--mm-t-h3)}
 .mimic-site .fmt-copy p{color:var(--mm-on-ink);max-width:var(--mm-measure)}
@@ -3078,10 +3176,11 @@
 }
 .mimic-site .mm-formats .shot-toggle:hover{background:#22262E;border-color:#3A3F47}
 
-/* The rail and the screen-reader list both belong to deck mode only. In list
-   mode every panel is already on the page in order, so a rail would scroll to
-   content the reader can already see and the hidden list would duplicate it. */
-.mimic-site .fmt-nav,
+/* Only the screen-reader list is hidden outside deck mode. It exists because deck
+   mode makes the off-stage panels `inert`, which takes them out of the
+   accessibility tree; the carousel does not, so all six panels are already
+   reachable and the list would only say everything twice. The RAIL is shown — see
+   above — because a carousel needs to say how many panels there are. */
 .mimic-site .fmt-sr{display:none}
 
 /* ── Deck mode ───────────────────────────────────────────────────

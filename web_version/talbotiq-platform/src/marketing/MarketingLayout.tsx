@@ -5,9 +5,11 @@ import { useAuth } from '@/features/auth/AuthProvider'
 import { Ico } from './icons'
 import { ScrollProgress, useSectionCues, useSmoothScroll } from './motion'
 import { Field } from './Field'
-import { InkTrail } from './ink/InkTrail'
 import { RoamingInk } from './ink/RoamingInk'
-import './mimicSite.css'
+/* The stylesheet is imported at the ENTRY now (see main.tsx) so it is in the CSS
+   every prerendered page links, rather than in a chunk fetched by this route's
+   JavaScript. Kept here as a comment because this is where a reader will look for
+   it. */
 
 const Mark = () => (
   <svg viewBox="0 0 32 32" aria-hidden="true">
@@ -195,7 +197,6 @@ export function MarketingLayout({ children, seo }: { children: ReactNode; seo?: 
         <Field seed={23} />
         {/* The footer is an ink field on every page, so the ink belongs here
             too — it is the last dark surface the reader passes through. */}
-        <InkTrail />
         <div className="wrap">
           <div className="foot-grid">
             <div className="foot-brand">

@@ -27,6 +27,17 @@ export type GateFlags = {
   wide: boolean
   /** A real pointer, so a cursor-driven layer has something to follow. */
   finePointer: boolean
+  /**
+   * ANY pointing device, coarse included — a finger counts.
+   *
+   * `finePointer` was the only pointer flag, and every trail was gated on it,
+   * which meant the ink simply did not exist on a phone. That is defensible for a
+   * layer that follows a cursor around an idle page and indefensible for one that
+   * follows a finger: a touch drag is a pointer path, it just has a beginning and
+   * an end. The trails read this; anything that genuinely needs a hover state
+   * still reads `finePointer`.
+   */
+  anyPointer: boolean
 }
 
 const QUERIES = [
@@ -37,13 +48,14 @@ const QUERIES = [
 
 export function readGate(): GateFlags {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return { allowed: false, wide: false, finePointer: false }
+    return { allowed: false, wide: false, finePointer: false, anyPointer: false }
   }
   const blocked = QUERIES.some((q) => window.matchMedia(q).matches)
   return {
     allowed: !blocked,
     wide: window.innerWidth >= WIDE_MIN,
     finePointer: window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    anyPointer: window.matchMedia('(any-pointer: fine), (any-pointer: coarse)').matches,
   }
 }
 
@@ -53,7 +65,8 @@ export function readGate(): GateFlags {
  * narrower should stop paying for the layer.
  */
 export function watchGate(onChange: () => void): () => void {
-  const lists = [...QUERIES, '(hover: hover) and (pointer: fine)'].map((q) => window.matchMedia(q))
+  const lists = [...QUERIES, '(hover: hover) and (pointer: fine)',
+    '(any-pointer: fine), (any-pointer: coarse)'].map((q) => window.matchMedia(q))
   for (const l of lists) l.addEventListener('change', onChange)
   window.addEventListener('resize', onChange, { passive: true })
   return () => {

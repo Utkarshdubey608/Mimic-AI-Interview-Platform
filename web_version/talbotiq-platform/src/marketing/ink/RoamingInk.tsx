@@ -51,7 +51,20 @@ import type { InkFluid } from './inkFluid'
  * else. A section that already owns a `.mm-ink` is skipped, so the six ink-dark
  * surfaces keep the trail they already had and this one covers the rest.
  */
-const HOSTS = 'section, .foot'
+const HOSTS = '.hero-room, .mm-stage-sticky, section, .foot'
+
+/* THE ORDER OF THAT SELECTOR DOES NOT MATTER, but the fact that two of the four
+   are INNER boxes does. `closest()` returns the nearest match, so a card or a
+   sticky box wins over the section containing it — which is what makes one
+   context able to serve every surface:
+     · `.hero-room` is the hero's dark card. Its SECTION is light (it declares no
+       background and walks up to the page white) while the card on it is ink, so
+       hosting the section would pick `multiply` for a dark ground and lay dye on
+       something that needed light. Hosting the card measures the right thing.
+     · `.mm-stage-sticky` is the pinned box of the format and process stages. Those
+       hosts are four viewports tall; a canvas at `inset:0` on the section would be
+       four screens of buffer for the one screen anybody is looking at.
+   Everything else is served by its section, and the footer by `.foot`. */
 
 /**
  * Relative luminance of the first real background at or above `el`.
@@ -90,14 +103,14 @@ export function RoamingInk() {
 
     const sync = () => {
       const g = readGate()
-      if (!g.allowed || !g.finePointer || !g.wide) { setEnhance(false); return }
+      if (!g.allowed || !g.anyPointer) { setEnhance(false); return }
       const ric = (window as unknown as {
         requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number
       }).requestIdleCallback
       const arm = () => {
         if (cancelled) return
         const g2 = readGate()
-        if (!g2.allowed || !g2.finePointer || !g2.wide) return
+        if (!g2.allowed || !g2.anyPointer) return
         void import('@/features/intro/tier')
           .then(({ detectTier }) => {
             if (cancelled || !readGate().allowed) return
@@ -125,24 +138,32 @@ export function RoamingInk() {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    /* LIGHT BLUE, and the third colour tried here, so the reasoning is worth
-       keeping. Registrar blue was a near-navy meant for rules and links and came
-       out under multiply as a heavy indigo stain. `--mm-ai` was the ink's own cyan
-       and looked right on the dark grounds — but multiply pulls red down about
-       twice as hard as green and blue, so on paper it landed as saturated
-       turquoise. Measured: white went to rgb(152,192,198), which is teal, not the
-       light blue it was asked to be.
+    /* ONE DYE, EVERYWHERE: `--mm-ai`, the ink's own cyan.
+       This is the fourth colour tried here and the last, because the requirement
+       turned out to be simpler than the ones I was solving for: the trail must
+       look like ITSELF on every ground. Registrar blue was a near-navy and came
+       out under multiply as an indigo stain. Then `--mm-on-ink-accent`, a
+       periwinkle, which held its hue under both blends — but "holds its hue" was
+       the wrong goal. Under multiply on paper it pulls every channel down about
+       evenly, so it lands as a pale blue-grey smear, and next to the bright cyan
+       the dark sections get it reads as a different effect that happens to be
+       blue-ish.
 
-       `--mm-on-ink-accent` is the accent that already exists for light-on-dark,
-       and its hue survives both blends: under multiply on white it lays down a
-       periwinkle blue, and under screen on ink it lifts to the same blue. One
-       colour for the whole site, which was the point.
+       Cyan under multiply keeps red low and green and blue high, so paper takes a
+       recognisably CYAN tint — the same colour the dark grounds glow, laid down
+       instead of added.
 
-       Read off the CANVAS, not off the document root. The palette is declared on
-       `.mimic-site`, so `documentElement` resolves it to an empty string — and
-       because a missing colour makes this effect bail before it binds a listener,
-       the symptom was a layer that existed and never once appeared. */
-    const color = parseColor(getComputedStyle(canvas).getPropertyValue('--mm-on-ink-accent'))
+       What cannot be matched, and is worth stating rather than pretending: on a
+       white page nothing can be brighter than the page. The dark grounds get a
+       glow because `screen` adds light to ink; paper gets a wash because
+       `multiply` is the only honest way to put colour on white. Same hue, same
+       trail, two physics.
+
+       Read off the CANVAS, not the document root: the palette is declared on
+       `.mimic-site`, so `documentElement` resolves it to an empty string — and a
+       missing colour makes this effect bail before it binds a listener, which
+       presents as a layer that exists and never once appears. */
+    const color = parseColor(getComputedStyle(canvas).getPropertyValue('--mm-ai'))
     if (!color) return
 
     let fluid: InkFluid | null = null
@@ -240,7 +261,11 @@ export function RoamingInk() {
          the paper being marked rather than as something laid on top of it.
          `opacity` scales the layer before it blends, so this is one declaration
          rather than a shader uniform. */
-      canvas.style.opacity = light ? '0.5' : '0.85'
+      /* Stronger on paper than it was. At 0.5 the cyan was diluted far enough to
+         read as grey, which is what made the light sections look like a different
+         effect; 0.66 is where the hue survives the blend without the wash
+         competing with body copy for attention. */
+      canvas.style.opacity = light ? '0.66' : '0.85'
       next.appendChild(canvas)
       fade = 0
       fluid?.resize()
@@ -256,8 +281,17 @@ export function RoamingInk() {
        bookkeeping — the lookup below simply finds it or does not. */
     let pending = 0
     let px = 0, py = 0
-    const onMove = (e: PointerEvent) => {
-      px = e.clientX; py = e.clientY
+    /**
+     * A position, from whatever produced it.
+     *
+     * Split out from the listener because touch needs TWO sources. A finger does
+     * fire `pointermove`, but only until the browser decides the gesture is a
+     * scroll — at which point it sends `pointercancel` and stops, so a trail on a
+     * phone would appear for the first few pixels of every swipe and then die.
+     * `touchmove` keeps firing through the scroll, so both feed this.
+     */
+    const at = (x: number, y: number) => {
+      px = x; py = y
       if (pending) return
       pending = requestAnimationFrame(() => {
         pending = 0
@@ -289,6 +323,18 @@ export function RoamingInk() {
       })
     }
 
+    const onPointer = (e: PointerEvent) => at(e.clientX, e.clientY)
+    /* Passive: this must never be able to delay or cancel a scroll. The trail is
+       decoration and the scroll is the reader's intent. */
+    const onTouch = (e: TouchEvent) => {
+      const t = e.touches[0]
+      if (t) at(t.clientX, t.clientY)
+    }
+    /* A lifted finger ends the stroke, the way a pointer leaving the window does.
+       Without it the dye keeps being pushed toward the last touch point and the
+       trail never relaxes. */
+    const onTouchEnd = () => { targetForce = 0 }
+
     const onLeaveWindow = () => { targetForce = 0 }
     const onVisibility = () => {
       tabVisible = document.visibilityState !== 'hidden'
@@ -299,9 +345,18 @@ export function RoamingInk() {
     void import('./inkFluid')
       .then(({ createInkFluid }) => {
         if (disposed) return
-        fluid = createInkFluid(canvas, { color })
+        fluid = createInkFluid(canvas, {
+          color,
+        /* The context died. Its textures are undefined now, and an undefined
+           dye field is a flat wash — take the layer down rather than paint it.
+           The page is finished without this file. */
+          onLost: () => { setEnhance(false) },
+        })
         if (!fluid) return   // no WebGL2 / no float target; the page stands as-is
-        document.addEventListener('pointermove', onMove, { passive: true })
+        document.addEventListener('pointermove', onPointer, { passive: true })
+        document.addEventListener('touchmove', onTouch, { passive: true })
+        document.addEventListener('touchend', onTouchEnd, { passive: true })
+        document.addEventListener('touchcancel', onTouchEnd, { passive: true })
         document.addEventListener('pointerleave', onLeaveWindow)
         document.addEventListener('visibilitychange', onVisibility)
       })
@@ -311,7 +366,10 @@ export function RoamingInk() {
       disposed = true
       if (raf) cancelAnimationFrame(raf)
       if (pending) cancelAnimationFrame(pending)
-      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointermove', onPointer)
+      document.removeEventListener('touchmove', onTouch)
+      document.removeEventListener('touchend', onTouchEnd)
+      document.removeEventListener('touchcancel', onTouchEnd)
       document.removeEventListener('pointerleave', onLeaveWindow)
       document.removeEventListener('visibilitychange', onVisibility)
       ro?.disconnect()

@@ -143,7 +143,14 @@ export function Field({ seed = 0, amp, className = '' }: {
     void import('./field/ambient')
       .then(({ createAmbientField }) => {
         if (disposed) return
-        field = createAmbientField(canvas, { ink, light, amp, seed })
+        field = createAmbientField(canvas, {
+          ink, light, amp, seed,
+          /* An opaque canvas with a dead context paints WHITE over this section's
+             dark ground — see the note in ambient.ts. Take it down and let the CSS
+             field show, which is what this layer has always been an enhancement
+             on top of. */
+          onLost: () => { setEnhance(false) },
+        })
         if (!field) return   // no context; CSS field stands
 
         // rootMargin so the first frame is already drawn by the time the field

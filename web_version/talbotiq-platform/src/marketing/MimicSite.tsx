@@ -33,7 +33,6 @@ import { CursorLight, Magnetic, Parallax, Reveal, Tilt, useInView } from './moti
 import { PinnedStage, SplitText } from './scroll'
 import { Field } from './Field'
 import { HeroIntelligence } from './HeroIntelligence'
-import { InkTrail } from './ink/InkTrail'
 import { DemoVideo } from './DemoVideo'
 import { DEMO_COPY, demoPosterSrc, demoVideoSrc } from './demoAssets'
 import { HOME_SEO } from './content'
@@ -281,7 +280,6 @@ export default function MimicSite() {
                   instead of fading dot by dot. Enhancement only — pointer
                   devices, no reduced motion, after first paint, and the loop
                   parks itself once the ink has run down. */}
-              <InkTrail />
               <div className="hero-room-in">
                 <div className="hero-copy">
                   <span className="eyebrow">AI native interview screening</span>
@@ -422,7 +420,11 @@ export default function MimicSite() {
         <PinnedStage
           steps={STEPS.length} onStep={setStep} id="process"
           className="process on-dark" labelledBy="pr-h"
-          backdrop={<><Field seed={0} /><InkTrail /></>}
+          /* The trail is no longer mounted here. RoamingInk hosts on
+             `.mm-stage-sticky`, which is this stage's pinned box, so it gets the
+             same 100vh surface a mount here gave it — out of one shared context
+             instead of one per section. */
+          backdrop={<Field seed={0} />}
         >
           {({ goToStep }) => (
           <div className="wrap">
@@ -733,7 +735,6 @@ export default function MimicSite() {
               two surfaces catching the same light rather than one mechanism
               driving both in lockstep. */}
           <Field seed={11} />
-          <InkTrail />
           <div className="wrap cta-in">
             <div>
               <h2 id="cta-h">Give the first round back to your recruiters.</h2>

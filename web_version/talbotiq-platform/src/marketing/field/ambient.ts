@@ -195,7 +195,31 @@ function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLSha
  */
 export function createAmbientField(
   canvas: HTMLCanvasElement,
-  opts: AmbientOptions,
+  opts: AmbientOptions & {
+    /**
+     * The GL context went away. Remove this layer.
+     *
+     * THIS IS THE ONE THAT MATTERS MOST IN THIS FILE, because of `alpha: false`
+     * below. An opaque canvas whose context has been lost is painted by the
+     * browser as a flat light rectangle — and this canvas sits over the section's
+     * dark ground with the section's own content above it. So a lost context does
+     * not degrade the effect, it turns the whole section WHITE with its light
+     * type still light on it: a ghost headline on paper. Reproduced exactly by
+     * forcing the loss.
+     *
+     * And it happens for an ordinary reason. Every field and every ink trail is
+     * its own context; the marketing home page was creating about a dozen, and a
+     * renderer that runs out evicts the OLDEST. So moving the pointer — which
+     * starts an ink trail, which allocates another context — could evict a
+     * field's, and the section it belonged to went white and stayed white. That
+     * is why it presented as "the hero goes light when I hover".
+     *
+     * Nothing tries to rebuild. The layer goes, and the CSS field underneath —
+     * which is a real gradient in the same tokens — is what the section was
+     * always designed to fall back to.
+     */
+    onLost?: () => void
+  },
 ): AmbientField | null {
   const gl = (canvas.getContext('webgl', {
     alpha: false, antialias: false, depth: false, stencil: false,
@@ -241,6 +265,17 @@ export function createAmbientField(
 
   let disposed = false
 
+  /* `preventDefault` so the browser will consider restoring the context at all,
+     and the listener is dropped here rather than in `dispose`, which returns early
+     once `disposed` is set. A dead context cannot be lost twice. */
+  const onContextLost = (e: Event) => {
+    e.preventDefault()
+    disposed = true
+    canvas.removeEventListener('webglcontextlost', onContextLost)
+    opts.onLost?.()
+  }
+  canvas.addEventListener('webglcontextlost', onContextLost)
+
   const resize = () => {
     if (disposed) return
     const scale = renderScale(window.devicePixelRatio || 1)
@@ -267,6 +302,7 @@ export function createAmbientField(
     },
     resize,
     dispose() {
+      canvas.removeEventListener('webglcontextlost', onContextLost)
       if (disposed) return
       disposed = true
       gl.deleteBuffer(buf)

@@ -40,7 +40,6 @@ import { Link } from 'react-router-dom'
 
 import { DemoVideo } from '../DemoVideo'
 import { Field } from '../Field'
-import { InkTrail } from '../ink/InkTrail'
 import { deckHead, PinnedStage } from '../scroll'
 import { MODES, noFilmReason } from './modes'
 
@@ -440,7 +439,15 @@ export function FormatShowcase() {
            so the trail follows the pointer across exactly the area the deck
            occupies. Content sits above it: `.fmt-in` carries `z-index:1` against
            the canvas's 0. */
-        backdrop={<><Field seed={5} /><InkTrail /></>}
+        /* The field only. The trail is not mounted per section any more — every
+           mount was its own WebGL context, the page was creating about a dozen,
+           and a renderer that runs out of them evicts the OLDEST. Moving the
+           pointer started a trail, which allocated another context, which evicted
+           a FIELD's — and an opaque canvas with a dead context paints white over
+           the section's dark ground. That is what "the hero goes light when I
+           hover" was. RoamingInk hosts on `.mm-stage-sticky`, so this stage gets
+           the same 100vh surface out of one shared context. */
+        backdrop={<Field seed={5} />}
       >
         {({ pinned, goToStep }) => (
           <FormatDeck
@@ -713,6 +720,14 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
       if (!best) return
       const idx = els.indexOf(best.target as HTMLElement)
       if (idx < 0) return
+      /* THE RAIL FOLLOWS THE CAROUSEL. When the deck is pinned, `cur` comes from
+         the scroll driver and this must not touch it — two writers would fight
+         every frame. Unpinned, this observer is the only thing that knows which
+         panel is centred, so it is what the rail reads. Immediate, not debounced:
+         the mark under the labels should track the swipe, while the film it arms
+         waits for the swipe to settle. */
+      if (!pinned) resetCur(idx)
+
       window.clearTimeout(armTimer.current)
       /* 80ms, down from 400. The debounce exists so travelling through the deck
          does not arm every film on the way, and 400 was sized for a reader
@@ -723,7 +738,7 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
     }, { threshold: 0.6 })
     for (const el of els) io.observe(el)
     return () => { io.disconnect(); window.clearTimeout(armTimer.current) }
-  }, [slides])
+  }, [slides, pinned, resetCur])
 
   return (
     <div className="wrap fmt-in">
@@ -811,7 +826,18 @@ function FormatDeck({ pinned, cur, goToStep, slides, copies, copyKids, films, se
             type="button"
             aria-current={i === cur ? 'true' : undefined}
             data-on={i === cur || undefined}
-            onClick={() => goToStep(i)}
+            onClick={() => {
+              /* Pinned, the page IS the control: goToStep scrolls the document and
+                 the driver derives the panel from where it lands, which keeps one
+                 source of truth. Unpinned, the deck is a horizontal scroller and
+                 the page has nothing to do with it — scrolling the document would
+                 move the section, not the panel. So the panel is brought into the
+                 scroller directly, and the observer above reports it back. */
+              if (pinned) { goToStep(i); return }
+              slides.current[i]?.scrollIntoView({
+                behavior: 'smooth', inline: 'center', block: 'nearest',
+              })
+            }}
           >
             <span>{m.name}</span>
           </button>

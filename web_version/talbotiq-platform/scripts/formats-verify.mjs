@@ -34,8 +34,10 @@
  *     and the one after it hold sources — the second is what makes a switch
  *     instant instead of a second of grey. Four did make the scroll stall, and a
  *     third here would mean the release has stopped working.
- *  7. THE PHONE GETS A LIST. Below the breakpoint all six panels are visible, in
- *     order, untransformed, with no rail — the content, not a broken effect.
+ *  7. THE PHONE GETS A CAROUSEL. Below the breakpoint the six panels sit side by
+ *     side in a snapping horizontal scroller, one panel wide, with the rail shown
+ *     as its position — and the PAGE itself must not scroll sideways, which is the
+ *     one defect a horizontal scroller ships by accident.
  */
 import { chromium } from 'playwright'
 
@@ -320,7 +322,7 @@ async function laptop(browser, size) {
 }
 
 async function phone(browser) {
-  console.log(`\n[1m${PHONE.w}×${PHONE.h} — list mode[0m`)
+  console.log(`\n[1m${PHONE.w}×${PHONE.h} — carousel[0m`)
   const page = await browser.newPage({ viewport: { width: PHONE.w, height: PHONE.h }, deviceScaleFactor: 2 })
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await page.waitForSelector('.fmt-deck')
@@ -332,8 +334,39 @@ async function phone(browser) {
   check('all six panels are visible', s.panels.every((p) => p.visibility === 'visible'), s.panels.map((p) => p.visibility).join(','))
   check('none is transformed', s.panels.every((p) => p.transform === 'none'), s.panels.map((p) => p.transform).join(' | '))
   check('none is inert', s.panels.every((p) => !p.inert))
-  check('they stack in order', s.panels.every((p, i) => i === 0 || p.top > s.panels[i - 1].top))
-  check('the rail is hidden', !s.rail.shown)
+
+  /* THE PHONE GETS A CAROUSEL, not a stack. These two assertions used to read
+     "they stack in order" and "the rail is hidden", which described a phone
+     getting six panels laid end to end down the page — six screens of scrolling,
+     no way to move between formats except passing all of them, and no indication
+     that there were six. They are side by side now, so the invariants are that
+     they are laid out horizontally, that the scroller snaps, and that the rail IS
+     shown, because a carousel has to say how many panels it has. */
+  const carousel = await page.evaluate(() => {
+    const deck = document.querySelector('.fmt-deck')
+    const cs = getComputedStyle(deck)
+    return {
+      overflowX: cs.overflowX,
+      snap: cs.scrollSnapType,
+      deckW: Math.round(deck.clientWidth),
+      trackW: Math.round(deck.scrollWidth),
+      panelW: Math.round(document.querySelector('.fmt-slide').getBoundingClientRect().width),
+      pageOverflow: document.scrollingElement.scrollWidth - window.innerWidth,
+    }
+  })
+  check('the panels are laid out across, not down',
+    s.panels.every((p, i) => i === 0 || (p.left > s.panels[i - 1].left && Math.abs(p.top - s.panels[0].top) < 2)))
+  check('the deck scrolls horizontally and snaps',
+    carousel.overflowX === 'auto' && carousel.snap.startsWith('x'), `${carousel.overflowX} / ${carousel.snap}`)
+  check('one panel fills the deck', Math.abs(carousel.panelW - carousel.deckW) <= 1,
+    `panel ${carousel.panelW} vs deck ${carousel.deckW}`)
+  check('the track holds all six', carousel.trackW >= carousel.deckW * 5.5,
+    `${carousel.trackW}px for ${carousel.deckW}px of window`)
+  /* The one defect that ruins a phone page outright, and the easiest to ship by
+     accident with a horizontal scroller on it. */
+  check('the PAGE does not scroll sideways', carousel.pageOverflow === 0, `${carousel.pageOverflow}px`)
+  check('the rail is shown, as the carousel’s position', s.rail.shown && s.rail.count === PANELS,
+    `${s.rail.count} entries, shown=${s.rail.shown}`)
   check('the duplicate format list is hidden', !s.srShown)
   // The DECK, not the viewport: a viewport shot lands wherever scrollIntoView put
   // it, which on a phone is usually the middle of one film and tells you nothing.

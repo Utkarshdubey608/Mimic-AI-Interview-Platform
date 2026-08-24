@@ -202,7 +202,28 @@ function program(gl: WebGL2RenderingContext, frag: string): WebGLProgram | null 
  */
 export function createInkFluid(
   canvas: HTMLCanvasElement,
-  opts: { color: Rgb },
+  opts: {
+    color: Rgb
+    /**
+     * The GL context went away, and this layer is finished.
+     *
+     * NOT optional politeness — this is what stops the worst failure this file
+     * can produce. A context is lost on a driver reset, under GPU pressure, or
+     * when a tab is put to sleep, and when it comes back every texture is gone.
+     * The dye targets are cleared once at creation precisely because
+     * `texImage2D(..., null)` leaves contents undefined (the comment there records
+     * that the symptom is "the hero opens with a grey wash") — but a RESTORED
+     * context re-creates them undefined again, and nothing was watching. The sim
+     * then advects garbage, the draw pass turns a full field of it into roughly
+     * 0.54 alpha, and `screen` lifts a dark card to a flat grey that stays until
+     * the page is reloaded.
+     *
+     * So the layer does not try to rebuild. It tells its owner to take it down,
+     * and the section falls back to the CSS design it is supposed to be complete
+     * without — which is dark, and correct.
+     */
+    onLost?: () => void
+  },
 ): InkFluid | null {
   const gl = canvas.getContext('webgl2', {
     alpha: true,
@@ -279,6 +300,20 @@ export function createInkFluid(
   let px = 0.5
   let py = 0.5
 
+  /* `preventDefault` is required: without it the browser will not even attempt to
+     restore the context. We do not want the restore for ourselves — we want the
+     event, so the owner can remove a canvas whose textures are now undefined. */
+  const onContextLost = (e: Event) => {
+    e.preventDefault()
+    disposed = true
+    /* Removed here rather than in `dispose`, which early-returns once `disposed`
+       is set — so a dispose after a context loss would never reach it. The context
+       is gone and cannot be lost twice, so there is nothing left for it to hear. */
+    canvas.removeEventListener('webglcontextlost', onContextLost)
+    opts.onLost?.()
+  }
+  canvas.addEventListener('webglcontextlost', onContextLost)
+
   const resize = () => {
     if (disposed) return
     /* Capped device pixel ratio: this is a soft glow, and there is nothing in it
@@ -342,6 +377,7 @@ export function createInkFluid(
     },
     resize,
     dispose() {
+      canvas.removeEventListener('webglcontextlost', onContextLost)
       if (disposed) return
       disposed = true
       gl.deleteBuffer(quad)
