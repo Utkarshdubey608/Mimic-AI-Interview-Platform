@@ -420,6 +420,18 @@ export function FormatShowcase() {
            not a toll gate between the reader and the rest of the page. The rail is
            there for anyone who would rather jump. */
         vhPerStep={48}
+        /* No width floor: this deck has a one-column phone panel, so whether a
+           phone gets it is a question about HEIGHT, and the fit test answers that
+           by measuring rather than by guessing from a breakpoint.
+
+           The panel was 765px against a 390x664 phone — 163px over once the nav's
+           62px is reserved — which is why this said 1081 for as long as it did. The
+           phone rules in mimicSite.css took that back out of the panel's chrome:
+           one column, no meta line, no caption sentence, a film capped in svh and
+           tighter gaps. If a phone still cannot afford it — a very short viewport,
+           a large default font — the fit test says no and the reader gets the swipe
+           carousel, which is a complete way to read six panels. */
+        minWidth={0}
         id="platform"
         className="mm-formats on-dark"
         labelledBy="fmt-h"

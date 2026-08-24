@@ -48,7 +48,17 @@ const LAPTOPS = [
   { w: 1440, h: 900 },
   { w: 1536, h: 864 },
 ]
-const PHONE = { w: 390, h: 844 }
+/* Four real phones, chosen because they bracket the decision this section has to
+   make. 412×915 and 430×932 have room for the pinned deck; 390×664 is an iPhone
+   with its browser chrome showing and is the tightest realistic viewport there
+   is; 360×740 is a small Android. Whichever way each one lands, the assertions
+   below hold — that is the point of testing all four rather than the roomiest. */
+const PHONES = [
+  { w: 412, h: 915 },
+  { w: 390, h: 664 },
+  { w: 360, h: 740 },
+  { w: 430, h: 932 },
+]
 const PANELS = 6
 /** Painted at all. Below this a panel contributes nothing the eye can see. */
 const LIT = 0.03
@@ -57,6 +67,14 @@ let failures = 0
 const pass = (label) => console.log(`  [32mPASS[0m  ${label}`)
 const fail = (label, detail) => { failures++; console.log(`  [31mFAIL[0m  ${label}${detail ? ` — ${detail}` : ''}`) }
 const check = (label, ok, detail) => (ok ? pass(label) : fail(label, detail))
+
+/** The x translation out of a computed transform, whichever matrix form it is in. */
+const txOf = (t) => {
+  const m = (t ?? 'none').match(/matrix(?:3d)?\(([^)]+)\)/)
+  if (!m) return 0
+  const n = m[1].split(',').map(Number)
+  return n.length === 16 ? n[12] : n[4]
+}
 
 /** Where each panel is and how much of it is painted, right now. */
 const readDeck = () => ({
@@ -321,66 +339,186 @@ async function laptop(browser, size) {
   await page.close()
 }
 
-async function phone(browser) {
-  console.log(`\n[1m${PHONE.w}×${PHONE.h} — carousel[0m`)
-  const page = await browser.newPage({ viewport: { width: PHONE.w, height: PHONE.h }, deviceScaleFactor: 2 })
+/**
+ * The phone now gets the DECK, not a carousel.
+ *
+ * These assertions used to describe a carousel, and before that a vertical stack.
+ * The carousel was right for as long as the deck could not fit a phone; it can
+ * now, so the invariant changes with it. What does NOT change is the shape of the
+ * check: whatever mode a phone ends up in, all six formats must be reachable and
+ * nothing may be cut off.
+ *
+ * Two invariants here are permanent regression guards for bugs that shipped.
+ *
+ *  · NOTHING IS CLIPPED. The seam is a deck-mode hairline rendered at every
+ *    width, and its `position:absolute` used to live inside the desktop-only
+ *    query — so on a phone it was a static, zero-width FLEX ITEM that ate one
+ *    24px column gap, pushed every panel 24px along the track, and let the deck's
+ *    overflow cut the right 20px off it: body copy broken mid-word at
+ *    "follows up wh|en", the film and its caption short by the same 20px.
+ *    Asserted two ways — the seam is out of flow, and the panel the reader is
+ *    looking at sits inside the deck's box.
+ *
+ *  · THE DECK IS NEVER FROZEN. Deck mode hides five of six panels, so it may only
+ *    ever apply while something is driving them. If the stage did not pin, the
+ *    panels must be a carousel — six visible, laid across, snapping. One frozen
+ *    panel with five formats missing is the failure this pair exists to catch.
+ */
+async function phone(browser, size) {
+  const label = `${size.w}×${size.h}`
+  const page = await browser.newPage({
+    viewport: { width: size.w, height: size.h },
+    deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+  })
+  const errors = []
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
   await page.goto(BASE, { waitUntil: 'networkidle' })
   await page.waitForSelector('.fmt-deck')
-  await page.evaluate(() => document.querySelector('.fmt-deck').scrollIntoView())
-  await page.waitForTimeout(400)
+  await page.evaluate(() => document.querySelector('.fmt-deck').scrollIntoView({ block: 'center' }))
+  await page.waitForTimeout(500)
 
-  const s = await page.evaluate(readDeck)
-  check('the stage does not pin', !(await page.evaluate(() => document.querySelector('.mm-formats').classList.contains('mm-stage'))))
-  check('all six panels are visible', s.panels.every((p) => p.visibility === 'visible'), s.panels.map((p) => p.visibility).join(','))
-  check('none is transformed', s.panels.every((p) => p.transform === 'none'), s.panels.map((p) => p.transform).join(' | '))
-  check('none is inert', s.panels.every((p) => !p.inert))
+  const pinned = await page.evaluate(() =>
+    document.querySelector('.mm-formats').classList.contains('mm-stage'))
+  console.log(`\n[1m${label} — ${pinned ? 'deck' : 'carousel fallback'}[0m`)
 
-  /* THE PHONE GETS A CAROUSEL, not a stack. These two assertions used to read
-     "they stack in order" and "the rail is hidden", which described a phone
-     getting six panels laid end to end down the page — six screens of scrolling,
-     no way to move between formats except passing all of them, and no indication
-     that there were six. They are side by side now, so the invariants are that
-     they are laid out horizontally, that the scroller snaps, and that the rail IS
-     shown, because a carousel has to say how many panels it has. */
-  const carousel = await page.evaluate(() => {
-    const deck = document.querySelector('.fmt-deck')
-    const cs = getComputedStyle(deck)
+  /* The root cause of the clipping, asserted directly and at every size, because
+     it is one declaration in one place and it was wrong for every phone. */
+  check('the seam is out of flow',
+    (await page.evaluate(() => getComputedStyle(document.querySelector('.fmt-seam')).position)) === 'absolute')
+
+  const geom = await page.evaluate(() => {
+    const h = document.querySelector('.mm-formats')
+    const inner = h.querySelector('.mm-stage-sticky')
     return {
-      overflowX: cs.overflowX,
-      snap: cs.scrollSnapType,
-      deckW: Math.round(deck.clientWidth),
-      trackW: Math.round(deck.scrollWidth),
-      panelW: Math.round(document.querySelector('.fmt-slide').getBoundingClientRect().width),
-      pageOverflow: document.scrollingElement.scrollWidth - window.innerWidth,
+      top: h.getBoundingClientRect().top + window.scrollY,
+      height: h.offsetHeight,
+      stageH: inner ? Math.round(inner.getBoundingClientRect().height) : 0,
+      fmtIn: Math.round(h.querySelector('.fmt-in').offsetHeight),
+      vh: window.innerHeight,
+      navH: Math.round(document.querySelector('header.nav')?.offsetHeight ?? 0),
     }
   })
-  check('the panels are laid out across, not down',
-    s.panels.every((p, i) => i === 0 || (p.left > s.panels[i - 1].left && Math.abs(p.top - s.panels[0].top) < 2)))
-  check('the deck scrolls horizontally and snaps',
-    carousel.overflowX === 'auto' && carousel.snap.startsWith('x'), `${carousel.overflowX} / ${carousel.snap}`)
-  check('one panel fills the deck', Math.abs(carousel.panelW - carousel.deckW) <= 1,
-    `panel ${carousel.panelW} vs deck ${carousel.deckW}`)
-  check('the track holds all six', carousel.trackW >= carousel.deckW * 5.5,
-    `${carousel.trackW}px for ${carousel.deckW}px of window`)
-  /* The one defect that ruins a phone page outright, and the easiest to ship by
-     accident with a horizontal scroller on it. */
-  check('the PAGE does not scroll sideways', carousel.pageOverflow === 0, `${carousel.pageOverflow}px`)
-  check('the rail is shown, as the carousel’s position', s.rail.shown && s.rail.count === PANELS,
-    `${s.rail.count} entries, shown=${s.rail.shown}`)
-  check('the duplicate format list is hidden', !s.srShown)
-  // The DECK, not the viewport: a viewport shot lands wherever scrollIntoView put
-  // it, which on a phone is usually the middle of one film and tells you nothing.
-  await page.locator('.formats-head').screenshot({ path: '.artifacts/formats/390-head.png' })
-  for (const i of [0, 3, 5]) {
-    await page.locator('.fmt-slide').nth(i).screenshot({ path: `.artifacts/formats/390-panel-${i}.png` })
+
+  if (pinned) {
+    /* The height budget, reported rather than merely asserted: the fit test only
+       requires content + 24 <= viewport, but the nav's height is reserved INSIDE
+       the pinned box, so the space the panel actually has is viewport minus nav.
+       Anything past that is clipped top and bottom by the sticky box. */
+    const budget = geom.vh - geom.navH
+    check('the panel fits the space left by the nav',
+      geom.fmtIn <= budget, `content ${geom.fmtIn}px vs ${budget}px (viewport ${geom.vh} less nav ${geom.navH})`)
+    check('the stage box is one small viewport, not one large one',
+      Math.abs(geom.stageH - geom.vh) <= 2, `stage ${geom.stageH} vs innerHeight ${geom.vh}`)
+
+    const travel = geom.height - geom.stageH
+    const xs = []
+    for (let i = 0; i < PANELS; i++) {
+      await settle(page, geom.top + travel * ((i + 0.5) / PANELS))
+      const s = await page.evaluate(readDeck)
+      const stage = onStage(s)
+      check(`step ${i}: exactly one panel is on stage`, stage.length === 1,
+        `${stage.length}: ${stage.map((p) => p.name).join(', ')}`)
+      check(`step ${i}: it is panel ${i}`, stage[0]?.name === s.panels[i].name,
+        `${stage[0]?.name} vs ${s.panels[i].name}`)
+      /* Nothing cut off — the reported bug, at the panel the reader is on. */
+      const p = stage[0]
+      if (p) {
+        check(`step ${i}: the panel is not clipped`,
+          p.left >= s.deck.left - 1 && p.right <= s.deck.right + 1,
+          `panel [${Math.round(p.left)},${Math.round(p.right)}] vs deck [${Math.round(s.deck.left)},${Math.round(s.deck.right)}]`)
+      }
+      xs.push(txOf(s.panels[0].transform))
+    }
+    /* THE THING THE READER ASKED FOR: it MOVES, horizontally, as you scroll — as
+       against cutting from one panel to the next.
+
+       Sampled while the scroll is HAPPENING, and it took four wrong instruments to
+       get here. Every one of them is worth recording, because each looked like a
+       broken deck and none of them was.
+
+         · the on-stage panel at each settle point   -> 0 every time; the panel on
+           stage is by definition the centred one.
+         · panel 0 across all six settle points      -> `0, -358, -358, -358, -358,
+           -358`; the driver paints only the panels actually on stage and parks the
+           rest a deck-width clear. That is the design.
+         · panel 0 at eight positions inside one transition -> `0, -1, 0, -347,
+           -344, -1, 0, -345`; the deck SETTLES onto a panel whenever the scroll
+           stops, so AT REST there is no intermediate state anywhere to find.
+         · `scrollTop` written directly, 25 frames    -> parked for all 25; Lenis
+           holds the authoritative offset and rewrites it every frame, so the write
+           is undone before the next sample.
+
+       What is left is the laptop case's own technique, and its comment reaches the
+       same conclusion from the other direction: let the page scroll the way the
+       scroll engine scrolls it, and read on the way past. One notch, then a dozen
+       reads through the eased travel it starts. The driver derives everything from
+       scroll POSITION, so what this observes is the same transition a finger
+       produces — the input device is not what is under test here. */
+    await settle(page, geom.top + travel * (0.5 / PANELS))
+    await page.mouse.move(Math.round(size.w / 2), Math.round(size.h / 2))
+    const r = []
+    await page.mouse.wheel(0, 120)
+    for (let k = 0; k < 14; k++) {
+      r.push(Math.round(txOf((await page.evaluate(readDeck)).panels[0].transform)))
+      await page.waitForTimeout(25)
+    }
+    const parked = Math.min(...r)
+    const between = r.filter((x) => x < -2 && x > parked + 2).length
+    /* Reported separately, so a trace that started in the wrong place cannot read
+       as a deck that does not move. */
+    check('the trace starts with panel 0 centred', Math.abs(r[0]) <= 4, `translateX ${r[0]}`)
+    check('the panels travel horizontally across the scroll',
+      r.every((x, idx) => idx === 0 || x <= r[idx - 1] + 1) && between >= 3,
+      `${between} intermediate positions of ${r.length}; panel 0 translateX ${r[0]} -> ${r[r.length - 1]} (parked ${parked})`)
+
+    const s = await page.evaluate(readDeck)
+    check('the rail is shown and complete', s.rail.shown && s.rail.count === PANELS,
+      `${s.rail.count} entries, shown=${s.rail.shown}`)
+    check('the hidden format list is present for a screen reader', s.srShown)
+    check('the deck cannot scroll', s.deck.overflow === 'clip', s.deck.overflow)
+  } else {
+    const s = await page.evaluate(readDeck)
+    check('all six panels are visible', s.panels.every((p) => p.visibility === 'visible'),
+      s.panels.map((p) => p.visibility).join(','))
+    check('none is inert', s.panels.every((p) => !p.inert))
+    check('the panels are laid out across, not down',
+      s.panels.every((p, i) => i === 0 || (p.left > s.panels[i - 1].left && Math.abs(p.top - s.panels[0].top) < 2)))
+    const car = await page.evaluate(() => {
+      const d = document.querySelector('.fmt-deck')
+      return {
+        overflowX: getComputedStyle(d).overflowX,
+        snap: getComputedStyle(d).scrollSnapType,
+        deckW: Math.round(d.clientWidth),
+        panelW: Math.round(document.querySelector('.fmt-slide').getBoundingClientRect().width),
+      }
+    })
+    check('the deck scrolls horizontally and snaps',
+      car.overflowX === 'auto' && car.snap.startsWith('x'), `${car.overflowX} / ${car.snap}`)
+    check('one panel fills the deck', Math.abs(car.panelW - car.deckW) <= 1,
+      `panel ${car.panelW} vs deck ${car.deckW}`)
+    /* The clipping guard in this mode: the panel at rest must be inside the
+       scrollport, not pushed along the track by a stray in-flow child. */
+    check('the resting panel is not clipped',
+      s.panels[0].left >= s.deck.left - 1 && s.panels[0].right <= s.deck.right + 1,
+      `panel [${Math.round(s.panels[0].left)},${Math.round(s.panels[0].right)}] vs deck [${Math.round(s.deck.left)},${Math.round(s.deck.right)}]`)
+    check('the rail is shown, as the carousel’s position', s.rail.shown && s.rail.count === PANELS)
   }
+
+  /* True in both modes, and the one defect that ruins a phone page outright. */
+  check('the PAGE does not scroll sideways',
+    (await page.evaluate(() => document.scrollingElement.scrollWidth - window.innerWidth)) === 0)
+  check('no console errors', errors.length === 0, errors.slice(0, 2).join(' | '))
+
+  await page.locator('.fmt-deck').screenshot({ path: `.artifacts/formats/${size.w}x${size.h}-deck.png` })
   await page.close()
 }
 
 const browser = await chromium.launch()
 try {
   for (const size of LAPTOPS) await laptop(browser, size)
-  await phone(browser)
+  for (const size of PHONES) await phone(browser, size)
 } finally {
   await browser.close()
 }

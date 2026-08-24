@@ -278,7 +278,12 @@ export function DemoVideo({ src, poster, still, caption, alt, disclosure = 'Synt
         </div>
       )}
       <figcaption>
-        {caption}
+        {/* The sentence is wrapped so it can be dropped independently of the
+            badge beside it. The phone deck does exactly that: the caption
+            restates what the reader is already watching and costs two lines at
+            350px, while the badge is the provenance claim, which is the one thing
+            in the figure a picture cannot carry. */}
+        <span className="shot-cap">{caption}</span>
         <span className="ph">{disclosure}</span>
       </figcaption>
     </figure>

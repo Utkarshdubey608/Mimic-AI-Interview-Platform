@@ -16,22 +16,39 @@ import { scrollToY } from './ScrollProvider'
  * scrolls, and the scroll handler derives the step from where the page ended
  * up. One source, so a click and a scroll can never disagree.
  *
- * Not pinned when the visitor asked for reduced motion, below 1081px, or when
- * the content is taller than the viewport it would be pinned to. A pinned
- * section on a 390px viewport traps the reader between the top and bottom of a
- * screen they cannot scroll past quickly, and a pinned section that does not fit
- * is cut in half by the sticky box — both worse failures than losing the effect.
+ * Not pinned when the visitor asked for reduced motion, below `minWidth`, or
+ * when the content is taller than the viewport it would be pinned to. A pinned
+ * section that does not fit is cut in half by the sticky box, which is a worse
+ * failure than losing the effect. Width is a coarse floor a caller sets for its
+ * own layout — a stage with a one-column phone form passes 0 and lets the fit
+ * test decide alone.
  * In every case the stage renders as ordinary flow and the controls behave
  * exactly as they did before.
  */
 export function PinnedStage({
-  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, backdrop, onProgress, children,
+  steps, onStep, id, className = '', labelledBy, vhPerStep = 30, minWidth = 1081,
+  backdrop, onProgress, children,
 }: {
   steps: number
   onStep: (i: number) => void
   id?: string
   className?: string
   labelledBy?: string
+  /**
+   * Narrowest viewport this stage may pin on, in px.
+   *
+   * A coarse floor, not the real decision — that is `canPinStage`, which measures
+   * whether the content actually fits. This exists for stages whose LAYOUT has a
+   * minimum width: the process stage puts its steps beside its copy and has no
+   * one-column form, so below the desktop breakpoint it should stay an ordinary
+   * section however much vertical room a phone happens to have.
+   *
+   * A stage with a phone layout passes 0 and lets the fit test answer alone. The
+   * formats deck does: its panel becomes one column under 1081px, and whether a
+   * phone gets the deck is then a question about height, which is the question
+   * the fit test was written to answer.
+   */
+  minWidth?: number
   /**
    * Decoration rendered behind the stage — the ambient field, in practice.
    *
@@ -83,7 +100,7 @@ export function PinnedStage({
 
   useEffect(() => {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const wide = window.matchMedia('(min-width: 1081px)')
+    const wide = window.matchMedia(`(min-width: ${minWidth}px)`)
 
     let frame = 0
     let attached = false
@@ -95,7 +112,17 @@ export function PinnedStage({
       const r = host.getBoundingClientRect()
       // Progress across the scrollable overhang: 0 when the stage's top reaches
       // the top of the viewport, 1 when its bottom reaches the bottom.
-      const travel = r.height - window.innerHeight
+      //
+      // MEASURED FROM THE STICKY BOX, not from `window.innerHeight`. The host is
+      // sized `calc(N*svh + 100svh)` and the box inside it is `100svh`, so the
+      // overhang is exactly N*svh — and measuring the box is how this arithmetic
+      // learns that without having to agree with a unit it cannot see. It used to
+      // read `innerHeight`, which on a phone is the CURRENT visible height while
+      // the height authored in CSS is a fixed one: as a URL bar collapses the
+      // denominator moved while the numerator did not, and the deck slid sideways
+      // under a stationary finger — 0.11 of a panel mid-deck, 0.20 near the end.
+      // On a desktop the two are the same number and nothing changes.
+      const travel = r.height - stageHeight()
       const p = travel > 0 ? clamp01(-r.top / travel) : 0
       /* Raw progress, for a stage that moves CONTINUOUSLY with the scroll rather
          than stepping — a horizontal track, say.
@@ -142,6 +169,15 @@ export function PinnedStage({
     // become 100vh, no longer fit, unpin, shrink, fit, pin, forever. The
     // children keep their natural height in both states. The inner box is a
     // flex row, so the tallest child is what the stage has to afford.
+    /* The pinned box's own height, which is `100svh` in CSS. Falls back to the
+       visual viewport before the box exists — there is nothing else to ask, and
+       the only consumer of the fallback is a frame in which travel is 0 anyway. */
+    const stageHeight = () => {
+      const inner = innerRef.current
+      const h = inner ? inner.getBoundingClientRect().height : 0
+      return h > 0 ? h : window.innerHeight
+    }
+
     const contentHeight = () => {
       const inner = innerRef.current
       if (!inner) return 0
@@ -210,12 +246,19 @@ export function PinnedStage({
       if (fitFrame) cancelAnimationFrame(fitFrame)
       detach()
     }
-  }, [steps, vhPerStep])
+  }, [steps, vhPerStep, minWidth])
 
   const goToStep = useCallback((i: number) => {
     const host = hostRef.current
     if (!pinned || !host) { stepRef.current = i; setStep(i); onStepRef.current(i); return }
-    const travel = host.offsetHeight - window.innerHeight
+    // Same measurement as `read()` above, for the same reason: a click and a
+    // scroll must agree about where step i lives, and they only do if both derive
+    // travel from the box that is actually holding the stage still.
+    const inner = innerRef.current
+    const stageH = inner && inner.getBoundingClientRect().height > 0
+      ? inner.getBoundingClientRect().height
+      : window.innerHeight
+    const travel = host.offsetHeight - stageH
     if (travel <= 0) return
     // Land mid-step rather than on its boundary, so a click does not settle on
     // the knife edge between two steps where a pixel of scroll flips it back.
@@ -228,7 +271,12 @@ export function PinnedStage({
       id={id}
       aria-labelledby={labelledBy}
       className={`${className}${pinned ? ' mm-stage' : ''}`.trim()}
-      style={pinned ? { height: `calc(${steps * vhPerStep}vh + 100vh)` } : undefined}
+      /* `svh`, matching `.mm-stage-sticky`. See the note there: `vh` is the tall
+         viewport a phone only has once its URL bar has gone, so a stage sized in
+         it is taller than the screen while the bar is present, and `dvh` changes
+         mid-scroll. `svh` is invariant for the whole scroll. On a desktop all
+         three are the same number. */
+      style={pinned ? { height: `calc(${steps * vhPerStep}svh + 100svh)` } : undefined}
     >
       <div ref={innerRef} className={pinned ? 'mm-stage-sticky' : undefined}>
         {/* Inside the sticky box, not the host section. When pinned the host is
