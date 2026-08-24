@@ -68,6 +68,22 @@ class Settings(BaseSettings):
     # How many recipients of one /send call are delivered in parallel.
     send_concurrency: int = 5
 
+    # --- Code execution (Coding interview mode) ---
+    # The sandboxed Judge0 instance that runs candidate code. BLANK BY DESIGN:
+    # unset means the coding mode reports "execution not configured" and runs
+    # nothing, which is the only safe default — the alternative fallback would be
+    # executing untrusted code in this process, which is the vulnerability itself.
+    #
+    # This CANNOT be Cloud Run. Judge0 needs a privileged container on a host
+    # booted into cgroup v1, and Cloud Run supports neither privileged containers
+    # nor the setuid binaries `isolate` is built on. It belongs on a dedicated,
+    # disposable Compute Engine VM on a private IP, reached over VPC egress.
+    # Documents/CODING_INTERVIEW_MODE_PLAN.md has the reasoning and the costs.
+    judge0_url: str = ""
+    # Judge0 ships with API authentication DISABLED, so anyone who can reach its
+    # port can execute arbitrary code on it. Set this on the judge and here.
+    judge0_token: str = ""
+
     # Who hears about a demo request from the marketing site.
     #
     # A DEFAULT rather than a required setting, because the alternative is worse:

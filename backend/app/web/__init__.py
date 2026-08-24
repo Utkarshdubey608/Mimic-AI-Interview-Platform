@@ -22,6 +22,7 @@ from app.web.routes import (
     health,
     help,
     brevo_webhook,
+    coding,
     invite_email_templates,
     invites,
     feedback,
@@ -69,6 +70,11 @@ _MODULES = (
     voices,
     templates,
     mcq_sets,
+    # Coding interview mode: recruiter authoring, plus the judge boundary. There
+    # is no candidate route yet because there is no `coding` track — adding one is
+    # a cross-client interop change touching 22 mode declarations in four
+    # languages. See Documents/CODING_INTERVIEW_MODE_PLAN.md.
+    coding,
     outcomes,
     question_sets,
     rounds_routes,

@@ -130,6 +130,21 @@ class WebStore:
         # across workers — see app/web/services/voice_jobs.py.
         self.voice_jobs = Collection(client, f"{PREFIX}voice_jobs")
 
+        # Coding interview mode. Both are `web_`-prefixed, and per this module's
+        # own header that means NO Firestore rule is added for them: rules use
+        # explicit per-collection matches with no catch-all and Firestore defaults
+        # to deny, so these are already unreachable by any client and written only
+        # by the Admin SDK.
+        #
+        # That default-deny is what protects hidden test cases. A coding problem
+        # contains every hidden input and its expected output — the same category
+        # of secret as `mcq_sets`' answer key — so a candidate who could read this
+        # collection would not need to solve anything.
+        self.coding_problems = Collection(client, f"{PREFIX}coding_problems")
+        # A submission DECIDES A SCORE, so the person being graded must never be
+        # able to write it. Same reasoning as `mcq_attempts`.
+        self.code_submissions = Collection(client, f"{PREFIX}code_submissions")
+
         # ── the single settings object ───────────────────────────────────────
         self.settings = SingletonDocument(client, f"{PREFIX}settings")
 

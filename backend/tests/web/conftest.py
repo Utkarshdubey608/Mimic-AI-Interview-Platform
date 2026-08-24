@@ -142,6 +142,10 @@ class FakeStore:
         self.feedback = FakeCollection(f"{prefix}feedback", key_field="sessionId")
         self.leads = FakeCollection(f"{prefix}leads")
         self.voice_jobs = FakeCollection(f"{prefix}voice_jobs")
+        # Coding interview mode. Mirrors WebStore; a collection missing here is an
+        # AttributeError at request time rather than a failing assertion.
+        self.coding_problems = FakeCollection(f"{prefix}coding_problems")
+        self.code_submissions = FakeCollection(f"{prefix}code_submissions")
         self.settings = FakeSingleton(f"{prefix}settings")
 
 
