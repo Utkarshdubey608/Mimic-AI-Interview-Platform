@@ -17,6 +17,7 @@ import { DeviceCheck } from './stage/DeviceCheck'
 import { ResumeUpload } from './screens/ResumeUpload'
 import { QuestionStage } from './screens/QuestionStage'
 import { ChatbotStage } from './screens/ChatbotStage'
+import { CodingStage } from './screens/CodingStage'
 import { McqStage } from './screens/McqStage'
 import { AvatarStage } from './screens/AvatarStage'
 import { VoiceStage } from './screens/VoiceStage'
@@ -164,6 +165,11 @@ export default function TakeInterviewPage() {
      own stage, and needs no résumé, no devices and no engine. It therefore comes
      BEFORE the pre-step machinery below, which exists to choose a format and
      collect a résumé neither of which apply to a written assessment. */
+  if (s.track === 'coding') {
+    // Its own screen for the same reason MCQ has one: no prep phase, no per-question
+    // server clock, no adaptive generation — none of the timed engine applies.
+    return <>{gate}<CodingStage sessionId={sessionId} onIntegrity={integrity.post} /></>
+  }
   if (s.track === 'mcq') {
     return <>{gate}<McqStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} /></>
   }

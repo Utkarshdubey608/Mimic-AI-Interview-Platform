@@ -63,6 +63,7 @@ from app.web.services import (
 )
 from app.web.shared import speech
 from app.web.routes import mcq_sets as mcq_sets_routes
+from app.web.services import coding_problems
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions")
@@ -77,7 +78,7 @@ router = APIRouter(prefix="/sessions", tags=["web:sessions"])
 #
 # Mirrors `TrackType` in web_version/talbotiq-platform/shared/types.ts, which
 # carries the note on the third copy of this list (the Flutter client).
-TRACKS = ("chat", "chatbot", "video_avatar", "voice", "video", "two_way", "mcq")
+TRACKS = ("chat", "chatbot", "video_avatar", "voice", "video", "two_way", "mcq", "coding")
 
 # A résumé, not a portfolio.
 MAX_RESUME_BYTES = 8 * 1024 * 1024
@@ -334,6 +335,7 @@ async def create_session(
     questions: list[dict] = []
     mcq_config: dict | None = None
     mcq_sections: list[dict] = []
+    coding_problems_resolved: list[dict] = []
     if (body.get("track") or template.get("track")) == "mcq":
         # The MCQ paper. Resolved here, WITH its answer key, into the session
         # document — the key stays server-side for the whole interview and the
@@ -372,6 +374,43 @@ async def create_session(
         # into an interview somebody has already sat. Section ids are kept as they
         # are - the questions reference them, exactly as options keep their ids.
         mcq_sections = [dict(section) for section in mcq_set.get("sections") or []]
+    elif (body.get("track") or template.get("track")) == "coding":
+        # The coding problems, resolved here WITH their hidden test cases and
+        # expected outputs, into the session document. Same reasoning as the MCQ
+        # paper above: the answer stays server-side for the whole assessment and the
+        # candidate's view is built by an allow-list (see routes/sessions_coding.py).
+        #
+        # Copied INTO the session rather than referenced, so editing a problem later
+        # cannot reach back into an assessment somebody has already sat — the same
+        # rule the MCQ questions follow, and the reason they are copied too.
+        wanted = template.get("codingProblemIds") or []
+        if not isinstance(wanted, list) or not wanted:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Template references no coding problems",
+            )
+        for problem_id in [str(x) for x in wanted]:
+            problem = await store.coding_problems.get(problem_id)
+            if not problem:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Template references a missing coding problem",
+                )
+            # A template may only point at a problem its own recruiter owns.
+            # Without this, a template id plus somebody else's problem id would
+            # read a problem — and its hidden tests — across the boundary.
+            if problem.get("recruiterId") not in (None, "", user.uid):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Template references a coding problem owned by another recruiter",
+                )
+            faults = coding_problems.problem_faults(problem)
+            if faults:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f'"{problem.get("title") or problem_id}" is not ready. {faults[0]}',
+                )
+            coding_problems_resolved.append(dict(problem))
     elif template.get("questionSource") == "fixed":
         question_set = await store.question_sets.get(
             str(template.get("fixedQuestionSetId") or "")
@@ -437,6 +476,12 @@ async def create_session(
         session["mcqConfig"] = mcq_config
     if mcq_sections:
         session["mcqSections"] = mcq_sections
+    if coding_problems_resolved:
+        # Inline, with the hidden tests. A `web_` collection is unreachable by any
+        # client (see store/db.py), so this is the same protection the MCQ answer
+        # key already relies on — and the candidate's view is projected by an
+        # allow-list rather than filtered here.
+        session["codingProblems"] = coding_problems_resolved
     await store.sessions.put(session)
     return {"id": session["id"]}
 

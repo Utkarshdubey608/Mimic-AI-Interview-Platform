@@ -65,6 +65,7 @@ def build_document(
     config: dict | None = None,
     question_set_id: str | None = None,
     mcq_set_id: str | None = None,
+    coding_problem_ids: list[str] | None = None,
     pipeline: dict | None = None,
     allowed_devices: object = None,
     server_timestamp: object = None,
@@ -101,6 +102,13 @@ def build_document(
     # stays in the recruiter's own collection and the session resolves it at create.
     if mcq_set_id:
         screening["mcqSetId"] = mcq_set_id
+    # Coding references its problems for exactly the same reason MCQ references its
+    # paper: a problem carries every hidden test case and its expected output, so it
+    # stays in the recruiter's own collection and the session resolves it at create
+    # time. A list rather than one id, because an assessment is normally two or
+    # three problems and a candidate works through them in order.
+    if coding_problem_ids:
+        screening["codingProblemIds"] = list(coding_problem_ids)
 
     document = {
         # ── the frozen schema, owned by app.interviews ──

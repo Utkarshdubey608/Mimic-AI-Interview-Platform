@@ -33,6 +33,8 @@ const TemplatesPage      = lazy(() => import('@/features/recruiter/TemplatesPage
 const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEditorPage'))
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
 const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
+const CodingProblemsPage = lazy(() => import('@/features/recruiter/CodingProblemsPage'))
+import { CodingStage } from '@/features/interview/screens/CodingStage'
 const McqStageHarness    = lazy(() => import('@/features/interview/screens/McqStageHarness'))
 const SessionsPage       = lazy(() => import('@/features/recruiter/SessionsPage'))
 const PipelinesPage      = lazy(() => import('@/features/recruiter/PipelinesPage'))
@@ -113,11 +115,25 @@ export default function App() {
             {import.meta.env.DEV && (
               <Route path="/__mcq" element={<McqSetsPage />} />
             )}
+            {/* Coding problem authoring, for the same reason: the sample/hidden
+                distinction is the one control on that page with a security
+                consequence, and whether it reads clearly is not something a unit
+                test can tell you. */}
+            {import.meta.env.DEV && (
+              <Route path="/__coding" element={<CodingProblemsPage />} />
+            )}
             {/* The CANDIDATE side of MCQ. Harnessed separately because it is the
                 irreversible path: a recruiter can re-edit a paper, a candidate
                 sits the assessment once and is scored on it. */}
             {import.meta.env.DEV && (
               <Route path="/__mcq-take" element={<McqStageHarness />} />
+            )}
+            {/* The CANDIDATE side of coding, harnessed for the same reason: this is
+                the irreversible path, and whether a hidden case's failure reads as
+                "you got it wrong" or "we are not telling you why" is a question
+                about rendered pixels. */}
+            {import.meta.env.DEV && (
+              <Route path="/__coding-take" element={<CodingStage sessionId="e2e-session" />} />
             )}
 
             {/* Everything below needs an identity. */}
@@ -162,6 +178,7 @@ export default function App() {
                 <Route path="/templates/:id" element={<TemplateEditorPage />} />
                 <Route path="/question-sets" element={<QuestionSetsPage />} />
                 <Route path="/mcq-sets" element={<McqSetsPage />} />
+                <Route path="/coding-problems" element={<CodingProblemsPage />} />
                 <Route path="/sessions" element={<SessionsPage />} />
                 <Route path="/sessions/new" element={<InviteWizard />} />
                 <Route path="/sessions/:id/report" element={<ReportPage />} />

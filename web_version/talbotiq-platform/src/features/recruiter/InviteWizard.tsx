@@ -2,10 +2,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
+import {
+  Code2, MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
 } from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
-import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi } from '@/lib/api'
+import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi } from '@/lib/api'
 import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
@@ -30,7 +31,7 @@ const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
  * the Firestore `interviews` schema + Admin credentials + email provider are in place.
  */
 
-type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq'>
+type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq' | 'coding'>
 type Source = 'tailor' | 'set'
 
 const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode }[] = [
@@ -39,6 +40,7 @@ const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode 
   { value: 'video_avatar', label: 'Video Avatar', blurb: 'Conversational AI video avatar (Tavus).',   icon: <Video size={20} /> },
   { value: 'chat',         label: 'Timed Q&A',    blurb: '30s prep + timed answers (HireVue-style).', icon: <Clock size={20} /> },
   { value: 'mcq',          label: 'Assessment',   blurb: 'Sections of closed questions, scored instantly.', icon: <ListChecks size={20} /> },
+  { value: 'coding',       label: 'Coding',       blurb: 'Solve problems in an editor, run against tests.', icon: <Code2 size={20} /> },
   { value: 'video',        label: 'Video Interview', blurb: 'Candidate records webcam answers per question.', icon: <Clapperboard size={20} /> },
   { value: 'two_way',      label: 'Two-way Interview', blurb: 'Live recruiter ↔ candidate video interview.', icon: <Users size={20} /> },
 ]
@@ -406,6 +408,9 @@ export default function InviteWizard() {
   const [cfg, setCfg] = useState<TailorConfig>({ style: 'mix', techCount: 5, nonTechCount: 3, difficulty: 'mixed', domains: [], model: 'gemini-2.5-flash' })
   const [selectedSetId, setSelectedSetId] = useState('')
   const [selectedMcqSetId, setSelectedMcqSetId] = useState('')
+  // A LIST, not one id: a coding assessment is normally two or three problems,
+  // and order is the order a candidate works through them.
+  const [selectedCodingIds, setSelectedCodingIds] = useState<string[]>([])
   const [genOpen, setGenOpen] = useState(false)
   // Step 2 (multi) — the ordered rounds being authored; modes/config are per-round.
   const [rounds, setRounds] = useState<RoundDraft[]>(defaultRounds())
@@ -436,6 +441,9 @@ export default function InviteWizard() {
   const sets = useQuery({ queryKey: ['question-sets'], queryFn: questionSetsApi.list, enabled: step === 2 && mode !== 'two_way' })
   // MCQ papers are a separate, owner-scoped collection — see mcqSetsApi.
   const mcqSets = useQuery({ queryKey: ['mcq-sets'], queryFn: mcqSetsApi.list, enabled: step === 2 && mode === 'mcq' })
+  // Coding problems are owner-scoped like MCQ papers, and for the same reason:
+  // a problem carries its hidden tests and their expected outputs.
+  const codingProblems = useQuery({ queryKey: ['coding-problems'], queryFn: codingApi.list, enabled: step === 2 && mode === 'coding' })
 
   const validCount = candidates.filter((c) => emailOk(c.email)).length
   const validCandidates = candidates.filter((c) => emailOk(c.email)).map((c) => ({ email: c.email.trim(), role: c.role.trim() || role }))
@@ -518,8 +526,9 @@ export default function InviteWizard() {
     }
     // Two-way Interview has no scripted question source (live recruiter-led
     // call) — every other mode requires one.
-    if (!mode || (mode !== 'two_way' && mode !== 'mcq' && !source) || validCount === 0) return
+    if (!mode || (mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && !source) || validCount === 0) return
     if (mode === 'mcq' && !selectedMcqSetId) { toast.error('Pick an MCQ set first'); return }
+    if (mode === 'coding' && selectedCodingIds.length === 0) { toast.error('Pick at least one coding problem'); return }
     if (!emailLocked.ok) { toast.error(`The invite email is missing the interview link (${emailLocked.missing.join(', ')})`); return }
     setCreating(true)
     try {
@@ -528,8 +537,9 @@ export default function InviteWizard() {
         role: role.trim(),
         // Neither two-way nor MCQ has a question SOURCE to send: one has no scripted
         // questions at all, the other references a pre-authored paper by id.
-        ...(mode !== 'two_way' && mode !== 'mcq' ? { source: source as Source } : {}),
+        ...(mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' ? { source: source as Source } : {}),
         ...(mode === 'mcq' ? { mcqSetId: selectedMcqSetId } : {}),
+        ...(mode === 'coding' ? { codingProblemIds: selectedCodingIds } : {}),
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
         candidates: validCandidates,
@@ -645,6 +655,7 @@ export default function InviteWizard() {
     // MCQ has no résumé-tailored path: the paper is authored in advance, with its
     // answers, so the only thing to choose is which paper.
     : mode === 'mcq' ? !!selectedMcqSetId
+    : mode === 'coding' ? selectedCodingIds.length > 0
     : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25 : source === 'set' ? !!selectedSetId : false
   const step2ValidMulti = rounds.length >= 1 && rounds.every((r) => r.name.trim().length >= 1 && !!r.mode)
 
@@ -846,7 +857,79 @@ export default function InviteWizard() {
             </>
           ) : (
             <>
-              {mode === 'mcq' ? (
+              {mode === 'coding' ? (
+                /* Coding: which problems. No résumé-tailored path, for the same
+                   reason MCQ has none — a problem needs its test cases and their
+                   expected outputs authored in advance, and generated-per-candidate
+                   tests would have nothing to grade against. */
+                <div>
+                  <StepSection
+                    title="Choose the coding problems"
+                    hint="Authored in Coding problems, with their hidden tests. Graded by a sandboxed judge the moment a candidate submits."
+                  >
+                    {codingProblems.isLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-[62px]" />
+                        <Skeleton className="h-[62px]" />
+                      </div>
+                    ) : (codingProblems.data ?? []).length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-rule-strong bg-surface-sunk px-5 py-6 text-center">
+                        <p className="text-sm font-semibold text-ink">No coding problems yet</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
+                          Write one in Coding problems — a statement, a visible sample and the hidden
+                          tests it is graded on — then it appears here.
+                        </p>
+                        <Button className="mt-3" size="sm" variant="outline" onClick={() => navigate('/coding-problems')}>
+                          Go to coding problems
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(codingProblems.data ?? []).map((problem) => {
+                          const sel = selectedCodingIds.includes(problem.id)
+                          /* A problem with faults is shown but not selectable. The
+                             server refuses it at send time anyway; saying so here
+                             names which problem and why, instead of failing the
+                             whole batch at the last step. */
+                          const blocked = problem.faults.length > 0
+                          return (
+                            <button
+                              key={problem.id}
+                              type="button"
+                              disabled={blocked}
+                              onClick={() =>
+                                setSelectedCodingIds((ids) =>
+                                  sel ? ids.filter((x) => x !== problem.id) : [...ids, problem.id],
+                                )
+                              }
+                              className={cn(
+                                'flex w-full items-center gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-colors duration-150',
+                                blocked && 'cursor-not-allowed opacity-60',
+                                sel
+                                  ? 'border-action bg-surface-hover/40 ring-1 ring-signal'
+                                  : 'border-border bg-surface hover:border-rule-strong',
+                              )}
+                            >
+                              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink">
+                                <Code2 size={17} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-bold text-ink">{problem.title || 'Untitled problem'}</span>
+                                <span className="mt-0.5 block text-xs text-ink-muted">
+                                  {blocked
+                                    ? problem.faults[0]
+                                    : `${problem.difficulty} · ${problem.testCount} test${problem.testCount === 1 ? '' : 's'} · ${problem.allowedLanguages.length} language${problem.allowedLanguages.length === 1 ? '' : 's'}`}
+                                </span>
+                              </span>
+                              {sel && <Check size={16} className="flex-shrink-0 text-ink" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </StepSection>
+                </div>
+              ) : mode === 'mcq' ? (
                 /* MCQ: one choice, which paper. There is no résumé-tailored path
                    here because a multiple-choice question needs its options and its
                    correct answer authored in advance — generated-per-candidate

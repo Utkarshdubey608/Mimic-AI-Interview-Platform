@@ -16,6 +16,8 @@ export type CheckId = 'browser' | 'mic' | 'camera' | 'face' | 'speaker' | 'conne
 const BY_TRACK: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
+  // Same as a written assessment: an editor needs a keyboard, not a webcam.
+  coding:       ['browser'],
   // A written assessment: nothing to say, nothing to hear, nothing to record.
   // Asking for device permissions an MCQ paper will never use is a pointless
   // obstacle in front of a candidate, so the browser check is the whole honest

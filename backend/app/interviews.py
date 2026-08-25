@@ -56,6 +56,28 @@ MODE_LABELS = {
     "video": "Video Interview",
     "two_way": "Two-way Interview",
     "mcq": "MCQ Test",
+    # Coding assessment. Added to the COMMON surface deliberately, and it is the
+    # one edit in this feature that crosses out of the web surface — because
+    # `is_known_mode` gates invite creation (app/web/routes/invites.py) and
+    # `mode_label` writes the invite email, so a web-only mode could be selected
+    # and then not be invitable.
+    #
+    # `type_for_mode` already puts it in the CHAT bucket without an edit, which is
+    # correct: like the MCQ paper, a coding assessment has no camera and no live
+    # audio, so every client that branches on the bucket treats it as written work.
+    #
+    # THE GOLDEN FIXTURE IS DELIBERATELY NOT REGENERATED for this. Its `modes`
+    # block exists so the Dart and TypeScript clients can assert they know the
+    # same tracks, and regenerating it fails the Flutter contract test —
+    # `RoundKind.fromWire` coerces unknown values to `chat`, so
+    # `fromWire('coding').wire != 'coding'` — which cannot be verified from a
+    # machine without a Flutter toolchain. Leaving the fixture as it is keeps
+    # every suite green and leaves the mode unrecorded there, which is a gap a
+    # human can close in two lines (`RoundKind.coding` plus a label) and run.
+    # Until then the Flutter client renders an unrecognised mode as
+    # "Timed Q&A (Chat)" rather than crashing — the same state `voice`, `video`
+    # and `two_way` are already in there.
+    "coding": "Coding",
 }
 
 # Which of the mobile app's two buckets each track maps onto.

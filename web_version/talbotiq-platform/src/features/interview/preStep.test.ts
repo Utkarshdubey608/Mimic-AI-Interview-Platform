@@ -25,6 +25,7 @@ const TRACKS: Record<TrackType, { conversational: boolean }> = {
   chat:         { conversational: false },  // "Timed Q&A" — the timed engine
   video:        { conversational: false },  // recorded webcam answers — also timed
   mcq:          { conversational: false },  // a written paper — no engine at all
+  coding:       { conversational: false },  // an editor and a judge — no engine either
   chatbot:      { conversational: true },
   voice:        { conversational: true },
   video_avatar: { conversational: true },
@@ -52,9 +53,13 @@ for (const track of ALL_TRACKS) {
 
 console.log('\n=== the Timed Q&A regression, stated directly ===')
 assert("'chat' runs on the timed engine, not a conversational one", !isConversational('chat'))
+/* The count is the tripwire, and it earns its keep: adding `coding` to TrackType
+   made the exhaustive Record above a compile error in six files and this
+   assertion a failure in the seventh. Bump it deliberately when a mode is added —
+   that is the moment to ask whether the new mode belongs on the timed engine. */
 assert(
-  'all seven tracks are covered',
-  ALL_TRACKS.length === 7,
+  'all eight tracks are covered',
+  ALL_TRACKS.length === 8,
   `got ${ALL_TRACKS.length}`,
 )
 

@@ -50,6 +50,11 @@ import type {
   NotAdvancingRequest,
   MoveBackRequest,
   AdvanceResult,
+  CodingProblem,
+  CodingProblemSummary,
+  PublicCodingProblem,
+  CodingResult,
+  CodingSubmission,
 } from '@shared/types'
 import type { AgentRequest, AgentDecision } from '@shared/autopilot'
 import { httpBase, commonBase } from './apiOrigin'
@@ -185,6 +190,77 @@ export const mcqSessionApi = {
  * recruiter who wrote it. Another recruiter's set answers 404 here, including on
  * `duplicate` — which would otherwise be a way to read their key.
  */
+/* ─── Coding problems ───────────────────────────────────────────────────────
+   Owner-scoped for the same reason MCQ sets are: a problem holds every hidden
+   test case and its expected output, so another recruiter's problem answers 404
+   here — including on `preview`, which would otherwise be a way to read the
+   sample set of somebody else's problem.
+
+   `preview` is the projection a CANDIDATE receives, served by the same server
+   function that will serve them. A preview rendered through a display-only copy
+   is a preview of something else. */
+export const codingApi = {
+  list: () => http<{ problems: CodingProblemSummary[] }>('/coding/problems').then((r) => r.problems),
+  get: (id: string) => http<{ problem: CodingProblem; faults: string[] }>(`/coding/problems/${id}`),
+  create: (body: Partial<CodingProblem>) =>
+    http<{ problem: CodingProblem; faults: string[] }>('/coding/problems', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  update: (id: string, body: Partial<CodingProblem>) =>
+    http<{ problem: CodingProblem; faults: string[] }>(`/coding/problems/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  remove: (id: string) => http<{ ok: boolean }>(`/coding/problems/${id}`, { method: 'DELETE' }),
+  preview: (id: string) =>
+    http<{ problem: PublicCodingProblem }>(`/coding/problems/${id}/preview`),
+  importBundle: (problems: Partial<CodingProblem>[]) =>
+    http<{ imported: { id: string; title: string; faults: string[] }[]; rejected: { index: number; reason: string }[] }>(
+      '/coding/problems/import', { method: 'POST', body: JSON.stringify({ problems }) },
+    ),
+  /** Validate a reference solution against the samples. Recruiter-side. */
+  run: (id: string, body: { source: string; languageId: number }) =>
+    http<{ result: CodingResult; streams: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }> }>(
+      `/coding/problems/${id}/run`, { method: 'POST', body: JSON.stringify(body) },
+    ),
+  submit: (id: string, body: { source: string; languageId: number; language?: string }) =>
+    http<{ submissionId: string; status: string }>(`/coding/problems/${id}/submit`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  submission: (id: string) => http<CodingSubmission>(`/coding/submissions/${id}`),
+}
+
+/* ─── The candidate's coding runtime ────────────────────────────────────────
+   Reached through the SESSION, never by problem id: a candidate has no business
+   naming a problem, and routing through the session is what makes the hidden
+   tests unreachable — they live on the session document, which no client can
+   read, and the projection happens server-side. */
+export const codingRuntimeApi = {
+  state: (sessionId: string) =>
+    http<{
+      sessionId: string
+      status?: string
+      problems: PublicCodingProblem[]
+      drafts: Record<string, string>
+      language: string
+      submittedAt?: string
+      branding: Record<string, unknown>
+    }>(`/sessions/${sessionId}/coding`),
+  saveDraft: (sessionId: string, body: { problemId: string; source: string; language?: string }) =>
+    http<{ ok: boolean }>(`/sessions/${sessionId}/coding/draft`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  run: (sessionId: string, body: { problemId: string; source: string; languageId: number }) =>
+    http<{ result: CodingResult; streams: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }> }>(
+      `/sessions/${sessionId}/coding/run`, { method: 'POST', body: JSON.stringify(body) },
+    ),
+  submit: (sessionId: string, body: { problemId: string; source: string; languageId: number; language?: string }) =>
+    http<{ submissionId: string; status: string }>(`/sessions/${sessionId}/coding/submit`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  submission: (sessionId: string, submissionId: string) =>
+    http<CodingSubmission>(`/sessions/${sessionId}/coding/submissions/${submissionId}`),
+}
+
 export const mcqSetsApi = {
   list: () => http<McqQuestionSet[]>('/mcq-sets'),
   get: (id: string) => http<McqQuestionSet>(`/mcq-sets/${id}`),

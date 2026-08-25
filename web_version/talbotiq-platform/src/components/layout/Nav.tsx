@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LogOut, Menu, X, Files, GitBranch, FileText, ListChecks, ListTodo,
+  Code2,
   BarChart3, UserSquare2, Settings as SettingsIcon, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
@@ -54,6 +55,9 @@ const GROUPS: Group[] = [
       { to: '/templates',     label: 'Templates',     icon: FileText },
       { to: '/question-sets', label: 'Question sets', icon: ListChecks },
       { to: '/mcq-sets', label: 'Assessments', icon: ListTodo },
+      // Beside Assessments rather than under Configuration: a coding problem is
+      // a thing a candidate is set, like a paper, not a setting.
+      { to: '/coding-problems', label: 'Coding problems', icon: Code2 },
     ],
   },
   {

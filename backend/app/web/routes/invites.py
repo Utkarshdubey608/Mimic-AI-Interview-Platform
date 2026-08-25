@@ -33,12 +33,23 @@ from app.providers.base import UpstreamError
 from app.providers.brevo import BrevoClient
 from app.security import AuthedUser
 from app.web.deps import RateLimitMediaWeb, WebUser, settings_of
-from app.web.services import interview_invite, invite_extract, storage, users
+from app.web.services import (
+    coding_problems,
+    interview_invite,
+    invite_extract,
+    storage,
+    users,
+)
 from app.web.shared import invite_email
 from app.web.routes import mcq_sets as mcq_sets_routes
 from app.web.store import get_store
 
 logger = logging.getLogger("web.invites")
+
+# How many coding problems one assessment may carry. An interview is two or three
+# problems; the cap is here so a malformed request cannot make the session document
+# resolve fifty of them, each with its full test suite, inline.
+MAX_CODING_PROBLEMS = 6
 
 router = APIRouter(prefix="/invites", tags=["web:invites"])
 
@@ -226,11 +237,14 @@ async def create_invites(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A valid interview mode is required")
     if not role:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "A candidate role is required")
-    # Two modes have no question SOURCE to choose. A two-way interview is a live
+    # THREE modes have no question SOURCE to choose. A two-way interview is a live
     # recruiter-led call with no scripted questions at all; an MCQ test references a
     # pre-authored paper by id, because its options and answers cannot be generated
-    # per candidate and still have a key to score against.
-    if mode not in ("two_way", "mcq") and source not in ("tailor", "set"):
+    # per candidate and still have a key to score against; and a coding assessment
+    # references its problems by id for exactly the same reason — a test case needs
+    # its expected output authored in advance, and a generated-per-candidate case
+    # would have nothing to grade against.
+    if mode not in ("two_way", "mcq", "coding") and source not in ("tailor", "set"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'source must be "tailor" or "set"')
 
     candidates = clean_candidates(body.get("candidates"), role)
@@ -284,6 +298,38 @@ async def create_invites(
                 status.HTTP_400_BAD_REQUEST,
                 f"That MCQ set is not ready to send. {faults[0]}",
             )
+
+    # Coding problems, validated the same way and for the same reasons as the MCQ
+    # set above: a problem carries its hidden test cases and their expected outputs,
+    # so an id belonging to another recruiter must not be usable, and 404 rather
+    # than 403 keeps the response from confirming it exists. Readiness is enforced
+    # at USE because authoring passes through incomplete states — a problem with no
+    # visible sample gives a candidate nothing to run against.
+    coding_problem_ids: list[str] | None = None
+    if mode == "coding":
+        raw_ids = body.get("codingProblemIds")
+        ids = [str(x) for x in raw_ids if str(x)] if isinstance(raw_ids, list) else []
+        if not ids:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "At least one coding problem must be selected"
+            )
+        if len(ids) > MAX_CODING_PROBLEMS:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"An assessment may carry at most {MAX_CODING_PROBLEMS} problems",
+            )
+        for problem_id in ids:
+            problem = await store.coding_problems.get(problem_id)
+            if not problem or str(problem.get("recruiterId") or "") not in ("", user.uid):
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Coding problem not found")
+            problem_faults = coding_problems.problem_faults(problem)
+            if problem_faults:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f'"{problem.get("title") or problem_id}" is not ready to send. '
+                    f"{problem_faults[0]}",
+                )
+        coding_problem_ids = ids
 
     stored_template = None
     if body.get("emailTemplateId"):
@@ -342,6 +388,7 @@ async def create_invites(
             config=body.get("config") if isinstance(body.get("config"), dict) else None,
             question_set_id=str(question_set_id) if question_set_id else None,
             mcq_set_id=mcq_set_id or None,
+            coding_problem_ids=coding_problem_ids,
             # Which clients the candidate may take this on. Validated and normalised
             # in the kernel: unknown values are dropped rather than refused, and
             # "all three" is stored as no restriction at all.

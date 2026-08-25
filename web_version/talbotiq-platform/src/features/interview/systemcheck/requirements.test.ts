@@ -19,6 +19,8 @@ function same(label: string, actual: CheckId[], expected: CheckId[]) {
 const EXPECTED: Record<TrackType, CheckId[]> = {
   chat:         ['browser'],
   chatbot:      ['browser'],
+  // Same as a written assessment: an editor needs a keyboard, not a webcam.
+  coding:       ['browser'],
   mcq:          ['browser'],
   voice:        ['browser', 'mic', 'speaker'],
   video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],

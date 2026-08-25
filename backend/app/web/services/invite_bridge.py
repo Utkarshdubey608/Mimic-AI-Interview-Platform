@@ -149,6 +149,13 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
         if isinstance(mcq_config, dict):
             template["mcqConfig"] = dict(mcq_config)
 
+    # Coding, mirroring the MCQ branch above: the ids travel, never the problems,
+    # and the session resolves them with their hidden tests at create time.
+    if track == "coding":
+        ids = screening.get("codingProblemIds") or data.get("codingProblemIds")
+        if isinstance(ids, list) and ids:
+            template["codingProblemIds"] = [str(x) for x in ids if str(x)]
+
     if source == "adaptive":
         template["adaptive"] = {
             "role": role,

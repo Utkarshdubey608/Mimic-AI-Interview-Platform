@@ -25,7 +25,7 @@
  * is updated.
  */
 export type TrackType =
-  | 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way' | 'mcq'
+  | 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way' | 'mcq' | 'coding'
 export type QuestionSource = 'adaptive' | 'fixed'
 
 /* ─── Identity & access control (IAM) ───────────────────────────────────────
@@ -240,6 +240,116 @@ export interface McqConfig {
 }
 
 /** An MCQ question set. Same per-recruiter ownership and isolation as the others. */
+/* ─── Coding problems ───────────────────────────────────────────────────────
+   A coding problem CONTAINS ITS OWN ANSWER — every hidden test case and its
+   expected output — which puts it in the same category as an MCQ set's answer
+   key, and it is owner-scoped for the same reason.
+
+   Two shapes, deliberately, and the distinction is the security boundary:
+   `CodingProblem` is what the OWNER sees and edits, `PublicCodingProblem` is
+   what a candidate is served. The second is not a subset of the first by
+   convention — it is built by an allow-list on the server
+   (`app/web/services/coding_problems.py`), so a field added to the stored
+   problem is invisible to a candidate until somebody adds it there on purpose.
+   Sample cases carry their expected output, because that is what a sample IS;
+   hidden cases contribute only their count. */
+
+export interface CodingTestCase {
+  id: string
+  input: string
+  expectedOutput: string
+  /** Defaults to TRUE server-side: the failure mode of the other default is
+   *  publishing an answer. */
+  hidden: boolean
+  points: number
+}
+
+export interface CodingProblem {
+  id: string
+  recruiterId?: string
+  title: string
+  statementMd: string
+  constraints: string
+  ioFormat: string
+  examples: { input: string; output: string; explanation: string }[]
+  starterCode: Record<string, string>
+  testCases: CodingTestCase[]
+  timeLimitMs: number
+  memoryMb: number
+  difficulty: 'easy' | 'medium' | 'hard'
+  tags: string[]
+  allowedLanguages: string[]
+  createdAt?: string
+}
+
+/** The list view. Deliberately carries NO test cases — a list has no use for
+ *  them, and sending them would make an incidental copy of the answer key. */
+export interface CodingProblemSummary {
+  id: string
+  title: string
+  difficulty: CodingProblem['difficulty']
+  tags: string[]
+  allowedLanguages: string[]
+  testCount: number
+  createdAt?: string
+  faults: string[]
+}
+
+export interface PublicCodingProblem {
+  id: string
+  title: string
+  statementMd: string
+  constraints: string
+  ioFormat: string
+  examples: { input: string; output: string; explanation: string }[]
+  starterCode: Record<string, string>
+  sampleTests: { id: string; input: string; expectedOutput: string; points: number }[]
+  hiddenTestCount: number
+  timeLimitMs: number
+  memoryMb: number
+  difficulty: CodingProblem['difficulty']
+  tags: string[]
+  allowedLanguages: string[]
+  totalPoints: number
+}
+
+export type CodingVerdict =
+  | 'accepted' | 'wrong_answer' | 'time_limit' | 'memory_limit'
+  | 'compile_error' | 'runtime_error' | 'internal_error' | 'not_run'
+
+export interface CodingCaseResult {
+  id: string
+  hidden: boolean
+  status: CodingVerdict | null
+  passed: boolean
+  points?: number
+  awarded?: number
+  timeMs: number | null
+  memoryKb?: number | null
+}
+
+export interface CodingResult {
+  score: number
+  maxScore: number
+  percent?: number
+  passed: number
+  total: number
+  cases: CodingCaseResult[]
+  compileFailed?: boolean
+  judgeFaulted?: boolean
+  streams?: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }>
+}
+
+export interface CodingSubmission {
+  id: string
+  problemId?: string
+  language?: string
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+  createdAt?: string
+  error?: string
+  result?: CodingResult
+}
+
 export interface McqQuestionSet {
   id: string
   kind: 'mcq'

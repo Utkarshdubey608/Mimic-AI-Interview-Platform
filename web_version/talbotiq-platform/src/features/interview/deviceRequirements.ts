@@ -52,6 +52,10 @@ export interface DeviceRequirements {
 export function requirementsFor(track: TrackType): DeviceRequirements {
   switch (track) {
     case 'chat':
+    // A coding assessment is typing only, exactly like `chat`. Asking a candidate
+    // for a camera to write a function would be a permission prompt that buys
+    // nothing and costs trust.
+    case 'coding':
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
     case 'chatbot':
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
