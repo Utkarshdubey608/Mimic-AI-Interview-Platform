@@ -29,15 +29,19 @@ class BackendConfig {
   /// Port `uvicorn app.main:app` listens on by default.
   static const int _devPort = 8000;
 
+  /// Deployed production backend. Used as the release-build default so a
+  /// distributed build (e.g. `flutter build windows --release`) works out of
+  /// the box without requiring testers to pass `--dart-define`. An explicit
+  /// `--dart-define=BACKEND_BASE_URL=...` still overrides this, so release
+  /// builds against a different backend (staging, etc.) remain possible.
+  static const String _releaseDefault =
+      'https://inteview-backend-14029160874.asia-south1.run.app';
+
   /// The backend root, without a trailing slash.
-  ///
-  /// In release builds a missing `BACKEND_BASE_URL` is a configuration error and
-  /// [isConfigured] is false, so callers can fail loudly instead of silently
-  /// pointing a shipped app at localhost.
   static String get baseUrl {
     final explicit = _fromEnvironment.trim();
     if (explicit.isNotEmpty) return _stripTrailingSlash(explicit);
-    return kReleaseMode ? '' : _devDefault;
+    return kReleaseMode ? _releaseDefault : _devDefault;
   }
 
   static bool get isConfigured => baseUrl.isNotEmpty;
