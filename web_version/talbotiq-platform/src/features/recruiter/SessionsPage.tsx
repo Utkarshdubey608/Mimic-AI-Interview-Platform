@@ -173,7 +173,13 @@ export default function SessionsPage() {
         title="Sessions"
         description="Every interview on the record. Each row is one candidate, tabbed by the format they were interviewed in, scored against its template's rubric."
         action={
-          <div className="flex items-center gap-2">
+          /* `flex-wrap`, and it is the whole fix. Five buttons in a non-wrapping
+             row is ~600px; on a 412px phone the last two — Single link and
+             Invite candidates, the primary action — were simply off-screen with
+             no indication they existed. Wrapping costs a line of height on a
+             phone and nothing at all on a desktop, where the row still fits.
+             `justify-end` so the wrapped rows stay aligned with the header. */
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {/* Only offered once there is something to decide. A round with no scored
                 interview in it has no ranking to make, and a button that opens an
                 empty modal is a button that teaches people to distrust it. */}

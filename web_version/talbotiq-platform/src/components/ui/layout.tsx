@@ -123,7 +123,24 @@ export function PageHeader({
           )}
           {meta && <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div>}
         </div>
-        {action && <div className="flex flex-shrink-0 items-center gap-2">{action}</div>}
+        {/* NOT `flex-shrink-0`, and this is a real bug fix rather than tidying.
+            `flex-shrink-0` told this wrapper to keep its content width whatever
+            happened, so a header with several buttons stayed at its full width
+            inside a narrower line box and simply overflowed the viewport.
+            Measured on the Sessions page at 412px: this wrapper was 631px wide in
+            a 380px container, putting "Single link" and "Invite candidates" — the
+            page's primary action — entirely off-screen with nothing to indicate
+            they existed. A page's own `flex-wrap` on its action row could not help,
+            because an unshrinkable parent hands the row 631px and a row that fits
+            never wraps.
+
+            `min-w-0` so it may shrink past its content, and `flex-wrap` so the
+            actions inside it fall onto a second line instead of off the edge.
+            Nothing changes on a desktop, where the row fits on one line as it
+            always did. */}
+        {action && (
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">{action}</div>
+        )}
       </div>
     </div>
   )

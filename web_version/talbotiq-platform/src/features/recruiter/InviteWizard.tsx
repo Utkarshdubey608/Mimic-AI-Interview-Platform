@@ -241,17 +241,38 @@ function DevicePicker({
               // that silently does nothing.
               title={isLast ? 'At least one device has to stay selected' : undefined}
               className={cn(
-                'rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150',
+                'flex items-start gap-2.5 rounded-lg border px-3.5 py-2.5 text-left transition-colors duration-150',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1',
                 on
                   ? 'border-action-edge bg-action-soft'
-                  : 'border-border bg-white hover:border-neutral-300',
+                  : 'border-border bg-surface hover:border-rule-strong',
                 isLast && 'cursor-not-allowed',
               )}
             >
-              <span className={cn('block text-sm font-semibold', on ? 'text-action-edge' : 'text-neutral-700')}>
-                {option.label}
+              {/* A REAL CHECKBOX MARK, drawn in both states.
+                  Colour alone was carrying this and it could not: selected was a
+                  near-black hairline on #F1F3F7 against an unselected light-grey
+                  hairline on white, and with all three on — the default — the row
+                  read as three identical cards. Reported as being unable to tell
+                  what was selected, which it was.
+                  Drawn EMPTY when off rather than appearing only when on, because
+                  this is a multi-select: an absent tick has to be distinguishable
+                  from a control that has no tick at all. */}
+              <span
+                aria-hidden
+                className={cn(
+                  'mt-0.5 grid h-4 w-4 flex-shrink-0 place-items-center rounded border transition-colors duration-150',
+                  on ? 'border-action-edge bg-action text-action-ink' : 'border-rule-strong bg-surface',
+                )}
+              >
+                {on && <Check size={11} strokeWidth={3} />}
               </span>
-              <span className="mt-0.5 block text-xs text-neutral-500">{option.hint}</span>
+              <span className="min-w-0">
+                <span className={cn('block text-sm font-semibold', on ? 'text-action-edge' : 'text-ink-body')}>
+                  {option.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-muted">{option.hint}</span>
+              </span>
             </button>
           )
         })}
