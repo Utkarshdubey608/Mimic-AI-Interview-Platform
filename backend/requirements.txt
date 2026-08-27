@@ -4,6 +4,26 @@ pydantic==2.10.4
 pydantic-settings==2.7.1
 email-validator==2.2.0
 firebase-admin==6.6.0
+# ── The Firestore client chain, PINNED — and this is not belt-and-braces ─────
+# firebase-admin was pinned; the Google libraries it pulls in were not. So a
+# rebuild silently re-resolved the entire data layer, and on 2026-08-25 it did:
+# `gcloud run deploy --source` picked up google-api-core 2.35.0, published eight
+# hours earlier, whose `path_template.expand` regression percent-encoded the
+# Firestore database id. Every read then failed with
+# `INVALID_ARGUMENT: Invalid database id %28default%29` — the whole record
+# unreachable — while the local venv kept its older resolution and all 1824 tests
+# passed. Google has since yanked 2.35.0 ("regression in path_template.expand,
+# see issue #18213").
+#
+# The lesson is not "2.35.0 was bad". It is that an unpinned transitive
+# dependency under the DATA LAYER means any rebuild can change the database
+# client without a line of our code changing, and the tests cannot see it because
+# they run against a different resolution. These four are the versions the suite
+# actually passes against.
+google-api-core==2.34.0
+google-cloud-firestore==2.28.1
+google-cloud-core==2.6.1
+grpcio==1.83.0
 google-api-python-client==2.156.0
 httpx==0.28.1
 python-multipart==0.0.20
