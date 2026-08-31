@@ -221,7 +221,7 @@ export const codingApi = {
   preview: (id: string) =>
     http<{ problem: PublicCodingProblem }>(`/coding/problems/${id}/preview`),
   importBundle: (problems: Partial<CodingProblem>[]) =>
-    http<{ imported: { id: string; title: string; faults: string[] }[]; rejected: { index: number; reason: string }[] }>(
+    http<{ imported: { id: string; title: string; faults: string[]; ignored: string[]; renamed: string[] }[]; rejected: { index: number; reason: string }[] }>(
       '/coding/problems/import', { method: 'POST', body: JSON.stringify({ problems }) },
     ),
   /** Validate a reference solution against the samples. Recruiter-side. */

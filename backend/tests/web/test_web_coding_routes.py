@@ -216,3 +216,40 @@ def test_an_oversized_bundle_is_refused(owner: TestClient) -> None:
         "/api/web/coding/problems/import", json={"problems": [PROBLEM] * 51}
     )
     assert response.status_code == 413
+
+
+def test_an_import_reports_the_keys_it_ignored(owner: TestClient) -> None:
+    """The regression this exists for: a bundle using `expected` instead of
+    `expectedOutput` imported with zero rejections, stored two empty expectations,
+    and then graded a correct solution zero. Importing must say what it dropped."""
+    response = owner.post(
+        "/api/web/coding/problems/import",
+        json={
+            "problems": [
+                {
+                    "title": "Two Sum",
+                    "statementMd": "x",
+                    "allowedLanguages": ["python"],
+                    "testCases": [
+                        {"input": "2 7\n9", "expected": "0 1", "hidden": False, "points": 1}
+                    ],
+                }
+            ]
+        },
+    )
+    assert response.status_code == 200
+    entry = response.json()["imported"][0]
+    # It now WORKS: the value was understood and stored, so the problem is usable.
+    assert entry["faults"] == []
+    # And the author is told the canonical spelling rather than left guessing.
+    assert any("expectedOutput" in r for r in entry["renamed"])
+    assert entry["ignored"] == []
+
+
+def test_an_import_still_reports_a_key_nothing_can_be_made_of(owner: TestClient) -> None:
+    response = owner.post(
+        "/api/web/coding/problems/import",
+        json={"problems": [{**PROBLEM, "difficultly": "easy"}]},
+    )
+    assert response.status_code == 200
+    assert "difficultly" in response.json()["imported"][0]["ignored"]

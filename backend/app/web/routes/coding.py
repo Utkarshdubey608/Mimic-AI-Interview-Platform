@@ -224,7 +224,18 @@ async def import_problems(request: Request, body: dict, user: AuthedUser = WebUs
             continue
         await store.coding_problems.put(record)
         imported.append(
-            {"id": record["id"], "title": record["title"], "faults": coding_problems.problem_faults(record)}
+            {
+                "id": record["id"],
+                "title": record["title"],
+                "faults": coding_problems.problem_faults(record),
+                # What the allow-list dropped. Reported rather than silent: a bundle
+                # using `expected` instead of `expectedOutput` imported with zero
+                # rejections and graded a correct solution zero.
+                "ignored": coding_problems.ignored_keys(entry if isinstance(entry, dict) else {}),
+                # Understood, but not spelled canonically. Reported so a generator
+                # that keeps emitting `expected` can be corrected at the source.
+                "renamed": coding_problems.renamed_keys(entry if isinstance(entry, dict) else {}),
+            }
         )
 
     return {"imported": imported, "rejected": rejected}

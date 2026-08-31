@@ -193,3 +193,171 @@ def test_missing_pieces_are_reported_rather_than_refused() -> None:
     draft = _problem(title="", allowedLanguages=[])
     faults = problem_faults(draft)
     assert len(faults) >= 2
+
+
+# ── an expectation is what makes a case gradeable ─────────────────────────────
+
+
+def test_a_case_with_no_expected_output_is_not_ready() -> None:
+    """The fault this file exists to prevent reaching a candidate.
+
+    Judge0 compares stdout against `expected_output`, and `run_cases` sends `""`
+    rather than None for a blank one — so an empty expectation does not mean "do
+    not compare", it means "expect nothing", which no program that prints an
+    answer can ever satisfy. Left unflagged, such a problem is fully valid, is
+    selectable in the invite wizard, and scores every correct submission zero.
+    """
+    blank = _problem(
+        testCases=[
+            {"id": "s", "input": "2 7", "expectedOutput": "", "hidden": False, "points": 1},
+        ]
+    )
+    assert any("expected output" in f for f in problem_faults(blank))
+
+
+def test_a_case_whose_expected_output_is_only_whitespace_is_not_ready() -> None:
+    blank = _problem(
+        testCases=[
+            {"id": "s", "input": "2 7", "expectedOutput": "   \n ", "hidden": False, "points": 1},
+        ]
+    )
+    assert any("expected output" in f for f in problem_faults(blank))
+
+
+def test_the_faulting_case_is_named_so_a_recruiter_can_find_it() -> None:
+    blank = _problem(
+        testCases=[
+            {"id": "tc1", "input": "a", "expectedOutput": "b", "hidden": False, "points": 1},
+            {"id": "tc2", "input": "c", "expectedOutput": "", "hidden": True, "points": 1},
+        ]
+    )
+    faults = " ".join(problem_faults(blank))
+    assert "tc2" in faults and "tc1" not in faults
+
+
+# ── a dropped key must not be silent ──────────────────────────────────────────
+
+
+def test_unknown_keys_are_reported_so_an_import_typo_is_not_silent() -> None:
+    """`expected` instead of `expectedOutput` imported clean and graded everyone
+    zero. The allow-list is right; its silence was not."""
+    from app.web.services.coding_problems import ignored_keys
+
+    reported = ignored_keys(
+        {
+            "title": "Two Sum",
+            "statementMd": "x",
+            "difficultly": "easy",
+            "testCases": [{"input": "a", "expected": "b", "hidden": False, "points": 1}],
+        }
+    )
+    # A typo nothing can be made of is still reported...
+    assert "difficultly" in reported
+    # ...but `expected` is now understood, so it is a RENAME, not a loss. Reporting
+    # it as ignored would be a lie about data that was in fact stored.
+    assert not any("expected" in r for r in reported)
+
+
+def test_a_correct_bundle_reports_nothing_ignored() -> None:
+    from app.web.services.coding_problems import ignored_keys
+
+    assert ignored_keys(
+        {
+            "title": "Two Sum",
+            "statementMd": "x",
+            "difficulty": "easy",
+            "allowedLanguages": ["python"],
+            "testCases": [{"input": "a", "expectedOutput": "b", "hidden": False, "points": 1}],
+        }
+    ) == []
+
+
+# ── a bundle a human or an LLM actually writes ────────────────────────────────
+
+
+def test_the_common_synonym_for_expected_output_is_accepted() -> None:
+    """`expected` is what everyone writes. Rejecting it silently cost a candidate
+    a correct submission; rejecting it loudly still costs them the import."""
+    stored = _problem(
+        testCases=[{"id": "s", "input": "2 7", "expected": "0 1", "hidden": False, "points": 1}]
+    )
+    assert stored["testCases"][0]["expectedOutput"] == "0 1"
+    assert problem_faults(stored) == []
+
+
+def test_snake_case_is_accepted_everywhere() -> None:
+    from app.web.services.coding_problems import clean_problem as cp
+    stored = cp(
+        {
+            "title": "Two Sum",
+            "statement_md": "x",
+            "allowed_languages": ["python"],
+            "time_limit_ms": 3000,
+            "test_cases": [
+                {"input": "a", "expected_output": "b", "hidden": False, "points": 1}
+            ],
+        },
+        recruiter_id="r",
+        problem_id="p",
+        now=NOW,
+    )
+    assert stored["statementMd"] == "x"
+    assert stored["allowedLanguages"] == ["python"]
+    assert stored["timeLimitMs"] == 3000
+    assert stored["testCases"][0]["expectedOutput"] == "b"
+
+
+def test_other_plausible_synonyms_are_accepted() -> None:
+    from app.web.services.coding_problems import clean_problem as cp
+    stored = cp(
+        {
+            "title": "Two Sum",
+            "statement": "x",
+            "languages": ["python"],
+            "tests": [{"stdin": "a", "output": "b", "hidden": False, "points": 1}],
+        },
+        recruiter_id="r",
+        problem_id="p",
+        now=NOW,
+    )
+    assert stored["statementMd"] == "x"
+    assert stored["allowedLanguages"] == ["python"]
+    assert stored["testCases"][0]["input"] == "a"
+    assert stored["testCases"][0]["expectedOutput"] == "b"
+    assert problem_faults(stored) == []
+
+
+def test_a_renamed_key_is_still_reported_so_the_author_learns_the_canonical_name() -> None:
+    from app.web.services.coding_problems import renamed_keys
+    assert any(
+        "expected" in r and "expectedOutput" in r
+        for r in renamed_keys({"testCases": [{"expected": "b"}]})
+    )
+
+
+def test_a_genuinely_unknown_key_is_still_reported_as_ignored() -> None:
+    from app.web.services.coding_problems import ignored_keys
+    assert "difficultly" in ignored_keys({"difficultly": "easy"})
+
+
+def test_a_synonym_is_not_reported_as_ignored() -> None:
+    from app.web.services.coding_problems import ignored_keys
+    assert ignored_keys({"statement": "x", "testCases": [{"expected": "b"}]}) == []
+
+
+def test_case_level_renames_are_found_however_the_cases_list_was_spelled() -> None:
+    """The reporting must not depend on the container key being canonical: a bundle
+    with `test_cases` still has cases whose own keys were renamed."""
+    from app.web.services.coding_problems import renamed_keys
+    reported = renamed_keys(
+        {"title": "x", "test_cases": [{"input": "a", "expected_output": "b"}]}
+    )
+    assert any("expectedOutput" in r for r in reported)
+
+
+def test_unknown_case_keys_are_found_however_the_cases_list_was_spelled() -> None:
+    from app.web.services.coding_problems import ignored_keys
+    assert any(
+        "nonsense" in k
+        for k in ignored_keys({"title": "x", "tests": [{"input": "a", "nonsense": "b"}]})
+    )

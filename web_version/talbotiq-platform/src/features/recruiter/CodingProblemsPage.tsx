@@ -40,6 +40,7 @@ import {
   PageContainer,
   Select,
   Textarea,
+  cn,
 } from '@/components/ui'
 import { CodeEditor } from '@/features/coding/CodeEditor'
 import { codingApi } from '@/lib/api'
@@ -666,7 +667,13 @@ function ImportModal({
     onSuccess: (data) => {
       toast.success(`Imported ${data.imported.length}${data.rejected.length ? `, ${data.rejected.length} rejected` : ''}`)
       onDone()
-      if (!data.rejected.length) onClose()
+      /* Only close on a CLEAN import. A bundle that imported but dropped keys or
+         landed with faults is the case this dialog exists to report: closing on it
+         is what let `expected` instead of `expectedOutput` look like a success. */
+      const worthSaying =
+        data.rejected.length ||
+        data.imported.some((p) => p.ignored.length || p.faults.length || p.renamed.length)
+      if (!worthSaying) onClose()
     },
     onError: (e: Error) => toast.error(e.message || 'Could not import'),
   })
@@ -704,6 +711,43 @@ function ImportModal({
             ))}
           </ul>
         ) : null}
+        {run.data?.imported
+          .filter((p) => p.ignored.length || p.faults.length || p.renamed.length)
+          .map((p) => {
+            const broken = p.ignored.length > 0 || p.faults.length > 0
+            return (
+              <div
+                key={p.id}
+                className={cn(
+                  'rounded-xl border px-3 py-2.5 text-xs',
+                  broken ? 'border-risk/40 bg-risk-bg/40' : 'border-border bg-surface-sunk',
+                )}
+              >
+                <p className="font-semibold text-ink">
+                  {p.title || 'Untitled problem'}
+                  {broken ? ' imported, but needs attention' : ' imported'}
+                </p>
+                {p.renamed.length ? (
+                  <p className="mt-1 leading-relaxed text-ink-muted">
+                    Understood and stored under our field names. Use these spellings to avoid the
+                    round trip: <span className="font-mono text-ink">{p.renamed.join(', ')}</span>
+                  </p>
+                ) : null}
+                {p.ignored.length ? (
+                  <p className="mt-1 leading-relaxed text-ink-muted">
+                    Nothing could be made of {p.ignored.length === 1 ? 'this key' : 'these keys'}, so
+                    the {p.ignored.length === 1 ? 'value was' : 'values were'} not stored:{' '}
+                    <span className="font-mono text-risk">{p.ignored.join(', ')}</span>
+                  </p>
+                ) : null}
+                {p.faults.length ? (
+                  <ul className="ml-4 mt-1 list-disc space-y-0.5 text-risk">
+                    {p.faults.map((f) => <li key={f}>{f}</li>)}
+                  </ul>
+                ) : null}
+              </div>
+            )
+          })}
       </div>
     </Modal>
   )
