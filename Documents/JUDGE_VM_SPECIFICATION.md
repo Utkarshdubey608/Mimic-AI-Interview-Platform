@@ -86,13 +86,13 @@ gcloud compute instances create judge0 \
 
 | Resource | Configuration | Cost impact |
 | --- | --- | --- |
-| **API to enable** | `compute.googleapis.com` — **currently NOT enabled** on this project | none |
+| **API to enable** | `compute.googleapis.com` — **enabled, and the VM is running** | none |
 | **Service account** | `judge0-runner`, no project roles; scopes limited to `logging.write` + `monitoring.write` | none |
 | **Firewall (ingress)** | Allow `tcp:2358` to network tag `judge0`, **source = the Cloud Run service's VPC range only**. No `0.0.0.0/0`. | none |
-| **Firewall (egress)** | Deny all egress from tag `judge0` except DNS + the package mirrors needed at build time. Tighten to deny-all after install. | none |
+| **Firewall (egress)** | **No internet egress at all, as built.** The VM has no external IP and there is no NAT, so the only reachable destinations are Google APIs over Private Google Access. Nothing to deny — there is no path. | none |
 | **Cloud Run → VM** | **Direct VPC egress** (not a Serverless VPC Access connector) | **no extra instances billed** |
-| **NAT** | Cloud NAT is needed **only during installation** to pull packages. Delete it afterwards, or install via IAP tunnel. | ~$0.044/hr while it exists |
-| **SSH access** | IAP TCP forwarding + OS Login. No public SSH. | none |
+| **NAT** | Needed **only during installation**, to pull packages and the Judge0 release. **Deleted after install** — see the note below. | $0 (was ~$0.044/hr) |
+| **SSH access** | **None.** The host is provisioned and diagnosed entirely through the instance startup-script and the serial console. There is no SSH path to it, by choice. | none |
 
 > **On the connectivity choice:** Direct VPC egress carries no per-instance
 > charge. A Serverless VPC Access connector would instead bill as its underlying
@@ -100,6 +100,26 @@ gcloud compute instances create judge0 \
 > could not find a distinct billing SKU for connectors to quote an exact figure,
 > so treat any connector-based alternative as *approximately* two `e2-micro`
 > instances and price it separately if you go that way.
+
+> **On deleting the NAT — the dependency that is easy to miss.** The bootstrap
+> reads the judge API token from Secret Manager on every boot, which is a call to
+> `secretmanager.googleapis.com`. With no external IP that call went through the
+> NAT, so deleting the NAT alone would have made every subsequent boot fail on the
+> script's own "could not read the auth token" guard. **Private Google Access must
+> be enabled on the subnet first** (`gcloud compute networks subnets update default
+> --region=asia-south1 --enable-private-ip-google-access`), which routes Google API
+> traffic without an internet path. Verified in that order: PGA on, NAT deleted,
+> instance reset, and the full 16-check verification passed on a host with no
+> internet egress whatsoever.
+>
+> The cost of this: the host can no longer pull a container image or a package.
+> Re-creating the NAT is one command and it is the documented step for any future
+> Judge0 upgrade:
+>
+> ```
+> gcloud compute routers nats create judge0-nat --router=judge0-router \
+>   --region=asia-south1 --auto-allocate-nat-external-ips --nat-all-subnet-ip-ranges
+> ```
 
 ---
 

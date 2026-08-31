@@ -135,6 +135,20 @@ export default function App() {
             {import.meta.env.DEV && (
               <Route path="/__coding-take" element={<CodingStage sessionId="e2e-session" />} />
             )}
+            {/* The RECRUITER's report. Harnessed because a coding report is the
+                one report that shows a candidate's own program and every hidden
+                test's verdict — what it discloses and to whom is a question about
+                what is on the screen, and it sits behind the identity gate where
+                no other check can look at it. */}
+            {import.meta.env.DEV && (
+              <Route path="/__report/:id" element={<ReportPage />} />
+            )}
+            {/* The aggregate dashboard, for the coding block: whether six ruled stat
+                cells inside a padded card read as a strip or as clutter is not a
+                question a type checker answers. */}
+            {import.meta.env.DEV && (
+              <Route path="/__analytics" element={<AnalyticsPage />} />
+            )}
 
             {/* Everything below needs an identity. */}
             <Route element={<AuthedApp />}>

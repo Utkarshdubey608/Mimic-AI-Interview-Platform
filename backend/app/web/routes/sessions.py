@@ -63,7 +63,7 @@ from app.web.services import (
 )
 from app.web.shared import speech
 from app.web.routes import mcq_sets as mcq_sets_routes
-from app.web.services import coding_problems
+from app.web.services import coding_problems, coding_scoring
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions")
@@ -1339,6 +1339,14 @@ async def report(session_id: str, request: Request, user: AuthedUser = WebUser) 
         },
         "rubric": template.get("rubric"),
         "report": await store.reports.get(session_id),
+        # The coding track is scored by arithmetic on the judge's verdicts, not by
+        # a model writing a report, so its breakdown is composed here from the
+        # session's own durable record rather than read from reports/{id}.
+        **(
+            {"coding": coding_scoring.recruiter_report(session)}
+            if session.get("track") == "coding"
+            else {}
+        ),
     }
 
 

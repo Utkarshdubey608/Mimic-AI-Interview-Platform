@@ -42,9 +42,8 @@ import {
   Textarea,
 } from '@/components/ui'
 import { CodeEditor } from '@/features/coding/CodeEditor'
-import { LANGUAGES } from '@/features/coding/languages'
 import { codingApi } from '@/lib/api'
-import type { CodingProblem, CodingTestCase } from '@shared/types'
+import type { CodingLanguage, CodingProblem, CodingTestCase } from '@shared/types'
 
 const EMPTY: Partial<CodingProblem> = {
   title: '',
@@ -80,6 +79,14 @@ export default function CodingProblemsPage() {
   const [importOpen, setImportOpen] = useState(false)
 
   const list = useQuery({ queryKey: ['coding-problems'], queryFn: codingApi.list })
+
+  /* The languages come from the JUDGE, not from a constant here. Judge0's ids are
+     per-instance, and the documented ones are the legacy set — a hard-coded list
+     gave every candidate Python 3.8 and Node 12 while the same judge offered 3.14
+     and 22. `version` is shown beside each chip so a recruiter can see exactly
+     which interpreter they are committing their candidates to. */
+  const langs = useQuery({ queryKey: ['coding-languages'], queryFn: codingApi.languages })
+  const languages = langs.data?.languages ?? []
 
   const loaded = useQuery({
     queryKey: ['coding-problem', selectedId],
@@ -296,13 +303,14 @@ export default function CodingProblemsPage() {
             <fieldset>
               <legend className="field-label">Languages a candidate may answer in</legend>
               <div className="mt-1 flex flex-wrap gap-2">
-                {LANGUAGES.map((lang) => {
+                {languages.map((lang) => {
                   const on = (draft.allowedLanguages || []).includes(lang.key)
                   return (
                     <button
                       key={lang.key}
                       type="button"
                       aria-pressed={on}
+                      title={lang.version ?? undefined}
                       onClick={() =>
                         setDraft((d) => {
                           const current = d.allowedLanguages || []
@@ -311,6 +319,14 @@ export default function CodingProblemsPage() {
                             allowedLanguages: on
                               ? current.filter((k) => k !== lang.key)
                               : [...current, lang.key],
+                            /* Turning a language ON prefills its skeleton, unless
+                               the recruiter has already written one. Nobody should
+                               hand-write nine stdin readers, and a candidate should
+                               not spend their first minutes remembering how to
+                               read stdin in C#. */
+                            starterCode: on
+                              ? d.starterCode
+                              : { ...(d.starterCode || {}), [lang.key]: (d.starterCode || {})[lang.key] || lang.starter },
                           }
                         })
                       }
@@ -328,6 +344,19 @@ export default function CodingProblemsPage() {
                   )
                 })}
               </div>
+              {langs.data && langs.data.source !== 'judge' && (
+                <p className="mt-2 text-xs leading-relaxed text-warn">
+                  {langs.data.source === 'fallback'
+                    ? 'Code execution is not configured on this deployment, so these are names only — a problem can be authored now and run once a judge is connected.'
+                    : 'The judge is configured but did not answer, so this list may be out of date.'}
+                </p>
+              )}
+              {languages.length > 0 && langs.data?.source === 'judge' && (
+                <p className="mt-2 text-xs text-ink-muted">
+                  Versions come from the judge itself:{' '}
+                  {languages.map((l) => l.version).filter(Boolean).join(' · ')}
+                </p>
+              )}
             </fieldset>
           </div>
 
@@ -487,7 +516,12 @@ export default function CodingProblemsPage() {
       </div>
 
       {selectedId && (
-        <CheckModal open={checkOpen} onClose={() => setCheckOpen(false)} problemId={selectedId} />
+        <CheckModal
+          open={checkOpen}
+          onClose={() => setCheckOpen(false)}
+          problemId={selectedId}
+          languages={languages}
+        />
       )}
       <ImportModal
         open={importOpen}
@@ -509,13 +543,18 @@ function CheckModal({
   open,
   onClose,
   problemId,
+  languages,
 }: {
   open: boolean
   onClose: () => void
   problemId: string
+  languages: CodingLanguage[]
 }) {
   const [source, setSource] = useState('')
-  const [languageId, setLanguageId] = useState(71)
+  /* Seeded from the judge's own list rather than a constant. 0 means "no judge",
+     which the Run button below refuses rather than sending an id nothing can run. */
+  const runnable = languages.filter((l) => l.id !== null)
+  const [languageId, setLanguageId] = useState<number>(runnable[0]?.id ?? 0)
 
   const run = useMutation({
     mutationFn: () => codingApi.run(problemId, { source, languageId }),
@@ -536,13 +575,30 @@ function CheckModal({
           <Select
             value={String(languageId)}
             onChange={(e) => setLanguageId(Number(e.target.value))}
-            options={LANGUAGES.map((l) => ({ value: String(l.id), label: l.label }))}
+            options={runnable.map((l) => ({ value: String(l.id), label: l.version || l.label }))}
           />
         </label>
-        <CodeEditor value={source} onChange={setSource} minRows={12} ariaLabel="Reference solution" />
-        <Button onClick={() => run.mutate()} disabled={run.isPending || !source.trim()} icon={<Play size={14} />}>
+        {/* The key, not the id: highlighting is keyed by canonical language, and
+            the id is per-judge. */}
+        <CodeEditor
+          value={source}
+          onChange={setSource}
+          language={runnable.find((l) => l.id === languageId)?.key ?? ''}
+          minRows={12}
+          ariaLabel="Reference solution"
+        />
+        <Button
+          onClick={() => run.mutate()}
+          disabled={run.isPending || !source.trim() || !languageId}
+          icon={<Play size={14} />}
+        >
           {run.isPending ? 'Running…' : 'Run'}
         </Button>
+        {!runnable.length && (
+          <p className="text-xs text-warn">
+            Code execution is not configured on this deployment, so there is nothing to run against yet.
+          </p>
+        )}
 
         {run.data && (
           <div className="rounded-md border border-rule p-3">

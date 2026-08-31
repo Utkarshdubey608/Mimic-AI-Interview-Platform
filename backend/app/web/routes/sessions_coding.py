@@ -153,6 +153,32 @@ async def run_samples(
     except (TypeError, ValueError):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Choose a language") from None
 
+    # CUSTOM INPUT — "run your own test", which is half of what Run is for.
+    #
+    # A candidate debugging an edge case wants to try `0 0` without editing the
+    # problem's samples. With custom input there is NO expected output, so there is
+    # nothing to compare and no verdict to give: the honest answer is the program's
+    # own stdout, stderr and timings. Reporting a pass/fail against nothing would be
+    # inventing a result.
+    custom = (body or {}).get("stdin")
+    if isinstance(custom, str) and custom.strip():
+        if len(custom) > coding_problems.MAX_CASE_BYTES:
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "That input is too large"
+            )
+        verdict = await coding_judge.run_case(
+            settings,
+            source=source,
+            language_id=language_id,
+            stdin=custom,
+            # None, not "": an empty expected output would make Judge0 compare
+            # against emptiness and report Wrong Answer for any program that prints.
+            expected_output=None,
+            time_limit_ms=int(problem.get("timeLimitMs") or 2000),
+            memory_mb=int(problem.get("memoryMb") or 128),
+        )
+        return {"custom": coding_jobs.trim_streams(verdict)}
+
     samples = [c for c in problem.get("testCases") or [] if not c.get("hidden")]
     if not samples:
         raise HTTPException(status.HTTP_409_CONFLICT, "This problem has no sample cases.")
@@ -213,11 +239,20 @@ async def submit(
         language=str((body or {}).get("language") or language_id),
         now=coding_jobs.now_utc(),
     )
-    background.add_task(_grade, settings, submission_id, session_id, problem, source, language_id)
+    background.add_task(
+        _grade,
+        settings,
+        submission_id,
+        session_id,
+        problem,
+        source,
+        language_id,
+        str((body or {}).get("language") or language_id),
+    )
     return {"submissionId": submission_id, "status": coding_jobs.IN_PROGRESS}
 
 
-async def _grade(settings, submission_id, session_id, problem, source, language_id) -> None:
+async def _grade(settings, submission_id, session_id, problem, source, language_id, language) -> None:
     """Grade, store, and stamp the session. Never raises — nobody is left to tell."""
     try:
         verdicts = await coding_judge.run_cases(
@@ -245,14 +280,13 @@ async def _grade(settings, submission_id, session_id, problem, source, language_
             key = str(problem.get("id"))
             previous = results.get(key) or {}
             if int(graded.get("score") or 0) >= int(previous.get("score") or -1):
-                results[key] = {
-                    "score": graded.get("score"),
-                    "maxScore": graded.get("maxScore"),
-                    "passed": graded.get("passed"),
-                    "total": graded.get("total"),
-                    "submissionId": submission_id,
-                    "at": _now(),
-                }
+                results[key] = coding_scoring.durable_result(
+                    graded,
+                    language=language,
+                    source=source,
+                    at=_now(),
+                    submission_id=submission_id,
+                )
                 await store.sessions.patch(session_id, {"codingResults": results})
     except coding_judge.JudgeNotConfigured as exc:
         await coding_jobs.fail(settings, submission_id, error=str(exc), now=coding_jobs.now_utc())

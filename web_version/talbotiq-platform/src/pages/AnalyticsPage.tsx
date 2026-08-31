@@ -9,13 +9,16 @@ import {
 import { AlertTriangle, BarChart3, Inbox, Info, LineChart as LineChartIcon, RotateCcw } from 'lucide-react'
 import { Button, Card, PageHeader, Select, Skeleton, EmptyState, SectionTitle, cn } from '@/components/ui'
 import { FeedbackPanel } from '@/features/recruiter/FeedbackPanel'
+import { languageByKey } from '@/features/coding/languages'
 import { palette } from '@/design/tokens'
 import { duration, staggerChild, staggerVariants, transition } from '@/design/motion'
 import { useWorkspaceGround } from '@/lib/workspaceGround'
 import { analyticsApi, templatesApi } from '@/lib/api'
 import { useAutopilotActions } from '@/features/guide/autopilot/registry'
 import { matchOption, normalizeTrack } from '@/features/guide/autopilot/filterMatch'
-import type { AnalyticsFilters, AnalyticsSummary, InterviewTemplate, TrackType } from '@shared/types'
+import type {
+  AnalyticsFilters, AnalyticsSummary, CodingAnalytics, InterviewTemplate, TrackType,
+} from '@shared/types'
 
 /* ── Chart chrome — one visual contract for every series on this page.
       Charts can't read CSS variables, so the hexes come from the typed token
@@ -69,6 +72,8 @@ const bandLegend = (pal: Pal) => [
 
 const pct = (n: number) => `${Math.round(n * 100)}%`
 const mmss = (s: number) => (s > 0 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : '—')
+/* Stored keys, shown as names: `cpp` is not what anyone calls C++. */
+const langLabel = (key: string) => languageByKey(key)?.label ?? key
 
 /* ── Local presentational pieces ──────────────────────────────────────────── */
 
@@ -236,6 +241,87 @@ function StatStripSkeleton({ cells }: { cells: number }) {
     </Card>
   )
 }
+
+/**
+ * The coding block.
+ *
+ * Rendered only when coding sessions exist, because for every other workspace it
+ * would be a panel of dashes — and a dash is indistinguishable from a broken
+ * metric. It sits apart from the score panels above rather than inside them: a
+ * judge's percentage of test points is not the same measurement as a model's
+ * rubric score, and putting them in one table would invite the comparison.
+ *
+ * Three denominators are shown side by side instead of one "pass rate", because
+ * the interesting gaps are BETWEEN them: assigned-to-attempted is how much of the
+ * paper candidates reached, attempted-to-solved is how much they got right, and a
+ * single ratio hides whichever one is the problem.
+ */
+function CodingPanel({ coding, pal, child }: {
+  coding: CodingAnalytics
+  pal: Pal
+  child: ReturnType<typeof staggerChild>
+}) {
+  const reachRate = coding.problemsAssigned ? coding.problemsAttempted / coding.problemsAssigned : 0
+  const solveRate = coding.problemsAttempted ? coding.problemsSolved / coding.problemsAttempted : 0
+  const topLanguage = coding.byLanguage[0]
+
+  return (
+    <motion.div variants={child} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <Card className="p-5">
+        <PanelHead
+          title="Coding Assessments"
+          meta={
+            `${coding.scored} of ${coding.sessions} session${coding.sessions === 1 ? '' : 's'} have a graded submission. ` +
+            'Scored by the sandboxed judge, so these are points on test cases — not the rubric scores above.'
+          }
+        />
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule bg-rule sm:grid-cols-3">
+          <StatCell label="Avg score" value={`${coding.averagePercent}%`} sub="of available points" />
+          <StatCell label="Tests passed" value={pct(coding.testPassRate)} sub={`${coding.testsPassed} of ${coding.testsRun}`} />
+          <StatCell label="Avg runtime" value={coding.avgCaseMs > 0 ? `${coding.avgCaseMs} ms` : '—'} sub={coding.slowestCaseMs == null ? 'per test case' : `slowest ${coding.slowestCaseMs} ms`} />
+          <StatCell label="Reached" value={pct(reachRate)} sub={`${coding.problemsAttempted} of ${coding.problemsAssigned} problems`} />
+          <StatCell label="Solved outright" value={pct(solveRate)} sub={`${coding.problemsSolved} of ${coding.problemsAttempted} attempted`} />
+          <StatCell label="Avg duration" value={mmss(coding.avgDurationSeconds)} sub="start to submit" />
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <PanelHead
+          title="Languages Chosen"
+          meta={
+            topLanguage
+              ? `Most reached for: ${langLabel(topLanguage.language)}. What candidates pick is a signal about the role, not only about them.`
+              : undefined
+          }
+        />
+        {coding.byLanguage.length === 0 ? (
+          <MiniEmpty>No submissions yet.</MiniEmpty>
+        ) : (
+          <div className="space-y-2.5">
+            {coding.byLanguage.map((l) => {
+              const total = coding.byLanguage.reduce((s, x) => s + x.submissions, 0)
+              const share = total ? l.submissions / total : 0
+              return (
+                <div key={l.language} className="flex items-center gap-3">
+                  <span className="w-24 flex-shrink-0 truncate text-sm text-ink-body" title={langLabel(l.language)}>{langLabel(l.language)}</span>
+                  <MeterBar value={Math.round(share * 100)} color={pal.accent} />
+                  <span className="w-8 flex-shrink-0 text-right text-sm font-bold tabular-nums text-ink">{l.submissions}</span>
+                  <span className="w-14 flex-shrink-0 text-right">
+                    <ScoreCell value={l.averagePercent} />
+                  </span>
+                </div>
+              )
+            })}
+            <div className="mt-1 border-t border-rule pt-3 text-xs text-ink-muted">
+              The figure on the right is the average score of submissions in that language.
+            </div>
+          </div>
+        )}
+      </Card>
+    </motion.div>
+  )
+}
+
 
 export default function AnalyticsPage() {
   // Chart chrome resolved against the current workspace ground — Recharts needs
@@ -698,6 +784,9 @@ export default function AnalyticsPage() {
               </div>
             </Card>
           </motion.div>
+
+          {/* Coding — only where it exists; see the panel's own note. */}
+          {a.coding.sessions > 0 && <CodingPanel coding={a.coding} pal={pal} child={child} />}
 
           {/* By role + by template */}
           <motion.div variants={child} className="grid grid-cols-1 lg:grid-cols-2 gap-5">

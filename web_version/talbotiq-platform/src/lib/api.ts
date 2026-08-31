@@ -52,6 +52,8 @@ import type {
   AdvanceResult,
   CodingProblem,
   CodingProblemSummary,
+  CodingLanguage,
+  CodingLanguageSource,
   PublicCodingProblem,
   CodingResult,
   CodingSubmission,
@@ -200,6 +202,11 @@ export const mcqSessionApi = {
    function that will serve them. A preview rendered through a display-only copy
    is a preview of something else. */
 export const codingApi = {
+  /** The languages this deployment can run, resolved from the judge.
+   *  Not a constant in the client: Judge0's ids are per-instance, so a
+   *  hard-coded list is a dropdown where entries silently fail. */
+  languages: () =>
+    http<{ languages: CodingLanguage[]; source: CodingLanguageSource }>('/coding/languages'),
   list: () => http<{ problems: CodingProblemSummary[] }>('/coding/problems').then((r) => r.problems),
   get: (id: string) => http<{ problem: CodingProblem; faults: string[] }>(`/coding/problems/${id}`),
   create: (body: Partial<CodingProblem>) =>
@@ -249,10 +256,15 @@ export const codingRuntimeApi = {
     http<{ ok: boolean }>(`/sessions/${sessionId}/coding/draft`, {
       method: 'POST', body: JSON.stringify(body),
     }),
-  run: (sessionId: string, body: { problemId: string; source: string; languageId: number }) =>
-    http<{ result: CodingResult; streams: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }> }>(
-      `/sessions/${sessionId}/coding/run`, { method: 'POST', body: JSON.stringify(body) },
-    ),
+  /** `stdin` runs the candidate's OWN input instead of the samples. There is no
+   *  expected output in that case, so the answer carries `custom` (raw streams and
+   *  timings) rather than `result` (per-case pass/fail). */
+  run: (sessionId: string, body: { problemId: string; source: string; languageId: number; stdin?: string }) =>
+    http<{
+      result?: CodingResult
+      streams?: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }>
+      custom?: { status: string; timeMs: number | null; memoryKb: number | null; stdout?: string; stderr?: string; compileOutput?: string }
+    }>(`/sessions/${sessionId}/coding/run`, { method: 'POST', body: JSON.stringify(body) }),
   submit: (sessionId: string, body: { problemId: string; source: string; languageId: number; language?: string }) =>
     http<{ submissionId: string; status: string }>(`/sessions/${sessionId}/coding/submit`, {
       method: 'POST', body: JSON.stringify(body),

@@ -7,17 +7,21 @@ import {
 } from 'recharts'
 import {
   Activity, AlertTriangle, ArrowLeft, BarChart3, ChevronDown, ClipboardCheck,
-  Clock, Download, Inbox, Info, Keyboard, KeyRound, ListChecks, MessageSquare, Mic, ShieldAlert,
+  Clock, Code2, Download, Inbox, Info, Keyboard, KeyRound, ListChecks, MessageSquare, Mic, ShieldAlert,
   Star, Target, Video, Zap,
 } from 'lucide-react'
-import { Card, Button, Textarea, Badge, Skeleton, cn } from '@/components/ui'
+import { Card, Button, Textarea, Badge, Skeleton, StatusMark, cn } from '@/components/ui'
 import { AIInsight, AIObservation } from '@/components/ai/AIInsight'
-import { palette } from '@/design/tokens'
+import { palette, type StatusKey } from '@/design/tokens'
 import { useWorkspaceGround } from '@/lib/workspaceGround'
 import { sessionsApi } from '@/lib/api'
 import { exportElementToPdf } from '@/lib/pdf'
 import { FacialAnalysisPanel } from '@/components/ats/FacialAnalysisPanel'
-import type { Recommendation, SessionReportView, SpeechMetrics, SentimentSignals } from '@shared/types'
+import { languageByKey } from '@/features/coding/languages'
+import type {
+  CodingCaseResult, CodingReport, CodingReportProblem, CodingVerdict,
+  Recommendation, SessionReportView, SpeechMetrics, SentimentSignals,
+} from '@shared/types'
 import type { FacialSessionSummary } from '@/types/rekognition.types'
 
 const REC: Record<Recommendation, { label: string; cls: string }> = {
@@ -34,6 +38,7 @@ const TRACK_LABEL: Record<string, string> = {
   video_avatar: 'Video Avatar',
   video: 'Video Interview',
   two_way: 'Two-way Interview',
+  coding: 'Coding Assessment',
 }
 
 /* Score-band hexes come from the typed token mirror so SVG/inline styles follow
@@ -339,6 +344,231 @@ function ScoreColumn({ children }: { children: ReactNode }) {
   )
 }
 
+/* ─── Coding assessment ──────────────────────────────────────────────────────
+   A coding report has a different anatomy from an interview report, and the
+   difference is not cosmetic: nothing on it is inferred. There is no transcript
+   to read, no KPI radar and no model-written summary, because the score is
+   arithmetic on the judge's verdicts. So this half of the page SHOWS the
+   arithmetic — every problem, every test case, the program that was submitted
+   and what it cost to run — rather than narrating a judgment.
+
+   Hidden test cases appear here in full. This is a recruiter reading their own
+   paper; the projection that strips hidden detail is the candidate's. */
+
+const VERDICT: Record<CodingVerdict, { kind: StatusKey; label: string }> = {
+  accepted:       { kind: 'ok',      label: 'Passed' },
+  wrong_answer:   { kind: 'risk',    label: 'Wrong answer' },
+  time_limit:     { kind: 'warn',    label: 'Time limit' },
+  memory_limit:   { kind: 'warn',    label: 'Memory limit' },
+  compile_error:  { kind: 'risk',    label: 'Compile error' },
+  runtime_error:  { kind: 'risk',    label: 'Runtime error' },
+  internal_error: { kind: 'neutral', label: 'Judge error' },
+  not_run:        { kind: 'neutral', label: 'Not run' },
+}
+
+const verdictOf = (c: CodingCaseResult) => VERDICT[c.status ?? 'not_run'] ?? VERDICT.not_run
+
+/** `python` to `Python 3` where the static list knows the key, else the key. */
+const languageLabel = (key: string) => languageByKey(key)?.label ?? key
+
+/** Per-case verdicts, points and cost. Each row IS the evidence for the score. */
+function CaseTable({ cases }: { cases: CodingCaseResult[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+            <th className="py-2 pr-3 text-left font-semibold">Test</th>
+            <th className="py-2 pr-3 text-left font-semibold">Visibility</th>
+            <th className="py-2 pr-3 text-left font-semibold">Verdict</th>
+            <th className="py-2 pr-3 text-right font-semibold">Points</th>
+            <th className="py-2 pr-3 text-right font-semibold">Time</th>
+            <th className="py-2 text-right font-semibold">Memory</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {cases.map((c, i) => {
+            const v = verdictOf(c)
+            return (
+              <tr key={c.id ?? i}>
+                <td className="py-2.5 pr-3 font-medium tabular-nums text-ink">{i + 1}</td>
+                <td className="py-2.5 pr-3">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+                    {c.hidden && <KeyRound size={12} strokeWidth={2} aria-hidden="true" />}
+                    {c.hidden ? 'Hidden' : 'Sample'}
+                  </span>
+                </td>
+                <td className="py-2.5 pr-3"><StatusMark kind={v.kind} label={v.label} /></td>
+                <td className="py-2.5 pr-3 text-right tabular-nums text-ink-body">
+                  {c.awarded ?? 0}<span className="text-ink-faint"> / {c.points ?? 0}</span>
+                </td>
+                <td className="py-2.5 pr-3 text-right tabular-nums text-ink-body">
+                  {c.timeMs == null ? '—' : `${c.timeMs} ms`}
+                </td>
+                <td className="py-2.5 text-right tabular-nums text-ink-body">
+                  {c.memoryKb == null ? '—' : `${Math.max(1, Math.round(c.memoryKb / 1024))} MB`}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** One problem: the header line, the tests, and the program itself. */
+function CodingProblemCard({ problem, index }: { problem: CodingReportProblem; index: number }) {
+  const [showCode, setShowCode] = useState(false)
+  const pal = palette(useWorkspaceGround())
+  const percent = problem.percent ?? 0
+
+  return (
+    <Card className="overflow-hidden p-0">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-faint">
+            Problem {index + 1}
+          </p>
+          <h3 className="mt-1 font-display text-base font-bold tracking-[-0.02em] text-ink">
+            {problem.title}
+          </h3>
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-muted">
+            {problem.difficulty && <span className="capitalize">{problem.difficulty}</span>}
+            {problem.difficulty && <span className="text-ink-disabled" aria-hidden="true">·</span>}
+            <span>{problem.caseCount} test{problem.caseCount === 1 ? '' : 's'}</span>
+            {problem.language && (
+              <>
+                <span className="text-ink-disabled" aria-hidden="true">·</span>
+                <span className="font-semibold text-ink-body">{languageLabel(problem.language)}</span>
+              </>
+            )}
+            {problem.at && (
+              <>
+                <span className="text-ink-disabled" aria-hidden="true">·</span>
+                <span>{stamp(problem.at)}</span>
+              </>
+            )}
+          </p>
+        </div>
+        {problem.attempted ? (
+          <div className="flex-shrink-0 text-right">
+            <p
+              className="font-display text-2xl font-extrabold tabular-nums tracking-tight"
+              style={{ color: scoreColor(percent, pal) }}
+            >
+              {problem.score}<span className="text-ink-faint"> / {problem.maxScore}</span>
+            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
+              {problem.passed} of {problem.total} tests
+            </p>
+          </div>
+        ) : (
+          <Badge variant="neutral">Not submitted</Badge>
+        )}
+      </div>
+
+      {problem.attempted ? (
+        <>
+          {problem.compileFailed && (
+            <div className="border-b border-border px-5 pb-1 pt-1">
+              <PanelNote icon={<AlertTriangle size={18} strokeWidth={1.75} />}>
+                The program did not compile, so nothing ran. The score is zero by the same
+                arithmetic as every other submission, not by a rule about compile errors.
+              </PanelNote>
+            </div>
+          )}
+          <div className="px-5 py-4">
+            <CaseTable cases={problem.cases} />
+          </div>
+          <div className="border-t border-border">
+            <button
+              type="button"
+              onClick={() => setShowCode((v) => !v)}
+              aria-expanded={showCode}
+              className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-hover"
+            >
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-muted">
+                Submitted program
+              </span>
+              <ChevronDown
+                size={16}
+                className={cn('flex-shrink-0 text-ink-faint transition-transform duration-150', showCode && 'rotate-180')}
+                aria-hidden="true"
+              />
+            </button>
+            {showCode && (
+              <div className="border-t border-border bg-surface-sunk px-5 py-4">
+                <pre className="max-h-[420px] overflow-auto font-mono text-xs leading-relaxed text-ink-body">
+                  <code>{problem.code}</code>
+                </pre>
+                {problem.truncated && (
+                  <p className="mt-3 text-xs text-ink-faint">
+                    Shown up to the length the report keeps. The whole program was graded.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      ) : problem.draft ? (
+        <div className="px-5 py-4">
+          <MicroLabel>Left in the editor, never submitted</MicroLabel>
+          <pre className="mt-3 max-h-[240px] overflow-auto rounded-xl border border-border bg-surface-sunk p-3.5 font-mono text-xs leading-relaxed text-ink-body">
+            <code>{problem.draft}</code>
+          </pre>
+        </div>
+      ) : (
+        <PanelEmpty
+          icon={<Code2 size={22} strokeWidth={1.75} />}
+          title="Nothing was written"
+          description="The candidate never opened or never reached this problem. It was worth the points shown above."
+        />
+      )}
+    </Card>
+  )
+}
+
+/** The coding block: what it totalled, then problem by problem. */
+function CodingBreakdown({ coding }: { coding: CodingReport }) {
+  return (
+    <>
+      <Card className="p-5">
+        <PanelHead
+          icon={<Code2 size={14} strokeWidth={2} />}
+          title="Coding assessment"
+          meta={`${coding.attempted} of ${coding.problems.length} attempted`}
+        />
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Points" value={`${coding.score} / ${coding.maxScore}`} />
+          <Stat label="Score" value={`${coding.percent}%`} />
+          <Stat label="Slowest test" value={coding.slowestCaseMs == null ? '—' : `${coding.slowestCaseMs} ms`} />
+          <Stat
+            label="Languages"
+            value={coding.languages.length ? coding.languages.map(languageLabel).join(', ') : '—'}
+          />
+        </div>
+        <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+          Every submission ran in the sandboxed judge, never on this server. The score is the sum of
+          the points on the tests that passed — the tables below are the whole calculation.
+        </p>
+      </Card>
+
+      {coding.problems.length === 0 ? (
+        <Card className="p-0">
+          <PanelEmpty
+            icon={<Code2 size={22} strokeWidth={1.75} />}
+            title="No problems in this assessment"
+            description="This coding session was created without any problems attached, so there is nothing to score."
+          />
+        </Card>
+      ) : (
+        coding.problems.map((p, i) => <CodingProblemCard key={p.id} problem={p} index={i} />)
+      )}
+    </>
+  )
+}
+
 export default function ReportPage() {
   // Chart/SVG chrome resolved against the current workspace ground.
   const pal = palette(useWorkspaceGround())
@@ -359,10 +589,16 @@ export default function ReportPage() {
     // forever: the recruiter sat on skeletons indefinitely instead of reaching
     // the error branch below, and the API took a request every 2.5s for as long
     // as the tab stayed open.
-    refetchInterval: (query) =>
-      query.state.status === 'error'
-        ? false
-        : ((query.state.data as SessionReportView | undefined)?.report ? false : 2500),
+    refetchInterval: (query) => {
+      if (query.state.status === 'error') return false
+      const data = query.state.data as SessionReportView | undefined
+      if (data?.report) return false
+      // A CODING assessment is never scored by a model, so `report` stays null
+      // for it forever and the condition above would poll until the tab closed.
+      // Its score is final the moment the session is, so that is what to watch.
+      if (data?.coding) return data.session.status === 'completed' ? false : 2500
+      return 2500
+    },
   })
 
   if (q.isLoading) {
@@ -401,7 +637,7 @@ export default function ReportPage() {
     )
   }
 
-  const { session, rubric, report, speech, facial } = q.data
+  const { session, rubric, report, speech, facial, coding } = q.data
   const kpiLabel = (kid: string) => rubric.kpis.find((k) => k.id === kid)?.label ?? kid
 
   const exportPdf = async () => {
@@ -427,7 +663,51 @@ export default function ReportPage() {
         <ArrowLeft size={15} className="transition-transform duration-150 group-hover:-translate-x-0.5" aria-hidden="true" /> Sessions
       </Link>
 
-      {!report ? (
+      {coding ? (
+        /* Judge-scored, so it is neither of the two branches below: there is no
+           model verdict to wait for and no rubric to average. */
+        <div ref={reportRef} className="mt-2 space-y-6 bg-background">
+          <Card className="overflow-hidden p-0">
+            <div className="h-1 w-full bg-brand-field" aria-hidden="true" />
+            <div className="grid gap-7 p-6 md:grid-cols-[1fr_auto] md:items-center md:gap-8 md:p-7">
+              <ReportIdentity session={session}>
+                <div className="mt-5" data-html2canvas-ignore="true">
+                  <Button icon={<Download size={16} />} loading={exporting} onClick={exportPdf}>Export PDF</Button>
+                </div>
+              </ReportIdentity>
+              <ScoreColumn>
+                {coding.attempted > 0 ? <Gauge score={Math.round(coding.percent)} /> : <GaugePlaceholder />}
+              </ScoreColumn>
+            </div>
+          </Card>
+
+          {session.status !== 'completed' && (
+            <TrustNote tone="info" icon={<Info size={18} strokeWidth={1.75} />} title="Still in progress">
+              The candidate has not finished this assessment. Everything below is their best
+              submission so far, and it updates on its own.
+            </TrustNote>
+          )}
+
+          {(session.integrityEvents.length > 0 || session.tabSwitchCount > 0) && (
+            <Card className="p-5">
+              <PanelHead icon={<ShieldAlert size={14} strokeWidth={2} />} title="Integrity" />
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant={session.tabSwitchCount > 0 ? 'warning' : 'neutral'}>{session.tabSwitchCount} tab switches</Badge>
+                {session.integrityEvents.length > 0 && (
+                  <Badge variant="neutral">
+                    {session.integrityEvents.length} event{session.integrityEvents.length === 1 ? "" : "s"} logged
+                  </Badge>
+                )}
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+                Captured automatically while the candidate was in the assessment window.
+              </p>
+            </Card>
+          )}
+
+          <CodingBreakdown coding={coding} />
+        </div>
+      ) : !report ? (
         <div className="mt-2 space-y-6">
           {/* masthead — scoring still in flight */}
           <Card className="overflow-hidden p-0">

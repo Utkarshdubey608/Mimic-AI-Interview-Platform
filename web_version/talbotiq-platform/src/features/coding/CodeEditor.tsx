@@ -13,10 +13,22 @@
  * aligned, and line numbers to read a compiler error against. What it does not
  * get is syntax highlighting.
  *
- * That is a real gap and it is the right one to accept first, because the
- * alternative was shipping the dependency decision unsupervised. Swapping in
- * CodeMirror later is a change to this file alone — everything above it passes a
- * string and a language, which is the whole interface.
+ * It DOES now get syntax highlighting, without either of them: `highlight.ts`
+ * tokenises the buffer and the result is painted on a layer BEHIND a
+ * transparent-text textarea. The reason that is safe rather than a hack is one
+ * property the tokenizer is tested for — joining its tokens reproduces the input
+ * exactly — so the two layers are the same string laid out by the same rules, and
+ * cannot drift. Everything above this file still passes a string and a language,
+ * which is the whole interface, so swapping in CodeMirror later remains a change
+ * to these two files and nothing else.
+ *
+ * THE ALIGNMENT RULES, which is where this technique is normally got wrong: the
+ * textarea and the layer must share font, size, line-height, padding, whitespace
+ * handling and width EXACTLY, and only the textarea may own a scrollbar. Both are
+ * driven from the same class string below for that reason, and the layer is
+ * scrolled from the textarea's scroll handler, the same mechanism the gutter has
+ * always used. `resize-y` is gone from the textarea: a user-dragged height would
+ * move one layer and not the other.
  *
  * THE PARTS THAT ARE NOT OPTIONAL, and each is here because a plain textarea gets
  * it wrong in a way that would be noticed within a minute:
@@ -38,10 +50,29 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { cn } from '@/components/ui'
+import { canHighlight, tokenize, type TokenKind } from './highlight'
 
 /** Two spaces. Not configurable, because a shared convention beats a preference
  *  nobody will find, and every language offered here tolerates two. */
 const INDENT = '  '
+
+/* The geometry both layers must agree on, to the pixel. One string, used twice,
+   because two copies of this that drift by a padding value is exactly the bug
+   this technique is famous for. */
+const LAYER = 'px-3 py-3 font-mono text-[12.5px] leading-[1.55]'
+
+/* Four token classes, and only existing design tokens — no new palette invented
+   for this. Comments recede to the quietest permissible TEXT tier, keywords take
+   the accent as ink, strings take the teal, and numbers stay body ink so digits
+   do not compete with control flow. Every one of these is already contrast-gated
+   for text use, which is why they were chosen over nicer-looking hexes. */
+const TOKEN_CLASS: Record<TokenKind, string> = {
+  comment: 'text-ink-faint italic',
+  keyword: 'text-accent-ink font-semibold',
+  string: 'text-ai',
+  number: 'text-ink-body',
+  plain: '',
+}
 
 /** A paste at or above this is reported. Chosen so a variable name, a URL or a
  *  single expression passes unremarked while a pasted function does not. */
@@ -50,6 +81,7 @@ const LARGE_PASTE_CHARS = 120
 export function CodeEditor({
   value,
   onChange,
+  language = '',
   readOnly = false,
   minRows = 18,
   className,
@@ -58,6 +90,9 @@ export function CodeEditor({
 }: {
   value: string
   onChange: (next: string) => void
+  /** Canonical language key, e.g. `python`. An unknown or absent one renders
+   *  plain — a wrong highlight is worse than none. */
+  language?: string
   readOnly?: boolean
   minRows?: number
   className?: string
@@ -68,6 +103,16 @@ export function CodeEditor({
 }) {
   const areaRef = useRef<HTMLTextAreaElement | null>(null)
   const gutterRef = useRef<HTMLDivElement | null>(null)
+  const layerRef = useRef<HTMLPreElement | null>(null)
+
+  /* Re-tokenised on every keystroke, which is affordable: the scanner is one pass
+     over a buffer bounded at 100 KB by the server's own draft limit, and the
+     result is a flat array. Memoised on the pair so a re-render that changes
+     neither does not redo it. */
+  const tokens = useMemo(
+    () => (canHighlight(language) ? tokenize(value, language) : null),
+    [value, language],
+  )
 
   const lines = useMemo(() => {
     const count = value.split('\n').length
@@ -78,8 +123,14 @@ export function CodeEditor({
      textarea owns the scrollbar (it has to, it is the focusable thing), so the
      gutter is driven from its scrollTop. */
   const syncScroll = useCallback(() => {
-    if (gutterRef.current && areaRef.current) {
-      gutterRef.current.scrollTop = areaRef.current.scrollTop
+    const area = areaRef.current
+    if (!area) return
+    if (gutterRef.current) gutterRef.current.scrollTop = area.scrollTop
+    if (layerRef.current) {
+      layerRef.current.scrollTop = area.scrollTop
+      // Horizontally as well: a long line scrolls the textarea sideways, and a
+      // layer that only followed vertically would slide out from under the caret.
+      layerRef.current.scrollLeft = area.scrollLeft
     }
   }, [])
 
@@ -146,6 +197,31 @@ export function CodeEditor({
           <div key={n}>{n}</div>
         ))}
       </div>
+      <div className="relative flex-1">
+        {tokens && (
+          <pre
+            ref={layerRef}
+            aria-hidden="true"
+            className={cn(
+              'pointer-events-none absolute inset-0 overflow-hidden whitespace-pre text-ink',
+              LAYER,
+            )}
+          >
+            {tokens.map((t, i) =>
+              t.kind === 'plain'
+                ? t.text
+                : (
+                  <span key={i} className={TOKEN_CLASS[t.kind]}>
+                    {t.text}
+                  </span>
+                ),
+            )}
+            {/* A trailing newline has no glyph, so without this the layer is one
+                line shorter than the textarea and the last line's scroll extent
+                disagrees. */}
+            {'\n'}
+          </pre>
+        )}
       <textarea
         ref={areaRef}
         value={value}
@@ -169,8 +245,21 @@ export function CodeEditor({
         autoCorrect="off"
         autoCapitalize="off"
         rows={minRows}
-        className="flex-1 resize-y bg-transparent px-3 py-3 font-mono text-[12.5px] leading-[1.55] text-ink outline-none"
+        /* No soft wrap. A wrapped line takes two rows and gets one number, so the
+           gutter starts lying about which line a compiler error is on — and the
+           gutter is the reason it exists. Long lines scroll sideways instead, which
+           is what every code editor does. */
+        wrap="off"
+        className={cn(
+          'relative w-full resize-none overflow-auto whitespace-pre bg-transparent outline-none',
+          // Transparent TEXT, not a transparent element: the caret and the
+          // selection must still be the textarea's, because those are the things
+          // a painted layer cannot do.
+          tokens ? 'text-transparent caret-ink selection:bg-accent-soft' : 'text-ink',
+          LAYER,
+        )}
       />
+      </div>
     </div>
   )
 }

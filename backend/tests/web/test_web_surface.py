@@ -54,6 +54,27 @@ def test_health_is_served_under_the_web_prefix(client: TestClient) -> None:
     assert body["persistence"]["backend"] == "firestore"
 
 
+def test_health_reports_whether_code_execution_is_configured(client: TestClient) -> None:
+    """The question an operator could not previously ask without logging in.
+
+    Lives here rather than in `providers.readiness` for two reasons, both of them
+    load-bearing: that map is the COMMON surface and the layering test forbids
+    importing `app.web` into it, and the Flutter app maps every one of its keys
+    onto a Service Status screen for features it does not have.
+
+    Reported as CONFIGURED, not as reachable — see the route's own note.
+    """
+    body = client.get("/api/web/health").json()
+
+    assert isinstance(body["codeExecution"], bool)
+    # A judge URL is what makes the coding track able to run anything at all.
+    from app.web.services import coding_judge
+    from app.config import Settings
+
+    assert coding_judge.configured(Settings(_env_file=None, judge0_url="http://x:2358"))
+    assert not coding_judge.configured(Settings(_env_file=None, judge0_url="  "))
+
+
 def test_health_stays_200_when_storage_is_unreachable(client: TestClient) -> None:
     """The deploy's health check must not fail over missing credentials.
 

@@ -37,8 +37,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button, Select, cn } from '@/components/ui'
 import { CodeEditor } from '@/features/coding/CodeEditor'
-import { LANGUAGES, languageByKey } from '@/features/coding/languages'
-import { codingRuntimeApi } from '@/lib/api'
+import { codingApi, codingRuntimeApi } from '@/lib/api'
 import type { CodingResult, PublicCodingProblem } from '@shared/types'
 
 /** How long after the last keystroke the draft is saved. Long enough not to post
@@ -61,6 +60,15 @@ export function CodingStage({
     queryFn: () => codingRuntimeApi.state(sessionId),
     refetchOnWindowFocus: false,
   })
+
+  /* The language ids come from the JUDGE, never from a constant in this bundle.
+     Judge0's ids are per-instance: a hard-coded id is either wrong on a rebuilt
+     judge, or right and pointing at a 2019 interpreter. `id === null` means no
+     judge is configured, and Run/Submit refuse rather than posting an id nothing
+     can run. */
+  const langs = useQuery({ queryKey: ['coding-languages'], queryFn: codingApi.languages })
+  const judgeLanguages = useMemo(() => langs.data?.languages ?? [], [langs.data])
+  const idFor = (key: string) => judgeLanguages.find((l) => l.key === key)?.id ?? null
 
   const problems = useMemo(() => state.data?.problems ?? [], [state.data])
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -127,10 +135,17 @@ export function CodingStage({
     return () => document.removeEventListener('visibilitychange', onHide)
   }, [flush])
 
+  /* Run answers one of two shapes: samples (per-case pass/fail) or custom input
+     (raw streams, no verdict — there is nothing to compare against). */
   const [runResult, setRunResult] = useState<{
-    result: CodingResult
-    streams: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }>
+    result?: CodingResult
+    streams?: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }>
+    custom?: { status: string; timeMs: number | null; memoryKb: number | null; stdout?: string; stderr?: string; compileOutput?: string }
   } | null>(null)
+  /* "Run your own test" — a candidate debugging an edge case wants to try `0 0`
+     without touching the problem's samples. Empty means "use the samples". */
+  const [customInput, setCustomInput] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
 
   const run = useMutation({
@@ -138,7 +153,8 @@ export function CodingStage({
       codingRuntimeApi.run(sessionId, {
         problemId: active!.id,
         source,
-        languageId: languageByKey(language)?.id ?? 71,
+        languageId: idFor(language) as number,
+        ...(showCustom && customInput.trim() ? { stdin: customInput } : {}),
       }),
     onSuccess: (data) => {
       setRunResult(data)
@@ -157,7 +173,7 @@ export function CodingStage({
       codingRuntimeApi.submit(sessionId, {
         problemId: active!.id,
         source,
-        languageId: languageByKey(language)?.id ?? 71,
+        languageId: idFor(language) as number,
         language,
       }),
     onSuccess: (data) => setSubmissionId(data.submissionId),
@@ -177,14 +193,17 @@ export function CodingStage({
   const graded = submission.data?.status === 'COMPLETED' ? submission.data.result : undefined
   const grading = submission.data?.status === 'IN_PROGRESS' || submit.isPending
 
+  /* What this problem allows, intersected with what the judge can actually run.
+     A language the recruiter permitted but the judge lacks is not offered — better
+     an absent option than one that fails on the candidate's first Run. */
   const languageOptions = useMemo(
     () =>
-      LANGUAGES.filter((l) => (active?.allowedLanguages ?? []).includes(l.key)).map((l) => ({
-        value: l.key,
-        label: l.label,
-      })),
-    [active],
+      judgeLanguages
+        .filter((l) => (active?.allowedLanguages ?? []).includes(l.key) && l.id !== null)
+        .map((l) => ({ value: l.key, label: l.version || l.label })),
+    [active, judgeLanguages],
   )
+  const canRun = !!language && idFor(language) !== null
 
   if (state.isLoading) {
     return (
@@ -314,6 +333,7 @@ export function CodingStage({
         <section className="space-y-3">
           <CodeEditor
             value={source}
+            language={language}
             onChange={(next) => {
               setSources((s) => ({ ...s, [active.id]: next }))
               scheduleSave(active.id, next)
@@ -329,6 +349,15 @@ export function CodingStage({
             ariaLabel={`Your solution to ${active.title}`}
           />
 
+          {!canRun && langs.data?.source === 'fallback' && (
+            <div className="flex items-start gap-2 rounded-md border border-warn-rule bg-warn-bg p-3">
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-warn" aria-hidden />
+              <p className="text-sm text-ink-body">
+                Code running is not available on this assessment. Your work is saved as you type —
+                please tell the recruiter who invited you.
+              </p>
+            </div>
+          )}
           {unavailable && (
             <div className="flex items-start gap-2 rounded-md border border-warn-rule bg-warn-bg p-3">
               <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-warn" aria-hidden />
@@ -344,7 +373,7 @@ export function CodingStage({
               variant="secondary"
               icon={<Play size={14} />}
               onClick={() => run.mutate()}
-              disabled={run.isPending || !source.trim()}
+              disabled={run.isPending || !source.trim() || !canRun}
             >
               {run.isPending ? 'Running…' : 'Run samples'}
             </Button>
@@ -355,7 +384,7 @@ export function CodingStage({
                 setRunResult(null)
                 submit.mutate()
               }}
-              disabled={grading || !source.trim()}
+              disabled={grading || !source.trim() || !canRun}
             >
               {grading ? 'Grading…' : 'Submit'}
             </Button>
@@ -364,12 +393,73 @@ export function CodingStage({
             </p>
           </div>
 
+          {/* ── custom input ── */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowCustom((v) => !v)}
+              aria-expanded={showCustom}
+              className="rounded-sm text-xs font-semibold text-ink-muted underline underline-offset-2 transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {showCustom ? 'Use the sample tests' : 'Run your own input instead'}
+            </button>
+            {showCustom && (
+              <div className="mt-2">
+                <label className="block">
+                  <span className="field-label">Your input (stdin)</span>
+                  <textarea
+                    rows={3}
+                    value={customInput}
+                    onChange={(e) => setCustomInput(e.target.value)}
+                    spellCheck={false}
+                    className="w-full rounded-md border border-rule bg-surface-sunk px-3 py-2 font-mono text-xs text-ink outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  />
+                </label>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Run uses this instead of the samples. There is no expected output to compare
+                  against, so you get your program's output rather than a pass or fail.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* ── results ── */}
-          {(runResult || graded) && (
+          {runResult?.custom && (
+            <div className="card space-y-2 p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-base font-bold text-ink">Your input</h2>
+                <p className="text-xs text-ink-muted">
+                  {runResult.custom.status.replace(/_/g, ' ')}
+                  {runResult.custom.timeMs != null && ` · ${runResult.custom.timeMs}ms`}
+                  {runResult.custom.memoryKb != null && ` · ${Math.round(runResult.custom.memoryKb / 1024)}MB`}
+                </p>
+              </div>
+              {runResult.custom.compileOutput && (
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-risk-bg p-2 font-mono text-[11px] text-risk">
+                  {runResult.custom.compileOutput}
+                </pre>
+              )}
+              <div>
+                <p className="field-label">Output</p>
+                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-surface-sunk p-2 font-mono text-[11px] text-ink">
+                  {runResult.custom.stdout || '(nothing printed)'}
+                </pre>
+              </div>
+              {runResult.custom.stderr && (
+                <div>
+                  <p className="field-label">Errors</p>
+                  <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-surface-sunk p-2 font-mono text-[11px] text-risk">
+                    {runResult.custom.stderr}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+          {(graded || runResult?.result) && (
             <div className="card p-4">
               <ResultBlock
-                result={graded ?? runResult!.result}
-                streams={graded ? undefined : runResult!.streams}
+                result={(graded ?? runResult?.result) as CodingResult}
+                streams={graded ? undefined : runResult?.streams}
                 heading={graded ? 'Submitted' : 'Sample run'}
               />
             </div>

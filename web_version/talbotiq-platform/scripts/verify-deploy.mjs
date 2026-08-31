@@ -73,7 +73,9 @@ try {
    before one. */
 // Every dev-only harness route. Listed rather than pattern-matched so adding one
 // without adding it here is a visible omission rather than a silent gap.
-const HARNESS_ROUTES = ['/__mcq-take', '/__mcq']
+const HARNESS_ROUTES = [
+  '/__mcq-take', '/__mcq', '/__coding-take', '/__coding', '/__report', '/__analytics',
+]
 const distAssets = path.join(ROOT, 'dist', 'assets')
 if (fs.existsSync(distAssets)) {
   const leaked = fs

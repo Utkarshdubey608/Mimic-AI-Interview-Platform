@@ -179,7 +179,111 @@ def compute(
         "recommendationDistribution": _recommendations(rows),
         "integrityFlagRate": _integrity_rate(rows, scored),
         "topCandidates": _top_candidates(rows),
+        # Judge-scored, so outside every report-derived metric above. See the
+        # function's own note for why it is not folded into `averageOverall`.
+        "coding": coding_stats(cohort),
         "generatedAt": generated_at,
+    }
+
+
+def coding_stats(cohort: list[dict]) -> dict:
+    """Aggregate metrics for the CODING track, computed from the sessions themselves.
+
+    Every other metric in this file is derived from `reports/{id}`, and a coding
+    assessment does not have one: its result is arithmetic on the judge's verdicts,
+    written onto the session by `coding_scoring.durable_result`. So a coding session
+    reached `totals` and `byTrack` and then vanished from every average, and a
+    recruiter running coding assessments saw a dashboard with nothing on it.
+
+    Kept SEPARATE from `averageOverall` rather than folded into it, deliberately. A
+    model's 0-100 rubric score and a judge's percentage of test points are different
+    measurements of different things, and averaging them would produce a number that
+    means nothing while looking authoritative.
+
+    Denominators are named in the keys because each answers a different question:
+    `problemsAssigned` is what recruiters set, `problemsAttempted` is what candidates
+    reached, and `problemsSolved` is what they got fully right. A single "pass rate"
+    over one of those would silently be a different statistic from the one a reader
+    assumed.
+    """
+    sessions = [s for s in cohort if s.get("track") == "coding"]
+
+    percents: list[float] = []
+    durations: list[float] = []
+    case_times: list[float] = []
+    assigned = attempted = solved = 0
+    cases_run = cases_passed = 0
+    by_language: dict[str, dict] = {}
+
+    for session in sessions:
+        results = session.get("codingResults") or {}
+        assigned += len(session.get("codingProblems") or [])
+
+        score = max_score = 0
+        for result in results.values():
+            attempted += 1
+            score += int(result.get("score") or 0)
+            max_score += int(result.get("maxScore") or 0)
+            if result.get("total") and result.get("passed") == result.get("total"):
+                solved += 1
+
+            for case in result.get("cases") or []:
+                # `not_run` cases count in the denominator for the same reason
+                # `score_submission` counts them: a run that died half way should
+                # not report a flattering percentage of a smaller total.
+                cases_run += 1
+                if case.get("passed"):
+                    cases_passed += 1
+                if case.get("timeMs") is not None:
+                    case_times.append(float(case["timeMs"]))
+
+            language = str(result.get("language") or "")
+            if language:
+                entry = by_language.setdefault(
+                    language, {"language": language, "submissions": 0, "_percents": []}
+                )
+                entry["submissions"] += 1
+                if result.get("percent") is not None:
+                    entry["_percents"].append(float(result["percent"]))
+
+        if max_score:
+            percents.append(100.0 * score / max_score)
+
+        started = to_ms(session.get("startedAt"))
+        completed = to_ms(session.get("completedAt"))
+        if started is not None and completed is not None and completed > started:
+            durations.append((completed - started) / 1000)
+
+    languages = sorted(
+        (
+            {
+                "language": entry["language"],
+                "submissions": entry["submissions"],
+                "averagePercent": _mean(entry["_percents"]),
+            }
+            for entry in by_language.values()
+        ),
+        key=lambda item: (-item["submissions"], item["language"]),
+    )
+
+    return {
+        "sessions": len(sessions),
+        # Sessions with at least one graded submission. The rest are invitations
+        # nobody has sat yet, and including them would drag every average down
+        # towards zero as a recruiter sends more invites.
+        "scored": len(percents),
+        "averagePercent": _mean(percents),
+        "scoreDistribution": _distribution(percents),
+        "problemsAssigned": assigned,
+        "problemsAttempted": attempted,
+        "problemsSolved": solved,
+        "testsRun": cases_run,
+        "testsPassed": cases_passed,
+        "testPassRate": cases_passed / cases_run if cases_run else 0,
+        "avgCaseMs": _mean(case_times),
+        "slowestCaseMs": max(case_times) if case_times else None,
+        "avgDurationSeconds": _mean(durations),
+        "byLanguage": languages,
     }
 
 

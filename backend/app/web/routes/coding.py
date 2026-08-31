@@ -29,7 +29,14 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 
 from app.security import AuthedUser
 from app.web.deps import RateLimitGenerateWeb, WebUser, assert_owner, settings_of
-from app.web.services import coding_jobs, coding_judge, coding_problems, coding_scoring
+from app.web.services import (
+    coding_jobs,
+    coding_judge,
+    coding_languages,
+    coding_problems,
+    coding_scoring,
+    coding_starters,
+)
 from app.web.store import get_store
 
 logger = logging.getLogger("web.coding")
@@ -72,6 +79,32 @@ def _source_of(body: dict) -> tuple[str, int, str]:
         ) from None
 
     return source, language_id, str((body or {}).get("language") or "")
+
+
+@router.get("/languages", summary="Languages this deployment can actually run")
+async def languages(request: Request, user: AuthedUser = WebUser) -> dict:
+    """The language list, resolved from the judge rather than hard-coded.
+
+    Judge0's language ids are PER-INSTANCE, and the documented ones turn out to be
+    the legacy set: they resolve to Python 3.8, Node 12, Java 13 and TypeScript 3.7
+    on an instance that also offers 3.14, 22, 17 and 5.6. A candidate writing
+    modern syntax against a 2019 interpreter gets errors that read as their own
+    mistake, so the ids are discovered and the newest per toolchain is chosen.
+
+    `source` tells the caller how much to trust the answer:
+      judge     read from the configured judge
+      fallback  no judge configured — names only, ids are null
+      stale     judge configured but unreachable
+
+    The distinction matters in the UI: "not set up on this deployment" is a
+    sentence for a recruiter, "temporarily unavailable" is one for a candidate
+    mid-assessment, and they must not be shown the same words.
+    """
+    resolved, source = await coding_languages.available(settings_of(request))
+    # Starters attached here rather than fetched separately: the authoring UI needs
+    # both at the same moment (it prefills the editor when a language is picked),
+    # and two round trips for one decision is a spinner nobody needed.
+    return {"languages": coding_starters.with_starters(resolved), "source": source}
 
 
 # ── authoring ─────────────────────────────────────────────────────────────────

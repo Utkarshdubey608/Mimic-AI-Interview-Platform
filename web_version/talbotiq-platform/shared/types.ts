@@ -313,6 +313,30 @@ export interface PublicCodingProblem {
   totalPoints: number
 }
 
+/** A language this deployment can actually run.
+ *
+ *  `id` is the JUDGE's own language id and is NULL when no judge is configured —
+ *  which is the honest representation, because an id without a judge to run it on
+ *  is a guess. Judge0's ids are per-instance, and the documented ones turn out to
+ *  be the legacy set (Python 3.8, Node 12, Java 13), so the list is discovered
+ *  from the judge rather than held here. `version` is the judge's own name, e.g.
+ *  "Python (3.14.0)", so a recruiter can see which interpreter their candidates
+ *  will actually face. */
+export interface CodingLanguage {
+  key: string
+  label: string
+  id: number | null
+  version: string | null
+  starter: string
+}
+
+/** How much to trust a language list.
+ *  `judge` read from the configured judge · `fallback` none configured ·
+ *  `stale` configured but unreachable. The three need different words in the UI:
+ *  "not set up on this deployment" is for a recruiter, "temporarily unavailable"
+ *  is for a candidate mid-assessment. */
+export type CodingLanguageSource = 'judge' | 'fallback' | 'stale'
+
 export type CodingVerdict =
   | 'accepted' | 'wrong_answer' | 'time_limit' | 'memory_limit'
   | 'compile_error' | 'runtime_error' | 'internal_error' | 'not_run'
@@ -338,6 +362,46 @@ export interface CodingResult {
   compileFailed?: boolean
   judgeFaulted?: boolean
   streams?: Record<string, { stdout?: string; stderr?: string; compileOutput?: string }>
+}
+
+/** One problem's line in the RECRUITER's report. Composed server-side from the
+ *  session's durable record, so it survives the submission job's one-hour TTL.
+ *  Hidden cases keep their full detail here — this is the owner's own paper. */
+export interface CodingReportProblem {
+  id: string
+  title: string
+  difficulty?: string
+  timeLimitMs?: number
+  memoryMb?: number
+  attempted: boolean
+  /** The problem's total, present even when nobody submitted. */
+  maxScore: number
+  caseCount: number
+  score: number | null
+  percent: number | null
+  passed: number | null
+  total: number | null
+  language: string | null
+  code: string | null
+  /** The stored program was longer than the report keeps. */
+  truncated?: boolean
+  compileFailed?: boolean
+  at?: string
+  cases: CodingCaseResult[]
+  /** Only for a problem never submitted: what was left in the editor. */
+  draft?: string
+}
+
+/** The coding block of a report. Absent on every other track. */
+export interface CodingReport {
+  problems: CodingReportProblem[]
+  score: number
+  maxScore: number
+  percent: number
+  attempted: number
+  slowestCaseMs: number | null
+  languages: string[]
+  submittedAt?: string
 }
 
 export interface CodingSubmission {
@@ -1146,6 +1210,8 @@ export interface SessionReportView {
   speech?: SpeechMetrics
   /** AWS Rekognition facial analysis summary (video track). */
   facial?: Record<string, unknown>
+  /** Per-problem coding breakdown (coding track only). */
+  coding?: CodingReport
 }
 
 export interface ApiError {
@@ -1182,7 +1248,37 @@ export interface AnalyticsSummary {
   recommendationDistribution: { recommendation: string; count: number }[]
   integrityFlagRate: number              // fraction of scored sessions with ≥1 integrity event
   topCandidates: { sessionId: string; name: string; role?: string; overallScore: number }[]
+  /** Judge-scored, so outside every report-derived metric above. */
+  coding: CodingAnalytics
   generatedAt: string
+}
+
+
+/**
+ * Aggregate metrics for the CODING track.
+ *
+ * Separate from `averageOverall` on purpose: a model's 0-100 rubric score and a
+ * judge's percentage of test points measure different things, and one mean over
+ * both would look authoritative while meaning nothing. The three problem
+ * denominators are named rather than collapsed into a "pass rate" because each
+ * answers a different question — what was set, what was reached, what was solved.
+ */
+export interface CodingAnalytics {
+  sessions: number
+  /** Sessions with at least one graded submission, not sessions that exist. */
+  scored: number
+  averagePercent: number
+  scoreDistribution: { bucket: string; count: number }[]
+  problemsAssigned: number
+  problemsAttempted: number
+  problemsSolved: number
+  testsRun: number
+  testsPassed: number
+  testPassRate: number
+  avgCaseMs: number
+  slowestCaseMs: number | null
+  avgDurationSeconds: number
+  byLanguage: { language: string; submissions: number; averagePercent: number }[]
 }
 
 /* ─── Resume → Question Set generation (Gemini) ─────────────────────────── */

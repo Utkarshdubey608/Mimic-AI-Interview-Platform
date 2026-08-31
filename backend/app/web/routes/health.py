@@ -21,6 +21,7 @@ from fastapi import APIRouter, Request
 from app import providers
 from app.firebase import is_configured
 from app.web.deps import settings_of
+from app.web.services import coding_judge
 from app.web.store import is_ready
 
 router = APIRouter(tags=["web:meta"])
@@ -49,4 +50,17 @@ async def health(request: Request) -> dict:
         # the recruiter "Test Connection" buttons — the client holds no keys, so
         # it cannot test them. Mobile reads the same map from `/health`.
         "providers": providers.readiness(settings),
+        # Whether the coding track can run anything. NOT in `providers` above,
+        # for two reasons: that map is the COMMON surface, which the layering test
+        # forbids importing `app.web` into — the judge client lives there — and the
+        # Flutter app maps every one of its keys generically onto a Service Status
+        # screen for features it does not have.
+        #
+        # Reported as CONFIGURED, not as reachable. Every entry in `providers`
+        # answers "is there a credential", and a health endpoint that opened a
+        # socket to a VM on every poll would be an effective way to turn a load
+        # balancer into a traffic generator. Whether the judge ANSWERS is a
+        # different question, and the coding routes answer 503 with a reason when
+        # it does not.
+        "codeExecution": coding_judge.configured(settings),
     }
