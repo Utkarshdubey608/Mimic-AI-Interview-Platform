@@ -1091,7 +1091,7 @@ export default function InviteWizard() {
 
               <StepFooter
                 left={<Button variant="ghost" icon={<ArrowLeft size={15} />} onClick={() => setStep(1)}>Back</Button>}
-                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
+                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : mode === 'coding' ? 'Pick at least one coding problem to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
                 right={<Button disabled={!step2Valid} onClick={() => setStep(3)}>Next: Candidates <ArrowRight size={15} /></Button>}
               />
 
