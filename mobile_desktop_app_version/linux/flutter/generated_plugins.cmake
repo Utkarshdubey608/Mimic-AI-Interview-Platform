@@ -4,7 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_linux
+  flutter_webrtc
   gtk
+  livekit_client
   printing
   record_linux
   screen_retriever_linux

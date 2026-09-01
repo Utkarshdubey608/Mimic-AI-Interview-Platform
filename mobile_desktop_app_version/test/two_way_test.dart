@@ -149,6 +149,40 @@ void main() {
     });
   });
 
+  group('which engine the call runs on', () {
+    // The backend picks (TWOWAY_ENGINE) and the app reads the choice off the URL
+    // it is handed. This is the branch that decides between the native LiveKit
+    // client and the Daily WebView, and getting it wrong is not subtle: a
+    // `wss://` endpoint loaded as a web page is a blank screen.
+    TwoWayGrant grantFor(String roomUrl) => TwoWayGrant.fromJson({
+          'roomUrl': roomUrl,
+          'token': 'tok-abc',
+          'isOwner': false,
+        });
+
+    test('a wss endpoint means LiveKit — the same engine the web app uses', () {
+      expect(grantFor('wss://lk.talbotiq.internal').isLiveKit, isTrue);
+      // ws:// too, which is what a local LiveKit server answers on.
+      expect(grantFor('ws://localhost:7880').isLiveKit, isTrue);
+    });
+
+    test('a Daily room page is NOT LiveKit, and keeps the WebView path', () {
+      final grant = grantFor('https://talbotiq.daily.co/room-int-1');
+
+      expect(grant.isLiveKit, isFalse);
+      expect(grant.joinUrl, 'https://talbotiq.daily.co/room-int-1?t=tok-abc');
+    });
+
+    test('LiveKit needs no token in the URL — it is inside the token', () {
+      // The `?t=` trick is Daily's prebuilt UI reading its own query string.
+      // LiveKit takes the token as a connect argument, so appending it to the
+      // endpoint would be meaningless at best.
+      final grant = grantFor('wss://lk.talbotiq.internal');
+      expect(grant.roomUrl, 'wss://lk.talbotiq.internal');
+      expect(grant.token, 'tok-abc');
+    });
+  });
+
   group('the recruiter scores it themselves', () {
     late FakeFirebaseFirestore db;
     late InterviewRepository repo;

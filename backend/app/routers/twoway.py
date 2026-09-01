@@ -22,6 +22,15 @@ There is no recording, no transcript and no AI score on this track. A human
 conducted the interview, so the human scores it — see the review route in
 `app.routers.evaluations`' sibling on the app side. That also means this router
 never touches Gemini or Deepgram.
+
+**The media engine is `TWOWAY_ENGINE`, exactly as it is for the web surface.**
+The web routes swap Daily for LiveKit in `app.web.__init__`; this router used to
+hardwire Daily, so a deployment that had moved to LiveKit left the mobile app
+alone on a Daily domain — which is how the app started failing to join calls the
+website joined fine. The two clients must resolve to the SAME engine or the two
+front-ends are not in the same product. Everything below is engine-agnostic:
+both provider clients expose the same room/token surface, and the only thing
+that differs is the URL a device connects to (see `_room_url`).
 """
 
 from __future__ import annotations
@@ -40,6 +49,7 @@ from app.interviews import (
     InterviewNotLaunchable,
 )
 from app.providers.daily import DailyClient, room_name_for
+from app.providers.livekit import LiveKitClient
 from app.ratelimit import RateLimitMedia
 from app.schemas import TwoWayJoinResponse
 from app.security import AuthedUser, require_firebase_user
@@ -64,6 +74,36 @@ def _load(settings: Settings, interview_id: str) -> interviews.Interview:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
     except FirestoreUnavailable as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+
+
+def _is_livekit(settings: Settings) -> bool:
+    """Whether this deployment runs the two-way call on LiveKit.
+
+    Same expression as `app.web.__init__`, deliberately — if these two ever
+    disagree, web and mobile join different media servers for the same room name
+    and neither can see the other.
+    """
+    return settings.twoway_engine.strip().lower() == "livekit"
+
+
+def _media_client(settings: Settings) -> LiveKitClient | DailyClient:
+    """The engine's client. Both expose ensure_room / room_exists / mint_token /
+    delete_room with identical signatures, so callers need no branch."""
+    return LiveKitClient(settings) if _is_livekit(settings) else DailyClient(settings)
+
+
+def _room_url(settings: Settings, room_name: str) -> str:
+    """The URL the device connects to for `room_name`.
+
+    The one genuinely engine-shaped value. LiveKit hands every participant the
+    same signalling endpoint and identifies the room from the token, so the URL
+    is a `wss://` origin; Daily's is a per-room `https://` page. The Flutter and
+    web clients both branch on that scheme, which is why joining is a client
+    change and not just a config flip.
+    """
+    if _is_livekit(settings):
+        return settings.livekit_url.strip()
+    return f"https://{settings.daily_domain}/{room_name}" if settings.daily_domain else ""
 
 
 def _require_two_way(interview: interviews.Interview) -> None:
@@ -103,11 +143,11 @@ async def host(
     except InterviewAccessDenied as exc:
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
 
-    client = DailyClient(settings)
+    client = _media_client(settings)
     now = int(time.time())
     room_name = room_name_for(interview_id)
 
-    room = await client.ensure_room(room_name, now_seconds=now)
+    await client.ensure_room(room_name, now_seconds=now)
     token = await client.mint_token(
         room_name=room_name,
         is_owner=True,
@@ -115,8 +155,11 @@ async def host(
         now_seconds=now,
     )
 
+    # `_room_url` rather than the created room's own `url`: on LiveKit the two
+    # are the same, but deriving it keeps host and join answering identically,
+    # so a recruiter re-joining can never be sent somewhere the candidate isn't.
     return TwoWayJoinResponse(
-        room_url=str(room.get("url") or ""),
+        room_url=_room_url(settings, room_name),
         token=token,
         is_owner=True,
     )
@@ -155,7 +198,7 @@ async def join(
     except InterviewNotLaunchable as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
 
-    client = DailyClient(settings)
+    client = _media_client(settings)
     room_name = room_name_for(interview_id)
 
     if not await client.room_exists(room_name):
@@ -177,9 +220,7 @@ async def join(
     )
 
     return TwoWayJoinResponse(
-        room_url=f"https://{settings.daily_domain}/{room_name}"
-        if settings.daily_domain
-        else "",
+        room_url=_room_url(settings, room_name),
         token=token,
         is_owner=False,
     )
@@ -205,7 +246,15 @@ async def complete(
 
     # Deleting the room ejects anyone still connected, so ending the call for the
     # recruiter ends it for the candidate too.
-    await DailyClient(settings).delete_room(room_name_for(interview_id))
+    #
+    # No egress to stop, on either engine: this surface deliberately does not
+    # start LiveKit recording. The egress webhook resolves a room back to a WEB
+    # session (`app.web.routes.twoway_webhook`), and these interviews live in the
+    # Firestore `interviews` collection instead — so a recording started here
+    # would upload and then be dropped on the floor. Hence the human score below,
+    # unchanged. Wiring the webhook to this collection is the follow-up that
+    # would give the app track a transcript too.
+    await _media_client(settings).delete_room(room_name_for(interview_id))
 
     # Completed with NO score: a human ran this interview, so the human scores it.
     # The recruiter's review is written from the app, and until then the round

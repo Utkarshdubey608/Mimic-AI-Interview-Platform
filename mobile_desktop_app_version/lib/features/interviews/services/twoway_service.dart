@@ -2,10 +2,16 @@
 //
 // The live recruiter ↔ candidate call (the two-way interview track).
 //
-// The device never holds the Daily API key: it asks the backend for a room URL
-// and a short-lived token, then joins that room in the same locked-down WebView
-// the Tavus avatar track already uses. Tavus itself runs on Daily, so the video
-// plumbing is proven — this is a different room, not different machinery.
+// The device never holds a vendor API key: it asks the backend for a room URL
+// and a short-lived token, and joins with those.
+//
+// WHICH ENGINE is the backend's decision (`TWOWAY_ENGINE`), not the app's, and
+// the same decision the website's client reads — the two must land in the same
+// room on the same media server or they are not in the same call. The app tells
+// the two apart by the URL it is handed, which is the honest signal: LiveKit
+// answers a `wss://` signalling endpoint that needs a real client
+// ([LiveKitCall]), Daily answers an `https://` page that serves its own prebuilt
+// call UI in a WebView. See [TwoWayGrant.isLiveKit].
 //
 // The ordering is the part worth understanding. Only the RECRUITER can open the
 // call; the candidate's [join] answers 409 until they have. That is a normal
@@ -24,8 +30,10 @@ class TwoWayNotStarted implements Exception {
   String toString() => message;
 }
 
-/// Everything needed to join the call. The Daily API key is not part of it.
+/// Everything needed to join the call. No vendor API key is part of it.
 class TwoWayGrant {
+  /// LiveKit: the `wss://` signalling endpoint (identical for both parties —
+  /// the room is named inside [token]). Daily: the room's own `https://` page.
   final String roomUrl;
   final String token;
 
@@ -39,7 +47,20 @@ class TwoWayGrant {
     required this.isOwner,
   });
 
-  /// The URL to load in the WebView: the room, with the token applied.
+  /// Whether this call runs on LiveKit, and so needs the native client rather
+  /// than a WebView.
+  ///
+  /// Read off the scheme rather than a flag from the server: the scheme is what
+  /// actually decides whether the URL can be loaded as a page, and it cannot
+  /// drift out of step with the URL the way a separate field could.
+  bool get isLiveKit {
+    final scheme = Uri.tryParse(roomUrl)?.scheme.toLowerCase();
+    return scheme == 'wss' || scheme == 'ws';
+  }
+
+  /// DAILY ONLY — the URL to load in the WebView: the room, with the token
+  /// applied. Meaningless for LiveKit, whose endpoint is not a page; guard with
+  /// [isLiveKit] before using it.
   ///
   /// Daily's prebuilt UI reads `?t=` and joins with that identity, which is what
   /// gives the recruiter the admit control and leaves the candidate knocking.
