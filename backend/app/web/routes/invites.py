@@ -244,7 +244,7 @@ async def create_invites(
     # references its problems by id for exactly the same reason — a test case needs
     # its expected output authored in advance, and a generated-per-candidate case
     # would have nothing to grade against.
-    if mode not in ("two_way", "mcq", "coding") and source not in ("tailor", "set"):
+    if mode not in ("two_way", "mcq", "coding", "essay") and source not in ("tailor", "set"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, 'source must be "tailor" or "set"')
 
     candidates = clean_candidates(body.get("candidates"), role)

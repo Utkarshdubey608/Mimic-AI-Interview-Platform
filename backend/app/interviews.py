@@ -78,6 +78,19 @@ MODE_LABELS = {
     # "Timed Q&A (Chat)" rather than crashing — the same state `voice`, `video`
     # and `two_way` are already in there.
     "coding": "Coding",
+    # Essay Writing. On the common surface for the same reason `coding` is:
+    # `is_known_mode` gates invite creation and `mode_label` writes the invite
+    # email, so a mode the wizard offers but this dict does not know is a mode a
+    # recruiter can select and then cannot send — which is exactly how it failed.
+    #
+    # `type_for_mode` puts it in the CHAT bucket without an edit, and correctly: an
+    # essay has no camera and no live audio, so every client branching on the bucket
+    # treats it as written work.
+    #
+    # Unlike `coding`, the Flutter client DOES name this one — `TrackType.essay`
+    # renders "Essay writing test" rather than falling through — so it is not left
+    # in the unrecognised state the note above describes.
+    "essay": "Essay Writing",
 }
 
 # Which of the mobile app's two buckets each track maps onto.

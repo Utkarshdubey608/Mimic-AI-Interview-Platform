@@ -507,3 +507,19 @@ def test_an_essay_prompt_id_sent_at_the_top_level_is_also_accepted() -> None:
     as it does for coding."""
     template = _template(mode="essay", essayPromptId="ep-2")
     assert template["essayPromptId"] == "ep-2"
+
+
+def test_every_track_the_wizard_offers_is_invitable() -> None:
+    """The bug this pins: a mode could be offered by the wizard, accepted by the
+    session router, and then refused at invite creation with "A valid interview
+    mode is required" — because three separate allow-lists had to agree and one
+    of them was stale.
+
+    `is_known_mode` gates invite creation and `mode_label` writes the invite
+    email, so a track missing here is selectable and unsendable.
+    """
+    from app import interviews
+
+    for track in invite_bridge.WEB_TRACKS:
+        assert interviews.is_known_mode(track), f"{track} is not invitable"
+        assert interviews.mode_label(track) != track, f"{track} has no human label"
