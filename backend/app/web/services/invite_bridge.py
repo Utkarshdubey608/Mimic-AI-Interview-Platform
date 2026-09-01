@@ -35,9 +35,25 @@ from app.web.store import defaults, get_store
 
 logger = logging.getLogger("web.invite_bridge")
 
-# The web's six tracks. The interview document stores the precise one in `mode`; `type`
-# is only Flutter's two-way bucket.
-WEB_TRACKS = ("chatbot", "voice", "video_avatar", "chat", "video", "two_way")
+# Every track the web runs. The interview document stores the precise one in `mode`;
+# `type` is only Flutter's two-way bucket.
+#
+# This list said "the web's six tracks" and stayed at six while three more were added,
+# so `track_for` silently answered "chat" for mcq, coding and essay — which made the
+# `if track == ...` branches below for those tracks DEAD, and would have materialised a
+# coding assessment as a timed chat interview. Adding a track without adding it here
+# does not fail loudly; it fails as the wrong interview.
+WEB_TRACKS = (
+    "chatbot",
+    "voice",
+    "video_avatar",
+    "chat",
+    "video",
+    "two_way",
+    "mcq",
+    "coding",
+    "essay",
+)
 
 # An adaptive screen without a configured count. Bounded at the top by the same ceiling
 # the question generator uses.
@@ -155,6 +171,13 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
         ids = screening.get("codingProblemIds") or data.get("codingProblemIds")
         if isinstance(ids, list) and ids:
             template["codingProblemIds"] = [str(x) for x in ids if str(x)]
+
+    # Essay, mirroring both branches above: the id travels, never the prompt, and the
+    # session resolves it — with the recruiter's private marking notes — at create time.
+    if track == "essay":
+        prompt_id = str(screening.get("essayPromptId") or data.get("essayPromptId") or "")
+        if prompt_id:
+            template["essayPromptId"] = prompt_id
 
     if source == "adaptive":
         template["adaptive"] = {

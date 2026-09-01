@@ -66,6 +66,7 @@ def build_document(
     question_set_id: str | None = None,
     mcq_set_id: str | None = None,
     coding_problem_ids: list[str] | None = None,
+    essay_prompt_id: str | None = None,
     pipeline: dict | None = None,
     allowed_devices: object = None,
     server_timestamp: object = None,
@@ -109,6 +110,12 @@ def build_document(
     # three problems and a candidate works through them in order.
     if coding_problem_ids:
         screening["codingProblemIds"] = list(coding_problem_ids)
+
+    # Essay references its prompt for the same reason: the prompt carries the
+    # recruiter's private marking notes, so it stays in their own collection and the
+    # session resolves it at create time. One id, because one sitting is one essay.
+    if essay_prompt_id:
+        screening["essayPromptId"] = str(essay_prompt_id)
 
     document = {
         # ── the frozen schema, owned by app.interviews ──

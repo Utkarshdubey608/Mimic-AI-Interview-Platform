@@ -487,3 +487,23 @@ def test_a_failed_sync_never_raises(monkeypatch, fake_store) -> None:
 
     reference.update = _boom
     asyncio.run(invite_bridge.sync_result(Settings(), {"id": "i1", "viaInvite": True}, _report()))
+
+
+def test_an_essay_invite_carries_its_prompt_id_into_the_template() -> None:
+    """The regression that made "Send invite" do nothing for an essay.
+
+    Essay was added to the wizard and to session creation but not to this bridge,
+    so the prompt id was dropped between the invite and the template — and session
+    creation then refused with "Template references no essay prompt", for an
+    invite the recruiter had filled in correctly.
+    """
+    template = _template(mode="essay", screening={"essayPromptId": "ep-1"})
+    assert template["track"] == "essay"
+    assert template["essayPromptId"] == "ep-1"
+
+
+def test_an_essay_prompt_id_sent_at_the_top_level_is_also_accepted() -> None:
+    """The mobile client puts it beside `screening` rather than inside it, exactly
+    as it does for coding."""
+    template = _template(mode="essay", essayPromptId="ep-2")
+    assert template["essayPromptId"] == "ep-2"

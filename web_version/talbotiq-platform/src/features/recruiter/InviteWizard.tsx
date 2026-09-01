@@ -550,7 +550,10 @@ export default function InviteWizard() {
     }
     // Two-way Interview has no scripted question source (live recruiter-led
     // call) — every other mode requires one.
-    if (!mode || (mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && !source) || validCount === 0) return
+    // Essay belongs with two-way, MCQ and coding: none of them has a question
+    // SOURCE. Leaving it out meant this guard fired on every essay invite and hit
+    // a bare `return` — no request, no toast, a Send button that did nothing.
+    if (!mode || (mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && mode !== 'essay' && !source) || validCount === 0) return
     if (mode === 'mcq' && !selectedMcqSetId) { toast.error('Pick an MCQ set first'); return }
     if (mode === 'coding' && selectedCodingIds.length === 0) { toast.error('Pick at least one coding problem'); return }
     if (mode === 'essay' && !selectedEssayId) { toast.error('Pick an essay prompt'); return }
@@ -562,7 +565,7 @@ export default function InviteWizard() {
         role: role.trim(),
         // Neither two-way nor MCQ has a question SOURCE to send: one has no scripted
         // questions at all, the other references a pre-authored paper by id.
-        ...(mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' ? { source: source as Source } : {}),
+        ...(mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && mode !== 'essay' ? { source: source as Source } : {}),
         ...(mode === 'mcq' ? { mcqSetId: selectedMcqSetId } : {}),
         ...(mode === 'coding' ? { codingProblemIds: selectedCodingIds } : {}),
         ...(mode === 'essay' ? { essayPromptId: selectedEssayId } : {}),

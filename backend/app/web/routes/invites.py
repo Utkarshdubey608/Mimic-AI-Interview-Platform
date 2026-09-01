@@ -331,6 +331,29 @@ async def create_invites(
                 )
         coding_problem_ids = ids
 
+    # The essay prompt, owner-checked and readiness-checked the same way. 404 rather
+    # than 403 so the response does not confirm that somebody else's prompt exists,
+    # and readiness enforced at USE because authoring passes through incomplete
+    # states — a prompt nobody could satisfy is worse than a missing one, because the
+    # candidate finds out after writing.
+    essay_prompt_id: str | None = None
+    if mode == "essay":
+        prompt_id = str(body.get("essayPromptId") or "")
+        if not prompt_id:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "An essay prompt must be selected"
+            )
+        prompt = await store.essay_prompts.get(prompt_id)
+        if not prompt or str(prompt.get("recruiterId") or "") not in ("", user.uid):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Essay prompt not found")
+        prompt_faults = essay_prompts.essay_faults(prompt)
+        if prompt_faults:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f'"{prompt.get("title") or prompt_id}" is not ready to send. {prompt_faults[0]}',
+            )
+        essay_prompt_id = prompt_id
+
     stored_template = None
     if body.get("emailTemplateId"):
         found = await store.invite_email_templates.get(str(body["emailTemplateId"]))
@@ -389,6 +412,7 @@ async def create_invites(
             question_set_id=str(question_set_id) if question_set_id else None,
             mcq_set_id=mcq_set_id or None,
             coding_problem_ids=coding_problem_ids,
+            essay_prompt_id=essay_prompt_id,
             # Which clients the candidate may take this on. Validated and normalised
             # in the kernel: unknown values are dropped rather than refused, and
             # "all three" is stored as no restriction at all.
