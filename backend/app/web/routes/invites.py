@@ -35,6 +35,7 @@ from app.security import AuthedUser
 from app.web.deps import RateLimitMediaWeb, WebUser, settings_of
 from app.web.services import (
     coding_problems,
+    essay_prompts,
     interview_invite,
     invite_extract,
     storage,
