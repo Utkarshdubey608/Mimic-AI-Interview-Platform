@@ -41,6 +41,7 @@ dependencies:
   excel: ^4.0.6            # bulk candidate import from .xlsx
   web_socket_channel: ^3.0.1  # realtime voice track (Gemini Live) streaming
   app_links: ^6.3.0        # deep linking (candidate invite links)
+  livekit_client: ^2.6.4  # two-way interview: same media engine as the web app
 
 dev_dependencies:
   flutter_test:

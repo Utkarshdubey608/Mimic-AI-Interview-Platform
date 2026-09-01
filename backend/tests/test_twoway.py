@@ -321,3 +321,106 @@ def test_the_token_outlives_the_room(client):
     from app.providers.daily import ROOM_TTL_SECONDS, TOKEN_TTL_SECONDS
 
     assert TOKEN_TTL_SECONDS > ROOM_TTL_SECONDS
+
+
+# --- the engine switch ----------------------------------------------------
+# `TWOWAY_ENGINE` has to mean the same thing here as it does on the web surface
+# (`app.web.__init__`). When it did not, a deployment on LiveKit left the mobile
+# app talking to a Daily domain the website had already abandoned, and the app
+# could not join a call the browser joined fine.
+LIVEKIT_URL = "wss://lk.talbotiq.internal"
+
+
+@pytest.fixture
+def livekit_client(client, monkeypatch):
+    """The same fixture, switched to LiveKit.
+
+    LiveKit is stubbed at the CLIENT rather than the HTTP layer: its SDK signs
+    and speaks its own protocol, so a MockTransport would test nothing real. What
+    matters here is the ROUTING decision — which client the router picks and
+    which URL it hands back — so that is what is asserted.
+    """
+    from app.providers import livekit as livekit_provider
+
+    client.app.state.settings = Settings(
+        _env_file=None,
+        twoway_engine="livekit",
+        livekit_url=LIVEKIT_URL,
+        livekit_api_key="lk-key",
+        livekit_api_secret="lk-secret",
+        # Deliberately still set: if the router leaks back to Daily, the response
+        # will say so rather than fail for want of configuration.
+        daily_api_key="daily-test",
+        daily_domain="talbotiq.daily.co",
+    )
+
+    calls = client.state["livekit"] = []
+
+    async def ensure_room(self, room_name, *, now_seconds):
+        calls.append(("ensure_room", room_name))
+        client.state["room_exists"] = True
+        return {"url": LIVEKIT_URL, "name": room_name}
+
+    async def room_exists(self, room_name):
+        return bool(client.state["room_exists"])
+
+    async def mint_token(self, *, room_name, is_owner, user_name, now_seconds):
+        calls.append(("mint_token", room_name, is_owner))
+        return f"lk-{'owner' if is_owner else 'guest'}"
+
+    async def delete_room(self, room_name):
+        calls.append(("delete_room", room_name))
+        client.state["room_exists"] = False
+
+    for name, fn in (
+        ("ensure_room", ensure_room),
+        ("room_exists", room_exists),
+        ("mint_token", mint_token),
+        ("delete_room", delete_room),
+    ):
+        monkeypatch.setattr(livekit_provider.LiveKitClient, name, fn)
+
+    client.state["room_exists"] = False
+    return client
+
+
+def test_livekit_engine_hands_back_the_ws_endpoint_not_a_daily_room(livekit_client):
+    body = host(livekit_client).json()
+
+    assert body["roomUrl"] == LIVEKIT_URL
+    assert body["token"] == "lk-owner"
+    # Nothing was asked of Daily — the whole point of the switch.
+    assert not livekit_client.state["sent"]
+
+
+def test_livekit_gives_both_sides_the_same_endpoint(livekit_client):
+    host(livekit_client)
+    livekit_client.state["user"] = CANDIDATE
+
+    body = join(livekit_client).json()
+
+    # LiveKit identifies the room from the token, so host and join must answer
+    # the identical URL — a per-room URL here would send the two parties to
+    # different places.
+    assert body["roomUrl"] == LIVEKIT_URL
+    assert body["isOwner"] is False
+    assert body["token"] == "lk-guest"
+
+
+def test_livekit_keeps_the_candidate_waiting_until_the_room_exists(livekit_client):
+    livekit_client.state["user"] = CANDIDATE
+
+    response = join(livekit_client)
+
+    assert response.status_code == 409
+    assert "has not started" in response.json()["detail"]
+
+
+def test_livekit_ends_the_call_by_deleting_the_room(livekit_client):
+    host(livekit_client)
+
+    assert complete(livekit_client).status_code == 200
+    assert ("delete_room", room_name_for("int-1")) in livekit_client.state["livekit"]
+    # Still a human-scored round: ending it records an awaiting-review evaluation
+    # rather than a score, exactly as the Daily engine does.
+    assert livekit_client.state["saved"][-1]["result"]["awaitingRecruiterReview"]
