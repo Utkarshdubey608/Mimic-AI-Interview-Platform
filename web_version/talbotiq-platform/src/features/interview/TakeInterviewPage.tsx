@@ -18,6 +18,7 @@ import { ResumeUpload } from './screens/ResumeUpload'
 import { QuestionStage } from './screens/QuestionStage'
 import { ChatbotStage } from './screens/ChatbotStage'
 import { CodingStage } from './screens/CodingStage'
+import { EssayStage } from './screens/EssayStage'
 import { McqStage } from './screens/McqStage'
 import { AvatarStage } from './screens/AvatarStage'
 import { VoiceStage } from './screens/VoiceStage'
@@ -169,6 +170,9 @@ export default function TakeInterviewPage() {
     // Its own screen for the same reason MCQ has one: no prep phase, no per-question
     // server clock, no adaptive generation — none of the timed engine applies.
     return <>{gate}<CodingStage sessionId={sessionId} onIntegrity={integrity.post} /></>
+  }
+  if (s.track === 'essay') {
+    return <>{gate}<EssayStage sessionId={sessionId} onIntegrity={integrity.post} /></>
   }
   if (s.track === 'mcq') {
     return <>{gate}<McqStage sessionId={sessionId} branding={branding} onIntegrity={integrity.post} /></>

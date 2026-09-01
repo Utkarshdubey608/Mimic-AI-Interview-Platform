@@ -22,9 +22,31 @@ String _nowIso() => DateTime.now().toIso8601String();
 // ── String-union value holders ────────────────────────────────────────────
 
 class TrackType {
+  // Every mode the platform runs, whichever client created it. All nine are named
+  // here because `label` is what a recruiter READS on the templates list, the
+  // report page and the exported PDF — and until now six of them read as
+  // "Timed Q&A (Chat)", so a coding assessment and a written essay and a live
+  // two-way interview were all displayed as the same thing. That is not a
+  // cosmetic gap: a recruiter opening a report could not tell from the header
+  // what the candidate had actually been asked to do.
   static const String chat = 'chat';
   static const String chatbot = 'chatbot';
   static const String videoAvatar = 'video_avatar';
+  static const String voice = 'voice';
+  static const String video = 'video';
+  static const String twoWay = 'two_way';
+  static const String mcq = 'mcq';
+  static const String coding = 'coding';
+  static const String essay = 'essay';
+
+  /// The modes a recruiter may CREATE from this client — deliberately narrower
+  /// than the list above, and not an oversight.
+  ///
+  /// This feeds one dropdown, on the template editor. The other six modes need a
+  /// candidate runtime this app does not have, so offering them here would let a
+  /// recruiter build a template that a candidate on this same app then cannot
+  /// sit. Displaying a mode and being able to author one are different questions,
+  /// and `label` answers the first for all nine.
   static const List<String> all = [chat, chatbot, videoAvatar];
 
   static String label(String v) {
@@ -33,9 +55,25 @@ class TrackType {
         return 'Conversational chatbot';
       case videoAvatar:
         return 'Video avatar';
+      case voice:
+        return 'Voice interview';
+      case video:
+        return 'Video interview';
+      case twoWay:
+        return 'Two-way interview';
+      case mcq:
+        return 'MCQ assessment';
+      case coding:
+        return 'Coding assessment';
+      case essay:
+        return 'Essay writing test';
       case chat:
-      default:
         return 'Timed Q&A (Chat)';
+      default:
+        // An unrecognised value is a mode this build predates, not a chat
+        // interview. Saying so is more honest than mislabelling it as one, and it
+        // is what tells whoever sees it that the app needs updating.
+        return 'Interview';
     }
   }
 }

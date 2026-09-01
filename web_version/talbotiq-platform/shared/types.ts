@@ -26,6 +26,7 @@
  */
 export type TrackType =
   | 'chat' | 'chatbot' | 'video_avatar' | 'voice' | 'video' | 'two_way' | 'mcq' | 'coding'
+  | 'essay'
 export type QuestionSource = 'adaptive' | 'fixed'
 
 /* ─── Identity & access control (IAM) ───────────────────────────────────────
@@ -741,6 +742,81 @@ export interface IntegrityConfig {
   logEvents: boolean
 }
 
+/* ─── Essay track config ─────────────────────────────────────────────────────
+ * Long-form written answers, scored against the SAME KpiRubric every other track
+ * uses. Essay mode is not a second scoring engine: `scoring.py` already averages
+ * per-KPI and computes the overall server-side from the recruiter's weights, and
+ * a rubric of long-form KPIs is exactly what that machinery is for.
+ *
+ * Deliberately not exam-specific. The defaults suit any long-form writing task;
+ * an IELTS or UPSC flavour is a rubric and a band scale a recruiter chooses, not
+ * a separate mode.
+ */
+
+export type EssayPromptType =
+  | 'argumentative' | 'descriptive' | 'analytical'
+  | 'source_based' | 'opinion' | 'report' | 'discursive'
+
+/** Presentation only. Scores are stored 0-100 like every other track. */
+export type EssayBandScale = 'none' | 'ielts'
+
+export interface EssayConfig {
+  promptSetId?: string
+  promptType: EssayPromptType
+  /** BCP-47. The essay may be written and evaluated in this language. */
+  language: string
+
+  // Length. Words or characters; both optional, both reported live to the writer.
+  minWords?: number
+  maxWords?: number
+  maxChars?: number
+  /** false = the counter warns but the essay may still be submitted. */
+  enforceLimits: boolean
+
+  // Editor. Paste is separate from IntegrityConfig.disablePasteInAnswers because
+  // an essay's paste rule is a writing-task decision, not a proctoring one.
+  allowPaste: boolean
+  allowSpellcheck: boolean
+  allowFormatting: boolean
+  showOutlinePad: boolean
+
+  autosaveSeconds: number
+  attempts: number
+  passThreshold?: number
+  showRubricToCandidate: boolean
+  bandScale: EssayBandScale
+
+  /** Shown beside the editor for source-based tasks (IELTS Task 1, analysis). */
+  sourcePassageMd?: string
+
+  /* ── authenticity ──
+   * The timeline is the PRIMARY signal: it is behavioural, so it carries none of
+   * the bias below, and "composed over 34 minutes with 190 revisions" is stronger
+   * evidence than any detector score.
+   *
+   * `aiLikelihoodEnabled` defaults FALSE on purpose. Seven GPT detectors showed a
+   * 61% false-positive rate on TOEFL essays by non-native writers versus near-zero
+   * for native ones (Liang et al., Patterns, 2023). For a product whose candidates
+   * are largely non-native English writers, an on-by-default detector would flag
+   * the majority of honest people, hardest against exactly those it should serve.
+   */
+  captureTypingTimeline: boolean
+  aiLikelihoodEnabled: boolean
+}
+
+/** A recruiter's correction of an AI score. The AI result is never overwritten —
+ *  both are kept, because "what the model said" and "what a human decided" are
+ *  different facts and a hiring decision may have to be explained later. */
+export interface ScoreOverride {
+  kpiId: string | null   // null = the overall
+  originalScore: number
+  newScore: number
+  reason: string
+  byUid: string
+  byEmail: string
+  at: string
+}
+
 /* ─── Chatbot (conversational) track config ─────────────────────────────── */
 
 export type InterviewMode = 'conversational' | 'timed'
@@ -855,6 +931,7 @@ export interface InterviewTemplate {
   conversationTiming?: ConversationTimingConfig
   chatbotTimer?: ChatbotTimerConfig   // optional per-question timer overlay (conversational track)
   voice?: VoiceConfig                 // voice track only
+  essay?: EssayConfig                 // essay track only
   createdAt: string
   updatedAt: string
 }

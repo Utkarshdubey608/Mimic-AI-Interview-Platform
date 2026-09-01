@@ -40,6 +40,7 @@ const TRACK_LABEL: Record<InterviewTemplate['track'], string> = {
   two_way: 'Two-way',
   mcq: 'MCQ',
   coding: 'Coding',
+  essay: 'Essay Writing Test',
 }
 
 function normalizedWeights(kpis: KpiDefinition[]) {

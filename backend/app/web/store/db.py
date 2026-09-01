@@ -141,6 +141,10 @@ class WebStore:
         # of secret as `mcq_sets`' answer key — so a candidate who could read this
         # collection would not need to solve anything.
         self.coding_problems = Collection(client, f"{PREFIX}coding_problems")
+        # Essay prompts carry no hidden answer the way a coding problem does, but
+        # `guidanceMd` is the recruiter's own note about what they are marking for
+        # — server-side only, and never in `public_prompt`.
+        self.essay_prompts = Collection(client, f"{PREFIX}essay_prompts")
         # A submission DECIDES A SCORE, so the person being graded must never be
         # able to write it. Same reasoning as `mcq_attempts`.
         self.code_submissions = Collection(client, f"{PREFIX}code_submissions")

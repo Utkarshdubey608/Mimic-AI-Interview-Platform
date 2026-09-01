@@ -51,11 +51,19 @@ export interface DeviceRequirements {
  */
 export function requirementsFor(track: TrackType): DeviceRequirements {
   switch (track) {
-    case 'chat':
     // A coding assessment is typing only, exactly like `chat`. Asking a candidate
     // for a camera to write a function would be a permission prompt that buys
     // nothing and costs trust.
+    //
+    // An essay is the same case again, and the most clearly so: a long-form
+    // writing task needs a keyboard and a screen. The integrity signals it does
+    // use — tab switching, paste, the typing timeline — need no device access at
+    // all, so there is nothing here to ask permission for.
+    case 'chat':
+    // falls through
     case 'coding':
+    // falls through
+    case 'essay':
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }
     case 'chatbot':
       return { microphone: false, camera: false, faceFraming: false, realtime: false, liveCaptions: false, recordingConsent: false }

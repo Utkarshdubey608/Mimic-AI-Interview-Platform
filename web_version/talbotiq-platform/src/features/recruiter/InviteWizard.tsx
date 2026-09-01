@@ -6,7 +6,7 @@ import {
   Code2, MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
 } from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
-import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi } from '@/lib/api'
+import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi, essayPromptsApi } from '@/lib/api'
 import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
@@ -31,7 +31,7 @@ const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
  * the Firestore `interviews` schema + Admin credentials + email provider are in place.
  */
 
-type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq' | 'coding'>
+type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq' | 'coding' | 'essay'>
 type Source = 'tailor' | 'set'
 
 const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode }[] = [
@@ -43,6 +43,7 @@ const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode 
   { value: 'coding',       label: 'Coding',       blurb: 'Solve problems in an editor, run against tests.', icon: <Code2 size={20} /> },
   { value: 'video',        label: 'Video Interview', blurb: 'Candidate records webcam answers per question.', icon: <Clapperboard size={20} /> },
   { value: 'two_way',      label: 'Two-way Interview', blurb: 'Live recruiter ↔ candidate video interview.', icon: <Users size={20} /> },
+  { value: 'essay',        label: 'Essay Writing', blurb: 'One long written answer, marked against a rubric.', icon: <FileText size={20} /> },
 ]
 
 const STYLES: { value: QuestionStyle; label: string }[] = [
@@ -432,6 +433,7 @@ export default function InviteWizard() {
   // A LIST, not one id: a coding assessment is normally two or three problems,
   // and order is the order a candidate works through them.
   const [selectedCodingIds, setSelectedCodingIds] = useState<string[]>([])
+  const [selectedEssayId, setSelectedEssayId] = useState<string>('')
   const [genOpen, setGenOpen] = useState(false)
   // Step 2 (multi) — the ordered rounds being authored; modes/config are per-round.
   const [rounds, setRounds] = useState<RoundDraft[]>(defaultRounds())
@@ -465,6 +467,7 @@ export default function InviteWizard() {
   // Coding problems are owner-scoped like MCQ papers, and for the same reason:
   // a problem carries its hidden tests and their expected outputs.
   const codingProblems = useQuery({ queryKey: ['coding-problems'], queryFn: codingApi.list, enabled: step === 2 && mode === 'coding' })
+  const essayPrompts = useQuery({ queryKey: ['essay-prompts'], queryFn: essayPromptsApi.list, enabled: step === 2 && mode === 'essay' })
 
   const validCount = candidates.filter((c) => emailOk(c.email)).length
   const validCandidates = candidates.filter((c) => emailOk(c.email)).map((c) => ({ email: c.email.trim(), role: c.role.trim() || role }))
@@ -550,6 +553,7 @@ export default function InviteWizard() {
     if (!mode || (mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && !source) || validCount === 0) return
     if (mode === 'mcq' && !selectedMcqSetId) { toast.error('Pick an MCQ set first'); return }
     if (mode === 'coding' && selectedCodingIds.length === 0) { toast.error('Pick at least one coding problem'); return }
+    if (mode === 'essay' && !selectedEssayId) { toast.error('Pick an essay prompt'); return }
     if (!emailLocked.ok) { toast.error(`The invite email is missing the interview link (${emailLocked.missing.join(', ')})`); return }
     setCreating(true)
     try {
@@ -561,6 +565,7 @@ export default function InviteWizard() {
         ...(mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' ? { source: source as Source } : {}),
         ...(mode === 'mcq' ? { mcqSetId: selectedMcqSetId } : {}),
         ...(mode === 'coding' ? { codingProblemIds: selectedCodingIds } : {}),
+        ...(mode === 'essay' ? { essayPromptId: selectedEssayId } : {}),
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
         candidates: validCandidates,
@@ -677,6 +682,7 @@ export default function InviteWizard() {
     // answers, so the only thing to choose is which paper.
     : mode === 'mcq' ? !!selectedMcqSetId
     : mode === 'coding' ? selectedCodingIds.length > 0
+    : mode === 'essay' ? !!selectedEssayId
     : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25 : source === 'set' ? !!selectedSetId : false
   const step2ValidMulti = rounds.length >= 1 && rounds.every((r) => r.name.trim().length >= 1 && !!r.mode)
 
@@ -950,6 +956,74 @@ export default function InviteWizard() {
                     )}
                   </StepSection>
                 </div>
+              ) : mode === 'essay' ? (
+                /* Essay: one prompt. No résumé-tailored path for the same reason
+                   MCQ has none — the rubric and the limits are authored in advance,
+                   and a prompt generated per candidate could not be marked against
+                   a scheme the recruiter had actually reviewed. */
+                <div>
+                  <StepSection
+                    title="Choose the essay prompt"
+                    hint="Authored in Essay prompts, with its word limits and time limit. Marked against your rubric after submission."
+                  >
+                    {essayPrompts.isLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-[62px]" />
+                        <Skeleton className="h-[62px]" />
+                      </div>
+                    ) : (essayPrompts.data ?? []).length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-rule-strong bg-surface-sunk px-5 py-6 text-center">
+                        <p className="text-sm font-semibold text-ink">No essay prompts yet</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
+                          Write one in Essay prompts — the question, its word limits and how long the
+                          candidate has — then it appears here.
+                        </p>
+                        <Button className="mt-3" size="sm" variant="outline" onClick={() => navigate('/essay-prompts')}>
+                          Go to essay prompts
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {(essayPrompts.data ?? []).map((prompt) => {
+                          const sel = selectedEssayId === prompt.id
+                          /* A prompt with faults is shown but not selectable, and
+                             says why — the server refuses it at send time anyway,
+                             and naming the reason here beats failing at the last
+                             step. */
+                          const blocked = prompt.faults.length > 0
+                          return (
+                            <button
+                              key={prompt.id}
+                              type="button"
+                              disabled={blocked}
+                              onClick={() => setSelectedEssayId(sel ? '' : prompt.id)}
+                              className={cn(
+                                'flex w-full items-center gap-3.5 rounded-2xl border px-4 py-3.5 text-left transition-colors duration-150',
+                                blocked && 'cursor-not-allowed opacity-60',
+                                sel
+                                  ? 'border-action bg-surface-hover/40 ring-1 ring-signal'
+                                  : 'border-border bg-surface hover:border-rule-strong',
+                              )}
+                            >
+                              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-surface-hover text-ink">
+                                <FileText size={17} />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm font-bold text-ink">{prompt.title || 'Untitled prompt'}</span>
+                                <span className="mt-0.5 block text-xs text-ink-muted">
+                                  {blocked
+                                    ? prompt.faults[0]
+                                    : `${prompt.promptType} · ${prompt.minWords || 0}–${prompt.maxWords || '∞'} words · ${Math.round((prompt.timeLimitSeconds || 0) / 60)} min`}
+                                </span>
+                              </span>
+                              {sel && <Check size={16} className="flex-shrink-0 text-ink" />}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </StepSection>
+                </div>
               ) : mode === 'mcq' ? (
                 /* MCQ: one choice, which paper. There is no résumé-tailored path
                    here because a multiple-choice question needs its options and its
@@ -1091,7 +1165,7 @@ export default function InviteWizard() {
 
               <StepFooter
                 left={<Button variant="ghost" icon={<ArrowLeft size={15} />} onClick={() => setStep(1)}>Back</Button>}
-                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : mode === 'coding' ? 'Pick at least one coding problem to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
+                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : mode === 'coding' ? 'Pick at least one coding problem to continue.' : mode === 'essay' ? 'Pick an essay prompt to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
                 right={<Button disabled={!step2Valid} onClick={() => setStep(3)}>Next: Candidates <ArrowRight size={15} /></Button>}
               />
 

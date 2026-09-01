@@ -145,6 +145,7 @@ class FakeStore:
         # Coding interview mode. Mirrors WebStore; a collection missing here is an
         # AttributeError at request time rather than a failing assertion.
         self.coding_problems = FakeCollection(f"{prefix}coding_problems")
+        self.essay_prompts = FakeCollection(f"{prefix}essay_prompts")
         self.code_submissions = FakeCollection(f"{prefix}code_submissions")
         self.settings = FakeSingleton(f"{prefix}settings")
 

@@ -58,6 +58,7 @@ const GROUPS: Group[] = [
       // Beside Assessments rather than under Configuration: a coding problem is
       // a thing a candidate is set, like a paper, not a setting.
       { to: '/coding-problems', label: 'Coding problems', icon: Code2 },
+      { to: '/essay-prompts', label: 'Essay prompts', icon: FileText },
     ],
   },
   {

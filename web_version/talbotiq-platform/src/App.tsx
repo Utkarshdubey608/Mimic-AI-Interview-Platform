@@ -34,6 +34,7 @@ const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEdito
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
 const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
 const CodingProblemsPage = lazy(() => import('@/features/recruiter/CodingProblemsPage'))
+const EssayPromptsPage = lazy(() => import('@/features/recruiter/EssayPromptsPage').then(m => ({ default: m.EssayPromptsPage })))
 import { CodingStage } from '@/features/interview/screens/CodingStage'
 const McqStageHarness    = lazy(() => import('@/features/interview/screens/McqStageHarness'))
 const SessionsPage       = lazy(() => import('@/features/recruiter/SessionsPage'))
@@ -193,6 +194,7 @@ export default function App() {
                 <Route path="/question-sets" element={<QuestionSetsPage />} />
                 <Route path="/mcq-sets" element={<McqSetsPage />} />
                 <Route path="/coding-problems" element={<CodingProblemsPage />} />
+                <Route path="/essay-prompts" element={<EssayPromptsPage />} />
                 <Route path="/sessions" element={<SessionsPage />} />
                 <Route path="/sessions/new" element={<InviteWizard />} />
                 <Route path="/sessions/:id/report" element={<ReportPage />} />

@@ -23,6 +23,10 @@ const BY_TRACK: Record<TrackType, CheckId[]> = {
   // obstacle in front of a candidate, so the browser check is the whole honest
   // requirement here.
   mcq:          ['browser'],
+  // Writing an essay needs a keyboard and a screen. Asking a candidate for camera
+  // and microphone permission before a writing task is an obstacle that buys the
+  // assessment nothing; tab-switch and paste signals need no device access.
+  essay:        ['browser'],
   // Spoken: the candidate must hear the interviewer, so output is confirmed too.
   voice:        ['browser', 'mic', 'speaker'],
   video_avatar: ['browser', 'mic', 'camera', 'face', 'speaker'],

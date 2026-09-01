@@ -23,6 +23,7 @@ from app.web.routes import (
     help,
     brevo_webhook,
     coding,
+    essay,
     invite_email_templates,
     invites,
     feedback,
@@ -36,6 +37,7 @@ from app.web.routes import (
     sessions_avatar,
     sessions_chat,
     sessions_coding,
+    sessions_essay,
     sessions_mcq,
     sessions_twoway,
     sessions_twoway_livekit,
@@ -76,6 +78,10 @@ _MODULES = (
     # a cross-client interop change touching 22 mode declarations in four
     # languages. See Documents/CODING_INTERVIEW_MODE_PLAN.md.
     coding,
+    # Essay Writing: recruiter authoring for the `essay` track. Unlike coding this
+    # one IS declared across the clients — recruiter_models.dart labels it — so a
+    # session shows as "Essay Writing Test" rather than falling through.
+    essay,
     outcomes,
     question_sets,
     rounds_routes,
@@ -87,6 +93,7 @@ _MODULES = (
     sessions_chat,
     sessions_mcq,
     sessions_coding,
+    sessions_essay,
     sessions_twoway,
     settings,
     invite_email_templates,

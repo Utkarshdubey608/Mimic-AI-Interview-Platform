@@ -50,7 +50,7 @@ const CHART_ANIM = { isAnimationActive: true, animationDuration: 620, animationE
 
 const TRACK_LABEL: Record<TrackType, string> = {
   chat: 'Timed Q&A', chatbot: 'Chatbot', voice: 'Voice', video_avatar: 'Video Avatar', video: 'Video Interview', two_way: 'Two-way Interview',
-  mcq: 'MCQ Assessment', coding: 'Coding',
+  mcq: 'MCQ Assessment', coding: 'Coding', essay: 'Essay Writing Test',
 }
 const REC_LABEL: Record<string, string> = {
   strong_yes: 'Strong Yes', yes: 'Yes', maybe: 'Maybe', no: 'No', unknown: 'Unscored',

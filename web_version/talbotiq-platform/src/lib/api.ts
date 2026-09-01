@@ -201,6 +201,87 @@ export const mcqSessionApi = {
    `preview` is the projection a CANDIDATE receives, served by the same server
    function that will serve them. A preview rendered through a display-only copy
    is a preview of something else. */
+export interface EssayPromptSummary {
+  id: string
+  title: string
+  promptType: string
+  language: string
+  minWords: number
+  maxWords: number
+  timeLimitSeconds: number
+  faults: string[]
+}
+
+/** Essay Writing — the recruiter authoring prompts. */
+export const essayPromptsApi = {
+  list: () => http<EssayPromptSummary[]>('/essay/prompts'),
+  get: (id: string) => http<{ prompt: Record<string, unknown>; faults: string[] }>(`/essay/prompts/${id}`),
+  create: (body: Record<string, unknown>) =>
+    http<{ prompt: Record<string, unknown>; faults: string[] }>('/essay/prompts', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  update: (id: string, body: Record<string, unknown>) =>
+    http<{ prompt: Record<string, unknown>; faults: string[] }>(`/essay/prompts/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  remove: (id: string) => http<{ ok: boolean }>(`/essay/prompts/${id}`, { method: 'DELETE' }),
+  generate: (body: Record<string, unknown>) =>
+    http<{ prompts: Record<string, unknown>[] }>('/essay/prompts/generate', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+}
+
+/** Essay Writing — the candidate's side.
+ *
+ * `remainingSeconds` always comes from the SERVER. The countdown on screen is a
+ * render of it, never the authority: a browser clock can be changed, and the
+ * deadline is the session's own start time plus the configured limit. */
+export const essayApi = {
+  state: (sessionId: string) =>
+    http<EssaySessionState>(`/sessions/${sessionId}/essay`),
+  saveDraft: (sessionId: string, text: string, timeline?: EssayTimelineEvent[]) =>
+    http<EssayDraftAck>(`/sessions/${sessionId}/essay/draft`, {
+      method: 'POST', body: JSON.stringify({ text, timeline }),
+    }),
+  submit: (sessionId: string, text: string) =>
+    http<{ ok: boolean; late: boolean; words: number; chars: number }>(
+      `/sessions/${sessionId}/essay/submit`, { method: 'POST', body: JSON.stringify({ text }) },
+    ),
+}
+
+export interface EssayTimelineEvent { t: number; a: number; d: number }
+
+export interface EssayDraftAck {
+  ok: boolean
+  words: number
+  chars: number
+  limitState: 'ok' | 'under' | 'over'
+  limitDelta: number
+  remainingSeconds: number
+}
+
+export interface EssaySessionState {
+  prompt: {
+    id: string
+    title: string
+    promptMd: string
+    promptType: string
+    language: string
+    sourcePassageMd: string
+    minWords: number
+    maxWords: number
+    maxChars: number
+    timeLimitSeconds: number
+  }
+  draft: string
+  words: number
+  chars: number
+  limitState: 'ok' | 'under' | 'over'
+  limitDelta: number
+  remainingSeconds: number
+  submitted: boolean
+}
+
 export const codingApi = {
   /** The languages this deployment can run, resolved from the judge.
    *  Not a constant in the client: Judge0's ids are per-instance, so a

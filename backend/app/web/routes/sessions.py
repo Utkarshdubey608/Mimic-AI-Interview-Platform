@@ -60,6 +60,7 @@ from app.web.services import (
     timing,
     video_transcript,
     voice_setup,
+    essay_prompts,
 )
 from app.web.shared import speech
 from app.web.routes import mcq_sets as mcq_sets_routes
@@ -78,7 +79,17 @@ router = APIRouter(prefix="/sessions", tags=["web:sessions"])
 #
 # Mirrors `TrackType` in web_version/talbotiq-platform/shared/types.ts, which
 # carries the note on the third copy of this list (the Flutter client).
-TRACKS = ("chat", "chatbot", "video_avatar", "voice", "video", "two_way", "mcq", "coding")
+TRACKS = (
+    "chat",
+    "chatbot",
+    "video_avatar",
+    "voice",
+    "video",
+    "two_way",
+    "mcq",
+    "coding",
+    "essay",
+)
 
 # A résumé, not a portfolio.
 MAX_RESUME_BYTES = 8 * 1024 * 1024
@@ -336,6 +347,7 @@ async def create_session(
     mcq_config: dict | None = None
     mcq_sections: list[dict] = []
     coding_problems_resolved: list[dict] = []
+    essay_prompt_resolved: dict | None = None
     if (body.get("track") or template.get("track")) == "mcq":
         # The MCQ paper. Resolved here, WITH its answer key, into the session
         # document — the key stays server-side for the whole interview and the
@@ -411,6 +423,33 @@ async def create_session(
                     f'"{problem.get("title") or problem_id}" is not ready. {faults[0]}',
                 )
             coding_problems_resolved.append(dict(problem))
+    elif (body.get("track") or template.get("track")) == "essay":
+        # Copied INTO the session, like the coding problems and the MCQ paper and
+        # for the same reason: editing a prompt afterwards must not reach back into
+        # an essay somebody has already sat. It also carries `guidanceMd`, which is
+        # the recruiter's private marking note — safe here because a `web_`
+        # collection is unreachable by any client, and the candidate's view is
+        # built by `essay_prompts.public_prompt` rather than filtered at the edge.
+        prompt_id = str(template.get("essayPromptId") or "")
+        if not prompt_id:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Template references no essay prompt"
+            )
+        prompt = await store.essay_prompts.get(prompt_id)
+        if not prompt:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"Essay prompt {prompt_id} no longer exists"
+            )
+        faults = essay_prompts.essay_faults(prompt)
+        if faults:
+            # Refused at creation rather than discovered by the candidate. A prompt
+            # nobody could satisfy is worse than a missing one: they find out after
+            # writing.
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f'"{prompt.get("title") or prompt_id}" is not ready. {faults[0]}',
+            )
+        essay_prompt_resolved = dict(prompt)
     elif template.get("questionSource") == "fixed":
         question_set = await store.question_sets.get(
             str(template.get("fixedQuestionSetId") or "")
@@ -482,6 +521,8 @@ async def create_session(
         # key already relies on — and the candidate's view is projected by an
         # allow-list rather than filtered here.
         session["codingProblems"] = coding_problems_resolved
+    if essay_prompt_resolved:
+        session["essayPrompt"] = essay_prompt_resolved
     await store.sessions.put(session)
     return {"id": session["id"]}
 

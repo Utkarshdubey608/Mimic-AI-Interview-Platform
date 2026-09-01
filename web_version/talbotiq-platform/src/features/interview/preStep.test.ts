@@ -26,6 +26,7 @@ const TRACKS: Record<TrackType, { conversational: boolean }> = {
   video:        { conversational: false },  // recorded webcam answers — also timed
   mcq:          { conversational: false },  // a written paper — no engine at all
   coding:       { conversational: false },  // an editor and a judge — no engine either
+  essay:        { conversational: false },  // one long written answer — no engine either
   chatbot:      { conversational: true },
   voice:        { conversational: true },
   video_avatar: { conversational: true },
@@ -58,8 +59,8 @@ assert("'chat' runs on the timed engine, not a conversational one", !isConversat
    assertion a failure in the seventh. Bump it deliberately when a mode is added —
    that is the moment to ask whether the new mode belongs on the timed engine. */
 assert(
-  'all eight tracks are covered',
-  ALL_TRACKS.length === 8,
+  'all nine tracks are covered',
+  ALL_TRACKS.length === 9,
   `got ${ALL_TRACKS.length}`,
 )
 
