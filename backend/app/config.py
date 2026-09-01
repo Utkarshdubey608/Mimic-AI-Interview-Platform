@@ -109,6 +109,25 @@ class Settings(BaseSettings):
     # Daily — the live recruiter↔candidate call (two-way interview track). Blank
     # makes that track report 503; every other track is unaffected.
     daily_api_key: str = ""
+    # Cal.com — the availability authority for demo bookings, used by BOTH the
+    # marketing embed and the outbound voice agent, so the two cannot double-book
+    # the same half hour. Blank makes scheduling raise rather than invent a slot.
+    calcom_api_key: str = ""
+    calcom_event_type_id: int = 0
+    # Exotel — the outbound demo-confirmation call. Blank makes the call queue
+    # raise rather than silently skip: a call that never happened and a call that
+    # succeeded look identical from the outside otherwise.
+    #
+    # NOTE the app id. This account answers "API Version v2 not supported", so the
+    # v2 AgentStream parameters are unavailable to it and the Voicebot applet's
+    # WebSocket is configured on the ExoML FLOW in the dashboard instead. A call is
+    # therefore aimed at a flow id, not handed a stream url per call.
+    exotel_sid: str = ""
+    exotel_api_key: str = ""
+    exotel_api_token: str = ""
+    exotel_caller_id: str = ""
+    exotel_app_id: int = 0
+    exotel_subdomain: str = "api.exotel.com"
 
     # Hume AI — voice prosody for the web AI-Avatar-Screening track. Hume has
     # discontinued its batch Expression-Measurement API, so this is tried first and

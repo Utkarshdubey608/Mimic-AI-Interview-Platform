@@ -38,3 +38,9 @@ openpyxl==3.1.5
 # Only needed when TWOWAY_ENGINE=livekit. Verified against 1.2.0 (room/egress
 # request classes, AccessToken builder, WebhookReceiver(TokenVerifier(...))).
 livekit-api==1.2.0
+
+# The IANA timezone database. `zoneinfo` falls back to this when the platform has
+# no system copy — which is the case on Windows dev machines AND is not guaranteed
+# on python:3.12-slim. Booking times are timezone-critical, so an absent database
+# is a runtime failure on every conversion rather than a cosmetic gap.
+tzdata==2026.3
