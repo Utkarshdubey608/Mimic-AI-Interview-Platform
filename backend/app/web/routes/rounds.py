@@ -23,7 +23,8 @@ from fastapi import APIRouter, Body, HTTPException, Request, status
 from app import interviews, rounds, rounds_writer
 from app.security import AuthedUser
 from app.web.deps import NotFound, WebUser, settings_of
-from app.web.services import users
+from app.web.services import interview_invite, users
+from app.web.store import get_store
 
 logger = logging.getLogger("web.rounds")
 
@@ -305,6 +306,34 @@ async def assign_round(
     if not candidates:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No candidates to assign.")
 
+    # A role-pipeline round carries its own configured question source in `config`
+    # (mode/source/questionSetId/mixedConfig — see app.role_configs) — resolved here
+    # with the exact same function a manual invite uses, so a round 2+ mixed/tailor/set
+    # configuration actually takes effect instead of silently falling back to adaptive.
+    # A round with no `source` in its config (every round created before this existed,
+    # and any round a recruiter configured by hand today) resolves to nothing here and
+    # reproduces today's exact behaviour: `questions` from the body, as always, and no
+    # `screening` block at all.
+    body_questions = body.get("questions") if isinstance(body.get("questions"), list) else None
+    resolved_questions = body_questions
+    resolved_screening: dict | None = None
+    round_mode = rounds.mode_for_kind(existing.kind)
+    round_source = (existing.config or {}).get("source")
+    if body_questions is None and round_source and round_mode not in (
+        "two_way",
+        "mcq",
+        "coding",
+        "essay",
+    ):
+        store = get_store(settings)
+        resolved_questions, resolved_screening = await interview_invite.resolve_question_source(
+            store,
+            mode=round_mode,
+            source=round_source,
+            config=existing.config,
+            mixed_config=(existing.config or {}).get("mixedConfig"),
+        )
+
     created = await rounds_writer.assign(
         settings,
         existing,
@@ -312,7 +341,8 @@ async def assign_round(
         recruiter_name=await users.get_display_name(settings, user.uid),
         test_title=str(test.get("title") or "Interview"),
         candidates=candidates,
-        questions=body.get("questions") if isinstance(body.get("questions"), list) else None,
+        questions=resolved_questions,
+        screening=resolved_screening,
     )
     return {"assigned": created, "skipped": len(candidates) - created}
 

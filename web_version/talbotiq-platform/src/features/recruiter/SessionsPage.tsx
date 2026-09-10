@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles, Trophy, RotateCw, CalendarClock } from 'lucide-react'
+import { Check, Copy, ExternalLink, FileStack, Plus, Sparkles, Trophy, RotateCw, CalendarClock, List, LayoutGrid } from 'lucide-react'
 import {
   PageHeader, Card, Button, Input, Select, Badge, EmptyState, ErrorState, RecordRows,
   ExhibitTab, Citation, Modal, Toggle, StatFigure, cn,
@@ -15,7 +15,29 @@ import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { DecideRoundModal } from './DecideRoundModal'
 import { RecoverScoringModal } from './RecoverScoringModal'
 import { TimelinePanel } from './TimelinePanel'
+import { CandidateKanbanView } from './CandidateKanbanView'
 import type { SessionListItem, TrackType } from '@shared/types'
+
+/** List/Kanban view switch — a small local segmented control, matching the
+ *  pill pattern used elsewhere (e.g. InviteWizard's `Segmented`) without
+ *  importing across feature files. */
+function ViewToggle({ view, onChange }: { view: 'list' | 'kanban'; onChange: (v: 'list' | 'kanban') => void }) {
+  const item = (active: boolean) => cn(
+    'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-150',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
+    active ? 'bg-action text-action-ink shadow-primary-sm' : 'text-ink-muted hover:text-ink',
+  )
+  return (
+    <div role="group" aria-label="View" className="inline-flex rounded-full bg-surface-hover p-1">
+      <button type="button" aria-pressed={view === 'list'} className={item(view === 'list')} onClick={() => onChange('list')}>
+        <List size={13} aria-hidden /> List
+      </button>
+      <button type="button" aria-pressed={view === 'kanban'} className={item(view === 'kanban')} onClick={() => onChange('kanban')}>
+        <LayoutGrid size={13} aria-hidden /> Kanban
+      </button>
+    </div>
+  )
+}
 
 const statusVariant: Record<string, 'success' | 'warning' | 'neutral' | 'info' | 'danger'> = {
   completed: 'success',
@@ -54,6 +76,10 @@ export default function SessionsPage() {
   const [recoverOpen, setRecoverOpen] = useState(false)
   const [timelineTestId, setTimelineTestId] = useState<string | null>(null)
   const [createdLink, setCreatedLink] = useState<string | null>(null)
+  // Additive view switch (Feature 2). List remains the default and its
+  // rendering below is completely unchanged; Kanban swaps in a separate,
+  // self-contained component that reads its own server-filtered data.
+  const [view, setView] = useState<'list' | 'kanban'>('list')
 
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: sessionsApi.list })
   const templates = useQuery({ queryKey: ['templates'], queryFn: templatesApi.list })
@@ -208,7 +234,13 @@ export default function SessionsPage() {
         }
       />
 
-      {sessions.isLoading ? (
+      <div className="mb-5 flex justify-end">
+        <ViewToggle view={view} onChange={setView} />
+      </div>
+
+      {view === 'kanban' ? (
+        <CandidateKanbanView />
+      ) : sessions.isLoading ? (
         <Card className="overflow-hidden p-0">
           <div className="record-head px-4 py-2.5">
             <span className="section-label">Loading the record…</span>

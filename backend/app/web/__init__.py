@@ -18,6 +18,7 @@ from app.web.routes import (
     analytics,
     auth,
     avatar,
+    candidates,
     face_cache,
     health,
     help,
@@ -32,6 +33,7 @@ from app.web.routes import (
     mcq_sets,
     outcomes,
     question_sets,
+    role_configs,
     rounds as rounds_routes,
     sessions,
     sessions_avatar,
@@ -84,6 +86,7 @@ _MODULES = (
     essay,
     outcomes,
     question_sets,
+    role_configs,
     rounds_routes,
     sessions,
     # The session sub-tracks add paths under the same prefix. No path is a prefix of
@@ -101,6 +104,7 @@ _MODULES = (
     # secret) and must not inherit the invites router's authentication.
     brevo_webhook,
     invites,
+    candidates,
     pipelines,
     # The WebSocket relays. No HTTP path can collide with a websocket route.
     ws_deepgram,

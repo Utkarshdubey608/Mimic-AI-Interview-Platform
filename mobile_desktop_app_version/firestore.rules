@@ -134,6 +134,20 @@ service cloud.firestore {
       }
     }
 
+    // roleConfigs: reusable per-role interview pipeline templates (Feature 1).
+    // SHARED, top-level like `tests` — a pipeline authored on the web must be
+    // usable from a mobile spreadsheet import, and vice versa. Owner-only, same
+    // pattern as `tests` above: a candidate never reads these, and a template
+    // has no lifecycle of its own to gate on.
+    match /roleConfigs/{configId} {
+      allow read: if isRecruiter()
+                     && resource.data.recruiterId == request.auth.uid;
+      allow create, update: if isRecruiter()
+                     && request.resource.data.recruiterId == request.auth.uid;
+      allow delete: if isRecruiter()
+                     && resource.data.recruiterId == request.auth.uid;
+    }
+
     // interviews:
     //   - recruiters manage the interviews they created
     //   - candidates may read + update (status/result) interviews assigned to

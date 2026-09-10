@@ -19,6 +19,7 @@ import 'personas_page.dart';
 import 'mcq_sets_page.dart';
 import 'question_sets_page.dart';
 import 'replicas_page.dart';
+import 'role_pipelines_page.dart';
 import 'templates_page.dart';
 
 class _LibrarySection {
@@ -56,6 +57,15 @@ const _sections = [
     tint: AppColors.pastelLavenderText,
   ),
   _LibrarySection(
+    icon: Icons.route_outlined,
+    title: 'Role pipelines',
+    subtitle:
+        'Reusable multi-round pipelines per role, applied automatically when '
+        'candidates are imported.',
+    pageBuilder: _rolePipelinesPage,
+    tint: AppColors.pastelYellow,
+  ),
+  _LibrarySection(
     icon: Icons.fact_check_outlined,
     title: 'Assessments',
     subtitle:
@@ -88,6 +98,7 @@ const _sections = [
 
 Widget _templatesPage(BuildContext _) => const TemplatesPage();
 Widget _questionSetsPage(BuildContext _) => const QuestionSetsPage();
+Widget _rolePipelinesPage(BuildContext _) => const RolePipelinesPage();
 Widget _mcqSetsPage(BuildContext _) => const McqSetsPage();
 Widget _generateFromResumePage(BuildContext _) => const GenerateFromResumePage();
 Widget _personasPage(BuildContext _) => const PersonasPage();

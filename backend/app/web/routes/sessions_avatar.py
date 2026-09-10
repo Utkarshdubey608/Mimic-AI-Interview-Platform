@@ -181,36 +181,88 @@ def _real_name(session: dict) -> str:
     return "" if name == "Candidate" else name
 
 
+def _as_int(value: object, fallback: int = 0) -> int:
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return fallback
+
+
+async def _generate_resume_questions(settings, session: dict, template: dict, count: int) -> list[dict]:
+    """`count` résumé-adapted questions, falling back to a generic set on failure.
+
+    Shared by the `adaptive` and `mixed` branches of `_ensure_questions` below — the
+    same call `routes/sessions.py`'s `_generate_adaptive_questions` makes, so there is
+    one résumé-analysis implementation across every track.
+    """
+    adaptive = template.get("adaptive") or {}
+    try:
+        generated = await question_gen.generate_from_resume_text(
+            settings,
+            resume_text=session["resumeText"],
+            role=template.get("role") or "",
+            seniority=template.get("seniority"),
+            count=count,
+            style=adaptive.get("style"),
+            technical=adaptive.get("technicalCount"),
+            non_technical=adaptive.get("nonTechnicalCount"),
+            difficulty=adaptive.get("difficulty"),
+            focus_topics=adaptive.get("focusTopics"),
+        )
+    except Exception as exc:  # noqa: BLE001 - interview them anyway
+        logger.error("avatar question generation failed for %s: %s", session["id"], exc)
+        generated = []
+    if not generated:
+        generated = question_gen.fallback_questions(template.get("role") or "this", count)
+    return generated
+
+
 async def _ensure_questions(settings, session: dict, template: dict, config: dict) -> None:
-    """Make sure a question plan exists — the avatar's strict script needs it up front."""
+    """Make sure a question plan exists — the avatar's strict script needs it up front.
+
+    `mixed` needs its own check rather than the blanket `if session.get("questions")`
+    early return every other branch uses: `invite_bridge.build_session` already seeded
+    the FIXED portion before this ever runs, so "has some questions" is not the same
+    question as "has all of them" the way it is for `adaptive`/`fixed`.
+    """
+    source = template.get("questionSource")
+
+    if source == "mixed":
+        mixed = template.get("mixed") or {}
+        resume_n = _as_int(mixed.get("resumeQuestionCount"))
+        fixed_n = _as_int(mixed.get("fixedQuestionCount"))
+        existing = session.get("questions") or []
+        if resume_n <= 0 or len(existing) >= fixed_n + resume_n:
+            return  # all-fixed config, or already generated
+        if not session.get("resumeText"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "A résumé is required before starting"
+            )
+        generated = await _generate_resume_questions(settings, session, template, resume_n)
+        session["questions"] = existing + [
+            {
+                "id": str(uuid.uuid4()),
+                "text": question.get("text"),
+                "category": question.get("category"),
+                "idealAnswerNotes": question.get("idealAnswerNotes"),
+                "autoSubmitted": False,
+            }
+            for question in generated
+        ]
+        session["currentIndex"] = 0
+        return
+
     if session.get("questions"):
         return
 
-    if template.get("questionSource") == "adaptive":
+    if source == "adaptive":
         if not session.get("resumeText"):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "A résumé is required before starting"
             )
         adaptive = template.get("adaptive") or {}
         count = adaptive.get("numberOfQuestions") or 5
-        try:
-            generated = await question_gen.generate_from_resume_text(
-                settings,
-                resume_text=session["resumeText"],
-                role=template.get("role") or "",
-                seniority=template.get("seniority"),
-                count=count,
-                style=adaptive.get("style"),
-                technical=adaptive.get("technicalCount"),
-                non_technical=adaptive.get("nonTechnicalCount"),
-                difficulty=adaptive.get("difficulty"),
-                focus_topics=adaptive.get("focusTopics"),
-            )
-        except Exception as exc:  # noqa: BLE001 - interview them anyway
-            logger.error("avatar question generation failed for %s: %s", session["id"], exc)
-            generated = []
-        if not generated:
-            generated = question_gen.fallback_questions(template.get("role") or "this", count)
+        generated = await _generate_resume_questions(settings, session, template, count)
 
     elif config.get("fallbackQuestions"):
         # The recruiter's configured fallback script, used when the template supplies no

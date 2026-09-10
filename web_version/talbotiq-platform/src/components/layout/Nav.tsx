@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LogOut, Menu, X, Files, GitBranch, FileText, ListChecks, ListTodo,
-  Code2,
+  Code2, Workflow,
   BarChart3, UserSquare2, Settings as SettingsIcon, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
@@ -47,6 +47,7 @@ const GROUPS: Group[] = [
     items: [
       { to: '/sessions',  label: 'Sessions',  icon: Files },
       { to: '/pipelines', label: 'Pipelines', icon: GitBranch },
+      { to: '/candidates/role-pipelines', label: 'Role pipelines', icon: Workflow },
     ],
   },
   {

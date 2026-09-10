@@ -40,6 +40,8 @@ const McqStageHarness    = lazy(() => import('@/features/interview/screens/McqSt
 const SessionsPage       = lazy(() => import('@/features/recruiter/SessionsPage'))
 const PipelinesPage      = lazy(() => import('@/features/recruiter/PipelinesPage'))
 const PipelineBoardPage  = lazy(() => import('@/features/recruiter/PipelineBoardPage'))
+const RolePipelinesPage      = lazy(() => import('@/features/recruiter/RolePipelinesPage'))
+const RolePipelineEditorPage = lazy(() => import('@/features/recruiter/RolePipelineEditorPage'))
 const InviteWizard       = lazy(() => import('@/features/recruiter/InviteWizard'))
 const ReportPage         = lazy(() => import('@/features/recruiter/ReportPage'))
 const LiveInterviewPage  = lazy(() => import('@/features/recruiter/LiveInterviewPage'))
@@ -200,6 +202,13 @@ export default function App() {
                 <Route path="/sessions/:id/report" element={<ReportPage />} />
                 <Route path="/pipelines" element={<PipelinesPage />} />
                 <Route path="/pipelines/:id" element={<PipelineBoardPage />} />
+                {/* Role pipelines (Feature 1) — reusable per-role templates on the
+                    shared `roleConfigs` collection. Deliberately separate from the
+                    `web_pipelines` routes above: /new before /:id so "new" is never
+                    swallowed as an id. */}
+                <Route path="/candidates/role-pipelines" element={<RolePipelinesPage />} />
+                <Route path="/candidates/role-pipelines/new" element={<RolePipelineEditorPage />} />
+                <Route path="/candidates/role-pipelines/:id" element={<RolePipelineEditorPage />} />
               </Route>
             </Route>
 

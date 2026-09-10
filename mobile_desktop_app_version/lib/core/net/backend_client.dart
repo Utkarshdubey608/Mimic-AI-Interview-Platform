@@ -256,6 +256,44 @@ class BackendClient {
     }
   }
 
+  /// POSTs a file as `multipart/form-data` — the spreadsheet import extract
+  /// endpoint, mirroring how `resume_service.dart` posts a résumé, but with a
+  /// file field rather than raw bytes because the server needs the original
+  /// filename to tell a `.csv` from a `.xlsx`.
+  ///
+  /// Rebuilds the request on every attempt (`ApiClient.sendMultipart`'s
+  /// contract) — a `MultipartRequest` can only be sent once, so a transient
+  /// 429/503 retry needs a fresh one each time, not the same object resent.
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required List<int> fileBytes,
+    required String fileFilename,
+    String fileFieldName = 'file',
+    Map<String, String>? fields,
+  }) async {
+    _assertConfigured();
+    // Resolved once, up front: `sendMultipart`'s `build` runs synchronously (it
+    // may run more than once, for a transient retry), so the token has to be
+    // ready before the first call rather than awaited inside it. No
+    // `contentType` here — `http.MultipartRequest` sets its own
+    // `multipart/form-data; boundary=...` when the request is sent, and
+    // overriding it would drop the boundary the server needs to parse the body.
+    final headers = await _headers();
+    return _decode(await _guard(() => _api.sendMultipart(() {
+          final request = http.MultipartRequest('POST', _uri(path))
+            ..headers.addAll(headers)
+            ..files.add(
+              http.MultipartFile.fromBytes(
+                fileFieldName,
+                fileBytes,
+                filename: fileFilename,
+              ),
+            );
+          if (fields != null) request.fields.addAll(fields);
+          return request;
+        })));
+  }
+
   /// POSTs raw bytes — audio, where the body IS the payload.
   Future<Map<String, dynamic>> postBytes(
     String path,

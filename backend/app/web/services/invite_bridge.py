@@ -110,6 +110,11 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
       the live room. Forced to `fixed` with an empty question list.
     * `screening.source == "set"` means the recruiter chose a saved question set, and its
       questions are already embedded in the document — so the template is `fixed`.
+    * `screening.source == "mixed"` combines both: the FIXED portion is already embedded
+      in `questions` exactly like `set` mode's, and the RÉSUMÉ-ADAPTED portion is
+      generated the same way `adaptive` mode's is — just a smaller count, appended after
+      the fixed ones rather than replacing them. See `build_session` for the seeding and
+      `routes/sessions.py`/`routes/sessions_avatar.py` for the append.
     * Anything else is `adaptive`: the questions are generated per candidate from their
       résumé after they upload it.
     """
@@ -121,17 +126,27 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
         source = "fixed"
     elif screening.get("source") == "set":
         source = "fixed"
+    elif screening.get("source") == "mixed":
+        source = "mixed"
     else:
         source = "adaptive"
 
     technical = _as_int(screening.get("techCount"), 3)
     non_technical = _as_int(screening.get("nonTechCount"), 2)
     embedded = [q for q in (data.get("questions") or []) if isinstance(q, str) and q.strip()]
+    mixed_config = screening.get("mixedConfig") if isinstance(screening.get("mixedConfig"), dict) else {}
+    resume_question_count = _as_int(mixed_config.get("resumeQuestionCount"), 0)
 
     if source == "fixed":
         # At least one, even with nothing embedded: a template claiming zero questions
         # would make the progress display divide by nothing.
         count = max(1, len(embedded))
+    elif source == "mixed":
+        # The TOTAL the candidate was told, not just the fixed portion already
+        # embedded — the résumé-adapted questions are appended before the interview
+        # starts (see build_session/routes/sessions.py) but the progress display and
+        # timing must account for them from the first render.
+        count = max(1, _as_int(mixed_config.get("totalQuestions"), len(embedded) + resume_question_count))
     else:
         count = max(1, min(MAX_QUESTION_COUNT, technical + non_technical or DEFAULT_QUESTION_COUNT))
 
@@ -198,6 +213,35 @@ def synthesise_template(interview_id: str, data: dict, now: str) -> dict:
             "language": "English",
         }
 
+    if source == "mixed":
+        # `mixed` — the counts the config UI and validation already enforce add up to
+        # `count` above. `resumeQuestionCount` may be 0 (all-fixed Mixed config); the
+        # résumé-generation step this drives (routes/sessions.py) simply appends nothing
+        # in that case.
+        template["mixed"] = {
+            "fixedQuestionCount": _as_int(mixed_config.get("fixedQuestionCount"), len(embedded)),
+            "resumeQuestionCount": resume_question_count,
+        }
+        # Reused AS-IS by the résumé-generation call (`question_gen.generate_from_resume_text`
+        # via `_generate_adaptive_questions`) — the same function `adaptive` mode calls,
+        # just asked for `resumeQuestionCount` questions instead of the interview's full
+        # length. No second resume-analysis implementation.
+        template["adaptive"] = {
+            "role": role,
+            "difficulty": screening.get("difficulty") or "mixed",
+            "style": screening.get("style") or "mix",
+            "numberOfQuestions": max(0, resume_question_count),
+            "technicalCount": technical,
+            "nonTechnicalCount": non_technical,
+            "focusTopics": screening["domains"]
+            if isinstance(screening.get("domains"), list)
+            else [],
+            "allowFollowUps": False,
+            "maxFollowUpsPerQuestion": 1,
+            "interviewerTone": "friendly and professional",
+            "language": "English",
+        }
+
     if track == "voice":
         template["voice"] = defaults.default_voice_config()
 
@@ -218,7 +262,12 @@ def build_session(
             {"id": str(uuid.uuid4()), "text": text, "autoSubmitted": False}
             for text in embedded
         ]
-        if template["questionSource"] == "fixed"
+        # `mixed` seeds the FIXED portion only, same as `fixed` — the résumé-adapted
+        # rest is appended once, at session-begin, never here (see
+        # routes/sessions.py/routes/sessions_avatar.py). Never prepended: fixed-first
+        # ordering is structural, and appending after whatever is already in the list
+        # is what preserves it.
+        if template["questionSource"] in ("fixed", "mixed")
         else []
     )
 

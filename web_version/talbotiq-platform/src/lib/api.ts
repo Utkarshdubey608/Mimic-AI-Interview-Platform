@@ -33,6 +33,14 @@ import type {
   ExtractCandidatesResult,
   CreateInvitesRequest,
   CreateInvitesResult,
+  RoleCategoryOption,
+  RoleConfig,
+  CreateRoleConfigRequest,
+  UpdateRoleConfigRequest,
+  CreateInvitesFromRolePipelineRequest,
+  CreateInvitesFromRolePipelineResult,
+  CandidateBoardResult,
+  CandidateBoardParams,
   AvatarInterviewSettings,
   AvatarSettingsStatus,
   AvatarStartResponse,
@@ -593,6 +601,11 @@ export const invitesApi = {
   },
   create: (body: CreateInvitesRequest) =>
     http<CreateInvitesResult>('/invites', { method: 'POST', body: JSON.stringify(body) }),
+  // Materialise a role pipeline (Feature 1) into a real timeline and invite round 1.
+  createFromRolePipeline: (body: CreateInvitesFromRolePipelineRequest) =>
+    http<CreateInvitesFromRolePipelineResult>(
+      '/invites/from-role-pipeline', { method: 'POST', body: JSON.stringify(body) },
+    ),
   // Brevo verified senders for the sender picker (server-side key).
   senders: () => http<InviteSendersResult>('/invites/senders'),
   // Upload an invite-email logo → returns a public, email-safe hosted URL.
@@ -628,6 +641,34 @@ export const inviteEmailTemplatesApi = {
   duplicate: (id: string) =>
     http<InviteEmailTemplate>(`/invite-email-templates/${id}/duplicate`, { method: 'POST' }),
   remove: (id: string) => http<void>(`/invite-email-templates/${id}`, { method: 'DELETE' }),
+}
+
+/* ─── Role pipelines (Feature 1) — reusable multi-round templates per role ──
+ * Deliberately separate from `pipelinesApi` below: that is the older, still-live
+ * `web_pipelines` board (kept exactly as it is), while these read/write the SHARED
+ * `roleConfigs` collection the Flutter app also reads directly. */
+export const roleConfigsApi = {
+  categories: () => http<RoleCategoryOption[]>('/role-configs/categories'),
+  list: () => http<RoleConfig[]>('/role-configs'),
+  get: (id: string) => http<RoleConfig>(`/role-configs/${id}`),
+  create: (body: CreateRoleConfigRequest) =>
+    http<RoleConfig>('/role-configs', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: UpdateRoleConfigRequest) =>
+    http<RoleConfig>(`/role-configs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  duplicate: (id: string) => http<RoleConfig>(`/role-configs/${id}/duplicate`, { method: 'POST' }),
+  remove: (id: string) => http<void>(`/role-configs/${id}`, { method: 'DELETE' }),
+}
+
+/* ─── Candidates Kanban (Feature 2) — read-only board, grouped by candidate ── */
+export const candidatesApi = {
+  board: (params?: CandidateBoardParams) => {
+    const q = new URLSearchParams()
+    if (params?.roleCategory) q.set('roleCategory', params.roleCategory)
+    if (params?.status) q.set('status', params.status)
+    if (params?.search) q.set('search', params.search)
+    const qs = q.toString()
+    return http<CandidateBoardResult>(`/candidates/board${qs ? `?${qs}` : ''}`)
+  },
 }
 
 /* ─── Pipelines (multi-round interview flows, owned per recruiter) ──────── */

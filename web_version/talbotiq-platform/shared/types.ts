@@ -1505,7 +1505,19 @@ export interface VoiceCatalog {
 export interface ExtractedCandidate {
   email: string
   role: string       // extracted role, or the recruiter's Step-1 role as fallback
+  /** Server-classified category for `role` (app.role_classification), or 'other' when
+   *  no keyword matched. Absent only for a response from a server predating this field —
+   *  render as "Not detected" rather than crashing. Recruiter-editable in the review
+   *  table before import; the server re-classifies from `role` at invite time regardless,
+   *  so an edited `role` string is what actually decides the category that gets stored. */
+  roleCategory?: string
   valid: boolean     // email passed format validation
+}
+
+/** GET /api/role-configs/categories — the classifier's category table, for pickers. */
+export interface RoleCategoryOption {
+  slug: string
+  displayName: string
 }
 export interface ExtractCandidatesResult {
   rows: ExtractedCandidate[]
@@ -1587,12 +1599,31 @@ export interface TimelineResponse {
   legacyAssignments: number
 }
 
+/**
+ * Mixed mode's configuration: a Question-Set-or-ad-hoc FIXED portion, followed by a
+ * résumé-adapted portion generated the same way `source: 'tailor'` mode's questions
+ * are (see `question_gen.generate_from_resume_text` on the server — one résumé-analysis
+ * implementation, reused). `fixedQuestionCount + resumeQuestionCount` must equal
+ * `totalQuestions`; the server is the real gate (`resolve_question_source`), this is
+ * only what the UI sends.
+ */
+export interface MixedConfig {
+  totalQuestions: number
+  fixedQuestionCount: number
+  resumeQuestionCount: number
+  /** One of these two, never both: a saved set, or ad hoc questions created on the
+   *  spot (sent as `fixedQuestions` alongside, request-only — never itself stored;
+   *  the server folds the resolved text straight into the interview's existing
+   *  `questions` field, the same place `source: 'set'` already puts them). */
+  questionSetId?: string
+}
+
 export interface CreateInvitesRequest {
   mode: TrackType                                   // Chatbot / Voice / Video Avatar / Timed Q&A
   role: string                                      // batch candidate role (Step 1)
   // Omitted only for 'two_way' — a live recruiter-led call has no scripted
   // question source to configure (no résumé-tailored or saved-set questions).
-  source?: 'tailor' | 'set'
+  source?: 'tailor' | 'set' | 'mixed'
   config?: {                                        // tailor-per-résumé generation params (§2)
     style: QuestionStyle
     techCount: number
@@ -1602,6 +1633,11 @@ export interface CreateInvitesRequest {
     model: GeminiModel
   }
   questionSetId?: string                            // when source === 'set'
+  /** When source === 'mixed'. */
+  mixedConfig?: MixedConfig
+  /** Ad hoc fixed questions for Mixed mode, when `mixedConfig.questionSetId` is not
+   *  set — request-only, see `MixedConfig`'s doc comment. */
+  fixedQuestions?: string[]
   /**
    * Restrict the interview to particular clients. Omit (or send all three) for no
    * restriction — the server normalises both to the same stored state.
@@ -1614,7 +1650,15 @@ export interface CreateInvitesRequest {
    * the session resolves it at create time — the key never reaching a browser.
    */
   mcqSetId?: string
-  candidates: { email: string; role: string }[]
+  candidates: {
+    email: string
+    role: string
+    /** A recruiter's manual correction from the import preview (AC2). Honored only
+     *  when it names a category the server's classifier already knows — the override
+     *  picks among centrally-defined categories, it cannot invent a new one. Absent
+     *  (or unrecognised) falls back to server-side classification of `role`. */
+    roleCategory?: string
+  }[]
   origin?: string                                   // web origin, for the invite link in emails
   // Configurable invite email (additive). When neither is set, the legacy built-in
   // email is used (backwards compatible). `emailConfig` (inline) wins over the id.
@@ -1634,6 +1678,109 @@ export interface CreateInvitesResult {
   }[]
   emailed: number     // how many invite emails actually went out (0 while the mailer is in dry-run)
   dryRun: boolean     // true when the mailer isn't fully configured yet
+}
+
+/* ─── Role pipelines (Feature 1) — reusable multi-round templates per role ─────
+ * `roleConfigs/{id}` — a SHARED, unprefixed Firestore collection both this app and
+ * the Flutter app read directly, for the same reason `tests`/`interviews`/`rounds`
+ * are shared: a pipeline authored on one client must be usable on the other. See
+ * app/role_configs.py. A RoleConfig has no candidates and no lifecycle — it is a
+ * TEMPLATE; POST /invites/from-role-pipeline is what turns it into a real timeline
+ * for one batch. */
+
+/** One template round. Field names mirror `InterviewRound`'s (minus the per-test
+ *  lifecycle fields a template does not have) so materialising a spec is close to a
+ *  straight copy on the server. */
+export interface RoleRoundSpec {
+  order: number
+  title: string
+  kind: RoundKind
+  /** Mode-specific: `{ source: 'tailor'|'set'|'mixed', questionSetId?, mixedConfig?,
+   *  fixedQuestions?, style?, techCount?, nonTechCount?, difficulty?, domains?, model? }`.
+   *  Opaque here — resolved server-side by the same `resolve_question_source` a manual
+   *  invite uses, so a round's configured source actually takes effect when candidates
+   *  are assigned to it (round 1 at creation, round 2+ via the existing assign action). */
+  config: Record<string, unknown>
+  criteria?: RoundCriteria
+}
+
+export interface RoleConfig {
+  id: string
+  recruiterId: string
+  roleCategory: string     // a role_classification category slug
+  displayName: string
+  rounds: RoleRoundSpec[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateRoleConfigRequest {
+  roleCategory: string
+  displayName?: string
+  rounds?: RoleRoundSpec[]
+}
+
+export interface UpdateRoleConfigRequest {
+  displayName?: string
+  rounds?: RoleRoundSpec[]
+}
+
+/** POST /invites/from-role-pipeline — materialise a RoleConfig into a real timeline
+ *  for one batch, and invite each candidate to round 1. */
+export interface CreateInvitesFromRolePipelineRequest {
+  roleConfigId: string
+  candidates: { email: string; role: string; roleCategory?: string }[]
+  allowedDevices?: InterviewDevice[]
+  origin?: string
+  emailTemplateId?: string
+  emailConfig?: Partial<InviteEmailTemplate>
+  sendEmails?: boolean
+}
+export interface CreateInvitesFromRolePipelineResult extends CreateInvitesResult {
+  roundsCreated: number
+}
+
+/* ─── Candidates Kanban (Feature 2) — read-only, grouped-by-candidate board ────
+ * GET /candidates/board. One card per candidate (grouped by candidateEmailLower, the
+ * same identity the rest of the interview system uses), reflecting whichever round
+ * already has an interview document for them — never a client-side guess, and never
+ * moved by a drag; advancing a candidate still goes through the existing round-assign
+ * action. */
+export interface CandidateBoardRound {
+  interviewId: string
+  roundOrder: number
+  /** Absent on a round created before this existed — render "Round N" instead of a
+   *  blank column header. */
+  roundTitle: string | null
+  roundKind: string
+  status: 'assigned' | 'in_progress' | 'completed' | string
+  /** This round's own score — never an invented cross-round aggregate. */
+  score: number | null
+}
+
+export interface CandidateBoardCard {
+  email: string
+  name: string | null
+  /** Absent for a candidate imported before role classification existed — render
+   *  "Role not specified". */
+  roleCategory: string | null
+  rawRole: string | null
+  rounds: CandidateBoardRound[]
+  currentRoundOrder: number
+  currentRoundTitle: string | null
+  currentStatus: string
+  currentScore: number | null
+  currentInterviewId: string
+}
+
+export interface CandidateBoardResult {
+  cards: CandidateBoardCard[]
+}
+
+export interface CandidateBoardParams {
+  roleCategory?: string
+  status?: string
+  search?: string
 }
 
 /** Recruiter → server: send ONE test invite email to the recruiter's own address. */

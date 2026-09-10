@@ -40,6 +40,128 @@ type_for_mode = interviews.type_for_mode
 is_known_mode = interviews.is_known_mode
 
 
+def _as_int(value: object, fallback: int = 0) -> int:
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return fallback
+
+
+async def resolve_question_source(
+    store,
+    *,
+    mode: str,
+    source: str | None,
+    config: dict | None,
+    mixed_config: dict | None = None,
+) -> tuple[list[str], dict]:
+    """`(questions, screening)` for one mode/source combination. The ONE place this is
+    decided — called both by a manual invite (`routes/invites.py`) and by a round-2+
+    assignment carrying its own configured source (`routes/rounds.py`), so a role
+    pipeline's later rounds resolve their question source exactly the way round 1 does.
+
+    Raises `HTTPException` on anything invalid (missing/insufficient question set,
+    mismatched Mixed-mode counts) — never fabricates a question to make a bad
+    configuration "work".
+
+    `two_way`/`mcq`/`coding`/`essay` have their own dedicated resolution (paper/problem/
+    prompt ids) at each call site and are not handled here; passing one of those modes
+    returns `([], {})` and does nothing.
+    """
+    from fastapi import HTTPException, status
+
+    config = config if isinstance(config, dict) else {}
+    screening: dict = {}
+    questions: list[str] = []
+
+    if mode in ("two_way", "mcq", "coding", "essay"):
+        return questions, screening
+
+    if source not in ("tailor", "set", "mixed"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, 'source must be "tailor", "set", or "mixed"'
+        )
+
+    screening["source"] = source
+
+    if source == "tailor":
+        screening.update(
+            {
+                "style": config.get("style"),
+                "techCount": config.get("techCount"),
+                "nonTechCount": config.get("nonTechCount"),
+                "difficulty": config.get("difficulty"),
+                "domains": config.get("domains") if isinstance(config.get("domains"), list) else [],
+                "model": config.get("model"),
+            }
+        )
+        return questions, screening
+
+    if source == "set":
+        question_set_id = config.get("questionSetId")
+        if not question_set_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "A question set must be selected")
+        question_set = await store.question_sets.get(str(question_set_id))
+        if not question_set:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Question set not found")
+        questions = [q["text"] for q in question_set.get("questions") or [] if q.get("text")]
+        screening["questionSetId"] = str(question_set_id)
+        return questions, screening
+
+    # source == "mixed": fixed questions first (from a set OR ad hoc), résumé-adapted
+    # questions second — resolved here only as CONFIGURATION; the résumé-adapted texts
+    # themselves are generated later, at session-begin, by the same code adaptive mode
+    # already uses (see invite_bridge.synthesise_template / routes/sessions.py).
+    mixed = mixed_config if isinstance(mixed_config, dict) else (
+        config.get("mixedConfig") if isinstance(config.get("mixedConfig"), dict) else {}
+    )
+    total = _as_int(mixed.get("totalQuestions"), -1)
+    fixed_n = _as_int(mixed.get("fixedQuestionCount"), -1)
+    resume_n = _as_int(mixed.get("resumeQuestionCount"), -1)
+    if fixed_n < 0 or resume_n < 0 or total < 0 or fixed_n + resume_n != total:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Fixed and résumé-based question counts must add up to the total.",
+        )
+
+    question_set_id = mixed.get("questionSetId")
+    if question_set_id:
+        question_set = await store.question_sets.get(str(question_set_id))
+        if not question_set:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Question set not found")
+        set_questions = [q["text"] for q in question_set.get("questions") or [] if q.get("text")]
+        if len(set_questions) < fixed_n:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"That question set has only {len(set_questions)} question(s); "
+                f"{fixed_n} are required.",
+            )
+        questions = set_questions[:fixed_n]  # first N — never fabricate the rest
+    else:
+        inline = [str(q).strip() for q in (mixed.get("fixedQuestions") or []) if str(q).strip()]
+        if len(inline) != fixed_n:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"{fixed_n} fixed question(s) are required."
+            )
+        questions = inline
+
+    screening["mixedConfig"] = {
+        "totalQuestions": total,
+        "fixedQuestionCount": fixed_n,
+        "resumeQuestionCount": resume_n,
+        **({"questionSetId": str(question_set_id)} if question_set_id else {}),
+    }
+    screening.update(
+        {
+            "style": config.get("style"),
+            "difficulty": config.get("difficulty"),
+            "domains": config.get("domains") if isinstance(config.get("domains"), list) else [],
+            "model": config.get("model"),
+        }
+    )
+    return questions, screening
+
+
 def name_from_email(email: str) -> str:
     """A greeting name from an address, for `{{candidate_name}}`.
 
@@ -64,12 +186,20 @@ def build_document(
     source: str | None = None,
     config: dict | None = None,
     question_set_id: str | None = None,
+    resolved_screening: dict | None = None,
     mcq_set_id: str | None = None,
     coding_problem_ids: list[str] | None = None,
     essay_prompt_id: str | None = None,
     pipeline: dict | None = None,
     allowed_devices: object = None,
     server_timestamp: object = None,
+    role_category: str | None = None,
+    raw_role: str | None = None,
+    role_config_id: str | None = None,
+    round_id: str | None = None,
+    round_order: int | None = None,
+    round_kind: str | None = None,
+    round_title: str | None = None,
 ) -> dict:
     """The exact `interviews/{id}` document for one candidate. Pure.
 
@@ -79,25 +209,36 @@ def build_document(
 
     `server_timestamp` is injected so this stays testable — the caller passes
     Firestore's sentinel in production and a fixed value in a test.
+
+    `resolved_screening` — when given, this IS the question-source half of `screening`
+    (whatever `resolve_question_source` returned) and the legacy `source`/`config`/
+    `question_set_id` inline construction below is skipped entirely. Existing callers
+    (the older Pipeline system in `routes/pipelines.py`) do not pass it and are
+    completely unaffected; the manual and role-pipeline invite paths in
+    `routes/invites.py` do, so Mixed mode's `screening.mixedConfig` is built in exactly
+    one place (`resolve_question_source`), not duplicated here.
     """
     label = interviews.mode_label(mode)
 
-    screening: dict = {}
-    if source:
-        screening["source"] = source
-    if source == "tailor" and config:
-        screening.update(
-            {
-                "style": config.get("style"),
-                "techCount": config.get("techCount"),
-                "nonTechCount": config.get("nonTechCount"),
-                "difficulty": config.get("difficulty"),
-                "domains": config.get("domains") if isinstance(config.get("domains"), list) else [],
-                "model": config.get("model"),
-            }
-        )
-    if source == "set" and question_set_id:
-        screening["questionSetId"] = question_set_id
+    if resolved_screening is not None:
+        screening: dict = dict(resolved_screening)
+    else:
+        screening = {}
+        if source:
+            screening["source"] = source
+        if source == "tailor" and config:
+            screening.update(
+                {
+                    "style": config.get("style"),
+                    "techCount": config.get("techCount"),
+                    "nonTechCount": config.get("nonTechCount"),
+                    "difficulty": config.get("difficulty"),
+                    "domains": config.get("domains") if isinstance(config.get("domains"), list) else [],
+                    "model": config.get("model"),
+                }
+            )
+        if source == "set" and question_set_id:
+            screening["questionSetId"] = question_set_id
     # MCQ references its paper rather than embedding it: `questions` here is a list
     # of plain strings, which cannot carry an option list or an answer key. The set
     # stays in the recruiter's own collection and the session resolves it at create.
@@ -134,6 +275,22 @@ def build_document(
         # ── web-only, additive (Flutter ignores unknown keys) ──
         "role": role,
         "screening": screening,
+        # Role classification (Feature 1) — additive, absent on every interview created
+        # before this existed. `role` above stays the free-text label already shown
+        # everywhere; `rawRole` is kept alongside it for symmetry with `roleCategory`
+        # even though today they are usually the same string.
+        **({"rawRole": raw_role} if raw_role else {}),
+        **({"roleCategory": role_category} if role_category else {}),
+        **({"roleConfigId": role_config_id} if role_config_id else {}),
+        # Round metadata (Feature 2) — set only when this document was created as part
+        # of a role pipeline's round 1, so it joins the same timeline a manually-added
+        # round 2+ assignment already denormalises onto its own documents
+        # (`rounds_writer.assign`). Absent for a plain single-round invite, exactly as
+        # today.
+        **({"roundId": round_id} if round_id else {}),
+        **({"roundOrder": round_order} if round_order is not None else {}),
+        **({"roundKind": round_kind} if round_kind else {}),
+        **({"roundTitle": round_title} if round_title else {}),
     }
 
     if pipeline:

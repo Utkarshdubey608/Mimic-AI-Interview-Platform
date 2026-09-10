@@ -376,6 +376,10 @@ class InterviewRound {
         'questions': i.questions,
         'adaptive': i.adaptive,
         'adaptiveConfig': i.adaptiveConfig,
+        // Mixed mode (Feature 3). Written only when set, so a round snapshotted
+        // from a Fixed/Adaptive interview keeps a config exactly like today's.
+        if (i.screeningSource.isNotEmpty) 'screeningSource': i.screeningSource,
+        if (i.mixedConfig != null) 'mixedConfig': i.mixedConfig,
         'collectResume': i.collectResume,
         'language': i.language,
         'voiceName': i.voiceName,
@@ -422,12 +426,15 @@ class InterviewRound {
       type: kind.interviewType ?? InterviewType.chat,
       title: title.isNotEmpty ? title : testTitle,
       testTitle: testTitle,
+      roundTitle: title.isNotEmpty ? title : null,
       prompt: (c['prompt'] as String?) ?? '',
       questions:
           (c['questions'] as List?)?.map((e) => e.toString()).toList() ??
               const [],
       adaptive: (c['adaptive'] as bool?) ?? false,
       adaptiveConfig: c['adaptiveConfig'] as Map<String, dynamic>?,
+      screeningSource: (c['screeningSource'] as String?)?.trim() ?? '',
+      mixedConfig: c['mixedConfig'] as Map<String, dynamic>?,
       // A résumé round collects a résumé by definition.
       collectResume:
           kind == RoundKind.resume || (c['collectResume'] as bool?) == true,

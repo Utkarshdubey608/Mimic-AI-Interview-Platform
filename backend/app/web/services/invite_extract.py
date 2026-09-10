@@ -17,6 +17,8 @@ import io
 import logging
 import re
 
+from app import role_classification
+
 logger = logging.getLogger("web.invite_extract")
 
 # Scanning prose for addresses. Permissive on purpose — see the module docstring.
@@ -28,8 +30,13 @@ EMAIL_PATTERN = re.compile(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}")
 _VALID_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
 
 _EMAIL_HEADER = re.compile(r"\b(e-?mail|mail)\b", re.IGNORECASE)
+# "role", "position", "title", "designation", "profile", "job" cover most spreadsheets
+# out of the box (matching "Job Role", "Job Title", "Position Applied", "Interview
+# Role", ...); "department" and "applied" are named explicitly in the product spec as
+# columns recruiters actually use ("Department", "Applied For").
 _ROLE_HEADER = re.compile(
-    r"\b(role|position|title|designation|profile|job)\b", re.IGNORECASE
+    r"\b(role|position|title|designation|profile|job|department|applied)\b",
+    re.IGNORECASE,
 )
 
 CSV_SUFFIXES = (".csv", ".tsv")
@@ -153,6 +160,12 @@ def deduplicate(raw: list[dict], fallback_role: str) -> tuple[list[dict], int]:
 
     Case-insensitive because `Ada@x.test` and `ada@x.test` are one mailbox, and
     inviting both would send the same person two interviews with different ids.
+
+    Every row is classified here too (Feature 1) — the ONE place a raw role string
+    becomes a `roleCategory`, whether it came from a detected spreadsheet column, an
+    unstructured-file fallback, or the batch's own default. See
+    `app.role_classification.classify_role`. The raw role is preserved unchanged
+    alongside it, so the recruiter's review table can show both.
     """
     seen: set[str] = set()
     duplicates = 0
@@ -167,10 +180,13 @@ def deduplicate(raw: list[dict], fallback_role: str) -> tuple[list[dict], int]:
             duplicates += 1
             continue
         seen.add(key)
+        role = (entry.get("role") or fallback_role).strip()
+        classification = role_classification.classify_role(role)
         rows.append(
             {
                 "email": email,
-                "role": (entry.get("role") or fallback_role).strip(),
+                "role": role,
+                "roleCategory": classification.category,
                 "valid": is_valid_email(email),
             }
         )

@@ -134,6 +134,9 @@ class FakeStore:
         self.question_sets = FakeCollection(f"{prefix}question_sets")
         # Owner-scoped, unlike question_sets — it holds answer keys. See db.py.
         self.mcq_sets = FakeCollection(f"{prefix}mcq_sets")
+        # Shared, unprefixed on the real store (see db.py) — reusable per-role
+        # pipelines both web and mobile read. See app/role_configs.py.
+        self.role_configs = FakeCollection("roleConfigs")
         self.invite_email_templates = FakeCollection(f"{prefix}invite_email_templates")
         self.sessions = FakeCollection(f"{prefix}sessions")
         self.reports = FakeCollection(f"{prefix}reports", key_field="sessionId")

@@ -132,6 +132,19 @@ KERNEL = {
     # different Gemini clients (see app/web/services/mcq_gen.py on why), so sharing
     # this is what stops the same request producing two different papers.
     "app.mcq_gen",
+    # Classifying a spreadsheet's raw role string into a standard category. Shared so
+    # a role classified during import reads the same way whether the recruiter is on
+    # the web or the phone — neither client re-implements the keyword matching.
+    "app.role_classification",
+    # Reusable per-role interview pipeline templates (`roleConfigs/{id}`). Shared and
+    # unprefixed for the same reason `app.rounds` is: a pipeline authored on one
+    # client must be usable on the other through the same document.
+    "app.role_configs",
+    # The Candidates Kanban's read model — aggregating a recruiter's interviews by
+    # candidate. Shared kernel because it reads the same `interviews` collection
+    # `app.interviews`/`app.rounds_writer` already own; kept out of the web package
+    # so the aggregation logic has exactly one home.
+    "app.candidates",
 }
 
 

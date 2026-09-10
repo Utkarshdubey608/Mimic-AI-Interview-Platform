@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app import feedback, mcq, reports, templates_store
+from app import feedback, mcq, reports, role_configs, templates_store
 from app.config import Settings
 from app.firebase import FirestoreUnavailable, get_db
 from app.web.store.collections import Collection, SingletonDocument
@@ -93,6 +93,12 @@ class WebStore:
         # unreachable from the other surface, which is why MCQ could not leave the
         # browser.
         self.mcq_sets = Collection(client, mcq.SETS_COLLECTION)
+
+        # Reusable per-role interview pipelines. SHARED, unprefixed, for the same
+        # reason `interviews`/`tests` are: a pipeline authored on the web must be
+        # immediately usable from a mobile spreadsheet import, and vice versa. See
+        # app/role_configs.py. Owner-scoped like `mcq_sets` above.
+        self.role_configs = Collection(client, role_configs.ROLE_CONFIGS_COLLECTION)
 
         # ── the interview engine ─────────────────────────────────────────────
         self.sessions = Collection(client, f"{PREFIX}sessions")

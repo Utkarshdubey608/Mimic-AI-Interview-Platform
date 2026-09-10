@@ -828,7 +828,9 @@ async def upload_resume(
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
 
-    if template.get("questionSource") != "adaptive" and session.get("track") != "video_avatar":
+    if template.get("questionSource") not in ("adaptive", "mixed") and session.get(
+        "track"
+    ) != "video_avatar":
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "This interview does not use a résumé"
         )
@@ -872,10 +874,7 @@ async def upload_resume(
     # Never fatal: _generate_adaptive_questions falls back to a generic set rather
     # than raising, and /begin still generates if this somehow left none. A résumé
     # that uploaded fine must not fail because a model call did.
-    if template.get("questionSource") == "adaptive" and not (session.get("questions") or []):
-        session["questions"] = await _generate_adaptive_questions(
-            settings, session, template
-        )
+    await _ensure_generated_questions(settings, session, template)
 
     await session_store.save(settings, session)
     return _state(session, template)
@@ -904,14 +903,12 @@ async def begin(session_id: str, request: Request, user: AuthedUser = WebUser) -
     # (see upload_resume) precisely so this path does not make the candidate wait on
     # a model call after pressing Begin. This still covers a session whose résumé
     # predates that change, or whose generation was interrupted.
-    if not (session.get("questions") or []) and template.get("questionSource") == "adaptive":
+    if _needs_question_generation(session, template):
         if not session.get("resumeText"):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "A résumé is required before starting"
             )
-        session["questions"] = await _generate_adaptive_questions(
-            settings, session, template
-        )
+        await _ensure_generated_questions(settings, session, template)
 
     if not (session.get("questions") or []):
         raise HTTPException(
@@ -926,6 +923,51 @@ async def begin(session_id: str, request: Request, user: AuthedUser = WebUser) -
 
     await session_store.save(settings, session)
     return _state(session, template)
+
+
+def _as_int(value: object, fallback: int = 0) -> int:
+    try:
+        return int(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _needs_question_generation(session: dict, template: dict) -> bool:
+    """Whether this session still needs a résumé-driven generation call.
+
+    `adaptive` needs one exactly when it has no questions at all. `mixed` needs one
+    when it has fewer than fixed+résumé, UNLESS the config asked for zero résumé
+    questions — a valid Mixed configuration (all-fixed) that must never trigger
+    generation, since `resumeQuestionCount: 0` is a real answer, not "unset".
+    """
+    source = template.get("questionSource")
+    if source == "adaptive":
+        return not (session.get("questions") or [])
+    if source == "mixed":
+        mixed = template.get("mixed") or {}
+        resume_n = _as_int(mixed.get("resumeQuestionCount"))
+        if resume_n <= 0:
+            return False
+        fixed_n = _as_int(mixed.get("fixedQuestionCount"))
+        return len(session.get("questions") or []) < fixed_n + resume_n
+    return False
+
+
+async def _ensure_generated_questions(settings, session: dict, template: dict) -> None:
+    """Fill in whatever this session's source still needs. Mutates `session["questions"]`.
+
+    `adaptive` REPLACES (there is nothing else to keep). `mixed` APPENDS — the fixed
+    portion was already seeded by `invite_bridge.build_session` and must survive, and
+    fixed-first ordering depends on generated questions only ever being added after it.
+    """
+    if not _needs_question_generation(session, template):
+        return
+
+    generated = await _generate_adaptive_questions(settings, session, template)
+    if template.get("questionSource") == "mixed":
+        session["questions"] = (session.get("questions") or []) + generated
+    else:
+        session["questions"] = generated
 
 
 async def _generate_adaptive_questions(

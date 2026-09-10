@@ -204,6 +204,11 @@ SHARED_COLLECTIONS = {
     # `firestore.rules`, which is where it was always enforced. The prefix only stopped
     # the other client from reaching a paper at all. See app/mcq.py.
     "mcq_sets",
+    # Reusable per-role interview pipeline templates. A pipeline authored on the web
+    # must be usable the moment a recruiter imports a spreadsheet on their phone, and
+    # vice versa — the same reason `tests`/`interviews`/`rounds` are unprefixed. Also
+    # OWNER-scoped, like `mcq_sets` above. See app/role_configs.py.
+    "roleConfigs",
 }
 
 

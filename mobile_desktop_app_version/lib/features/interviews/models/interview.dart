@@ -451,6 +451,43 @@ class Interview {
   /// hand or by an older build.
   final String mcqSetId;
 
+  /// Role classification (Feature 1) — additive, absent on every interview created
+  /// before this existed. `rawRole` is the untouched spreadsheet/manual-entry text;
+  /// `roleCategory` is the centrally-classified slug from `app.role_classification`
+  /// on the backend (never computed on this client — see `CandidateImportService`).
+  /// `roleConfigId` names the `RoleConfig` template this test's pipeline was
+  /// materialised from, if any. Identity, not content: never written by
+  /// [toUpdateMap], only at creation.
+  final String? rawRole;
+  final String? roleCategory;
+  final String? roleConfigId;
+
+  /// The round's own name, denormalised the same way [roundKind]/[roundOrder] are
+  /// — the candidate's device cannot read `tests/{testId}/rounds`. Used by the
+  /// Candidates Kanban to show "Round 2 · Technical" without a second read. Null
+  /// on interviews created before this existed, or with no round at all.
+  final String? roundTitle;
+
+  /// Question source, in the WEB surface's vocabulary (`screening.source`):
+  /// `'tailor'`, `'set'`, or `'mixed'`. Read from the same nested `screening` map
+  /// [mcqSetId] already reads from, for the same reason — a document either
+  /// client can create must mean the same thing on both. EMPTY when absent, which
+  /// is every interview created by earlier builds of this app (they only ever set
+  /// [adaptive]) and every "Fixed list" interview this app still creates today —
+  /// [adaptive] remains the source of truth for those, unchanged. Only Mixed mode
+  /// (new) sets this, to `'mixed'`.
+  final String screeningSource;
+
+  /// Mixed mode's configuration (Feature 3) — `{totalQuestions, fixedQuestionCount,
+  /// resumeQuestionCount, questionSetId?}`, mirroring `screening.mixedConfig` on
+  /// the backend exactly. The FIXED question texts themselves are not duplicated
+  /// here — they live in [questions], the same field "Fixed list" mode already
+  /// uses. Null unless [screeningSource] is `'mixed'`.
+  final Map<String, dynamic>? mixedConfig;
+
+  /// Whether this interview's fixed questions are followed by résumé-adapted ones.
+  bool get isMixedSource => screeningSource == 'mixed';
+
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -716,6 +753,12 @@ class Interview {
     this.mode = '',
     this.allowedDevices = const [],
     this.mcqSetId = '',
+    this.rawRole,
+    this.roleCategory,
+    this.roleConfigId,
+    this.roundTitle,
+    this.screeningSource = '',
+    this.mixedConfig,
     this.createdAt,
     this.updatedAt,
     this.result,
@@ -791,6 +834,14 @@ class Interview {
                   as String?)
               ?.trim() ??
           '',
+      rawRole: d['rawRole'] as String?,
+      roleCategory: d['roleCategory'] as String?,
+      roleConfigId: d['roleConfigId'] as String?,
+      roundTitle: d['roundTitle'] as String?,
+      screeningSource:
+          ((d['screening'] as Map?)?['source'] as String?)?.trim() ?? '',
+      mixedConfig:
+          (d['screening'] as Map?)?['mixedConfig'] as Map<String, dynamic>?,
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (d['updatedAt'] as Timestamp?)?.toDate(),
       result: d['result'] as Map<String, dynamic>?,
@@ -857,10 +908,25 @@ class Interview {
         if (allowedDevices.isNotEmpty && allowedDevices.length < 3)
           'allowedDevices': allowedDevices,
         // Nested, matching what the web surface writes, so one interview document
-        // means the same thing whichever client created it. Written only for an MCQ
-        // round — every other track has no paper and gets no key at all rather than
-        // an empty one.
-        if (mcqSetId.isNotEmpty) 'screening': {'mcqSetId': mcqSetId},
+        // means the same thing whichever client created it. Built up from whichever
+        // of these this interview actually uses — an MCQ round's paper id, and/or
+        // Mixed mode's source + config — rather than always writing all three keys.
+        if (mcqSetId.isNotEmpty ||
+            screeningSource.isNotEmpty ||
+            mixedConfig != null)
+          'screening': {
+            if (mcqSetId.isNotEmpty) 'mcqSetId': mcqSetId,
+            if (screeningSource.isNotEmpty) 'source': screeningSource,
+            if (mixedConfig != null) 'mixedConfig': mixedConfig,
+          },
+        // Role classification (Feature 1) — set once, at import; see the field docs.
+        if (rawRole != null && rawRole!.isNotEmpty) 'rawRole': rawRole,
+        if (roleCategory != null && roleCategory!.isNotEmpty)
+          'roleCategory': roleCategory,
+        if (roleConfigId != null && roleConfigId!.isNotEmpty)
+          'roleConfigId': roleConfigId,
+        if (roundTitle != null && roundTitle!.isNotEmpty)
+          'roundTitle': roundTitle,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -908,6 +974,9 @@ class Interview {
         // accident.
         'screening.mcqSetId':
             mcqSetId.isEmpty ? FieldValue.delete() : mcqSetId,
+        'screening.source':
+            screeningSource.isEmpty ? FieldValue.delete() : screeningSource,
+        'screening.mixedConfig': mixedConfig ?? FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 }

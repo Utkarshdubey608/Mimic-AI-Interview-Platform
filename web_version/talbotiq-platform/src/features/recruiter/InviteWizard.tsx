@@ -6,7 +6,7 @@ import {
   Code2, MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
 } from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
-import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi, essayPromptsApi } from '@/lib/api'
+import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi, essayPromptsApi, roleConfigsApi } from '@/lib/api'
 import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
@@ -32,7 +32,7 @@ const emailOk = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
  */
 
 type Mode = Extract<TrackType, 'chatbot' | 'voice' | 'video_avatar' | 'chat' | 'video' | 'two_way' | 'mcq' | 'coding' | 'essay'>
-type Source = 'tailor' | 'set'
+type Source = 'tailor' | 'set' | 'mixed'
 
 const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode }[] = [
   { value: 'chatbot',      label: 'Chatbot',      blurb: 'Conversational, typed — ChatGPT-style.',   icon: <MessageSquare size={20} /> },
@@ -403,6 +403,145 @@ function TailorConfigPanel({ role, cfg, setCfg }: { role: string; cfg: TailorCon
   )
 }
 
+/** The saved-question-set picker. Shared by `source === 'set'` and Mixed mode's
+ *  "use a question set" fixed-question option — one picker, one selection, reused. */
+function QuestionSetPicker({ sets, selectedSetId, onSelect, onCreateNew, hint }: {
+  sets: { isLoading: boolean; data?: QuestionSet[] }
+  selectedSetId: string
+  onSelect: (id: string) => void
+  onCreateNew: () => void
+  hint: string
+}) {
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-xs">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold leading-tight text-ink">Choose a question set</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>
+        </div>
+        <Button size="xs" variant="secondary" icon={<Plus size={13} />} onClick={onCreateNew}>Create new set</Button>
+      </div>
+      {sets.isLoading ? (
+        <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+      ) : !sets.data?.length ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-surface-sunk px-6 py-8 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-rule bg-surface-hover text-ink"><Layers size={20} /></span>
+          <div>
+            <p className="text-sm font-bold text-ink">No question sets yet</p>
+            <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-muted">Build one from a sample résumé or configure it manually — it stays private to your account.</p>
+          </div>
+          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={onCreateNew}>Create a question set</Button>
+        </div>
+      ) : (
+        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
+          {sets.data.map((s) => {
+            const sel = selectedSetId === s.id
+            return (
+              <button key={s.id} type="button" onClick={() => onSelect(s.id)} aria-pressed={sel}
+                className={cn('flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-150',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
+                  sel ? 'border-action bg-surface-hover ring-1 ring-signal' : 'border-border hover:border-rule-strong hover:bg-surface-sunk')}>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-ink">{s.name}</span>
+                  <span className="mt-0.5 block text-xs text-ink-muted"><span className="tabular-nums">{s.questions.length}</span> question{s.questions.length !== 1 ? 's' : ''}</span>
+                </span>
+                <span className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150', sel ? 'bg-action text-action-ink' : 'border border-border')}>
+                  {sel && <Check size={12} strokeWidth={3} />}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Mixed mode's configuration (Feature 3): Total / Fixed / Résumé-based counts, the
+ * fixed portion sourced from either a saved question set or ad hoc questions typed on
+ * the spot, and a read-only "question flow" preview so the split is never a surprise.
+ */
+function MixedConfigPanel({
+  total, fixed, resume, onTotal, onFixed, onResume,
+  fixedSource, onFixedSource, questions, onQuestions,
+  sets, selectedSetId, onSelectSet, onCreateSet,
+}: {
+  total: number; fixed: number; resume: number
+  onTotal: (n: number) => void; onFixed: (n: number) => void; onResume: (n: number) => void
+  fixedSource: 'set' | 'adhoc'; onFixedSource: (s: 'set' | 'adhoc') => void
+  questions: string[]; onQuestions: (q: string[]) => void
+  sets: { isLoading: boolean; data?: QuestionSet[] }; selectedSetId: string; onSelectSet: (id: string) => void; onCreateSet: () => void
+}) {
+  const addsUp = fixed >= 0 && resume >= 0 && fixed + resume === total
+  const filledQuestions = questions.filter((q) => q.trim()).length
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
+        <div className="mb-4 border-b border-border pb-4">
+          <h3 className="text-sm font-bold leading-tight text-ink">Mixed configuration</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">Fixed questions first, then résumé-adapted questions — every candidate gets the same fixed portion, plus questions unique to their own background.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Input label="Total questions" type="number" min={1} max={25} value={total} onChange={(e) => onTotal(Math.max(1, Number(e.target.value) || 0))} />
+          <Input label="Fixed questions" type="number" min={0} max={25} value={fixed} onChange={(e) => onFixed(Math.max(0, Number(e.target.value) || 0))} />
+          <Input label="Résumé-based questions" type="number" min={0} max={25} value={resume} onChange={(e) => onResume(Math.max(0, Number(e.target.value) || 0))} />
+        </div>
+        {!addsUp && (
+          <p className="mt-3 flex items-start gap-2 rounded-xl border border-danger-border bg-danger-bg p-2.5 text-xs leading-relaxed text-danger">
+            <AlertCircle size={14} className="mt-px flex-shrink-0" />
+            Fixed ({fixed}) + résumé-based ({resume}) must add up to the total ({total}).
+          </p>
+        )}
+        {addsUp && (
+          <div className="mt-3 rounded-xl border border-rule bg-surface-sunk p-3 text-xs text-ink-muted">
+            <span className="font-semibold text-ink">Question flow — </span>
+            {fixed > 0 && <>1–{fixed} fixed{resume > 0 ? ', ' : ''}</>}
+            {resume > 0 && <>{fixed + 1}–{total} résumé-adapted</>}
+            {fixed === 0 && resume === 0 && 'No questions configured yet.'}
+          </div>
+        )}
+      </div>
+
+      {fixed > 0 && (
+        <div className="rounded-2xl border border-border bg-surface p-5 shadow-xs">
+          <h3 className="mb-3 text-sm font-bold leading-tight text-ink">Fixed questions ({fixed})</h3>
+          <Segmented label="Fixed question source">
+            <button type="button" onClick={() => onFixedSource('set')} aria-pressed={fixedSource === 'set'} className={segItem(fixedSource === 'set')}>Use a question set</button>
+            <button type="button" onClick={() => onFixedSource('adhoc')} aria-pressed={fixedSource === 'adhoc'} className={segItem(fixedSource === 'adhoc')}>Create questions now</button>
+          </Segmented>
+
+          {fixedSource === 'set' ? (
+            <QuestionSetPicker sets={sets} selectedSetId={selectedSetId} onSelect={onSelectSet} onCreateNew={onCreateSet}
+              hint={`The first ${fixed} question${fixed === 1 ? '' : 's'} of the set become the fixed portion.`} />
+          ) : (
+            <div className="mt-4 space-y-2">
+              {questions.map((q, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-surface-hover text-xs font-bold tabular-nums text-ink-muted">{i + 1}</span>
+                  <input value={q} onChange={(e) => { const next = [...questions]; next[i] = e.target.value; onQuestions(next) }}
+                    placeholder={`Fixed question ${i + 1}`} aria-label={`Fixed question ${i + 1}`} className="input-base flex-1" />
+                  <button type="button" onClick={() => onQuestions(questions.filter((_, x) => x !== i))} disabled={questions.length <= 1}
+                    className="rounded-lg p-1.5 text-ink-disabled transition-colors duration-150 hover:bg-danger-bg hover:text-danger disabled:opacity-40" aria-label={`Remove question ${i + 1}`}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              <Button size="xs" variant="outline" icon={<Plus size={13} />} onClick={() => onQuestions([...questions, ''])}>Add question</Button>
+              {filledQuestions !== fixed && (
+                <p className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-bg p-2.5 text-xs leading-relaxed text-warning">
+                  <AlertTriangle size={14} className="mt-px flex-shrink-0" />
+                  {filledQuestions} of {fixed} fixed question{fixed === 1 ? '' : 's'} written — fill in the rest to continue.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function InviteWizard() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -429,6 +568,15 @@ export default function InviteWizard() {
   const [source, setSource] = useState<Source | ''>('')
   const [cfg, setCfg] = useState<TailorConfig>({ style: 'mix', techCount: 5, nonTechCount: 3, difficulty: 'mixed', domains: [], model: 'gemini-2.5-flash' })
   const [selectedSetId, setSelectedSetId] = useState('')
+  // Mixed mode (Feature 3): a Question-Set-or-ad-hoc FIXED portion (reuses
+  // `selectedSetId` above when sourced from a set) followed by a résumé-adapted
+  // portion. Total is the source of truth the recruiter edits; the split is what
+  // the server actually validates (fixed + resume === total).
+  const [mixedTotal, setMixedTotal] = useState(8)
+  const [mixedFixed, setMixedFixed] = useState(5)
+  const [mixedResume, setMixedResume] = useState(3)
+  const [mixedFixedSource, setMixedFixedSource] = useState<'set' | 'adhoc'>('set')
+  const [mixedQuestions, setMixedQuestions] = useState<string[]>([''])
   const [selectedMcqSetId, setSelectedMcqSetId] = useState('')
   // A LIST, not one id: a coding assessment is normally two or three problems,
   // and order is the order a candidate works through them.
@@ -439,7 +587,8 @@ export default function InviteWizard() {
   const [rounds, setRounds] = useState<RoundDraft[]>(defaultRounds())
 
   // Step 3
-  const [candidates, setCandidates] = useState<{ id: string; email: string; role: string }[]>([])
+  const [candidates, setCandidates] = useState<{ id: string; email: string; role: string; roleCategory?: string }[]>([])
+  const roleCategories = useQuery({ queryKey: ['role-categories'], queryFn: roleConfigsApi.categories, enabled: step === 3 })
   const [manualEmail, setManualEmail] = useState('')
   const [warnings, setWarnings] = useState<string[]>([])
   const [extracting, setExtracting] = useState(false)
@@ -470,7 +619,7 @@ export default function InviteWizard() {
   const essayPrompts = useQuery({ queryKey: ['essay-prompts'], queryFn: essayPromptsApi.list, enabled: step === 2 && mode === 'essay' })
 
   const validCount = candidates.filter((c) => emailOk(c.email)).length
-  const validCandidates = candidates.filter((c) => emailOk(c.email)).map((c) => ({ email: c.email.trim(), role: c.role.trim() || role }))
+  const validCandidates = candidates.filter((c) => emailOk(c.email)).map((c) => ({ email: c.email.trim(), role: c.role.trim() || role, roleCategory: c.roleCategory }))
   const sampleEmail = validCandidates[0]?.email || 'candidate@example.com'
   const emailLocked = validateLockedTokens(emailDraft.subject, emailDraft.bodyHtml)
   const emailConfigPayload = (): Partial<InviteEmailTemplate> => ({
@@ -483,12 +632,12 @@ export default function InviteWizard() {
     deadlineText: emailDraft.deadlineText,
   })
 
-  const mergeRows = (incoming: { email: string; role: string }[]) => {
+  const mergeRows = (incoming: { email: string; role: string; roleCategory?: string }[]) => {
     setCandidates((prev) => {
       const seen = new Set(prev.map((c) => c.email.trim().toLowerCase()))
       const add = incoming
         .filter((r) => r.email.trim() && !seen.has(r.email.trim().toLowerCase()))
-        .map((r) => ({ id: crypto.randomUUID(), email: r.email.trim(), role: (r.role || role).trim() }))
+        .map((r) => ({ id: crypto.randomUUID(), email: r.email.trim(), role: (r.role || role).trim(), roleCategory: r.roleCategory }))
       return [...prev, ...add]
     })
   }
@@ -571,6 +720,15 @@ export default function InviteWizard() {
         ...(mode === 'essay' ? { essayPromptId: selectedEssayId } : {}),
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
+        ...(source === 'mixed' ? {
+          mixedConfig: {
+            totalQuestions: mixedTotal,
+            fixedQuestionCount: mixedFixed,
+            resumeQuestionCount: mixedResume,
+            ...(mixedFixedSource === 'set' ? { questionSetId: selectedSetId } : {}),
+          },
+          ...(mixedFixedSource === 'adhoc' ? { fixedQuestions: mixedQuestions.map((q) => q.trim()).filter(Boolean) } : {}),
+        } : {}),
         candidates: validCandidates,
         // Omitted when unrestricted, so the common case sends nothing and the
         // document carries no field. The server normalises either way.
@@ -643,7 +801,7 @@ export default function InviteWizard() {
     setInterviewType: { description: 'Choose Single Interview or Multiple Rounds', params: [{ name: 'type', type: 'enum' as const, enum: ['single', 'multi'], required: true }], run: (a: any) => setSetupType(a.type) },
     selectMode: { description: 'Select the interview mode', params: [{ name: 'mode', type: 'enum' as const, enum: MODES.map((m) => m.value), required: true }], run: (a: any) => setMode(a.mode) },
     setRole: { description: 'Set the candidate role/title', params: [{ name: 'role', type: 'string' as const, required: true }], run: (a: any) => setRole(a.role) },
-    setQuestionSource: { description: 'Choose question source: tailor (adaptive) or set (a saved question set)', params: [{ name: 'source', type: 'enum' as const, enum: ['tailor', 'set'], required: true }], run: (a: any) => setSource(a.source) },
+    setQuestionSource: { description: 'Choose question source: tailor (adaptive), set (a saved question set), or mixed (fixed + résumé-adapted)', params: [{ name: 'source', type: 'enum' as const, enum: ['tailor', 'set', 'mixed'], required: true }], run: (a: any) => setSource(a.source) },
     selectQuestionSet: { description: 'Pick a saved question set by id', params: [{ name: 'id', type: 'string' as const, required: true }], run: (a: any) => setSelectedSetId(a.id) },
     addCandidate: { description: 'Add a candidate by email', params: [{ name: 'email', type: 'string' as const, required: true }, { name: 'role', type: 'string' as const }], run: (a: any) => apFnsRef.current.addCandidateDirect(a.email, a.role) },
     nextStep: { description: 'Advance to the next step (only if the current step is complete)', params: [], run: () => apFnsRef.current.guardedNext() },
@@ -686,7 +844,13 @@ export default function InviteWizard() {
     : mode === 'mcq' ? !!selectedMcqSetId
     : mode === 'coding' ? selectedCodingIds.length > 0
     : mode === 'essay' ? !!selectedEssayId
-    : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25 : source === 'set' ? !!selectedSetId : false
+    : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25
+    : source === 'set' ? !!selectedSetId
+    : source === 'mixed' ? (
+        mixedFixed >= 0 && mixedResume >= 0 && mixedFixed + mixedResume === mixedTotal
+        && (mixedFixedSource === 'set' ? !!selectedSetId : mixedQuestions.filter((q) => q.trim()).length === mixedFixed)
+      )
+    : false
   const step2ValidMulti = rounds.length >= 1 && rounds.every((r) => r.name.trim().length >= 1 && !!r.mode)
 
   // Refresh the Autopilot state ref AFTER the validity flags exist — every render.
@@ -1098,21 +1262,28 @@ export default function InviteWizard() {
                   </div>
                 </div>
               ) : (
-                <StepSection title="Question source" hint="Generate a bespoke set per candidate, or reuse one you’ve already built.">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <StepSection title="Question source" hint="Generate a bespoke set per candidate, reuse one you’ve already built, or combine both.">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <SelectCard
                       selected={source === 'tailor'}
                       onClick={() => setSource('tailor')}
                       icon={<FileText size={20} />}
-                      title="Tailor questions to each résumé"
+                      title="Adapt to résumé"
                       blurb="Each candidate uploads their own résumé when they begin. We generate a unique set tailored to that person’s background and your settings — so every candidate gets bespoke questions."
                     />
                     <SelectCard
                       selected={source === 'set'}
                       onClick={() => setSource('set')}
                       icon={<Layers size={20} />}
-                      title="Your question sets"
+                      title="Question set"
                       blurb="Reuse a question set you’ve saved. Build sets from a sample résumé or by configuring them manually — your sets are private to your account."
+                    />
+                    <SelectCard
+                      selected={source === 'mixed'}
+                      onClick={() => setSource('mixed')}
+                      icon={<Workflow size={20} />}
+                      title="Mixed"
+                      blurb="Combine fixed questions with resume-adapted questions — a shared screen for everyone, plus questions unique to each candidate."
                     />
                   </div>
 
@@ -1121,54 +1292,33 @@ export default function InviteWizard() {
 
                   {/* Set picker */}
                   {source === 'set' && (
-                    <div className="mt-4 rounded-2xl border border-border bg-surface p-5 shadow-xs">
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-bold leading-tight text-ink">Choose a question set</h3>
-                          <p className="mt-0.5 text-xs text-ink-muted">Every candidate in this batch answers the same questions.</p>
-                        </div>
-                        <Button size="xs" variant="secondary" icon={<Plus size={13} />} onClick={() => setGenOpen(true)}>Create new set</Button>
-                      </div>
-                      {sets.isLoading ? (
-                        <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
-                      ) : !sets.data?.length ? (
-                        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-surface-sunk px-6 py-8 text-center">
-                          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-rule bg-surface-hover text-ink"><Layers size={20} /></span>
-                          <div>
-                            <p className="text-sm font-bold text-ink">No question sets yet</p>
-                            <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink-muted">Build one from a sample résumé or configure it manually — it stays private to your account.</p>
-                          </div>
-                          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setGenOpen(true)}>Create a question set</Button>
-                        </div>
-                      ) : (
-                        <div className="max-h-[40vh] space-y-2 overflow-y-auto">
-                          {sets.data.map((s: QuestionSet) => {
-                            const sel = selectedSetId === s.id
-                            return (
-                              <button key={s.id} type="button" onClick={() => setSelectedSetId(s.id)} aria-pressed={sel}
-                                className={cn('flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-all duration-150',
-                                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-1',
-                                  sel ? 'border-action bg-surface-hover ring-1 ring-signal' : 'border-border hover:border-rule-strong hover:bg-surface-sunk')}>
-                                <span className="min-w-0">
-                                  <span className="block truncate text-sm font-semibold text-ink">{s.name}</span>
-                                  <span className="mt-0.5 block text-xs text-ink-muted"><span className="tabular-nums">{s.questions.length}</span> question{s.questions.length !== 1 ? 's' : ''}</span>
-                                </span>
-                                <span className={cn('flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors duration-150', sel ? 'bg-action text-action-ink' : 'border border-border')}>
-                                  {sel && <Check size={12} strokeWidth={3} />}
-                                </span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
+                    <QuestionSetPicker sets={sets} selectedSetId={selectedSetId} onSelect={setSelectedSetId} onCreateNew={() => setGenOpen(true)}
+                      hint="Every candidate in this batch answers the same questions." />
+                  )}
+
+                  {/* Mixed config */}
+                  {source === 'mixed' && (
+                    <MixedConfigPanel
+                      total={mixedTotal} fixed={mixedFixed} resume={mixedResume}
+                      onTotal={setMixedTotal} onFixed={setMixedFixed} onResume={setMixedResume}
+                      fixedSource={mixedFixedSource} onFixedSource={setMixedFixedSource}
+                      questions={mixedQuestions} onQuestions={setMixedQuestions}
+                      sets={sets} selectedSetId={selectedSetId} onSelectSet={setSelectedSetId} onCreateSet={() => setGenOpen(true)}
+                    />
                   )}
                 </StepSection>
               )}
 
               <StepFooter
                 left={<Button variant="ghost" icon={<ArrowLeft size={15} />} onClick={() => setStep(1)}>Back</Button>}
-                hint={step2Valid ? undefined : mode === 'mcq' ? 'Pick an MCQ paper to continue.' : mode === 'coding' ? 'Pick at least one coding problem to continue.' : mode === 'essay' ? 'Pick an essay prompt to continue.' : !source ? 'Choose a question source to continue.' : source === 'set' ? 'Pick a question set to continue.' : 'Set a question count between 1 and 25 to continue.'}
+                hint={step2Valid ? undefined
+                  : mode === 'mcq' ? 'Pick an MCQ paper to continue.'
+                  : mode === 'coding' ? 'Pick at least one coding problem to continue.'
+                  : mode === 'essay' ? 'Pick an essay prompt to continue.'
+                  : !source ? 'Choose a question source to continue.'
+                  : source === 'set' ? 'Pick a question set to continue.'
+                  : source === 'mixed' ? 'Make the fixed and résumé-based counts add up to the total, and finish the fixed questions, to continue.'
+                  : 'Set a question count between 1 and 25 to continue.'}
                 right={<Button disabled={!step2Valid} onClick={() => setStep(3)}>Next: Candidates <ArrowRight size={15} /></Button>}
               />
 
@@ -1275,6 +1425,7 @@ export default function InviteWizard() {
                       <th className="w-12 px-4 py-2.5 font-bold"><span className="sr-only">Status</span></th>
                       <th className="px-4 py-2.5 font-bold">Email</th>
                       <th className="px-4 py-2.5 font-bold">Role</th>
+                      <th className="px-4 py-2.5 font-bold">Detected category</th>
                       <th className="w-12 px-4 py-2.5"></th>
                     </tr>
                   </thead>
@@ -1302,6 +1453,20 @@ export default function InviteWizard() {
                               aria-label="Candidate role"
                               placeholder={role}
                               className="w-full rounded-lg border border-transparent bg-surface px-2.5 py-1.5 text-xs text-ink-body transition-colors duration-150 hover:border-border focus:border-action focus:outline-none focus:ring-2 focus:ring-signal/20" />
+                          </td>
+                          <td className="px-4">
+                            <select
+                              value={c.roleCategory || ''}
+                              onChange={(e) => setCandidates((cs) => cs.map((x) => x.id === c.id ? { ...x, roleCategory: e.target.value || undefined } : x))}
+                              aria-label="Role category"
+                              className={cn('w-full rounded-lg border bg-surface px-2.5 py-1.5 text-xs transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-signal/20',
+                                c.roleCategory && c.roleCategory !== 'other' ? 'border-transparent text-ink-body hover:border-border focus:border-action' : 'border-border text-ink-faint focus:border-action')}
+                            >
+                              <option value="">Not detected</option>
+                              {roleCategories.data?.map((cat) => (
+                                <option key={cat.slug} value={cat.slug}>{cat.displayName}</option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-4 text-right">
                             <button onClick={() => setCandidates((cs) => cs.filter((x) => x.id !== c.id))} className="rounded-lg p-1.5 text-ink-disabled transition-colors duration-150 hover:bg-danger-bg hover:text-danger" aria-label={`Remove ${c.email || 'candidate'}`}><Trash2 size={14} /></button>

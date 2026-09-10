@@ -5,17 +5,14 @@
 // config that previously lived in Settings. Saving writes an `Interview` doc
 // to Firestore (see InterviewRepository), scoped to the current recruiter.
 
-import 'dart:convert';
-
-import 'package:excel/excel.dart' as xl;
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:talbotiq/shared/models/app_models.dart';
 import 'package:talbotiq/core/constants/colors.dart';
+import 'package:talbotiq/core/net/backend_client.dart';
 import 'package:talbotiq/core/utils/date_format.dart';
 import 'package:talbotiq/core/utils/validators.dart';
 import 'package:talbotiq/features/interviews/shared/avatar_picker.dart';
@@ -30,8 +27,10 @@ import 'package:talbotiq/features/recruiter/voice/voice_picker.dart';
 import 'package:talbotiq/features/interviews/models/interview.dart';
 import 'package:talbotiq/features/interviews/models/interview_round.dart';
 import 'package:talbotiq/features/interviews/models/test_summary.dart';
+import 'package:talbotiq/features/interviews/recruiter/candidate_import_preview_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/round_timeline_page.dart';
 import 'package:talbotiq/features/interviews/recruiter/widgets/round_step_tile.dart';
+import 'package:talbotiq/features/interviews/services/candidate_import_service.dart';
 import 'package:talbotiq/features/interviews/services/interview_repository.dart';
 import 'package:talbotiq/core/deep_link/deep_link_service.dart';
 import 'package:talbotiq/features/recruiter/models/mcq_set.dart';
@@ -85,33 +84,6 @@ class CreateInterviewPage extends StatefulWidget {
   State<CreateInterviewPage> createState() => _CreateInterviewPageState();
 }
 
-/// Flattens every cell of an .xlsx workbook to a single text blob so the email
-/// regex can extract addresses regardless of which column they're in.
-///
-/// Top-level (not a method) and run via `compute()`: it touches no instance
-/// state — only the input bytes in, a plain String out — so the whole
-/// decode, which can be slow on a large workbook, runs on a worker isolate
-/// instead of blocking the UI thread. The `excel` package's own objects
-/// (`book`/`table`/`row`/`cell`) are created and consumed entirely inside
-/// this call and never cross the isolate boundary themselves.
-String _extractXlsxTextInBackground(List<int> bytes) {
-  try {
-    final book = xl.Excel.decodeBytes(bytes);
-    final sb = StringBuffer();
-    for (final table in book.tables.values) {
-      for (final row in table.rows) {
-        for (final cell in row) {
-          final v = cell?.value;
-          if (v != null) sb.write(' ${v.toString()}');
-        }
-      }
-    }
-    return sb.toString();
-  } catch (_) {
-    return '';
-  }
-}
-
 class _CreateInterviewPageState extends State<CreateInterviewPage> {
   InterviewType _type = InterviewType.video;
 
@@ -162,11 +134,34 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// recruiter can jump straight into configuring one. Null while loading.
   List<InterviewRound>? _existingRounds;
 
-  // Chat track only: adaptive (AI generates résumé-grounded questions) vs the
-  // fixed question list. Video always uses the fixed list.
-  bool _adaptive = false;
+  // Chat track only: fixed question list vs adaptive (AI generates
+  // résumé-grounded questions) vs mixed (a fixed portion followed by
+  // résumé-adapted ones). Video always uses the fixed list.
+  //
+  // `_adaptive` stays as a getter derived from this rather than its own field:
+  // every place that used to assign it directly (hydration, the toggle) now
+  // sets `_questionSource` instead, so the two can never fall out of sync.
+  String _questionSource = 'fixed';
+  bool get _adaptive => _questionSource == 'adaptive';
   int _adaptiveNumQuestions = 5;
   bool _adaptiveFollowUps = true;
+
+  // Mixed mode's own counts (Feature 3): how many of [_mixedTotal] questions
+  // come from the fixed list (built with the same `_questionControllers` as
+  // "Fixed list" mode) vs are résumé-adapted afterwards.
+  int _mixedTotal = 8;
+  int _mixedFixed = 5;
+  int _mixedResume = 3;
+
+  /// True when Mixed mode's counts don't add up. Gates Save the same way the
+  /// other inline failures in [_save]/[_saveRound] do, but live rather than
+  /// only on submit — the three fields interact, and a recruiter should see
+  /// the mismatch the moment they create it.
+  bool get _mixedCountsInvalid =>
+      _questionSource == 'mixed' &&
+      (_mixedFixed < 0 ||
+          _mixedResume < 0 ||
+          _mixedFixed + _mixedResume != _mixedTotal);
 
   // Video track: ask the candidate for a résumé before the call to ground the
   // avatar's questions.
@@ -211,6 +206,18 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   final List<TextEditingController> _candidateEmailControllers = [
     TextEditingController(),
   ];
+
+  /// Role classification for a candidate added via file import (Feature 1),
+  /// keyed by that candidate's OWN [TextEditingController] rather than by
+  /// index — so the mapping survives inserts/removals in
+  /// [_candidateEmailControllers] without index bookkeeping. Absent for every
+  /// candidate typed in by hand, which reads as "not classified": role
+  /// assignment on import is best-effort, not a requirement.
+  final Map<TextEditingController, String> _candidateRoleCategories = {};
+
+  /// The raw role text the import extracted/the recruiter edited for that
+  /// candidate, alongside [_candidateRoleCategories].
+  final Map<TextEditingController, String> _candidateRawRoles = {};
   final List<TextEditingController> _questionControllers = [
     TextEditingController(),
   ];
@@ -377,7 +384,19 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
     // Fetched so the picker can show what is already attached. Fire-and-forget:
     // it sets state when it lands, and the rest of the form does not wait.
     if (_roundKind.needsMcqPaper) _loadMcqSets();
-    _adaptive = i.adaptive;
+    // Mixed wins over adaptive when both would otherwise apply: a mixed
+    // interview is written with `adaptive: false` (see the two write sites),
+    // but read it defensively in case a document predates that guarantee.
+    if (i.isMixedSource) {
+      _questionSource = 'mixed';
+      final mc = i.mixedConfig;
+      _mixedTotal = (mc?['totalQuestions'] as num?)?.toInt() ?? _mixedTotal;
+      _mixedFixed = (mc?['fixedQuestionCount'] as num?)?.toInt() ?? _mixedFixed;
+      _mixedResume =
+          (mc?['resumeQuestionCount'] as num?)?.toInt() ?? _mixedResume;
+    } else {
+      _questionSource = i.adaptive ? 'adaptive' : 'fixed';
+    }
     _collectResume = i.collectResume;
     _language = _languages.contains(i.language) ? i.language : 'English';
     _voiceName = i.voiceName;
@@ -451,14 +470,23 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   void _removeCandidate(int i) {
     if (_candidateEmailControllers.length == 1) return;
     setState(() {
-      _candidateEmailControllers.removeAt(i).dispose();
+      final controller = _candidateEmailControllers.removeAt(i);
+      _candidateRoleCategories.remove(controller);
+      _candidateRawRoles.remove(controller);
+      controller.dispose();
     });
   }
 
-  /// Bulk-import candidate emails from a CSV or plain-text file. Extracts every
-  /// email-shaped token, de-duplicates (case-insensitive) against what's already
-  /// entered, fills blank rows first, then appends new ones. (Excel/PDF parsing
-  /// is a server-side follow-up; CSV/TXT covers the common export case on-device.)
+  /// Bulk-imports candidates from a spreadsheet/CSV/text file via the backend's
+  /// role-aware extractor (Feature 1) — the SAME column-aware, role-classifying
+  /// parser the web invite wizard uses.
+  ///
+  /// Replaces the old on-device "regex every email out of a flattened text
+  /// blob" approach: that had no notion of columns (an ID or phone-number
+  /// column could be mistaken for one) or of role, and the product spec bans
+  /// guessing a candidate's role from their email address. The recruiter
+  /// reviews every row — including a best-effort role match — before anything
+  /// here is merged into the candidate list, in [CandidateImportPreviewPage].
   Future<void> _importEmails() async {
     final messenger = ScaffoldMessenger.of(context);
     final res = await FilePicker.pickFiles(
@@ -475,72 +503,109 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
       return;
     }
 
-    // .xlsx → flatten every cell to text; csv/txt → decode as UTF-8. The email
-    // regex below then pulls addresses out of whatever text we produced.
-    String content;
-    if (res.files.first.name.toLowerCase().endsWith('.xlsx')) {
-      // Off the UI thread: a large workbook's decode+flatten can take long
-      // enough to visibly freeze the app otherwise.
-      content = await compute(_extractXlsxTextInBackground, bytes);
+    CandidateImportResult result;
+    try {
+      // The page's own "Job Title / Interview Role" field is the best guess
+      // for candidates the classifier cannot place on its own.
+      result = await candidateImportService.extractFromFile(
+        bytes: bytes,
+        filename: res.files.first.name,
+        fallbackRole: _titleController.text.trim(),
+      );
+    } on BackendException catch (e) {
       if (!mounted) return;
-    } else {
-      try {
-        content = utf8.decode(bytes, allowMalformed: true);
-      } catch (_) {
-        content = String.fromCharCodes(bytes);
-      }
+      messenger.showSnackBar(
+          SnackBar(content: Text('Could not read that file: ${e.message}')));
+      return;
+    } catch (e) {
+      if (!mounted) return;
+      messenger
+          .showSnackBar(SnackBar(content: Text('Could not read that file: $e')));
+      return;
     }
+    if (!mounted) return;
 
-    final emailRe = RegExp(
-        r"[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+");
-    final found = emailRe
-        .allMatches(content)
-        .map((m) => m.group(0)!.trim())
-        .where(Validators.isValidEmail)
-        .toList();
-
-    if (found.isEmpty) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('No valid email addresses found in that file.')));
+    if (result.rows.isEmpty) {
+      messenger.showSnackBar(
+          const SnackBar(content: Text('No candidates found in that file.')));
       return;
     }
 
-    // De-duplicate against existing entries (case-insensitive), preserving order.
+    final finalized =
+        await Navigator.of(context).push<List<ImportedCandidateRow>>(
+      MaterialPageRoute(
+        builder: (_) => CandidateImportPreviewPage(
+          rows: result.rows,
+          warnings: result.warnings,
+        ),
+      ),
+    );
+    if (!mounted || finalized == null || finalized.isEmpty) return;
+
+    // De-duplicate against existing entries (case-insensitive), preserving
+    // order — same contract the old flow had.
     final existing = _candidateEmails.map((e) => e.toLowerCase()).toSet();
     final seen = <String>{};
-    final toAdd = <String>[];
-    for (final e in found) {
-      final lower = e.toLowerCase();
-      if (existing.contains(lower) || !seen.add(lower)) continue;
-      toAdd.add(e);
-    }
-    if (toAdd.isEmpty) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('All emails in that file are already added.')));
-      return;
-    }
-
+    var added = 0;
     setState(() {
-      for (final email in toAdd) {
-        // Reuse the first blank row if there is one, else append.
-        final blank = _candidateEmailControllers
+      for (final row in finalized) {
+        final email = row.email.trim();
+        if (email.isEmpty) continue;
+        final lower = email.toLowerCase();
+        if (existing.contains(lower) || !seen.add(lower)) continue;
+
+        // Reuse the first blank row if there is one, else append — the exact
+        // mechanism "Add candidate" and the old import both used.
+        final blankIndex = _candidateEmailControllers
             .indexWhere((c) => c.text.trim().isEmpty);
-        if (blank >= 0) {
-          _candidateEmailControllers[blank].text = email;
+        final TextEditingController controller;
+        if (blankIndex >= 0) {
+          controller = _candidateEmailControllers[blankIndex];
+          controller.text = email;
         } else {
-          _candidateEmailControllers.add(TextEditingController(text: email));
+          controller = TextEditingController(text: email);
+          _candidateEmailControllers.add(controller);
         }
+        // Best-effort: a candidate with no classified role is still imported,
+        // just with nothing to carry onto their `Interview` at save time.
+        if (row.roleCategory != null && row.roleCategory!.isNotEmpty) {
+          _candidateRoleCategories[controller] = row.roleCategory!;
+        }
+        if (row.role.isNotEmpty) {
+          _candidateRawRoles[controller] = row.role;
+        }
+        added++;
       }
     });
+    if (added == 0) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('All candidates from that file are already added.')));
+      return;
+    }
     messenger.showSnackBar(SnackBar(
-        content: Text('Added ${toAdd.length} candidate'
-            '${toAdd.length == 1 ? '' : 's'} from file.')));
+        content:
+            Text('Added $added candidate${added == 1 ? '' : 's'} from file.')));
   }
 
   List<String> get _candidateEmails => _candidateEmailControllers
       .map((c) => c.text.trim())
       .where((t) => t.isNotEmpty)
       .toList();
+
+  /// Every non-blank candidate row paired with whatever role data an import
+  /// (Feature 1) attached to it — null/null for a manually-typed row. Read at
+  /// save time so each candidate's own `Interview.rawRole`/`roleCategory` can
+  /// be set instead of the whole batch sharing one role.
+  List<({String email, String? rawRole, String? roleCategory})>
+      get _candidateEntries => [
+            for (final c in _candidateEmailControllers)
+              if (c.text.trim().isNotEmpty)
+                (
+                  email: c.text.trim(),
+                  rawRole: _candidateRawRoles[c],
+                  roleCategory: _candidateRoleCategories[c],
+                ),
+          ];
 
   /// Cached read — the catalog only calls Tavus once per 10-hour window, so
   /// re-opening this form costs no round trips.
@@ -579,6 +644,14 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
   /// True when this is a chat interview set to generate questions adaptively —
   /// the fixed-questions list is then hidden and not required.
   bool get _isAdaptiveChat => _type == InterviewType.chat && _adaptive;
+
+  /// True when this is a chat interview using Mixed mode (Feature 3): a fixed
+  /// question list (same editor as "Fixed list") followed by résumé-adapted
+  /// ones. Gated on [_type] the same way [_isAdaptiveChat] is, so switching the
+  /// track away from chat without resetting the toggle can never leak Mixed
+  /// into a video/voice interview.
+  bool get _isMixedChat =>
+      _type == InterviewType.chat && _questionSource == 'mixed';
 
   /// Replaces the question list with a saved template's questions. When the
   /// title is still empty and the template supplied one, it seeds the title too.
@@ -673,6 +746,12 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           fail('Add at least one question.');
           return;
         }
+        if (_isMixedChat && _mixedCountsInvalid) {
+          fail('Mixed mode: fixed ($_mixedFixed) + résumé-adapted '
+              '($_mixedResume) questions must add up to the total '
+              '($_mixedTotal).');
+          return;
+        }
         if (_type == InterviewType.video &&
             _replicaIdController.text.trim().isEmpty) {
           fail('Pick or enter an avatar (replica) for video.');
@@ -709,9 +788,18 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         : '';
 
     // De-duplicate by normalized email so a candidate isn't assigned twice.
+    // Carries each candidate's own import-time role data (Feature 1) alongside
+    // their email, so `build()` below can set it per candidate rather than
+    // sharing one role across the whole batch.
     final unique = <String, String>{}; // lower → original
-    for (final e in emails) {
-      unique.putIfAbsent(InterviewRepository.normalizeEmail(e), () => e);
+    final uniqueRawRole = <String, String?>{};
+    final uniqueRoleCategory = <String, String?>{};
+    for (final entry in _candidateEntries) {
+      final key = InterviewRepository.normalizeEmail(entry.email);
+      if (unique.containsKey(key)) continue;
+      unique[key] = entry.email;
+      uniqueRawRole[key] = entry.rawRole;
+      uniqueRoleCategory[key] = entry.roleCategory;
     }
 
     try {
@@ -741,6 +829,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         required String recruiterId,
         required String recruiterEmail,
         required InterviewStatus status,
+        String? rawRole,
+        String? roleCategory,
       }) =>
           Interview(
             id: id,
@@ -762,6 +852,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             roundKind: _roundKind.usesAiInterviewer ? null : _roundKind,
             title: title,
             prompt: prompt,
+            // Mixed mode's fixed portion resolves exactly like "Fixed list"
+            // mode's `questions` always has: the ad hoc list / applied
+            // template, whichever the recruiter used. `adaptive` stays false
+            // for Mixed — it is not this app's pure-adaptive path — so this
+            // branch already covers it.
             questions: _isAdaptiveChat ? const [] : questions,
             adaptive: _isAdaptiveChat,
             adaptiveConfig: _isAdaptiveChat
@@ -773,6 +868,21 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                     'style': 'mix',
                   }
                 : null,
+            // Mixed mode (Feature 3). Only ever set here, alongside `mixedConfig`
+            // — `_roundContentConfig()` mirrors the same two keys for round-config
+            // mode, and `InterviewRound.configFromInterview` reads them back off
+            // whichever `Interview` this produces.
+            screeningSource: _isMixedChat ? 'mixed' : '',
+            mixedConfig: _isMixedChat
+                ? {
+                    'totalQuestions': _mixedTotal,
+                    'fixedQuestionCount': _mixedFixed,
+                    'resumeQuestionCount': _mixedResume,
+                  }
+                : null,
+            // Role classification (Feature 1) — best-effort, per candidate.
+            rawRole: rawRole,
+            roleCategory: roleCategory,
             collectResume: _type == InterviewType.video && _collectResume,
             language: _language,
             voiceName: _type == InterviewType.voice ? _resolvedVoiceName : null,
@@ -858,6 +968,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           recruiterId: existing.recruiterId,
           recruiterEmail: existing.recruiterEmail,
           status: existing.status,
+          rawRole: uniqueRawRole[first.key],
+          roleCategory: uniqueRoleCategory[first.key],
         ));
         invites[first.value] = existing.id;
         for (final e in entries.skip(1)) {
@@ -868,6 +980,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             recruiterId: existing.recruiterId,
             recruiterEmail: existing.recruiterEmail,
             status: InterviewStatus.assigned,
+            rawRole: uniqueRawRole[e.key],
+            roleCategory: uniqueRoleCategory[e.key],
           ));
           invites[e.value] = id;
         }
@@ -905,6 +1019,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           recruiterId: user.uid,
           recruiterEmail: user.email ?? '',
           status: InterviewStatus.assigned,
+          rawRole: uniqueRawRole[entry.key],
+          roleCategory: uniqueRoleCategory[entry.key],
         ));
         invites[entry.value] = id;
       }
@@ -1123,6 +1239,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
           'taken.');
       return;
     }
+    if (_isMixedChat && _mixedCountsInvalid) {
+      fail('Mixed mode: fixed ($_mixedFixed) + résumé-adapted ($_mixedResume) '
+          'questions must add up to the total ($_mixedTotal).');
+      return;
+    }
     if (_roundKind == RoundKind.video &&
         _replicaIdController.text.trim().isEmpty) {
       fail('Pick or enter an avatar (replica) for a video round.');
@@ -1187,6 +1308,8 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
         if (_roundKind.needsMcqPaper && _mcqSetId.isNotEmpty)
           'mcqSetId': _mcqSetId,
         'prompt': _promptController.text.trim(),
+        // Mixed mode's fixed portion resolves exactly like "Fixed list" mode's
+        // `questions` always has — the ad hoc list / applied template.
         'questions': _isAdaptiveChat ? const <String>[] : _questions,
         'adaptive': _isAdaptiveChat,
         if (_isAdaptiveChat)
@@ -1196,6 +1319,18 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
             'allowFollowUps': _adaptiveFollowUps,
             'difficulty': 'mixed',
             'style': 'mix',
+          },
+        // Mixed mode (Feature 3). Written only when set, matching the key
+        // names `InterviewRound.configFromInterview` uses when snapshotting a
+        // standalone Mixed interview into a round — so a round configured
+        // here and one snapshotted from Interview.toCreateMap's `screening`
+        // read back identically through `InterviewRound.assignTo`.
+        if (_isMixedChat) 'screeningSource': 'mixed',
+        if (_isMixedChat)
+          'mixedConfig': {
+            'totalQuestions': _mixedTotal,
+            'fixedQuestionCount': _mixedFixed,
+            'resumeQuestionCount': _mixedResume,
           },
         'collectResume': _roundKind == RoundKind.video && _collectResume,
         'language': _language,
@@ -1380,7 +1515,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                     text: _saveLabel,
                     isLoading: _saving,
                     width: double.infinity,
-                    onPressed: _saving
+                    // Mixed mode's counts are gated live, not only on submit —
+                    // see `_buildMixedCounts`, which shows the same failure
+                    // inline in red beside the three steppers.
+                    onPressed: (_saving || _mixedCountsInvalid)
                         ? () {}
                         : (_isRoundConfig ? _saveRound : _save),
                   ),
@@ -2647,6 +2785,10 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
                   ),
                 ],
               ),
+            ] else if (_questionSource == 'mixed') ...[
+              _buildMixedCounts(theme),
+              const SizedBox(height: 20),
+              _buildQuestions(theme),
             ] else ...[
               _buildQuestions(theme),
             ],
@@ -2662,11 +2804,11 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
   Widget _buildQuestionSourceToggle(ThemeData theme) {
     final cs = theme.colorScheme;
-    Widget seg(bool adaptive, String label, String desc, IconData icon) {
-      final selected = _adaptive == adaptive;
+    Widget seg(String source, String label, String desc, IconData icon) {
+      final selected = _questionSource == source;
       return Expanded(
         child: GestureDetector(
-          onTap: () => setState(() => _adaptive = adaptive),
+          onTap: () => setState(() => _questionSource = source),
           behavior: HitTestBehavior.opaque,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
@@ -2718,10 +2860,90 @@ class _CreateInterviewPageState extends State<CreateInterviewPage> {
 
     return Row(
       children: [
-        seg(false, 'Fixed list', 'Predefined set', Icons.list_alt_outlined),
+        seg('fixed', 'Fixed list', 'Predefined set', Icons.list_alt_outlined),
         const SizedBox(width: 12),
-        seg(true, 'Adaptive AI', 'Dynamic resume-based', Icons.auto_awesome_outlined),
+        seg('adaptive', 'Adaptive AI', 'Dynamic resume-based', Icons.auto_awesome_outlined),
+        const SizedBox(width: 12),
+        seg('mixed', 'Mixed', 'Fixed, then resume-adapted', Icons.dashboard_customize_outlined),
       ],
+    );
+  }
+
+  /// Mixed mode's own counts (Feature 3): how many of the total come from the
+  /// fixed list below vs are résumé-adapted afterwards. Live-validated — the
+  /// three numbers have to add up, and the recruiter sees that the moment it
+  /// stops being true rather than only on Save.
+  Widget _buildMixedCounts(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final invalid = _mixedCountsInvalid;
+
+    Widget stepperRow(String label, int value, ValueChanged<int> onChanged) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          _buildModernStepper(value: value, min: 0, max: 30, onChanged: onChanged),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: invalid
+            ? cs.error.withValues(alpha: 0.06)
+            : cs.surfaceContainerHighest.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: invalid ? cs.error : cs.outline.withValues(alpha: 0.12),
+          width: invalid ? 1.2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          stepperRow(
+            'Total questions',
+            _mixedTotal,
+            (v) => setState(() => _mixedTotal = v),
+          ),
+          const SizedBox(height: 12),
+          stepperRow(
+            'Fixed questions',
+            _mixedFixed,
+            (v) => setState(() => _mixedFixed = v),
+          ),
+          const SizedBox(height: 12),
+          stepperRow(
+            'Résumé-based questions',
+            _mixedResume,
+            (v) => setState(() => _mixedResume = v),
+          ),
+          const SizedBox(height: 12),
+          if (invalid)
+            Text(
+              'Fixed ($_mixedFixed) + résumé-based ($_mixedResume) must add up '
+              'to the total ($_mixedTotal).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.error,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Text(
+              'Question flow: 1–$_mixedFixed Fixed · '
+              '${_mixedFixed + 1}–$_mixedTotal Résumé-adapted',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+        ],
+      ),
     );
   }
 

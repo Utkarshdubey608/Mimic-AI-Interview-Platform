@@ -229,6 +229,7 @@ async def assign(
     test_title: str,
     candidates: dict[str, str | None],
     questions: list[str] | None = None,
+    screening: dict | None = None,
 ) -> int:
     """Assign `candidates` (emailLower → name) to a round, SKIPPING anyone already in it.
 
@@ -237,8 +238,17 @@ async def assign(
     fifty who already took the round.
 
     Each assignment carries the round's window and its denormalised `roundOrder` /
-    `roundKind`, because the candidate's device cannot read round documents and still
-    has to show "Round 2 of 4" and gate on the deadline.
+    `roundKind` / `roundTitle`, because the candidate's device cannot read round
+    documents and still has to show "Round 2 of 4" and gate on the deadline; `roundTitle`
+    additionally lets the Candidates Kanban (`app.candidates`) render a round's real name
+    without a second read per card.
+
+    `screening` is an OPAQUE dict, resolved by the caller (`app.web.routes.rounds`, via
+    the same `interview_invite.resolve_question_source` a manual invite already uses) and
+    written verbatim onto each new document — this module has no opinion on question
+    sources. Omitted (the default) reproduces today's exact behaviour: no `screening` key
+    at all, so `invite_bridge.synthesise_template` falls back to `adaptive` precisely as
+    it always has for a round-2+ assignment carrying no source of its own.
     """
     from firebase_admin import firestore as admin_firestore
     from google.cloud.firestore_v1.base_query import FieldFilter
@@ -288,8 +298,10 @@ async def assign(
                     "roundId": round_.id,
                     "roundOrder": round_.order,
                     "roundKind": round_.kind,
+                    "roundTitle": round_.title,
                     "availableFrom": round_.opens_at,
                     "expiresAt": round_.closes_at,
+                    **({"screening": screening} if screening else {}),
                 }
                 batch.set(collection.document(), document)
             batch.commit()
