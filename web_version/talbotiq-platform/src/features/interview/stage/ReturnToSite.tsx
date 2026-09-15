@@ -37,6 +37,7 @@ export function ReturnToSite({
   seconds = 20,
   to = '/',
   cancellable = true,
+  accentClassName,
 }: {
   seconds?: number
   /** The marketing site. Same router, so this works in dev and in production. */
@@ -54,6 +55,10 @@ export function ReturnToSite({
    * have started, leaving the candidate parked on a dead-end screen.
    */
   cancellable?: boolean
+  /** Overrides the primary button's colour for one track's own branding
+   *  (the chat track's Talbotiq green) without touching every other track's
+   *  shared `--action` token. */
+  accentClassName?: string
 }) {
   const navigate = useNavigate()
   const [left, setLeft] = useState(seconds)
@@ -101,7 +106,7 @@ export function ReturnToSite({
             Stay on this page
           </Button>
         )}
-        <Button size="sm" onClick={() => navigate(to)} iconRight={<ArrowRight size={15} />}>
+        <Button size="sm" className={accentClassName} onClick={() => navigate(to)} iconRight={<ArrowRight size={15} />}>
           Go to Mimic
         </Button>
       </div>

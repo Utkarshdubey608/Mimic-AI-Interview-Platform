@@ -306,6 +306,88 @@ def test_a_completed_invite_is_a_409(monkeypatch, fake_store) -> None:
     assert "already been completed" in caught.value.detail
 
 
+# ── the MCQ paper ─────────────────────────────────────────────────────────────
+#
+# `synthesise_template` puts only the SET ID on the synthesised template — right
+# for the shared runtime, which resolves it fresh on every call, but nothing for
+# `routes/sessions_mcq.py` to read: that route expects the paper embedded on the
+# SESSION, the way `routes/sessions.py`'s own MCQ session-creation already does
+# it. Materialising used to hand a candidate an interview with zero questions
+# and no way to answer anything — not a slow paper, an empty one, forever.
+
+
+def test_materialising_an_mcq_invite_embeds_the_real_paper(monkeypatch, fake_store) -> None:
+    asyncio.run(
+        fake_store.mcq_sets.put(
+            {
+                "id": "set-1",
+                "questions": [
+                    {
+                        "id": "q1", "text": "2+2=?", "type": "single",
+                        "options": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}],
+                        "correctOptionIds": ["b"], "sectionId": "sec-1",
+                    }
+                ],
+                "sections": [{"id": "sec-1", "name": "Arithmetic"}],
+            }
+        )
+    )
+    _patch_interviews(
+        monkeypatch,
+        _invite(mode="mcq", type="mcq", screening={"mcqSetId": "set-1"}),
+    )
+
+    session, template = asyncio.run(invite_bridge.materialise(Settings(), "i1", CANDIDATE))
+
+    assert template["mcqSetId"] == "set-1"
+    assert len(session["questions"]) == 1
+    assert session["questions"][0]["text"] == "2+2=?"
+    # A fresh id, not the set's own — editing the set later must not reach back
+    # into a session someone has already started.
+    assert session["questions"][0]["id"] != "q1"
+    assert session["mcqSections"] == [{"id": "sec-1", "name": "Arithmetic"}]
+
+
+def test_materialising_an_mcq_invite_with_a_missing_set_is_refused(monkeypatch, fake_store) -> None:
+    _patch_interviews(
+        monkeypatch,
+        _invite(mode="mcq", type="mcq", screening={"mcqSetId": "set-does-not-exist"}),
+    )
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(invite_bridge.materialise(Settings(), "i1", CANDIDATE))
+    assert caught.value.status_code == 400
+    assert "set-does-not-exist" not in caught.value.detail  # no id leaked either
+
+
+def test_materialising_an_mcq_invite_with_an_unready_set_is_refused(monkeypatch, fake_store) -> None:
+    """The same completeness check invite creation already ran once — a set can
+    still be edited into invalidity in between, and a candidate must never sit
+    a paper with a question that scores everyone zero."""
+    asyncio.run(
+        fake_store.mcq_sets.put(
+            {
+                "id": "set-1",
+                "questions": [
+                    {
+                        "id": "q1", "text": "No correct answer marked",
+                        "type": "single",
+                        "options": [{"id": "a", "text": "X"}, {"id": "b", "text": "Y"}],
+                        "correctOptionIds": [],
+                    }
+                ],
+            }
+        )
+    )
+    _patch_interviews(
+        monkeypatch,
+        _invite(mode="mcq", type="mcq", screening={"mcqSetId": "set-1"}),
+    )
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(invite_bridge.materialise(Settings(), "i1", CANDIDATE))
+    assert caught.value.status_code == 400
+    assert "no correct answer" in caught.value.detail.lower()
+
+
 # ── idempotence + persistence ─────────────────────────────────────────────────
 
 

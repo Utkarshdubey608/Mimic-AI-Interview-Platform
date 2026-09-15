@@ -85,7 +85,7 @@ async def gemini_model(settings: Settings) -> str:
     can set it any more. Set `GEMINI_MODEL` in the environment instead.
     """
     doc = await document(settings)
-    return _str(doc.get(GEMINI_MODEL)) or settings.gemini_model.strip() or "gemini-2.5-flash"
+    return _str(doc.get(GEMINI_MODEL)) or settings.gemini_model.strip() or "gemini-3.6-flash"
 
 
 async def gemini_status(settings: Settings) -> dict:

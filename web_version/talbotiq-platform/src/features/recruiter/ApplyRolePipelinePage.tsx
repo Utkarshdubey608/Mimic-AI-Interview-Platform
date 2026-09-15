@@ -61,6 +61,13 @@ export default function ApplyRolePipelinePage() {
     ...defaultInviteEmailTemplate(),
   }))
 
+  // A copied/shared link carries no deadline of its own — the deadline only ever
+  // lived in the invite EMAIL's body. A recruiter sharing links directly (dry-run,
+  // Slack, WhatsApp) was handing candidates a link with no sense of when it closes.
+  // Appended here so copying a link copies what the recruiter already typed for it.
+  const linkWithDeadline = (link: string) =>
+    emailDraft.deadlineText?.trim() ? `${link} (Deadline: ${emailDraft.deadlineText.trim()})` : link
+
   const validCount = candidates.filter((c) => emailOk(c.email)).length
   const validCandidates = candidates
     .filter((c) => emailOk(c.email))
@@ -260,7 +267,7 @@ export default function ApplyRolePipelinePage() {
                       </td>
                       <td className="px-4"><span className="block max-w-[300px] truncate font-mono text-xs text-ink-muted">{c.link}</span></td>
                       <td className="px-4 text-right">
-                        <button onClick={() => { navigator.clipboard.writeText(c.link); toast.success('Link copied') }} className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink" aria-label={`Copy invite link for ${c.email}`}><Copy size={14} /></button>
+                        <button onClick={() => { navigator.clipboard.writeText(linkWithDeadline(c.link)); toast.success('Link copied') }} className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink" aria-label={`Copy invite link for ${c.email}`}><Copy size={14} /></button>
                       </td>
                     </tr>
                   )
@@ -270,7 +277,7 @@ export default function ApplyRolePipelinePage() {
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 pt-1">
-            <Button variant="secondary" icon={<Copy size={15} />} onClick={() => { navigator.clipboard.writeText(result.created.map((c) => `${c.email}: ${c.link}`).join('\n')); toast.success('All links copied') }}>Copy all links</Button>
+            <Button variant="secondary" icon={<Copy size={15} />} onClick={() => { navigator.clipboard.writeText(result.created.map((c) => `${c.email}: ${linkWithDeadline(c.link)}`).join('\n')); toast.success('All links copied') }}>Copy all links</Button>
             <Button onClick={() => navigate('/sessions')}>Done</Button>
           </div>
         </div>

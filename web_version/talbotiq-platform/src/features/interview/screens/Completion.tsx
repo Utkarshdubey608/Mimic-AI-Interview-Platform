@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { Check, Mail, ShieldCheck } from 'lucide-react'
+import { cn } from '@/components/ui'
 import { pageVariants } from '@/design/motion'
 import { CandidateFeedback } from './CandidateFeedback'
 import { ReturnToSite } from '../stage/ReturnToSite'
@@ -27,7 +28,16 @@ import type { BrandingConfig } from '@shared/types'
  * would be an evaluation delivered by a machine with no human in the loop and no
  * right of reply. The absence is a decision, not an omission.
  */
-export function Completion({ sessionId }: { branding: BrandingConfig; sessionId?: string }) {
+export function Completion({
+  sessionId, accentClassName,
+}: {
+  branding: BrandingConfig
+  sessionId?: string
+  /** Overrides the checkmark and "Go to Mimic" button for one track's own
+   *  branding (the chat track's Talbotiq green), leaving every other track's
+   *  shared `--ink`/`--action` tokens untouched. */
+  accentClassName?: string
+}) {
   const reduce = useReducedMotion() ?? false
   // Set once the feedback step is answered EITHER way — sent or declined. Both
   // mean the same thing here: the candidate is finished with this page.
@@ -46,7 +56,10 @@ export function Completion({ sessionId }: { branding: BrandingConfig; sessionId?
             an arbitrary hex and this is the one element on the page that must
             read as resolved on every tenant's brand. */}
         <motion.span
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-ink-inverse"
+          className={cn(
+            'mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-ink text-ink-inverse',
+            accentClassName,
+          )}
           initial={reduce ? false : { scale: 0.86, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.08, duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
@@ -108,6 +121,7 @@ export function Completion({ sessionId }: { branding: BrandingConfig; sessionId?
       key={done ? 'after-feedback' : 'initial'}
       seconds={done ? 4 : 20}
       cancellable={!done}
+      accentClassName={accentClassName}
     />
     </>
   )

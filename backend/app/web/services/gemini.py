@@ -32,7 +32,7 @@ ENV_VAR = "GEMINI_API_KEY"
 
 GENERATE_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 
 
 class GeminiAuthError(RuntimeError):

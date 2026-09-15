@@ -8,9 +8,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { GripVertical, Plus, Trash2, BookOpen, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { GripVertical, Plus, Trash2, BookOpen, ChevronDown, ChevronRight, Lock } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
 import type { McqSection } from '@shared/types'
+import { PROTECTED_SECTION_IDS } from './mcqSections'
 
 /**
  * The sections an assessment is built from.
@@ -87,16 +88,25 @@ function SortableSection({
         <span className="whitespace-nowrap text-xs tabular-nums text-ink-faint">
           {count} question{count === 1 ? '' : 's'}
         </span>
-        <button
-          onClick={onRemove}
-          // The count is in the label so a screen reader hears the consequence too,
-          // not only sighted users reading the number beside it.
-          aria-label={`Remove ${section.name || 'section'}, freeing ${count} question${count === 1 ? '' : 's'}`}
-          title={count > 0 ? `${count} question${count === 1 ? '' : 's'} will lose their section` : 'Remove section'}
-          className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger"
-        >
-          <Trash2 size={14} />
-        </button>
+        {PROTECTED_SECTION_IDS.has(section.id) ? (
+          <span
+            title="Every assessment always has this section — it can be renamed but not removed"
+            className="rounded-lg p-1.5 text-ink-disabled"
+          >
+            <Lock size={13} />
+          </span>
+        ) : (
+          <button
+            onClick={onRemove}
+            // The count is in the label so a screen reader hears the consequence too,
+            // not only sighted users reading the number beside it.
+            aria-label={`Remove ${section.name || 'section'}, freeing ${count} question${count === 1 ? '' : 's'}`}
+            title={count > 0 ? `${count} question${count === 1 ? '' : 's'} will lose their section` : 'Remove section'}
+            className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
 
       <input
@@ -264,13 +274,6 @@ export function SectionsPanel({
         })}
       </div>
 
-      {sections.length === 0 && (
-        <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
-          <AlertTriangle size={13} className="mt-px flex-shrink-0 text-ink-faint" />
-          You don't need sections. Leave this empty and the test is just one list of
-          questions, exactly as before.
-        </p>
-      )}
       </>
       )}
     </section>

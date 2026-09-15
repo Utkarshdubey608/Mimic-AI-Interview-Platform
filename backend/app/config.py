@@ -162,12 +162,18 @@ class Settings(BaseSettings):
     lk_s3_region: str = "us-east-1"
 
     # Model used for scoring / question generation (REST generateContent).
-    gemini_model: str = "gemini-2.5-flash"
+    #
+    # `gemini-2.5-flash`/`-pro` were retired from `generateContent` for new API
+    # keys ("no longer available to new users... use gemini-3.6-flash") —
+    # confirmed live against generativelanguage.googleapis.com, not from docs
+    # alone. A key that authenticates fine still 404s on every call until the
+    # model name is updated, which is silent unless someone is watching logs.
+    gemini_model: str = "gemini-3.6-flash"
     # Models a caller may request instead of the default. Comma-separated, and an
     # ALLOWLIST rather than free choice: a client must not be able to redirect
     # spend onto an arbitrarily expensive model, but recruiters do legitimately
     # choose between flash and pro.
-    gemini_allowed_models: str = "gemini-2.5-flash,gemini-2.5-pro"
+    gemini_allowed_models: str = "gemini-3.6-flash,gemini-3.1-pro-preview"
     # Native-audio model used for the live voice interview.
     gemini_live_model: str = "models/gemini-2.5-flash-native-audio-preview-09-2025"
     # The WEB voice track's model, which may run ahead of the mobile one.

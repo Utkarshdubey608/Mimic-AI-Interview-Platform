@@ -112,12 +112,19 @@ export function useChatbotSession(sessionId: string) {
       try {
         s = await run()
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Something went wrong')
+        const message = e instanceof ApiError ? e.message : 'Something went wrong'
         setSending(false)
         setThinking(false)
         setPendingAnswer(null)
         busyRef.current = false
-        load()
+        // `load()` resyncs state in case anything server-side did change, but its
+        // own success path unconditionally clears `error` — which would silently
+        // wipe the message we're about to show for a begin/answer that itself
+        // failed (e.g. a misconfigured interview refused at the very first
+        // request, with nothing in the transcript to render instead). Re-set it
+        // after, so the candidate sees why rather than a blank page.
+        await load()
+        setError(message)
         return
       }
 

@@ -193,6 +193,10 @@ export interface McqQuestion {
    * per-run cost, and a result that is the same every time it is computed.
    */
   code?: string
+  /** A diagram the question is about — directions/aptitude questions rendered
+   *  deterministically (never a Gemini image call; see mcq_diagrams.py on the
+   *  server). A data URI, visible by necessity like `code`, carries no key. */
+  imageDataUrl?: string
   /** Authoring shape of a match question. The server splits it into the two
    *  columns below plus the key, which is what gets stored. */
   pairs?: McqPair[]
@@ -215,6 +219,8 @@ export interface McqQuestionPublic {
   options: McqOption[]
   /** A code snippet the question is about. Visible by necessity; carries no key. */
   code?: string
+  /** A diagram the question is about. Same reasoning as `code`. */
+  imageDataUrl?: string
   /** Match only. Shuffled independently of each other, and never in the order that
    *  would let a candidate pair row-for-row without reading anything. */
   prompts?: McqOption[]

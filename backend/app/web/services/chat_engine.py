@@ -494,9 +494,18 @@ async def begin_conversation(
 
     name = candidate_name(session)
     adaptive = template.get("questionSource") == "adaptive"
+    fixed = template.get("questionSource") == "fixed"
 
     if adaptive and not session.get("resumeText"):
         raise ValueError("A résumé is required before starting this interview")
+    # Caught before the greeting is ever shown, not after the candidate says "ready" —
+    # a fixed-source template with no question set attached used to greet the
+    # candidate and then end the interview the instant they replied, which read as
+    # the interview auto-submitting itself. `TemplateEditorPage` already warns a
+    # recruiter "sessions can't start until you pick one"; this is what makes that
+    # promise true.
+    if fixed and not fixed_questions:
+        raise ValueError("This interview has no questions configured. Contact your recruiter.")
 
     message = readiness_message(session.get("greetingTimeOfDay"), name)
     if adaptive and await gemini.is_enabled(settings):

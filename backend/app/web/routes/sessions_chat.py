@@ -29,14 +29,35 @@ router = APIRouter(prefix="/sessions", tags=["web:sessions"])
 TIMES_OF_DAY = ("morning", "afternoon", "evening")
 
 
-async def _fixed_questions(settings, template: dict) -> list[dict]:
-    """The template's question set, or empty for an adaptive interview."""
-    if template.get("questionSource") != "fixed" or not template.get("fixedQuestionSetId"):
+async def _fixed_questions(settings, template: dict, session: dict | None = None) -> list[dict]:
+    """The fixed question list this interview actually runs on, or empty for
+    an adaptive interview.
+
+    Two shapes, because two things build a "fixed" chat template. A recruiter
+    authoring directly against `web_templates` points `fixedQuestionSetId` at a
+    saved question set, resolved here by id. An invite materialised through
+    `invite_bridge` (the shared `interviews` collection — role pipelines, bulk
+    invites) carries no such reference at all: its questions were embedded as
+    plain text straight onto the SESSION when the candidate first opened the
+    link (`invite_bridge.build_session`), because that is where the frozen
+    schema's `questions: list[str]` already lived. Looking only for
+    `fixedQuestionSetId` treated every one of those as having no questions —
+    the interview would greet the candidate normally and then end the moment
+    they said they were ready, despite three real questions sitting right on
+    the session the whole time.
+    """
+    if template.get("questionSource") != "fixed":
         return []
-    question_set = await get_store(settings).question_sets.get(
-        str(template["fixedQuestionSetId"])
-    )
-    return (question_set or {}).get("questions") or []
+    if template.get("fixedQuestionSetId"):
+        question_set = await get_store(settings).question_sets.get(
+            str(template["fixedQuestionSetId"])
+        )
+        return (question_set or {}).get("questions") or []
+    embedded = [
+        q for q in (session or {}).get("questions") or []
+        if isinstance(q, dict) and str(q.get("text") or "").strip()
+    ]
+    return embedded
 
 
 def _state(session: dict, template: dict, questions: list[dict]) -> dict:
@@ -66,7 +87,7 @@ async def begin_chat(
     """
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
-    questions = await _fixed_questions(settings, template)
+    questions = await _fixed_questions(settings, template, session)
 
     if session.get("status") == "in_progress" and (session.get("transcript") or []):
         return _state(session, template, questions)
@@ -103,7 +124,7 @@ async def chat_state(
     """
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
-    questions = await _fixed_questions(settings, template)
+    questions = await _fixed_questions(settings, template, session)
 
     ids = [q.get("id") for q in questions]
     if conversation.advance_chatbot_timing(session, template, fixed_question_ids=ids) == (
@@ -146,7 +167,7 @@ async def chat_answer(
     """Record the answer and produce the next turn."""
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
-    questions = await _fixed_questions(settings, template)
+    questions = await _fixed_questions(settings, template, session)
     ids = [q.get("id") for q in questions]
 
     if session.get("status") != "in_progress":
@@ -214,7 +235,7 @@ async def question_presented(
     """
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
-    questions = await _fixed_questions(settings, template)
+    questions = await _fixed_questions(settings, template, session)
 
     if conversation.reveal_timed_turn(
         session, template, fixed_question_ids=[q.get("id") for q in questions]
@@ -230,7 +251,7 @@ async def chat_skip_thinking(
 ) -> dict:
     settings = settings_of(request)
     session, template = await session_store.load(settings, session_id, user)
-    questions = await _fixed_questions(settings, template)
+    questions = await _fixed_questions(settings, template, session)
 
     if conversation.skip_thinking(
         session, template, fixed_question_ids=[q.get("id") for q in questions]

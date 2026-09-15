@@ -412,6 +412,18 @@ export const mcqSetsApi = {
       sections: Record<string, number>
       delivered: Record<string, number>
     }>('/mcq-sets/generate', { method: 'POST', body: JSON.stringify(body) }),
+
+  /**
+   * Directions/aptitude questions, each with a rendered diagram — deterministic,
+   * not a Gemini call. The answer is computed before the image exists, so the
+   * two cannot disagree. Same "returned for review, not saved" contract as
+   * `generate` above.
+   */
+  generateDiagramQuestions: (count: number) =>
+    http<{ questions: McqQuestion[] }>('/mcq-sets/generate-diagram-questions', {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
 }
 
 /* ─── Question Sets ─────────────────────────────────────────────────────── */

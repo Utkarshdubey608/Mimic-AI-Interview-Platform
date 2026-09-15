@@ -45,6 +45,12 @@ import type { BrandingConfig } from '@shared/types'
 
 const FALLBACK_BRANDING: BrandingConfig = { companyName: 'Mimic', accentColor: '#1D3FA0' }
 
+// The chat track's own Talbotiq green — used wherever a shared component's
+// default (`--action`/`--ink`, near-black) is overridden just for chat, so
+// every one of those overrides agrees on the exact same colour rather than
+// each spelling out its own hex.
+const CHAT_ACCENT_CLASSNAME = 'bg-[#02A885] hover:bg-[#029873] text-white'
+
 export default function TakeInterviewPage() {
   const { sessionId = '' } = useParams()
   const { signOutUser } = useAuth()
@@ -86,6 +92,7 @@ export default function TakeInterviewPage() {
       notice={integrity.notice}
       onAcknowledge={integrity.acknowledge}
       onEnded={endForIntegrity}
+      accentClassName={track === 'chatbot' ? CHAT_ACCENT_CLASSNAME : undefined}
     />
   )
 
@@ -154,7 +161,15 @@ export default function TakeInterviewPage() {
   if (s.status === 'completed' || s.status === 'expired') {
     return (
       <InterviewStage branding={branding} track={s.track}>
-        <Completion branding={branding} sessionId={sessionId} />
+        <Completion
+          branding={branding}
+          sessionId={sessionId}
+          // Matches ChatbotStage's own accent for its Completion render below —
+          // this top-level check runs first once the OUTER poll catches up to
+          // "completed", and without this it would replace that green screen
+          // with the default black a moment later: a colour flash mid-thank-you.
+          accentClassName={s.track === 'chatbot' ? CHAT_ACCENT_CLASSNAME : undefined}
+        />
       </InterviewStage>
     )
   }

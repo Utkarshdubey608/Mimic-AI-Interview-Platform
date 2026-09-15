@@ -58,6 +58,19 @@ MAX_SECTIONS = 20
 MAX_PAIRS = 10
 MAX_PASSAGE = 8000
 MAX_CODE = 4000
+# A rendered diagram (PNG, base64) runs a few KB — the generator's own output tops
+# out around 10-15K characters. This caps well above that with room to spare,
+# while still keeping a paper's total document size nowhere near Firestore's
+# 1 MiB document limit even with every question in a section carrying one.
+MAX_IMAGE_DATA_URL = 300_000
+
+# The one section every set is given by default (see the web editor's
+# `mcqSections.ts` — this id must match exactly). Unlike a section a recruiter
+# adds on purpose, it exists before anyone has written anything into it, so an
+# empty one is not a mistake to flag — it is simply not filled in YET. A
+# "General" section used to be forced on every set too; it no longer is — an
+# unsectioned question is unsectioned, exactly as it always was.
+DEFAULT_SECTION_IDS = frozenset({"diagram-questions"})
 
 
 def now_iso() -> str:
@@ -248,6 +261,13 @@ def with_question_extras(question: dict, raw: dict) -> dict:
     # question about it, so scoring stays a comparison rather than an execution.
     if code := multiline_of(raw.get("code"), MAX_CODE):
         question["code"] = code
+    # A diagram this question is about — the same "unanswerable without it, so it
+    # survives save" reasoning as `code` above. Checked for shape (a real data
+    # URI, not an arbitrary string a client could stuff in here) rather than
+    # decoded — decoding would cost real work for every save of every question.
+    image = raw.get("imageDataUrl")
+    if isinstance(image, str) and image.startswith("data:image/") and len(image) <= MAX_IMAGE_DATA_URL:
+        question["imageDataUrl"] = image
     if (difficulty := text_of(raw.get("difficulty"), 12).lower()) in DIFFICULTIES:
         question["difficulty"] = difficulty
     if explanation := text_of(raw.get("explanation"), MAX_TEXT):
@@ -365,7 +385,7 @@ def set_faults(doc: dict) -> list[str]:
             label = (section.get("name") or "").strip() or f"Section {index + 1}"
             if not (section.get("name") or "").strip():
                 faults.append(f"Section {index + 1} has no name.")
-            if section["id"] not in used:
+            if section["id"] not in used and section["id"] not in DEFAULT_SECTION_IDS:
                 faults.append(f"“{label}” has no questions in it.")
 
     return faults

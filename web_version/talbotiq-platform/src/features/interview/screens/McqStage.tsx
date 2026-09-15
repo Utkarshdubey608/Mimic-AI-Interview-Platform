@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, Loader2, Send, AlertTriangle, Clock } from 'lucide-react'
+import { Check, Loader2, Send, AlertTriangle, Clock, BookOpen, ImageIcon, Code2 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { mcqSessionApi } from '@/lib/api'
-import type { BrandingConfig, McqPaperState } from '@shared/types'
+import type { BrandingConfig, McqPaperState, McqSectionPublic } from '@shared/types'
 import { InterviewStage } from '../stage/InterviewStage'
 import { Completion } from './Completion'
 import { CircularCountdown } from '../components/CircularCountdown'
@@ -15,11 +15,13 @@ import { CircularCountdown } from '../components/CircularCountdown'
  * nothing is recorded, nothing is judged by a model. That shapes the screen — it
  * should feel like sitting an assessment, not like being watched during one.
  *
- * ── One question at a time ────────────────────────────────────────────────
- * Not a scrolling list of forty. A single question with its options is the whole
- * viewport's worth of attention, which is what a considered answer needs; a long
- * scroll invites skimming and makes progress impossible to feel. Back and forward
- * both work, because a paper you cannot revisit is a memory test.
+ * ── One question at a time, forward only ──────────────────────────────────
+ * Not a scrolling list of forty, and not one you can wander back through
+ * either: there is no Back, no jump, and Next is disabled until the current
+ * question is answered — a locked-forward paper, the same rule a proctored
+ * exam runs on. This is enforced here, in the client; nothing server-side yet
+ * stops a direct API call from saving an answer for a question the UI never
+ * reached, which is the next piece of this to build.
  *
  * ── Answers are saved as they are chosen ──────────────────────────────────
  * Every selection is debounced onto the server. A candidate who loses their
@@ -137,6 +139,24 @@ export function McqStage({
     [questions, answers],
   )
 
+  // Which section each question belongs to, and where the candidate is inside
+  // it. The server already sends this (`public_sections`'s `questionIds`) — it
+  // was simply never read here, so a sectioned paper looked identical to a flat
+  // one: no section name, no instructions, no passage, nothing indicating why
+  // question 6 suddenly reads differently from question 5.
+  const sections = state?.sections ?? null
+  const sectionByQuestionId = useMemo(() => {
+    const map = new Map<string, McqSectionPublic>()
+    for (const section of sections ?? []) {
+      for (const qid of section.questionIds ?? []) map.set(qid, section)
+    }
+    return map
+  }, [sections])
+  const currentSection = current ? sectionByQuestionId.get(current.id) ?? null : null
+  const sectionIndex = currentSection && sections ? sections.findIndex((s) => s.id === currentSection.id) : -1
+  const sectionQuestionIds = currentSection?.questionIds ?? null
+  const positionInSection = sectionQuestionIds && current ? sectionQuestionIds.indexOf(current.id) : -1
+
   const toggle = useCallback((questionId: string, optionId: string, multi: boolean) => {
     setAnswers((prev) => {
       const chosen = picked(prev, questionId)
@@ -244,13 +264,36 @@ export function McqStage({
   const isMulti = current.type === 'multi'
   const isMatch = current.type === 'match'
   const last = index === questions.length - 1
+  const currentAnswered = isAnswered(answers, current.id)
 
   return (
     <InterviewStage branding={branding} track="mcq">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-3xl">
+        {/* Section banner — the paper's structure, stated rather than implied.
+            Absent for an unsectioned paper (state.sections is null), which
+            renders exactly as it always did: no banner, no section maths. */}
+        {sections && sections.length > 0 && currentSection && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rule bg-surface-hover/60 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-sm font-bold text-ink">
+              <span
+                className="flex h-6 min-w-[1.75rem] items-center justify-center rounded-full px-1.5 text-2xs font-extrabold text-white"
+                style={{ backgroundColor: branding.accentColor ?? '#0E1420' }}
+              >
+                {sectionIndex + 1}
+              </span>
+              Section {sectionIndex + 1} of {sections.length} — {currentSection.name || 'Untitled section'}
+            </div>
+            {sectionQuestionIds && positionInSection >= 0 && (
+              <span className="text-2xs font-bold uppercase tracking-[0.1em] text-ink-muted">
+                Question {positionInSection + 1} of {sectionQuestionIds.length} in this section
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-3">
           <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-muted">
-            Question {index + 1} of {questions.length}
+            Question {index + 1} of {questions.length} overall
           </span>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-2 text-xs text-ink-muted" aria-live="polite">
@@ -289,23 +332,64 @@ export function McqStage({
           />
         </div>
 
+        {/* The passage/instructions a WHOLE section is about — carried on the
+            section manifest, and previously never rendered at all: a
+            comprehension section with a passage showed only its questions,
+            with nothing to read them against. Shown once per section, not
+            re-shown on every question within it, so it doesn't scroll away
+            from view — it stays pinned above the question card. */}
+        {currentSection?.instructions && (
+          <p className="mt-4 rounded-lg border border-rule-strong bg-surface-sunk px-4 py-2.5 text-xs leading-relaxed text-ink-muted">
+            {currentSection.instructions}
+          </p>
+        )}
+        {currentSection?.passage && (
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-rule bg-surface-hover/40 p-4">
+            <BookOpen size={16} className="mt-0.5 flex-shrink-0 text-ink-muted" strokeWidth={1.75} />
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-body">{currentSection.passage}</p>
+          </div>
+        )}
+
         <motion.div
           key={current.id}
           initial={reduce ? undefined : { opacity: 0, y: 8 }}
           animate={reduce ? undefined : { opacity: 1, y: 0 }}
           transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-7"
+          className="mt-5 rounded-2xl border border-rule bg-surface p-6 shadow-sm sm:p-7"
         >
-          <h1 className="font-display text-xl font-bold leading-snug text-ink sm:text-2xl">
-            {current.text}
-          </h1>
-          <p className="mt-2 text-xs text-ink-muted">
-            {isMatch
-              ? 'Pair each item on the left with one on the right.'
-              : isMulti
-                ? 'Select all that apply.'
-                : 'Select one answer.'}
-          </p>
+          <div className="flex items-start gap-3">
+            <span
+              className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm font-extrabold text-white"
+              style={{ backgroundColor: branding.accentColor ?? '#0E1420' }}
+              aria-hidden="true"
+            >
+              {index + 1}
+            </span>
+            <div className="flex-1">
+              <h1 className="font-display text-xl font-bold leading-snug text-ink sm:text-2xl">
+                {current.text}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="text-xs text-ink-muted">
+                  {isMatch
+                    ? 'Pair each item on the left with one on the right.'
+                    : isMulti
+                      ? 'Select all that apply.'
+                      : 'Select one answer.'}
+                </p>
+                {current.imageDataUrl && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-hover px-2 py-0.5 text-2xs font-bold uppercase tracking-wide text-ink-muted">
+                    <ImageIcon size={11} /> Diagram question
+                  </span>
+                )}
+                {current.code && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-surface-hover px-2 py-0.5 text-2xs font-bold uppercase tracking-wide text-ink-muted">
+                    <Code2 size={11} /> Code question
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* The snippet a code-reading question is about. Rendered monospace and
               scrollable in its own right: a long line must not push the page
@@ -315,6 +399,15 @@ export function McqStage({
             <pre className="mt-4 max-h-80 overflow-auto rounded-xl border border-rule bg-surface-hover p-4 text-xs leading-relaxed text-ink">
               <code>{current.code}</code>
             </pre>
+          )}
+
+          {/* The diagram a directions/aptitude question is about. White-background
+              PNG, so it reads the same in light or dark mode without a themed
+              frame fighting the image's own colors. */}
+          {current.imageDataUrl && (
+            <div className="mt-4 overflow-hidden rounded-xl border border-rule bg-white p-3">
+              <img src={current.imageDataUrl} alt="Diagram for this question" className="mx-auto block max-w-full" />
+            </div>
           )}
 
           {isMatch ? (
@@ -390,52 +483,42 @@ export function McqStage({
           )}
         </motion.div>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-5">
-          {/* Back is always available. A paper you cannot revisit is a memory test. */}
-          <button
-            type="button"
-            onClick={() => setIndex((i) => Math.max(0, i - 1))}
-            disabled={index === 0}
-            className="rounded-lg px-3 py-2 text-sm font-medium text-ink-muted transition-colors duration-fast hover:text-ink disabled:opacity-30"
-          >
-            Back
-          </button>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-ink-muted">
-              {answeredCount} of {questions.length} answered
-            </span>
-            {last ? (
-              <button
-                type="button"
-                onClick={() => void submit()}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover disabled:opacity-60"
-              >
-                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-                Submit assessment
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
-                className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover"
-              >
-                Next
-              </button>
-            )}
-          </div>
+        <div className="mt-8 flex flex-wrap items-center justify-end gap-3 border-t border-rule pt-5">
+          {/* Locked forward: no Back, no jump, and Next/Submit stay disabled
+              until the question on screen is actually answered. Once you move
+              on, there is no way back to it from here. */}
+          <span className="text-xs text-ink-muted">
+            {answeredCount} of {questions.length} answered
+          </span>
+          {last ? (
+            <button
+              type="button"
+              onClick={() => void submit()}
+              disabled={submitting || !currentAnswered}
+              title={!currentAnswered ? 'Answer this question to submit' : undefined}
+              className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+              Submit assessment
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIndex((i) => Math.min(questions.length - 1, i + 1))}
+              disabled={!currentAnswered}
+              title={!currentAnswered ? 'Answer this question to continue' : undefined}
+              className="inline-flex items-center gap-2 rounded-lg bg-action px-5 py-2.5 text-sm font-semibold text-action-ink transition-colors duration-fast hover:bg-action-hover disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          )}
         </div>
-
-        {/* Said once, at the end, rather than as a warning on every question: an
-            unanswered question scores nothing, and someone about to submit an
-            incomplete paper should know before they do, not after. */}
-        {last && answeredCount < questions.length && (
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-warn">
-            <Clock size={12} /> {questions.length - answeredCount} question
-            {questions.length - answeredCount === 1 ? '' : 's'} still unanswered.
+        {!currentAnswered && (
+          <p className="mt-2.5 text-right text-xs text-ink-muted">
+            Answer this question to move on — you can't skip ahead or go back once you leave it.
           </p>
         )}
+
       </div>
     </InterviewStage>
   )

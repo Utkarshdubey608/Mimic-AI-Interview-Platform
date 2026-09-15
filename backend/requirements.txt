@@ -44,3 +44,9 @@ livekit-api==1.2.0
 # on python:3.12-slim. Booking times are timezone-critical, so an absent database
 # is a runtime failure on every conversion rather than a cosmetic gap.
 tzdata==2026.3
+
+# Deterministic diagram rendering for image-based MCQ questions (directions/
+# aptitude). Drawing the diagram ourselves — not asking Gemini to invent one —
+# is what lets the answer key be computed BEFORE the image, guaranteed correct
+# by construction rather than trusted from a model that generated both halves.
+Pillow==12.3.0

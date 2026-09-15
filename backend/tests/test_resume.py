@@ -286,7 +286,7 @@ def test_the_raw_text_and_the_score_are_stored_together(client):
     assert saved["resume"]["charCount"] == len(saved["resume"]["text"])
     assert saved["resume"]["fileName"] == "casey.pdf"
     assert saved["resume"]["score"]["overallScore"] == 78
-    assert saved["resume"]["score"]["model"] == "gemini-2.5-flash"
+    assert saved["resume"]["score"]["model"] == "gemini-3.6-flash"
 
 
 def test_the_score_is_mirrored_onto_the_canonical_result_map(client):

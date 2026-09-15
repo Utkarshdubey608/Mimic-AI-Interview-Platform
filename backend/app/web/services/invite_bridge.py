@@ -27,6 +27,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
 from app import interviews as interviews_kernel
+from app import mcq_authoring
 from app import reports
 from app.config import Settings
 from app.security import AuthedUser
@@ -292,6 +293,47 @@ def build_session(
     }
 
 
+async def _embed_mcq_paper(store, session: dict, template: dict) -> None:
+    """Resolve `template["mcqSetId"]` and embed the paper into the session.
+
+    `build_session` above is deliberately pure and knows nothing of Firestore —
+    every other track's questions arrive already embedded on the invite
+    document itself (plain strings). MCQ never did: `synthesise_template` puts
+    only the SET ID on the template (see its own comment — the answer key must
+    never leave `mcq_sets`), which is exactly right for the SHARED runtime
+    (`mcq_runtime.py` resolves it fresh on every call) but left NOTHING for
+    `routes/sessions_mcq.py` to read — that route expects the paper embedded on
+    the session the same way `routes/sessions.py`'s own MCQ session-creation
+    already does it. A candidate materialising an invite-backed MCQ interview
+    through this bridge got a session with zero questions and no way to answer
+    anything: not a slow paper, an EMPTY one, forever.
+
+    Raises 400 if the set is missing or not ready — a candidate must never
+    land on a paper with no correct answer marked, even though the same check
+    already ran once at invite-creation time; a set can be edited to become
+    invalid in between.
+    """
+    mcq_set_id = str(template.get("mcqSetId") or "")
+    mcq_set = await store.mcq_sets.get(mcq_set_id) if mcq_set_id else None
+    if not mcq_set:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "This interview's MCQ set is missing."
+        )
+    faults = mcq_authoring.set_faults(mcq_set)
+    if faults:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"That MCQ set is not ready. {faults[0]}"
+        )
+
+    # Fresh question ids, matching `routes/sessions.py`'s own MCQ resolution:
+    # editing the set later must not reach back into a finished assessment.
+    session["questions"] = [
+        {**question, "id": str(uuid.uuid4())} for question in mcq_set["questions"]
+    ]
+    session["mcqConfig"] = dict(template.get("mcqConfig") or {})
+    session["mcqSections"] = [dict(section) for section in mcq_set.get("sections") or []]
+
+
 async def materialise(
     settings: Settings, interview_id: str, user: AuthedUser
 ) -> tuple[dict, dict]:
@@ -373,6 +415,9 @@ async def materialise(
     session = build_session(
         interview_id, data, template, candidate_email=assigned, now=now
     )
+
+    if template["track"] == "mcq":
+        await _embed_mcq_paper(store, session, template)
 
     await store.templates.put(template)
     await store.sessions.put(session)

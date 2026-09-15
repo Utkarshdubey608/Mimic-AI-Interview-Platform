@@ -43,11 +43,12 @@ function InterviewerMark() {
  * Under reduced motion it renders static — the word beside it already carries
  * the meaning, which is why the word is not optional.
  */
-function ThinkingMark({ reduce }: { reduce: boolean | null }) {
+function ThinkingMark({ reduce, accent }: { reduce: boolean | null; accent: string }) {
   return (
     <motion.svg
       viewBox="0 0 24 24"
-      className="h-[15px] w-[15px] flex-shrink-0 text-ink"
+      className="h-[15px] w-[15px] flex-shrink-0"
+      style={{ color: accent }}
       aria-hidden="true"
       animate={reduce ? undefined : { rotate: 360 }}
       transition={{ duration: 3.6, repeat: Infinity, ease: 'linear' }}
@@ -66,7 +67,7 @@ function ThinkingMark({ reduce }: { reduce: boolean | null }) {
 
 /** "Thinking…" — a mark and a word. Its ≥3s minimum lifetime is enforced by the
  *  session hook, so it is never a flash. */
-function ThinkingIndicator({ reduce }: { reduce: boolean | null }) {
+function ThinkingIndicator({ reduce, accent }: { reduce: boolean | null; accent: string }) {
   return (
     <div className="flex items-end justify-start gap-2.5">
       <InterviewerMark />
@@ -75,12 +76,18 @@ function ThinkingIndicator({ reduce }: { reduce: boolean | null }) {
         role="status"
         aria-live="polite"
       >
-        <ThinkingMark reduce={reduce} />
-        <span className="text-sm font-medium text-ink-body">Thinking…</span>
+        <ThinkingMark reduce={reduce} accent={accent} />
+        <span className="text-sm font-medium" style={{ color: accent }}>Thinking…</span>
       </div>
     </div>
   )
 }
+
+// Talbotiq's own brand green (talbotiq.com), not the tenant's configurable
+// `branding.accentColor` — the interviewer's "thinking" mark is Mimic/Talbotiq
+// chrome, not something a tenant re-skins, so it stays this color regardless of
+// what accent a recruiter picked for their invite branding.
+const TALBOTIQ_GREEN = '#02A885'
 
 export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
   const chat = useChatbotSession(sessionId)
@@ -176,7 +183,10 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
      `branding.accentColor` through inline style — but the accent is arbitrary
      tenant-supplied hex, so white-on-accent had no contrast guarantee, and this
      is the interview's primary action. */
-  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-action px-5 text-sm font-semibold text-action-ink shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40'
+  // Talbotiq green rather than the shared `--action` token: this pill is chat's
+  // own primary action, and the chat track wants its own brand colour here
+  // rather than every other track's near-black default.
+  const accentPill = 'inline-flex h-10 items-center justify-center gap-1.5 rounded-md bg-[#02A885] px-5 text-sm font-semibold text-white shadow-primary-sm transition-[background-color,box-shadow] duration-fast hover:bg-[#029873] hover:shadow-primary-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40'
   const outlinePill = 'inline-flex items-center justify-center rounded-md border bg-surface font-semibold transition-colors duration-fast hover:bg-surface-hover'
 
   if (s?.finished) {
@@ -185,7 +195,11 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
     // wording, its own accent bar and its own tick plate.
     return (
       <InterviewStage branding={branding} track="chatbot">
-        <Completion branding={branding} sessionId={sessionId} />
+        <Completion
+          branding={branding}
+          sessionId={sessionId}
+          accentClassName="bg-[#02A885] text-white hover:bg-[#029873]"
+        />
       </InterviewStage>
     )
   }
@@ -225,7 +239,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
             <div
               className={
                 t.role === 'candidate'
-                  ? 'max-w-[76%] rounded-2xl rounded-br-md bg-action px-4 py-3 text-[15px] text-action-ink shadow-sm'
+                  ? 'max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white shadow-sm'
                   : 'max-w-[76%] rounded-2xl rounded-bl-md border border-rule bg-surface px-4 py-3 text-[15px] text-ink shadow-xs'
               }
             >
@@ -238,13 +252,13 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
             interviewer "thinks" (the real turn replaces it on reveal). */}
         {chat.pendingAnswer && chat.pendingAnswer.trim() !== '' && (
           <div className="flex items-end justify-end gap-2.5">
-            <div className="max-w-[76%] rounded-2xl rounded-br-md bg-action px-4 py-3 text-[15px] text-action-ink opacity-90 shadow-sm">
+            <div className="max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white opacity-90 shadow-sm">
               <p className="whitespace-pre-wrap leading-[1.6]">{chat.pendingAnswer}</p>
             </div>
           </div>
         )}
 
-        {interviewerThinking && <ThinkingIndicator reduce={reduce} />}
+        {interviewerThinking && <ThinkingIndicator reduce={reduce} accent={TALBOTIQ_GREEN} />}
       </div>
 
       {/* composer */}
@@ -395,7 +409,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
                   type="button"
                   onClick={submit}
                   disabled={!canSend}
-                  className="mb-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-action text-action-ink shadow-sm transition-[background-color,box-shadow] duration-fast hover:bg-action-hover hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-sm"
+                  className="mb-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#02A885] text-white shadow-sm transition-[background-color,box-shadow] duration-fast hover:bg-[#029873] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-sm"
                   aria-label="Send answer"
                 >
                   {chat.sending

@@ -262,8 +262,8 @@ def test_a_missing_key_is_503_naming_the_env_var(client, method, path, env_var):
 
 def test_an_allowed_model_may_be_requested(client):
     """Recruiters legitimately choose between flash and pro."""
-    client.post("/api/gemini/generate", params={"model": "gemini-2.5-pro"}, json=_contents())
-    assert "gemini-2.5-pro:generateContent" in last(client)["url"]
+    client.post("/api/gemini/generate", params={"model": "gemini-3.1-pro-preview"}, json=_contents())
+    assert "gemini-3.1-pro-preview:generateContent" in last(client)["url"]
 
 
 def test_a_disallowed_model_falls_back_instead_of_erroring(client):
@@ -271,14 +271,14 @@ def test_a_disallowed_model_falls_back_instead_of_erroring(client):
     client.post(
         "/api/gemini/generate", params={"model": "gemini-9-ultra"}, json=_contents()
     )
-    assert "gemini-2.5-flash:generateContent" in last(client)["url"]
+    assert "gemini-3.6-flash:generateContent" in last(client)["url"]
 
 
 def test_the_models_prefix_is_tolerated(client):
     client.post(
-        "/api/gemini/generate", params={"model": "models/gemini-2.5-pro"}, json=_contents()
+        "/api/gemini/generate", params={"model": "models/gemini-3.1-pro-preview"}, json=_contents()
     )
-    assert "gemini-2.5-pro:generateContent" in last(client)["url"]
+    assert "gemini-3.1-pro-preview:generateContent" in last(client)["url"]
 
 
 # --- Tavus session defaults (org infrastructure, server-side) --------------

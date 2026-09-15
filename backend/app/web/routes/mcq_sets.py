@@ -37,7 +37,7 @@ from fastapi import APIRouter, Body, HTTPException, Request, Response, status
 from app.security import AuthedUser
 from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
 from app import mcq_authoring
-from app.web.services import mcq_gen, question_gen
+from app.web.services import mcq_diagrams, mcq_gen, question_gen
 from app.web.store import get_store
 
 logger = logging.getLogger("web.mcq_sets")
@@ -290,3 +290,24 @@ async def generate(
         "sections": split,
         "delivered": mcq_gen.section_counts(questions),
     }
+
+
+@router.post(
+    "/generate-diagram-questions",
+    summary="Generate directions/aptitude questions with a diagram (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def generate_diagram_questions(
+    request: Request, body: dict = Body(default={}), user: AuthedUser = WebUser
+) -> dict:
+    """Questions for review, same contract as `/generate`.
+
+    NOT a Gemini call. Each question's diagram is drawn from a path this
+    generates itself, and the correct answer is computed from that SAME path
+    before the image exists — see `app.web.services.mcq_diagrams` for why that
+    order, rather than a model, is what makes the answer key trustworthy.
+    """
+    count = _int((body or {}).get("count"), 5)
+    count = max(1, min(mcq_gen.MAX_QUESTIONS, count))
+    questions = mcq_diagrams.generate_diagram_questions(count)
+    return {"questions": questions}

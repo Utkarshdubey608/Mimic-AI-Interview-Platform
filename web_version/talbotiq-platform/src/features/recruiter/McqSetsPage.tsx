@@ -11,7 +11,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle, Sparkles,
   RefreshCw, Tag, Check, CircleDot, Lock, Code, ChevronDown, ChevronRight, FoldVertical,
-  UnfoldVertical,
+  UnfoldVertical, Image as ImageIcon,
 } from 'lucide-react'
 import {
   PageHeader, Page, Card, Button, ConfirmDialog, EmptyState, Skeleton, Badge, cn,
@@ -20,6 +20,10 @@ import { mcqSetsApi, describeFetchError } from '@/lib/api'
 import type { McqQuestionSet, McqQuestion, McqOption, McqSection, McqPair } from '@shared/types'
 import { SectionsPanel } from './SectionsPanel'
 import { GenerateMcqModal } from './GenerateMcqModal'
+import { TemplateGalleryModal } from './TemplateGalleryModal'
+import { NewAssessmentModal } from './NewAssessmentModal'
+import { MCQ_TEMPLATES } from './mcqTemplates'
+import { DIAGRAM_SECTION_ID, withDefaultSections } from './mcqSections'
 
 /**
  * Assessment authoring — the manual path.
@@ -403,6 +407,21 @@ function SortableMcq({
             </div>
           )}
 
+          {/* A generated diagram. Read-only — it is drawn from a path, not typed,
+              so there is nothing here to edit beyond removing it. */}
+          {q.imageDataUrl && (
+            <div className="overflow-hidden rounded-lg border border-border">
+              <img src={q.imageDataUrl} alt="Diagram for this question" className="block w-full max-w-sm" />
+              <button
+                type="button"
+                onClick={() => onChange({ imageDataUrl: undefined })}
+                className="w-full border-t border-border bg-surface-sunk px-3 py-1.5 text-left text-xs font-medium text-ink-muted hover:text-danger"
+              >
+                Remove diagram
+              </button>
+            </div>
+          )}
+
           {isMatch ? (
             /* Authored a ROW at a time, which is how a person thinks about a pairing
                - and the reason the server must never publish column B in this order:
@@ -491,9 +510,10 @@ function SortableMcq({
                 />
               </div>
             </div>
-            {/* Driven by the assessment's own sections, so the only sections on offer
-                are ones that exist. "No section" stays a real choice: a paper without
-                sections works exactly as it always did. */}
+            {/* Driven by the assessment's own sections, so the only sections on
+                offer are ones that exist. "No section" stays a real choice for
+                anything not moved into one — Diagram Questions is the one
+                exception that's always there, for the image-based question type. */}
             <div className="w-44">
               <span className="field-label">Which section</span>
               <select
@@ -544,6 +564,13 @@ export default function McqSetsPage() {
   /** The last state the server acknowledged, so "unsaved" is a fact, not a guess. */
   const [saved, setSaved] = useState<string | null>(null)
   const [genOpen, setGenOpen] = useState(false)
+  // A separate open flag from `genOpen`: that one always creates a brand-new set.
+  // This one appends the generated questions onto the set already being edited —
+  // what makes "3 written by hand, 2 generated, in one paper" actually possible
+  // instead of generation always starting a second, separate assessment.
+  const [genAppendOpen, setGenAppendOpen] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [newOpen, setNewOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   /** Folded question ids. View state only — it never reaches the draft. */
   const [folded, setFolded] = useState<Set<string>>(new Set())
@@ -559,19 +586,38 @@ export default function McqSetsPage() {
   useEffect(() => {
     const found = sets.data?.find((s) => s.id === activeId)
     if (found) {
-      setDraft(structuredClone(found))
-      setSaved(JSON.stringify(found))
+      // Every set is normalised to carry both default sections the moment it's
+      // opened — a legacy set authored before sections existed (or before the
+      // Diagram section did) gets them here rather than staying an exception the
+      // rest of the editor has to keep special-casing.
+      const normalised = { ...structuredClone(found), ...withDefaultSections(found) }
+      setDraft(normalised)
+      setSaved(JSON.stringify(normalised))
       setFolded(new Set())
     }
   }, [activeId, sets.data])
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['mcq-sets'] })
 
-  /* A new set starts with one blank question rather than none: the server
-     refuses an empty set, so an empty new set would be unsaveable the moment it
-     appeared. */
+  // Every new assessment — blank, AI-generated, or from a template — gets a
+  // starter diagram question the moment it's created, not as a separate step
+  // somebody has to remember. Free to do this eagerly: it's a deterministic
+  // render, not a model call, so there's no cost or review reason to hold it
+  // back until asked for.
+  const withStarterDiagram = async (questions: McqQuestion[]): Promise<McqQuestion[]> => {
+    try {
+      const r = await mcqSetsApi.generateDiagramQuestions(2)
+      return [...questions, ...r.questions.map((q) => ({ ...q, sectionId: DIAGRAM_SECTION_ID }))]
+    } catch {
+      // A failed diagram render must not block creating the assessment itself —
+      // "Add diagram questions" in the editor is still there as a retry.
+      return questions
+    }
+  }
+
   const createGenerated = useMutation({
-    mutationFn: (paper: { name: string; questions: McqQuestion[] }) => mcqSetsApi.create(paper),
+    mutationFn: async (paper: { name: string; questions: McqQuestion[] }) =>
+      mcqSetsApi.create({ ...paper, questions: await withStarterDiagram(paper.questions) }),
     onSuccess: (s) => {
       invalidate(); setActiveId(s.id); setGenOpen(false)
       toast.success('Written — check every answer before you send it')
@@ -579,9 +625,33 @@ export default function McqSetsPage() {
     onError: (e: Error) => toast.error(e.message),
   })
 
+  /* A new set starts with one blank question rather than none: the server
+     refuses an empty set, so an empty new set would be unsaveable the moment it
+     appeared. */
   const create = useMutation({
-    mutationFn: () => mcqSetsApi.create({ name: 'New assessment', questions: [blankQuestion()] }),
-    onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Assessment created') },
+    mutationFn: async () =>
+      mcqSetsApi.create({ name: 'New assessment', questions: await withStarterDiagram([blankQuestion()]) }),
+    onSuccess: (s) => { invalidate(); setActiveId(s.id); setNewOpen(false); toast.success('Assessment created') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const createFromTemplate = useMutation({
+    mutationFn: async (templateId: string) => {
+      const t = MCQ_TEMPLATES.find((x) => x.id === templateId)
+      if (!t) throw new Error('Template not found')
+      // Cloned questions get fresh ids: two sets built from the same template must
+      // not silently share option/question ids if one is later duplicated.
+      const cloned = t.questions.map((q) => {
+        const idMap = new Map(q.options.map((o) => [o.id, crypto.randomUUID().slice(0, 8)]))
+        return {
+          ...q,
+          id: crypto.randomUUID(),
+          options: q.options.map((o) => ({ ...o, id: idMap.get(o.id)! })),
+          correctOptionIds: q.correctOptionIds.map((id) => idMap.get(id)!),
+        }
+      })
+      return mcqSetsApi.create({ name: `${t.role} — MCQ`, questions: await withStarterDiagram(cloned) })
+    },
+    onSuccess: (s) => { invalidate(); setActiveId(s.id); setTemplatesOpen(false); toast.success('Template added — review before you save') },
     onError: (e: Error) => toast.error(e.message),
   })
   const duplicate = useMutation({
@@ -649,12 +719,53 @@ export default function McqSetsPage() {
     setDraft({ ...draft, questions: [...draft.questions, blankQuestion()] })
   }
 
+  // Generated questions land at the end of the CURRENT draft, unsaved — same as
+  // "Add question" — so they sit alongside whatever was already written by hand,
+  // get reviewed and edited like any other question, and go out in one Save.
+  const appendGenerated = (_name: string, questions: McqQuestion[]) => {
+    if (!draft) return
+    setDraft({ ...draft, questions: [...draft.questions, ...questions] })
+    setGenAppendOpen(false)
+    toast.success(`${questions.length} question${questions.length === 1 ? '' : 's'} added — check every answer before you save`)
+  }
+
+  // Deterministic — no model call, so no review-before-save ceremony is needed:
+  // the answer key is computed from the same path the diagram is drawn from,
+  // never guessed by anything that could disagree with its own picture.
+  const generateDiagrams = useMutation({
+    mutationFn: (count: number) => mcqSetsApi.generateDiagramQuestions(count),
+    onSuccess: (r) => {
+      if (!draft) return
+      const withSection = r.questions.map((q) => ({ ...q, sectionId: DIAGRAM_SECTION_ID }))
+      setDraft({ ...draft, questions: [...draft.questions, ...withSection] })
+      toast.success(`${r.questions.length} diagram question${r.questions.length === 1 ? '' : 's'} added to Diagram Questions`)
+    },
+    onError: (e: Error) => toast.error(e.message),
+  })
+
   return (
     <Page>
       <GenerateMcqModal
         open={genOpen}
         onClose={() => setGenOpen(false)}
         onGenerated={(name, questions) => createGenerated.mutate({ name, questions })}
+      />
+      <GenerateMcqModal
+        open={genAppendOpen}
+        onClose={() => setGenAppendOpen(false)}
+        onGenerated={appendGenerated}
+      />
+      <TemplateGalleryModal
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        onPick={(id) => createFromTemplate.mutate(id)}
+      />
+      <NewAssessmentModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onBlank={() => create.mutate()}
+        onGenerate={() => { setNewOpen(false); setGenOpen(true) }}
+        onTemplate={() => { setNewOpen(false); setTemplatesOpen(true) }}
       />
 
       <PageHeader
@@ -691,20 +802,13 @@ export default function McqSetsPage() {
         <div className="grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)]">
           <aside className="lg:sticky lg:top-[88px] lg:self-start">
             <div className="space-y-2">
-              <Button className="w-full" icon={<Plus size={15} />} loading={create.isPending} onClick={() => create.mutate()}>
-                New assessment
-              </Button>
-              {/* Mode A. Generation writes a DRAFT and opens it here: the answers
-                  it picked are exactly the thing that must be read by a person
-                  before anyone is scored against them. */}
               <Button
                 className="w-full"
-                variant="outline"
-                icon={<Sparkles size={15} />}
-                loading={createGenerated.isPending}
-                onClick={() => setGenOpen(true)}
+                icon={<Plus size={15} />}
+                loading={create.isPending || createGenerated.isPending || createFromTemplate.isPending}
+                onClick={() => setNewOpen(true)}
               >
-                Generate with AI
+                New assessment
               </Button>
             </div>
 
@@ -747,7 +851,7 @@ export default function McqSetsPage() {
                 icon={<ListChecks strokeWidth={1.75} />}
                 title="Nothing open yet"
                 description="Pick one on the left, or make a new one. Each question needs two or more answers and at least one of them ticked as right."
-                action={<Button size="sm" icon={<Plus size={14} />} loading={create.isPending} onClick={() => create.mutate()}>New assessment</Button>}
+                action={<Button size="sm" icon={<Plus size={14} />} onClick={() => setNewOpen(true)}>New assessment</Button>}
               />
             </Card>
           ) : (
@@ -856,14 +960,30 @@ export default function McqSetsPage() {
                     </SortableContext>
                   </DndContext>
 
-                  <Button
-                    className="mt-3"
-                    variant="outline"
-                    icon={<ListPlus size={15} />}
-                    onClick={addQuestion}
-                  >
-                    Add question
-                  </Button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      icon={<ListPlus size={15} />}
+                      onClick={addQuestion}
+                    >
+                      Add question
+                    </Button>
+                    <Button
+                      variant="outline"
+                      icon={<Sparkles size={15} />}
+                      onClick={() => setGenAppendOpen(true)}
+                    >
+                      Add AI-generated questions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      icon={<ImageIcon size={15} />}
+                      loading={generateDiagrams.isPending}
+                      onClick={() => generateDiagrams.mutate(3)}
+                    >
+                      Add diagram questions
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>

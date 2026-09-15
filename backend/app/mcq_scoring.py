@@ -484,4 +484,9 @@ def mcq_public_question(question: dict, *, shuffle_seed: str | None = None) -> d
     # question is unanswerable without it — and it carries no key.
     if code := question.get("code"):
         public["code"] = str(code)
+    # The diagram a directions/aptitude question is ABOUT — same reasoning as
+    # `code` above: the question is unanswerable without seeing it, and the
+    # image itself carries no answer key (only `correctOptionIds` does).
+    if image := question.get("imageDataUrl"):
+        public["imageDataUrl"] = str(image)
     return public

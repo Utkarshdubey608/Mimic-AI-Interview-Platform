@@ -28,12 +28,16 @@ import type { PendingIntegrityNotice } from '../useIntegrityMonitor'
  * and applies the recruiter's rule; it does not editorialise about why.
  */
 export function IntegrityGate({
-  notice, onAcknowledge, onEnded,
+  notice, onAcknowledge, onEnded, accentClassName,
 }: {
   notice: PendingIntegrityNotice | null
   onAcknowledge: () => void
   /** Called once when the limit is reached, to submit and end the interview. */
   onEnded: () => void
+  /** Overrides the confirm button's colour for one track's own branding
+   *  (e.g. the chat track's Talbotiq green) without touching every other
+   *  track's shared `--action` token. */
+  accentClassName?: string
 }) {
   const reduce = useReducedMotion() ?? false
   const ref = React.useRef<HTMLDivElement>(null)
@@ -119,6 +123,7 @@ export function IntegrityGate({
           <Button
             size="lg"
             block
+            className={terminal ? undefined : accentClassName}
             onClick={terminal ? undefined : onAcknowledge}
             disabled={terminal}
           >
