@@ -5,6 +5,7 @@ import { cn, Button } from '@/components/ui'
 import { AmbientField } from '@/components/shell/AmbientField'
 import { MimicLockup } from '@/components/brand/MimicMark'
 import type { BrandingConfig, TrackType } from '@shared/types'
+import { resolveGround } from '@/lib/workspaceGround'
 
 /**
  * MIMIC — the Interview Stage.
@@ -50,8 +51,12 @@ import type { BrandingConfig, TrackType } from '@shared/types'
 export type StagePhase = 'prep' | 'answer' | 'connecting' | 'live' | 'submitting' | 'complete'
 
 /** Which ground a track's stage is painted on. See the note above. */
+// DARK-OFF: see DARK_GROUND_ENABLED in @/lib/workspaceGround.
 export function groundForTrack(track: TrackType): 'record' | 'room' {
-  return track === 'chat' || track === 'chatbot' ? 'record' : 'room'
+  // DARK-OFF: a voice/video/avatar room is dark BY TRACK, not by preference, so
+  // switching the workspace toggle off would not have reached it. Resolved here
+  // as well, or the candidate side stays dark while the recruiter side is light.
+  return resolveGround(track === 'chat' || track === 'chatbot' ? 'record' : 'room')
 }
 
 interface StageProps {
@@ -81,7 +86,7 @@ export function InterviewStage({
   branding, track, progress, phase, timer, transport, connection,
   layout = 'page', ground, children,
 }: StageProps) {
-  const g = ground ?? groundForTrack(track)
+  const g = resolveGround(ground ?? groundForTrack(track))   // DARK-OFF
   const [helpOpen, setHelpOpen] = React.useState(false)
 
   const pct = progress && progress.total > 0

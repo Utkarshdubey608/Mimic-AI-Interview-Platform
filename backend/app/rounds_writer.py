@@ -310,6 +310,120 @@ async def assign(
     return await asyncio.to_thread(_write)
 
 
+async def rosters(
+    settings: Settings, *, test_id: str, recruiter_id: str
+) -> dict[str, list[dict]]:
+    """Who is in each round of a test, keyed by `roundId`.
+
+    **Why this exists rather than deriving it from the sessions list.** The recruiter's
+    sessions list is built from web SESSION rows and joins assignments onto them by id.
+    An assignment created here has its own auto-id and no session row until the
+    candidate opens it — so a person advanced into round 3 was invisible to every
+    round-scoped view in the browser until they started, which is precisely the moment
+    a recruiter most wants to see them and still has the option to undo it.
+
+    Assignments with no `roundId` are grouped under the empty string: they predate the
+    timeline, and `adopt_legacy_assignments` is what moves them.
+
+    Scores are NOT here. They live on the report, which is keyed by session, so the
+    caller merges the two — this is a roster, not a leaderboard.
+    """
+    from google.cloud.firestore_v1.base_query import FieldFilter
+
+    if not test_id or not recruiter_id:
+        return {}
+
+    collection = interviews.collection(settings)
+
+    def _read() -> dict[str, list[dict]]:
+        found = (
+            collection.where(filter=FieldFilter("recruiterId", "==", recruiter_id))
+            .where(filter=FieldFilter("testId", "==", test_id))
+            .stream()
+        )
+        grouped: dict[str, list[dict]] = {}
+        for snapshot in found:
+            data = snapshot.to_dict() or {}
+            email = str(data.get("candidateEmailLower") or data.get("candidateEmail") or "")
+            if not email:
+                continue
+            grouped.setdefault(str(data.get("roundId") or ""), []).append(
+                {
+                    "id": snapshot.id,
+                    "email": email,
+                    "name": data.get("candidateName") or "",
+                    # "assigned" is the untouched state `build_assignment` writes;
+                    # anything else means they have engaged with it. Sent raw so the
+                    # client can say "not started" without this module owning the words.
+                    "status": str(data.get("status") or "assigned"),
+                }
+            )
+        for rows in grouped.values():
+            rows.sort(key=lambda r: r["email"])
+        return grouped
+
+    return await asyncio.to_thread(_read)
+
+
+async def unassign(
+    settings: Settings, round_: rounds.Round, *, candidates: list[str]
+) -> dict:
+    """Take candidates OUT of a round — the undo for advancing somebody by mistake.
+
+    Deletes their assignment in THIS round and touches nothing else, so the earlier
+    round they came from, and everything they did in it, is untouched. That is the whole
+    reason this deletes rather than re-pointing `roundId`: a re-point would drag any
+    answers they had given into a round those questions do not belong to, and the
+    candidate would be sitting in a stage holding another stage's work.
+
+    **Anyone who has already started is REFUSED, not deleted.** Their document holds the
+    transcript and the score it was computed from, and "they should not have been
+    advanced" is never a reason to destroy a candidate's work. Those are returned in
+    `kept` so the caller can say who, and why, rather than silently doing half the job.
+    """
+    from google.cloud.firestore_v1.base_query import FieldFilter
+
+    wanted = {str(e or "").strip().lower() for e in candidates}
+    wanted.discard("")
+    if not wanted or not round_.test_id or not round_.id:
+        return {"removed": 0, "kept": []}
+
+    client = interviews.get_db(settings)
+    collection = interviews.collection(settings)
+
+    def _write() -> dict:
+        found = (
+            collection.where(filter=FieldFilter("recruiterId", "==", round_.recruiter_id))
+            .where(filter=FieldFilter("testId", "==", round_.test_id))
+            .where(filter=FieldFilter("roundId", "==", round_.id))
+            .stream()
+        )
+
+        doomed: list[str] = []
+        kept: list[dict] = []
+        for snapshot in found:
+            data = snapshot.to_dict() or {}
+            email = str(data.get("candidateEmailLower") or "")
+            if email not in wanted:
+                continue
+            # "assigned" is the untouched state `build_assignment` writes. Anything
+            # else means they have engaged with it.
+            if str(data.get("status") or "assigned") != "assigned":
+                kept.append({"email": email, "reason": "already started this round"})
+                continue
+            doomed.append(snapshot.id)
+
+        for start in range(0, len(doomed), BATCH_SIZE):
+            batch = client.batch()
+            for document_id in doomed[start : start + BATCH_SIZE]:
+                batch.delete(collection.document(document_id))
+            batch.commit()
+
+        return {"removed": len(doomed), "kept": kept}
+
+    return await asyncio.to_thread(_write)
+
+
 async def count_legacy_assignments(
     settings: Settings, *, test_id: str, recruiter_id: str
 ) -> int:

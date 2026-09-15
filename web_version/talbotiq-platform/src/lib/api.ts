@@ -871,6 +871,31 @@ export const roundsApi = {
     ),
 
   /**
+   * Take candidates OUT of a round — the undo for advancing somebody by mistake.
+   *
+   * `kept` names anyone who was refused because they had already started: their
+   * document holds the transcript and the score computed from it, and deleting it
+   * would destroy work the decision was about to be made on.
+   */
+  unassign: (testId: string, roundId: string, candidates: string[]) =>
+    http<{ removed: number; kept: { email: string; reason: string }[] }>(
+      `/tests/${testId}/rounds/${roundId}/unassign`,
+      { method: 'POST', body: JSON.stringify({ candidates }) },
+    ),
+
+  /**
+   * End every round still running and stamp the test closed.
+   *
+   * Decides NOTHING — call `outcomesApi.decideRound` first. That ordering is
+   * deliberate: the decision is the durable, meaningful write, so a failure to close
+   * afterwards leaves it standing and retryable.
+   */
+  closeTest: (testId: string) =>
+    http<{ closed: boolean; roundsEnded: number }>(`/tests/${testId}/close`, {
+      method: 'POST',
+    }),
+
+  /**
    * Move assignments that belong to no round into this one.
    *
    * Adopts rather than recreating: those documents may already hold a completed

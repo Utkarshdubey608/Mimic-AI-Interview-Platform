@@ -33,7 +33,8 @@ const TemplatesPage      = lazy(() => import('@/features/recruiter/TemplatesPage
 const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEditorPage'))
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
 const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
-const CodingProblemsPage = lazy(() => import('@/features/recruiter/CodingProblemsPage'))
+// Coding interviews are switched off in the web app — see Nav.tsx.
+// const CodingProblemsPage = lazy(() => import('@/features/recruiter/CodingProblemsPage'))
 const EssayPromptsPage = lazy(() => import('@/features/recruiter/EssayPromptsPage').then(m => ({ default: m.EssayPromptsPage })))
 import { CodingStage } from '@/features/interview/screens/CodingStage'
 const McqStageHarness    = lazy(() => import('@/features/interview/screens/McqStageHarness'))
@@ -121,10 +122,14 @@ export default function App() {
             {/* Coding problem authoring, for the same reason: the sample/hidden
                 distinction is the one control on that page with a security
                 consequence, and whether it reads clearly is not something a unit
-                test can tell you. */}
+                test can tell you.
+
+                Switched off with the rest of coding authoring — restore this
+                alongside the /coding-problems route below.
+
             {import.meta.env.DEV && (
               <Route path="/__coding" element={<CodingProblemsPage />} />
-            )}
+            )} */}
             {/* The CANDIDATE side of MCQ. Harnessed separately because it is the
                 irreversible path: a recruiter can re-edit a paper, a candidate
                 sits the assessment once and is scored on it. */}
@@ -195,7 +200,9 @@ export default function App() {
                 <Route path="/templates/:id" element={<TemplateEditorPage />} />
                 <Route path="/question-sets" element={<QuestionSetsPage />} />
                 <Route path="/mcq-sets" element={<McqSetsPage />} />
-                <Route path="/coding-problems" element={<CodingProblemsPage />} />
+                {/* Coding authoring is switched off — the candidate-side
+                    CodingStage below is untouched, so anything already sent still runs.
+                <Route path="/coding-problems" element={<CodingProblemsPage />} /> */}
                 <Route path="/essay-prompts" element={<EssayPromptsPage />} />
                 <Route path="/sessions" element={<SessionsPage />} />
                 <Route path="/sessions/new" element={<InviteWizard />} />

@@ -140,12 +140,12 @@ test.describe('MCQ authoring — Mode B (manual)', () => {
 
     // THE REGRESSION: this button answered 400 on every click, so the whole
     // feature was unreachable. If it ever does again, this fails here.
-    await page.getByRole('button', { name: 'New MCQ set' }).click()
+    await page.getByRole('button', { name: 'New assessment' }).click()
     await expect(page.getByRole('button', { name: 'Add question' })).toBeVisible()
     expect(store.sets).toHaveLength(1)
 
     // The paper starts unfinished and says so, rather than looking sendable.
-    await expect(page.getByText('to finish before sending')).toBeVisible()
+    await expect(page.getByText(/question(s)? to finish/)).toBeVisible()
 
     // Write a question.
     await page.getByLabel('Question 1 text').fill('What does EC2 stand for?')
@@ -161,13 +161,13 @@ test.describe('MCQ authoring — Mode B (manual)', () => {
     // somebody mid-edit, the server's is a report about a numbered question. The
     // rules agree; only the sentences differ, and this test intentionally pins the
     // one the recruiter actually reads.
-    await expect(page.getByText('Mark the correct answer', { exact: false })).toBeVisible()
+    await expect(page.getByText('Tick the right answer', { exact: false })).toBeVisible()
 
     await page.getByRole('radio', { name: 'Mark option A correct' }).click()
     await expect(page.getByText('Ready to send')).toBeVisible()
 
     await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByText('Set saved')).toBeVisible()
+    await expect(page.getByText('Assessment saved')).toBeVisible()
   })
 
   test('an unfinished paper can still be saved', async ({ page }) => {
@@ -178,13 +178,13 @@ test.describe('MCQ authoring — Mode B (manual)', () => {
     await mockApi(page, store)
     await page.goto('/__mcq')
 
-    await page.getByRole('button', { name: 'New MCQ set' }).click()
+    await page.getByRole('button', { name: 'New assessment' }).click()
     await page.getByLabel('Question 1 text').fill('Half-written question')
 
     const save = page.getByRole('button', { name: 'Save' })
     await expect(save).toBeEnabled()
     await save.click()
-    await expect(page.getByText('Set saved')).toBeVisible()
+    await expect(page.getByText('Assessment saved')).toBeVisible()
   })
 
   test('marking a second option replaces the first on a single-answer question', async ({ page }) => {
@@ -211,7 +211,7 @@ test.describe('MCQ authoring — Mode B (manual)', () => {
     await page.getByRole('button', { name: 'Remove option A' }).click()
     // A was the correct answer; with it gone the paper must report itself unready
     // rather than quietly keeping a key that points at nothing.
-    await expect(page.getByText('to finish before sending')).toBeVisible()
+    await expect(page.getByText(/question(s)? to finish/)).toBeVisible()
   })
 })
 

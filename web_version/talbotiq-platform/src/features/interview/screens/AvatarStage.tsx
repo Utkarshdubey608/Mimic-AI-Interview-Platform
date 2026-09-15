@@ -11,6 +11,7 @@ import { localTimeOfDay } from '@shared/speech'
 import { sessionsApi } from '@/lib/api'
 import { startCallStats, type CallStatsHandle } from '@/lib/callStats'
 import { FaceFitCheck } from '@/features/avatar-screening/facefit/FaceFitCheck'
+import { resolveGround } from '@/lib/workspaceGround'
 
 interface Props {
   sessionId: string
@@ -185,7 +186,7 @@ export function AvatarStage({ sessionId, branding, preflight = false }: Props) {
      white text here. */
   if (stage === 'error') {
     return (
-      <div data-ground="room" className="relative flex min-h-screen items-center justify-center bg-ground px-4 py-12">
+      <div data-ground={resolveGround('room')} className="relative flex min-h-screen items-center justify-center bg-ground px-4 py-12">
         <div className="keylight-accent pointer-events-none absolute inset-0" aria-hidden="true" />
         <div className="relative w-full max-w-md rounded-xl border border-rule bg-surface p-10 text-center shadow-lg">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-risk-rule bg-risk-bg text-risk">

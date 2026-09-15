@@ -10,44 +10,61 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle, Sparkles,
-  RefreshCw, Tag, Check, CircleDot, Lock, Code,
+  RefreshCw, Tag, Check, CircleDot, Lock, Code, ChevronDown, ChevronRight, FoldVertical,
+  UnfoldVertical,
 } from 'lucide-react'
-import { PageHeader, Card, Button, EmptyState, Skeleton, Badge, cn } from '@/components/ui'
+import {
+  PageHeader, Page, Card, Button, ConfirmDialog, EmptyState, Skeleton, Badge, cn,
+} from '@/components/ui'
 import { mcqSetsApi, describeFetchError } from '@/lib/api'
 import type { McqQuestionSet, McqQuestion, McqOption, McqSection, McqPair } from '@shared/types'
 import { SectionsPanel } from './SectionsPanel'
 import { GenerateMcqModal } from './GenerateMcqModal'
 
 /**
- * MCQ authoring — the manual path.
+ * Assessment authoring — the manual path.
  *
- * Mirrors QuestionSetsPage deliberately: the same rail, the same New/Duplicate/
+ * Mirrors QuestionSetsPage deliberately: the same rail, the same New/Copy/
  * Save, the same drag-to-reorder, because a recruiter who can author one kind of
  * set should not have to learn a second editor. What is new is per-question
- * options and the marking of the correct one.
+ * answers and the ticking of the right one.
+ *
+ * ── The wording is deliberately plain ────────────────────────────────────
+ * This page used to say "closed questions", "options", "the answer key", "1 to
+ * finish before sending". The people using it are recruiters, not exam boards.
+ * Every label is now the sentence somebody would say out loud — "Pick one",
+ * "Tick the right answer", "1 question needs finishing". The stored SHAPE is
+ * untouched: a question still has `options` and `correctOptionIds`, and the
+ * server sees exactly what it always did.
  *
  * ── The one thing this editor must get right ─────────────────────────────
  * A paper is only an assessment if it can distinguish candidates. Three ways to
  * author one that cannot, all of which the server refuses and all of which are
  * therefore shown HERE, before saving:
  *
- *   · fewer than two options — the question asks nothing;
- *   · nothing marked correct — every candidate scores zero;
- *   · everything marked correct — nobody is distinguished.
+ *   · fewer than two answers — the question asks nothing;
+ *   · nothing ticked right — every candidate scores zero;
+ *   · everything ticked right — nobody is distinguished.
  *
  * They are surfaced inline as the recruiter types rather than as a save error,
  * because a 40-question paper that fails on question 31 is a bad way to find out.
- * The Save button states the count instead of silently refusing.
+ * The header states the count instead of silently refusing.
  *
  * ── What a candidate never sees ──────────────────────────────────────────
- * Everything on this page. The answer key lives in the recruiter's own
- * owner-scoped set and is compared server-side on submit; the candidate's payload
- * is built by an allow-list that has no field for it. The padlock next to
- * "Correct answer" says so, because a recruiter typing an answer key into a
- * browser is entitled to know where it goes.
+ * Everything on this page. The right answers live in the recruiter's own
+ * owner-scoped set and are compared server-side on submit; the candidate's payload
+ * is built by an allow-list that has no field for them. The padlock above the
+ * answers says so, because a recruiter ticking right answers into a browser is
+ * entitled to know where they go.
+ *
+ * ── Long papers ──────────────────────────────────────────────────────────
+ * Forty questions is a normal size and forty open cards is not a usable screen,
+ * so a card folds to one line — its number, its text, its type and whether it is
+ * finished — and the whole paper folds at once from the list header. Folding is
+ * view state only and never touches the draft.
  */
 
-/* ── One option row ──────────────────────────────────────────────────────── */
+/* ── One answer row ──────────────────────────────────────────────────────── */
 function OptionRow({
   option, isMulti, checked, onToggle, onText, onRemove, canRemove, index, questionIndex,
 }: {
@@ -63,7 +80,15 @@ function OptionRow({
 }) {
   const letter = String.fromCharCode(65 + index)
   return (
-    <div className="flex items-center gap-2.5">
+    <div
+      className={cn(
+        'flex items-center gap-2.5 rounded-lg border px-2 py-1.5 transition-colors duration-fast',
+        // The right answer is now legible at a glance instead of only from the
+        // state of a 24px control: on a ten-answer question, scanning ten radio
+        // buttons for the filled one is work the row itself can do.
+        checked ? 'border-ok-rule bg-ok-bg' : 'border-transparent hover:bg-surface-hover/50',
+      )}
+    >
       {/* Radio for single, checkbox for multi — the control itself tells the
           recruiter how many answers the question takes, so the rule is legible
           without reading a label. */}
@@ -72,6 +97,7 @@ function OptionRow({
         role={isMulti ? 'checkbox' : 'radio'}
         aria-checked={checked}
         aria-label={`Mark option ${letter} correct`}
+        title={checked ? 'This is the right answer' : 'Tick this as the right answer'}
         onClick={onToggle}
         className={cn(
           'flex h-6 w-6 flex-shrink-0 items-center justify-center border transition-colors duration-fast',
@@ -83,11 +109,13 @@ function OptionRow({
       >
         {checked ? <Check size={13} strokeWidth={3} /> : <CircleDot size={12} className="opacity-0" />}
       </button>
-      <span className="w-4 flex-shrink-0 text-xs font-bold text-ink-faint">{letter}</span>
+      <span className={cn('w-4 flex-shrink-0 text-xs font-bold', checked ? 'text-ok' : 'text-ink-faint')}>
+        {letter}
+      </span>
       <input
         value={option.text}
         onChange={(e) => onText(e.target.value)}
-        placeholder={`Option ${letter}`}
+        placeholder={`Answer ${letter}`}
         aria-label={`Question ${questionIndex + 1} option ${letter} text`}
         className="input-base h-9 flex-1 text-sm"
       />
@@ -96,6 +124,7 @@ function OptionRow({
         onClick={onRemove}
         disabled={!canRemove}
         aria-label={`Remove option ${letter}`}
+        title={canRemove ? 'Remove this answer' : 'A question needs at least two answers'}
         className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
       >
         <Trash2 size={14} />
@@ -106,38 +135,49 @@ function OptionRow({
 
 /** Why this question cannot be used, or null when it is fine. */
 function faultOf(q: McqQuestion): string | null {
-  if (!q.text.trim()) return 'Needs a question.'
+  if (!q.text.trim()) return 'Type the question.'
 
-  // TYPE-AWARE, and it has to be: a pairing has no options at all, so the option
-  // rules below reported "needs at least two options" on a question that was
+  // TYPE-AWARE, and it has to be: a pairing has no answers at all, so the answer
+  // rules below reported "needs at least two answers" on a question that was
   // perfectly complete. The server had already learned this; the client had not,
   // and the two disagreeing is worse than either being wrong — the recruiter sees
   // a warning that saving then contradicts.
   if (q.type === 'match') {
     const rows = (q.pairs ?? []).filter((r) => r.left.trim() && r.right.trim())
-    if (rows.length < 2) return 'Needs at least two complete pairs.'
+    if (rows.length < 2) return 'Fill in at least two pairs.'
     const answers = rows.map((r) => r.right.trim().toLowerCase())
     if (new Set(answers).size !== answers.length) {
-      return 'Two rows match the same answer, so the pairing cannot be solved.'
+      return 'Two rows have the same match, so this cannot be solved.'
     }
     return null
   }
 
   const usable = q.options.filter((o) => o.text.trim())
-  if (usable.length < 2) return 'Needs at least two options.'
+  if (usable.length < 2) return 'Add at least two answers to choose from.'
   const key = q.correctOptionIds.filter((id) => usable.some((o) => o.id === id))
-  if (key.length === 0) return 'Mark the correct answer — otherwise everyone scores zero.'
-  if (key.length === usable.length) return 'Every option is marked correct, so it cannot distinguish anyone.'
+  if (key.length === 0) return 'Tick the right answer, or everybody scores zero.'
+  if (key.length === usable.length) return 'Every answer is ticked right, so everybody gets full marks.'
   return null
 }
 
+const TYPES = [
+  { value: 'single', label: 'Pick one', hint: 'One right answer out of several' },
+  { value: 'multi', label: 'Pick many', hint: 'More than one answer is right' },
+  { value: 'match', label: 'Match pairs', hint: 'Line up each item with its match' },
+] as const
+
+const typeLabel = (t: McqQuestion['type'] | undefined) =>
+  TYPES.find((x) => x.value === (t ?? 'single'))?.label ?? 'Pick one'
+
 /* ── One editable question ───────────────────────────────────────────────── */
 function SortableMcq({
-  q, index, sections, onChange, onRemove,
+  q, index, sections, folded, onFold, onChange, onRemove,
 }: {
   q: McqQuestion
   index: number
   sections: McqSection[]
+  folded: boolean
+  onFold: () => void
   onChange: (p: Partial<McqQuestion>) => void
   onRemove: () => void
 }) {
@@ -169,8 +209,8 @@ function SortableMcq({
     onChange({ pairs: pairs.filter((r) => r.promptId !== promptId) })
 
   /* Switching type is destructive in one direction, so it is done explicitly.
-     Going to a pairing seeds two empty rows (the minimum a pairing can ask) and
-     leaves the options alone, so switching back does not lose them. */
+     Going to a pairing seeds two empty rows (the fewest a pairing can ask) and
+     leaves the answers alone, so switching back does not lose them. */
   const setType = (next: McqQuestion['type']) => {
     if (next === 'match' && pairs.length === 0) {
       onChange({
@@ -193,8 +233,8 @@ function SortableMcq({
   const removeOption = (id: string) =>
     onChange({
       options: q.options.filter((o) => o.id !== id),
-      // The key must never name an option that no longer exists, or the question
-      // silently becomes unanswerable.
+      // The right answers must never name one that no longer exists, or the
+      // question silently becomes unanswerable.
       correctOptionIds: q.correctOptionIds.filter((k) => k !== id),
     })
 
@@ -208,7 +248,7 @@ function SortableMcq({
         : [...q.correctOptionIds, id]
       onChange({ correctOptionIds: next })
     } else {
-      // Single-answer: choosing replaces rather than adds, so the key cannot end
+      // Pick one: choosing replaces rather than adds, so the answer cannot end
       // up with two entries while the control still looks like a radio.
       onChange({ correctOptionIds: q.correctOptionIds[0] === id ? [] : [id] })
     }
@@ -217,7 +257,7 @@ function SortableMcq({
   const switchType = (type: 'single' | 'multi') =>
     onChange({
       type,
-      // Narrowing to single keeps at most one answer; widening keeps what is there.
+      // Narrowing to one keeps at most one answer; widening keeps what is there.
       correctOptionIds: type === 'single' ? q.correctOptionIds.slice(0, 1) : q.correctOptionIds,
     })
 
@@ -226,7 +266,7 @@ function SortableMcq({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex gap-3 rounded-xl border bg-surface p-3.5 shadow-xs transition-[border-color,box-shadow] duration-150',
+        'group rounded-xl border bg-surface shadow-xs transition-[border-color,box-shadow] duration-150',
         isDragging
           ? 'border-rule-strong shadow-lg'
           : fault
@@ -234,39 +274,42 @@ function SortableMcq({
             : 'border-border focus-within:border-rule hover:border-rule-strong hover:shadow-sm',
       )}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="mt-1 cursor-grab touch-none self-start rounded-lg p-1 text-ink-disabled transition-colors duration-150 group-hover:text-ink-muted hover:bg-surface-hover active:cursor-grabbing"
-        aria-label={`Drag to reorder question ${index + 1}`}
-      >
-        <GripVertical size={16} />
-      </button>
-      <span className="mt-1 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-bold tabular-nums text-ink">
-        {index + 1}
-      </span>
+      {/* ── the question's own header row ────────────────────────────────────
+          Number, what kind of question it is, what it is worth, and the two
+          controls that act on the whole card. Everything that used to be strewn
+          through the body — the type switch, the naked points box — is here,
+          which is what lets the body below be nothing but the question and its
+          answers. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab touch-none rounded-lg p-1 text-ink-disabled transition-colors duration-150 group-hover:text-ink-muted hover:bg-surface-hover active:cursor-grabbing"
+          aria-label={`Drag to reorder question ${index + 1}`}
+        >
+          <GripVertical size={16} />
+        </button>
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-bold tabular-nums text-ink">
+          {index + 1}
+        </span>
 
-      <div className="min-w-0 flex-1 space-y-3">
-        <textarea
-          value={q.text}
-          onChange={(e) => onChange({ text: e.target.value })}
-          placeholder="Type the question…"
-          aria-label={`Question ${index + 1} text`}
-          className="textarea-base text-sm"
-        />
-
-        <div className="flex flex-wrap items-center gap-2">
+        {folded ? (
+          <button
+            type="button"
+            onClick={onFold}
+            className="min-w-0 flex-1 truncate text-left text-sm text-ink-body hover:text-ink"
+          >
+            {q.text.trim() || <span className="text-ink-faint">Nothing typed yet</span>}
+          </button>
+        ) : (
           <div className="inline-flex rounded-lg border border-border p-0.5">
-            {([
-              { value: 'single', label: 'One answer' },
-              { value: 'multi', label: 'Several' },
-              { value: 'match', label: 'Match' },
-            ] as const).map((t) => (
+            {TYPES.map((t) => (
               <button
                 key={t.value}
                 type="button"
                 onClick={() => (t.value === 'match' ? setType('match') : switchType(t.value))}
-                aria-pressed={q.type === t.value || (t.value === 'single' && !q.type)}
+                aria-pressed={(q.type ?? 'single') === t.value}
+                title={t.hint}
                 className={cn(
                   'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-fast',
                   (q.type ?? 'single') === t.value
@@ -278,161 +321,206 @@ function SortableMcq({
               </button>
             ))}
           </div>
-          <span className="inline-flex items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
-            <Lock size={10} /> Correct answer — never sent to the candidate
-          </span>
-        </div>
+        )}
 
-        {/* A snippet the question is ABOUT. This is how coding and debugging are
-            assessed: the candidate reads code and answers a closed question about
-            it, so scoring stays a comparison rather than an execution - no
-            sandbox, no per-run cost, and the same result every time. */}
-        {q.code === undefined ? (
+        <div className="ml-auto flex items-center gap-2">
+          {folded && (
+            <>
+              <span className="hidden text-xs font-medium text-ink-muted sm:inline">{typeLabel(q.type)}</span>
+              {fault && <AlertTriangle size={14} className="text-warn" aria-label="Not finished" />}
+            </>
+          )}
+          {/* A bare number box next to two dropdowns taught nobody what it was.
+              It now says what it is, in the place where the question's own
+              properties live. */}
+          <label className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
+            Points
+            <input
+              type="number"
+              min={0}
+              value={q.points ?? 1}
+              onChange={(e) => onChange({ points: Math.max(0, Number(e.target.value) || 0) })}
+              aria-label={`Question ${index + 1} points`}
+              className="input-base h-8 w-16 text-xs tabular-nums"
+            />
+          </label>
           <button
             type="button"
-            onClick={() => onChange({ code: '' })}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"
+            onClick={onFold}
+            aria-expanded={!folded}
+            aria-label={folded ? `Open question ${index + 1}` : `Fold question ${index + 1}`}
+            className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-surface-hover hover:text-ink"
           >
-            <Code size={12} /> Add a code snippet
+            {folded ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </button>
-        ) : (
-          <div>
-            <label htmlFor={`code-${q.id}`} className="field-label">
-              Code snippet
-            </label>
-            <textarea
-              id={`code-${q.id}`}
-              value={q.code}
-              onChange={(e) => onChange({ code: e.target.value })}
-              onBlur={(e) => { if (!e.target.value.trim()) onChange({ code: undefined }) }}
-              rows={5}
-              spellCheck={false}
-              placeholder={'def total(items):\n    return sum(items)'}
-              className="input-base w-full resize-y py-2 font-mono text-xs leading-relaxed"
-            />
-          </div>
-        )}
-
-        {isMatch ? (
-          /* Authored a ROW at a time, which is how a person thinks about a pairing
-             - and the reason the server must never publish column B in this order:
-             row-for-row is the answer. It shuffles the two columns independently
-             and checks the result is not the pairing before sending it. */
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
-              <span className="flex-1">Item</span>
-              <span className="flex-1">Matches with</span>
-              <span className="w-7" />
-            </div>
-            {pairs.map((row, i) => (
-              <div key={row.promptId} className="flex items-center gap-2">
-                <input
-                  value={row.left}
-                  onChange={(e) => setPair(row.promptId, { left: e.target.value })}
-                  placeholder="Binary search"
-                  aria-label={`Question ${index + 1} pair ${i + 1} item`}
-                  className="input-base h-9 flex-1 text-xs"
-                />
-                <input
-                  value={row.right}
-                  onChange={(e) => setPair(row.promptId, { right: e.target.value })}
-                  placeholder="O(log n)"
-                  aria-label={`Question ${index + 1} pair ${i + 1} match`}
-                  className="input-base h-9 flex-1 text-xs"
-                />
-                <button
-                  onClick={() => removePair(row.promptId)}
-                  disabled={pairs.length <= 2}
-                  aria-label={`Remove pair ${i + 1}`}
-                  title={pairs.length <= 2 ? 'A pairing needs at least two rows' : 'Remove row'}
-                  className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            ))}
-            <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addPair} disabled={pairs.length >= 10}>
-              Add pair
-            </Button>
-          </div>
-        ) : (
-        <div className="space-y-2">
-          {q.options.map((o, i) => (
-            <OptionRow
-              key={o.id}
-              option={o}
-              index={i}
-              questionIndex={index}
-              isMulti={isMulti}
-              checked={q.correctOptionIds.includes(o.id)}
-              onToggle={() => toggle(o.id)}
-              onText={(text) => setOption(o.id, text)}
-              onRemove={() => removeOption(o.id)}
-              canRemove={q.options.length > 2}
-            />
-          ))}
-        </div>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Adding an option is meaningless on a pairing, which has rows instead. */}
-          {!isMatch && (
-            <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addOption} disabled={q.options.length >= 10}>
-              Add option
-            </Button>
-          )}
-          <div className="relative min-w-[9rem] flex-1">
-            <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
-            <input
-              value={q.topic ?? ''}
-              onChange={(e) => onChange({ topic: e.target.value })}
-              placeholder="Topic — groups the score breakdown"
-              aria-label={`Question ${index + 1} topic`}
-              className="input-base h-9 pl-8 text-xs"
-            />
-          </div>
-          {/* Driven by the assessment's own sections, so the only sections on offer
-              are ones that exist. "No section" stays a real choice: a paper without
-              sections works exactly as it always did. */}
-          <select
-            value={q.sectionId ?? ''}
-            onChange={(e) => onChange({ sectionId: e.target.value || undefined })}
-            aria-label={`Question ${index + 1} section`}
-            className="input-base h-9 w-40 text-xs"
+          <button
+            onClick={onRemove}
+            className="rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
+            aria-label={`Remove question ${index + 1}`}
           >
-            <option value="">No section</option>
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.name || 'Untitled section'}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={0}
-            value={q.points ?? 1}
-            onChange={(e) => onChange({ points: Math.max(0, Number(e.target.value) || 0) })}
-            aria-label={`Question ${index + 1} points`}
-            className="input-base h-9 w-20 text-xs tabular-nums"
-          />
+            <Trash2 size={15} />
+          </button>
         </div>
-
-        {/* Shown as you author, not on save: a 40-question paper that fails on
-            question 31 is a bad way to learn the rule. */}
-        {fault && (
-          <p className="flex items-center gap-1.5 text-xs font-medium text-warn">
-            <AlertTriangle size={13} /> {fault}
-          </p>
-        )}
       </div>
 
-      <button
-        onClick={onRemove}
-        className="self-start rounded-lg p-1.5 text-ink-faint transition-colors duration-150 hover:bg-danger-bg hover:text-danger"
-        aria-label={`Remove question ${index + 1}`}
-      >
-        <Trash2 size={15} />
-      </button>
+      {!folded && (
+        <div className="min-w-0 space-y-3.5 p-3.5">
+          <textarea
+            value={q.text}
+            onChange={(e) => onChange({ text: e.target.value })}
+            placeholder="Type the question…"
+            aria-label={`Question ${index + 1} text`}
+            className="textarea-base text-sm"
+          />
+
+          {/* A snippet the question is ABOUT. This is how coding and debugging are
+              assessed: the candidate reads code and answers a closed question about
+              it, so scoring stays a comparison rather than an execution - no
+              sandbox, no per-run cost, and the same result every time. */}
+          {q.code === undefined ? (
+            <button
+              type="button"
+              onClick={() => onChange({ code: '' })}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink hover:underline"
+            >
+              <Code size={12} /> Show them some code with this question
+            </button>
+          ) : (
+            <div>
+              <label htmlFor={`code-${q.id}`} className="field-label">
+                Code they read
+              </label>
+              <textarea
+                id={`code-${q.id}`}
+                value={q.code}
+                onChange={(e) => onChange({ code: e.target.value })}
+                onBlur={(e) => { if (!e.target.value.trim()) onChange({ code: undefined }) }}
+                rows={5}
+                spellCheck={false}
+                placeholder={'def total(items):\n    return sum(items)'}
+                className="input-base w-full resize-y py-2 font-mono text-xs leading-relaxed"
+              />
+            </div>
+          )}
+
+          {isMatch ? (
+            /* Authored a ROW at a time, which is how a person thinks about a pairing
+               - and the reason the server must never publish column B in this order:
+               row-for-row is the answer. It shuffles the two columns independently
+               and checks the result is not the pairing before sending it. */
+            <div className="space-y-2">
+              <p className="text-xs text-ink-muted">
+                Write each pair on its own row. Candidates see the two columns shuffled.
+              </p>
+              <div className="flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-ink-faint">
+                <span className="flex-1">Item</span>
+                <span className="flex-1">Goes with</span>
+                <span className="w-7" />
+              </div>
+              {pairs.map((row, i) => (
+                <div key={row.promptId} className="flex items-center gap-2">
+                  <input
+                    value={row.left}
+                    onChange={(e) => setPair(row.promptId, { left: e.target.value })}
+                    placeholder="Binary search"
+                    aria-label={`Question ${index + 1} pair ${i + 1} item`}
+                    className="input-base h-9 flex-1 text-xs"
+                  />
+                  <input
+                    value={row.right}
+                    onChange={(e) => setPair(row.promptId, { right: e.target.value })}
+                    placeholder="O(log n)"
+                    aria-label={`Question ${index + 1} pair ${i + 1} match`}
+                    className="input-base h-9 flex-1 text-xs"
+                  />
+                  <button
+                    onClick={() => removePair(row.promptId)}
+                    disabled={pairs.length <= 2}
+                    aria-label={`Remove pair ${i + 1}`}
+                    title={pairs.length <= 2 ? 'A pairing needs at least two rows' : 'Remove row'}
+                    className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-danger-bg hover:text-danger disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-ink-faint"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addPair} disabled={pairs.length >= 10}>
+                Add a pair
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-ink-muted">
+                <Lock size={11} className="text-ink-faint" />
+                {isMulti ? 'Tick every right answer' : 'Tick the right answer'} — candidates never see which.
+              </p>
+              {q.options.map((o, i) => (
+                <OptionRow
+                  key={o.id}
+                  option={o}
+                  index={i}
+                  questionIndex={index}
+                  isMulti={isMulti}
+                  checked={q.correctOptionIds.includes(o.id)}
+                  onToggle={() => toggle(o.id)}
+                  onText={(text) => setOption(o.id, text)}
+                  onRemove={() => removeOption(o.id)}
+                  canRemove={q.options.length > 2}
+                />
+              ))}
+              {/* Adding an answer is meaningless on a pairing, which has rows instead. */}
+              <Button size="sm" variant="ghost" icon={<Plus size={13} />} onClick={addOption} disabled={q.options.length >= 10}>
+                Add option
+              </Button>
+            </div>
+          )}
+
+          {/* The two properties nobody has to set, kept below a rule so they read
+              as extras rather than as more of the question. */}
+          <div className="flex flex-wrap items-end gap-3 border-t border-border pt-3">
+            <div className="min-w-[10rem] flex-1">
+              <span className="field-label">Topic — optional</span>
+              <div className="relative">
+                <Tag size={13} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
+                <input
+                  value={q.topic ?? ''}
+                  onChange={(e) => onChange({ topic: e.target.value })}
+                  placeholder="e.g. SQL — splits up the score report"
+                  aria-label={`Question ${index + 1} topic`}
+                  className="input-base h-9 w-full pl-8 text-xs"
+                />
+              </div>
+            </div>
+            {/* Driven by the assessment's own sections, so the only sections on offer
+                are ones that exist. "No section" stays a real choice: a paper without
+                sections works exactly as it always did. */}
+            <div className="w-44">
+              <span className="field-label">Which section</span>
+              <select
+                value={q.sectionId ?? ''}
+                onChange={(e) => onChange({ sectionId: e.target.value || undefined })}
+                aria-label={`Question ${index + 1} section`}
+                className="input-base h-9 w-full text-xs"
+              >
+                <option value="">No section</option>
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name || 'Untitled section'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Shown as you author, not on save: a 40-question paper that fails on
+              question 31 is a bad way to learn the rule. */}
+          {fault && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-warn">
+              <AlertTriangle size={13} /> {fault}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -453,7 +541,12 @@ export default function McqSetsPage() {
   const sets = useQuery({ queryKey: ['mcq-sets'], queryFn: mcqSetsApi.list })
   const [activeId, setActiveId] = useState<string | null>(null)
   const [draft, setDraft] = useState<McqQuestionSet | null>(null)
+  /** The last state the server acknowledged, so "unsaved" is a fact, not a guess. */
+  const [saved, setSaved] = useState<string | null>(null)
   const [genOpen, setGenOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Folded question ids. View state only — it never reaches the draft. */
+  const [folded, setFolded] = useState<Set<string>>(new Set())
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -465,7 +558,11 @@ export default function McqSetsPage() {
   }, [sets.data, activeId])
   useEffect(() => {
     const found = sets.data?.find((s) => s.id === activeId)
-    if (found) setDraft(structuredClone(found))
+    if (found) {
+      setDraft(structuredClone(found))
+      setSaved(JSON.stringify(found))
+      setFolded(new Set())
+    }
   }, [activeId, sets.data])
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['mcq-sets'] })
@@ -477,7 +574,7 @@ export default function McqSetsPage() {
     mutationFn: (paper: { name: string; questions: McqQuestion[] }) => mcqSetsApi.create(paper),
     onSuccess: (s) => {
       invalidate(); setActiveId(s.id); setGenOpen(false)
-      toast.success('Paper generated — review every answer before sending it')
+      toast.success('Written — check every answer before you send it')
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -489,12 +586,15 @@ export default function McqSetsPage() {
   })
   const duplicate = useMutation({
     mutationFn: (id: string) => mcqSetsApi.duplicate(id),
-    onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Set duplicated') },
+    onSuccess: (s) => { invalidate(); setActiveId(s.id); toast.success('Copy made') },
     onError: (e: Error) => toast.error(e.message),
   })
   const remove = useMutation({
     mutationFn: (id: string) => mcqSetsApi.remove(id),
-    onSuccess: () => { invalidate(); setActiveId(null); setDraft(null); toast.success('Set deleted') },
+    onSuccess: () => {
+      invalidate(); setActiveId(null); setDraft(null); setSaved(null); setConfirmDelete(false)
+      toast.success('Assessment deleted')
+    },
     onError: (e: Error) => toast.error(e.message),
   })
   const save = useMutation({
@@ -504,7 +604,10 @@ export default function McqSetsPage() {
         sections: draft!.sections ?? [],
         questions: draft!.questions,
       }),
-    onSuccess: () => { invalidate(); toast.success('Assessment saved') },
+    onSuccess: () => {
+      if (draft) setSaved(JSON.stringify(draft))
+      invalidate(); toast.success('Assessment saved')
+    },
     onError: (e: Error) => toast.error(e.message),
   })
 
@@ -525,11 +628,29 @@ export default function McqSetsPage() {
     setDraft({ ...draft, questions: arrayMove(draft.questions, from, to) })
   }
 
+  const toggleFold = (id: string) =>
+    setFolded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   const faults = draft?.questions.filter((q) => faultOf(q) !== null).length ?? 0
   const totalPoints = draft?.questions.reduce((sum, q) => sum + (q.points ?? 1), 0) ?? 0
+  const dirty = draft !== null && saved !== null && JSON.stringify(draft) !== saved
+  const allFolded = draft !== null && draft.questions.length > 0 && draft.questions.every((q) => folded.has(q.id))
+
+  /* A question you just asked for arrives open, whatever the rest of the paper is
+     doing — its id is new, so it is not in the folded set, and "Fold all" flips
+     back to "Open all" of its own accord. */
+  const addQuestion = () => {
+    if (!draft) return
+    setDraft({ ...draft, questions: [...draft.questions, blankQuestion()] })
+  }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8">
+    <Page>
       <GenerateMcqModal
         open={genOpen}
         onClose={() => setGenOpen(false)}
@@ -537,9 +658,8 @@ export default function McqSetsPage() {
       />
 
       <PageHeader
-        kicker="AI Interview"
         title="Assessments"
-        description="Sections of closed questions — multiple choice, several answers, or matching — scored the instant a candidate submits. No model, no waiting. The answer key stays on the server and never reaches a candidate's browser."
+        description="Tests that mark themselves. Ask people to pick one answer, pick several, or match things up — they are scored the second they hit submit, with no AI and no waiting. The answers you tick stay with us and never reach a candidate's browser."
       />
 
       {sets.isLoading ? (
@@ -574,9 +694,9 @@ export default function McqSetsPage() {
               <Button className="w-full" icon={<Plus size={15} />} loading={create.isPending} onClick={() => create.mutate()}>
                 New assessment
               </Button>
-              {/* Mode A. Generation writes a DRAFT and opens it here: the answer
-                  key it produced is exactly the thing that must be read by a
-                  person before anyone is scored against it. */}
+              {/* Mode A. Generation writes a DRAFT and opens it here: the answers
+                  it picked are exactly the thing that must be read by a person
+                  before anyone is scored against them. */}
               <Button
                 className="w-full"
                 variant="outline"
@@ -595,7 +715,7 @@ export default function McqSetsPage() {
 
             {(sets.data ?? []).length === 0 ? (
               <p className="mt-3 rounded-xl border border-dashed border-rule-strong bg-surface-sunk px-4 py-5 text-center text-xs leading-relaxed text-ink-muted">
-                No assessments yet. Create one above — these are yours alone, because they hold the answers.
+                Nothing here yet. Make one above — only you can see these, because they hold the answers.
               </p>
             ) : (
               <div className="-mx-1 mt-3 space-y-1.5 px-1 lg:max-h-[calc(100vh-17rem)] lg:overflow-y-auto">
@@ -613,7 +733,7 @@ export default function McqSetsPage() {
                     <span className="block truncate text-sm font-semibold text-ink">{s.name}</span>
                     <span className="mt-0.5 block text-xs text-ink-muted">
                       {s.questions.length} question{s.questions.length === 1 ? '' : 's'}
-                      {s.ready === false && <span className="text-warn"> · unfinished</span>}
+                      {s.ready === false && <span className="text-warn"> · not finished</span>}
                     </span>
                   </button>
                 ))}
@@ -625,35 +745,45 @@ export default function McqSetsPage() {
             <Card className="p-0">
               <EmptyState
                 icon={<ListChecks strokeWidth={1.75} />}
-                title="No set selected"
-                description="Pick a set on the left, or create one. Each question takes two or more options and at least one marked correct."
+                title="Nothing open yet"
+                description="Pick one on the left, or make a new one. Each question needs two or more answers and at least one of them ticked as right."
+                action={<Button size="sm" icon={<Plus size={14} />} loading={create.isPending} onClick={() => create.mutate()}>New assessment</Button>}
               />
             </Card>
           ) : (
-            <Card className="p-5">
-              <div className="-mx-5 flex flex-wrap items-center gap-2 border-b border-border px-5 pb-4">
+            <Card className="p-0">
+              {/* Sticky, because a forty-question paper is a long scroll and Save
+                  used to disappear off the top of it the moment you started
+                  working. The name, the running totals and what is left to finish
+                  now stay on screen the whole time. */}
+              <div className="sticky top-14 z-20 flex flex-wrap items-center gap-2 rounded-t-[inherit] border-b border-border bg-surface/95 px-4 py-3 backdrop-blur lg:top-4">
                 <input
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   aria-label="Set name"
-                  className="input-base h-9 max-w-xs text-sm font-semibold"
+                  placeholder="Name this assessment"
+                  className="input-base h-9 max-w-xs flex-1 text-sm font-semibold"
                 />
                 <Badge>{draft.questions.length} question{draft.questions.length === 1 ? '' : 's'}</Badge>
                 <Badge>{totalPoints} point{totalPoints === 1 ? '' : 's'}</Badge>
                 {faults > 0 ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-warn">
-                    <AlertTriangle size={13} /> {faults} to finish before sending
+                    <AlertTriangle size={13} /> {faults} question{faults === 1 ? '' : 's'} to finish
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
                     <Check size={13} /> Ready to send
                   </span>
                 )}
+                {dirty && <Badge variant="warning">Unsaved</Badge>}
+
                 <div className="ml-auto flex items-center gap-2">
                   <Button size="sm" variant="outline" icon={<Copy size={14} />} loading={duplicate.isPending} onClick={() => duplicate.mutate(draft.id)}>
-                    Duplicate
+                    Make a copy
                   </Button>
-                  <Button size="sm" variant="outline" icon={<Trash2 size={14} />} loading={remove.isPending} onClick={() => remove.mutate(draft.id)}>
+                  {/* Asked first. This used to delete a whole paper on one click,
+                      with nothing between the pointer and an hour of work. */}
+                  <Button size="sm" variant="outline" icon={<Trash2 size={14} />} onClick={() => setConfirmDelete(true)}>
                     Delete
                   </Button>
                   {/* ALWAYS enabled. A draft is a legitimate state — nobody
@@ -673,50 +803,89 @@ export default function McqSetsPage() {
                 </div>
               </div>
 
-              <div className="mt-4">
+              <div className="space-y-4 p-4">
                 <SectionsPanel
                   sections={draft.sections ?? []}
                   questionCounts={sectionCounts}
                   onChange={(sections) => setDraft({ ...draft, sections })}
                 />
-              </div>
 
-              <div className="mt-4">
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                  <SortableContext items={draft.questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
-                      {draft.questions.map((q, i) => (
-                        <SortableMcq
-                          key={q.id}
-                          q={q}
-                          index={i}
-                          sections={draft.sections ?? []}
-                          onChange={(patch) =>
-                            setDraft({
-                              ...draft,
-                              questions: draft.questions.map((x) => (x.id === q.id ? { ...x, ...patch } : x)),
-                            })
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="section-label">Questions</span>
+                    <span className="text-xs font-semibold tabular-nums text-ink-faint">
+                      {draft.questions.length}
+                    </span>
+                    <span className="ml-auto flex items-center gap-2">
+                      {draft.questions.length > 1 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={allFolded ? <UnfoldVertical size={13} /> : <FoldVertical size={13} />}
+                          onClick={() =>
+                            setFolded(allFolded ? new Set() : new Set(draft.questions.map((q) => q.id)))
                           }
-                          onRemove={() => setDraft({ ...draft, questions: draft.questions.filter((x) => x.id !== q.id) })}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                        >
+                          {allFolded ? 'Open all' : 'Fold all'}
+                        </Button>
+                      )}
+                    </span>
+                  </div>
 
-                <Button
-                  className="mt-3"
-                  variant="outline"
-                  icon={<ListPlus size={15} />}
-                  onClick={() => setDraft({ ...draft, questions: [...draft.questions, blankQuestion()] })}
-                >
-                  Add question
-                </Button>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                    <SortableContext items={draft.questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {draft.questions.map((q, i) => (
+                          <SortableMcq
+                            key={q.id}
+                            q={q}
+                            index={i}
+                            sections={draft.sections ?? []}
+                            folded={folded.has(q.id)}
+                            onFold={() => toggleFold(q.id)}
+                            onChange={(patch) =>
+                              setDraft({
+                                ...draft,
+                                questions: draft.questions.map((x) => (x.id === q.id ? { ...x, ...patch } : x)),
+                              })
+                            }
+                            onRemove={() => setDraft({ ...draft, questions: draft.questions.filter((x) => x.id !== q.id) })}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+
+                  <Button
+                    className="mt-3"
+                    variant="outline"
+                    icon={<ListPlus size={15} />}
+                    onClick={addQuestion}
+                  >
+                    Add question
+                  </Button>
+                </div>
               </div>
             </Card>
           )}
         </div>
       )}
-    </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => draft && remove.mutate(draft.id)}
+        busy={remove.isPending}
+        title="Delete this assessment?"
+        confirmLabel="Delete it"
+        body={
+          <>
+            <strong className="text-ink">{draft?.name || 'This assessment'}</strong> and all{' '}
+            {draft?.questions.length ?? 0} of its questions will be gone for good. Anyone already
+            sitting it keeps the copy they were sent.
+          </>
+        }
+      />
+    </Page>
   )
 }

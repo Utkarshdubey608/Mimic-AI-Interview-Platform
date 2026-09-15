@@ -3,10 +3,12 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
-  Code2, MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
+  // COD-OFF: Code2 (the Coding mode icon)
+  MessageSquare, Mic, Video, Clock, Clapperboard, Users, ArrowLeft, ArrowRight, Check, FileText, Layers, Plus, UploadCloud, Trash2, AlertTriangle, AlertCircle, Loader2, CheckCircle2, Copy, RefreshCw, Info, Target, Workflow, X, ListChecks,
 } from 'lucide-react'
 import { Button, Input, Skeleton, Badge, cn } from '@/components/ui'
-import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, codingApi, essayPromptsApi, roleConfigsApi } from '@/lib/api'
+// COD-OFF: `codingApi` — restore with the commented-out codingProblems query below.
+import { mcqSetsApi, questionSetsApi, invitesApi, settingsApi, pipelinesApi, essayPromptsApi, roleConfigsApi } from '@/lib/api'
 import { getCandidateLinkOrigin } from '@/lib/candidateOrigin'
 import { GenerateFromResumeModal } from './GenerateFromResumeModal'
 import { InviteEmailStep } from './invite-email/InviteEmailStep'
@@ -40,10 +42,10 @@ const MODES: { value: Mode; label: string; blurb: string; icon: React.ReactNode 
   { value: 'video_avatar', label: 'Video Avatar', blurb: 'Conversational AI video avatar (Tavus).',   icon: <Video size={20} /> },
   { value: 'chat',         label: 'Timed Q&A',    blurb: '30s prep + timed answers (HireVue-style).', icon: <Clock size={20} /> },
   { value: 'mcq',          label: 'Assessment',   blurb: 'Sections of closed questions, scored instantly.', icon: <ListChecks size={20} /> },
-  { value: 'coding',       label: 'Coding',       blurb: 'Solve problems in an editor, run against tests.', icon: <Code2 size={20} /> },
+  // COD-OFF: { value: 'coding', label: 'Coding', blurb: 'Solve problems in an editor, run against tests.', icon: <Code2 size={20} /> },
   { value: 'video',        label: 'Video Interview', blurb: 'Candidate records webcam answers per question.', icon: <Clapperboard size={20} /> },
   { value: 'two_way',      label: 'Two-way Interview', blurb: 'Live recruiter ↔ candidate video interview.', icon: <Users size={20} /> },
-  { value: 'essay',        label: 'Essay Writing', blurb: 'One long written answer, marked against a rubric.', icon: <FileText size={20} /> },
+  { value: 'essay',        label: 'Essay Writing', blurb: 'One long written answer, marked against your notes.', icon: <FileText size={20} /> },
 ]
 
 const STYLES: { value: QuestionStyle; label: string }[] = [
@@ -578,9 +580,9 @@ export default function InviteWizard() {
   const [mixedFixedSource, setMixedFixedSource] = useState<'set' | 'adhoc'>('set')
   const [mixedQuestions, setMixedQuestions] = useState<string[]>([''])
   const [selectedMcqSetId, setSelectedMcqSetId] = useState('')
-  // A LIST, not one id: a coding assessment is normally two or three problems,
-  // and order is the order a candidate works through them.
-  const [selectedCodingIds, setSelectedCodingIds] = useState<string[]>([])
+  // COD-OFF: a LIST, not one id — a coding assessment is normally two or three
+  // problems, and order is the order a candidate works through them.
+  // const [selectedCodingIds, setSelectedCodingIds] = useState<string[]>([])
   const [selectedEssayId, setSelectedEssayId] = useState<string>('')
   const [genOpen, setGenOpen] = useState(false)
   // Step 2 (multi) — the ordered rounds being authored; modes/config are per-round.
@@ -613,9 +615,9 @@ export default function InviteWizard() {
   const sets = useQuery({ queryKey: ['question-sets'], queryFn: questionSetsApi.list, enabled: step === 2 && mode !== 'two_way' })
   // MCQ papers are a separate, owner-scoped collection — see mcqSetsApi.
   const mcqSets = useQuery({ queryKey: ['mcq-sets'], queryFn: mcqSetsApi.list, enabled: step === 2 && mode === 'mcq' })
-  // Coding problems are owner-scoped like MCQ papers, and for the same reason:
-  // a problem carries its hidden tests and their expected outputs.
-  const codingProblems = useQuery({ queryKey: ['coding-problems'], queryFn: codingApi.list, enabled: step === 2 && mode === 'coding' })
+  // COD-OFF: coding problems are owner-scoped like MCQ papers, and for the same
+  // reason — a problem carries its hidden tests and their expected outputs.
+  // const codingProblems = useQuery({ queryKey: ['coding-problems'], queryFn: codingApi.list, enabled: step === 2 && mode === 'coding' })
   const essayPrompts = useQuery({ queryKey: ['essay-prompts'], queryFn: essayPromptsApi.list, enabled: step === 2 && mode === 'essay' })
 
   const validCount = candidates.filter((c) => emailOk(c.email)).length
@@ -704,7 +706,7 @@ export default function InviteWizard() {
     // a bare `return` — no request, no toast, a Send button that did nothing.
     if (!mode || (mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && mode !== 'essay' && !source) || validCount === 0) return
     if (mode === 'mcq' && !selectedMcqSetId) { toast.error('Pick an MCQ set first'); return }
-    if (mode === 'coding' && selectedCodingIds.length === 0) { toast.error('Pick at least one coding problem'); return }
+    // COD-OFF: if (mode === 'coding' && selectedCodingIds.length === 0) { toast.error('Pick at least one coding problem'); return }
     if (mode === 'essay' && !selectedEssayId) { toast.error('Pick an essay prompt'); return }
     if (!emailLocked.ok) { toast.error(`The invite email is missing the interview link (${emailLocked.missing.join(', ')})`); return }
     setCreating(true)
@@ -716,7 +718,7 @@ export default function InviteWizard() {
         // questions at all, the other references a pre-authored paper by id.
         ...(mode !== 'two_way' && mode !== 'mcq' && mode !== 'coding' && mode !== 'essay' ? { source: source as Source } : {}),
         ...(mode === 'mcq' ? { mcqSetId: selectedMcqSetId } : {}),
-        ...(mode === 'coding' ? { codingProblemIds: selectedCodingIds } : {}),
+        // COD-OFF: ...(mode === 'coding' ? { codingProblemIds: selectedCodingIds } : {}),
         ...(mode === 'essay' ? { essayPromptId: selectedEssayId } : {}),
         config: source === 'tailor' ? { style: cfg.style, techCount: cfg.techCount, nonTechCount: cfg.nonTechCount, difficulty: cfg.difficulty, domains: cfg.domains, model: cfg.model } : undefined,
         questionSetId: source === 'set' ? selectedSetId : undefined,
@@ -842,7 +844,7 @@ export default function InviteWizard() {
     // MCQ has no résumé-tailored path: the paper is authored in advance, with its
     // answers, so the only thing to choose is which paper.
     : mode === 'mcq' ? !!selectedMcqSetId
-    : mode === 'coding' ? selectedCodingIds.length > 0
+    // COD-OFF: : mode === 'coding' ? selectedCodingIds.length > 0
     : mode === 'essay' ? !!selectedEssayId
     : source === 'tailor' ? tailorTotal >= 1 && tailorTotal <= 25
     : source === 'set' ? !!selectedSetId
@@ -1015,7 +1017,7 @@ export default function InviteWizard() {
             </div>
             <input id="role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. Senior Backend Engineer" className="input-base max-w-md" autoFocus />
           </section>
-
+{/* 
           <section>
             <div className="mb-4">
               <span className="block font-display text-base font-extrabold tracking-[-0.02em] text-neutral-900">Where they can take it</span>
@@ -1026,7 +1028,7 @@ export default function InviteWizard() {
             </div>
             <DevicePicker value={devices} onChange={setDevices} />
           </section>
-
+ */}
           <StepFooter
             left={<Button variant="ghost" onClick={() => navigate('/sessions')}>Cancel</Button>}
             hint={step1Valid ? undefined : setupType === 'single' ? 'Pick a mode and name the role to continue.' : 'Name the role to continue.'}
@@ -1051,11 +1053,20 @@ export default function InviteWizard() {
             </>
           ) : (
             <>
-              {mode === 'coding' ? (
-                /* Coding: which problems. No résumé-tailored path, for the same
-                   reason MCQ has none — a problem needs its test cases and their
-                   expected outputs authored in advance, and generated-per-candidate
-                   tests would have nothing to grade against. */
+              {
+              /* ── Coding interviews are switched off in the web app ──────────
+                 Nothing below is deleted. To bring coding back: uncomment this
+                 arm, the `coding` entry in MODES, `selectedCodingIds`, the
+                 `codingProblems` query, the four `mode === 'coding'` guards
+                 flagged COD-OFF, the /coding-problems route in App.tsx and its
+                 Nav.tsx entry. The candidate-side CodingStage is untouched, so
+                 an interview already sent still runs and still scores.
+
+              mode === 'coding' ? (
+                // Coding: which problems. No résumé-tailored path, for the same
+                // reason MCQ has none — a problem needs its test cases and their
+                // expected outputs authored in advance, and generated-per-candidate
+                // tests would have nothing to grade against.
                 <div>
                   <StepSection
                     title="Choose the coding problems"
@@ -1081,10 +1092,10 @@ export default function InviteWizard() {
                       <div className="space-y-2">
                         {(codingProblems.data ?? []).map((problem) => {
                           const sel = selectedCodingIds.includes(problem.id)
-                          /* A problem with faults is shown but not selectable. The
-                             server refuses it at send time anyway; saying so here
-                             names which problem and why, instead of failing the
-                             whole batch at the last step. */
+                          //A problem with faults is shown but not selectable. The
+                             // server refuses it at send time anyway; saying so here
+                             // names which problem and why, instead of failing the
+                             // whole batch at the last step.
                           const blocked = problem.faults.length > 0
                           return (
                             <button
@@ -1123,15 +1134,17 @@ export default function InviteWizard() {
                     )}
                   </StepSection>
                 </div>
-              ) : mode === 'essay' ? (
+              ) :
+              */
+              mode === 'essay' ? (
                 /* Essay: one prompt. No résumé-tailored path for the same reason
                    MCQ has none — the rubric and the limits are authored in advance,
                    and a prompt generated per candidate could not be marked against
                    a scheme the recruiter had actually reviewed. */
                 <div>
                   <StepSection
-                    title="Choose the essay prompt"
-                    hint="Authored in Essay prompts, with its word limits and time limit. Marked against your rubric after submission."
+                    title="Choose the essay question"
+                    hint="Written in Essay questions, with its word limits and time limit. Marked against your notes once it is handed in."
                   >
                     {essayPrompts.isLoading ? (
                       <div className="space-y-2">
@@ -1142,7 +1155,7 @@ export default function InviteWizard() {
                       <div className="rounded-2xl border border-dashed border-rule-strong bg-surface-sunk px-5 py-6 text-center">
                         <p className="text-sm font-semibold text-ink">No essay prompts yet</p>
                         <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-ink-muted">
-                          Write one in Essay prompts — the question, its word limits and how long the
+                          Write one in Essay questions — the question, its word limits and how long the
                           candidate has — then it appears here.
                         </p>
                         <Button className="mt-3" size="sm" variant="outline" onClick={() => navigate('/essay-prompts')}>
@@ -1313,7 +1326,7 @@ export default function InviteWizard() {
                 left={<Button variant="ghost" icon={<ArrowLeft size={15} />} onClick={() => setStep(1)}>Back</Button>}
                 hint={step2Valid ? undefined
                   : mode === 'mcq' ? 'Pick an MCQ paper to continue.'
-                  : mode === 'coding' ? 'Pick at least one coding problem to continue.'
+                  // COD-OFF: : mode === 'coding' ? 'Pick at least one coding problem to continue.'
                   : mode === 'essay' ? 'Pick an essay prompt to continue.'
                   : !source ? 'Choose a question source to continue.'
                   : source === 'set' ? 'Pick a question set to continue.'

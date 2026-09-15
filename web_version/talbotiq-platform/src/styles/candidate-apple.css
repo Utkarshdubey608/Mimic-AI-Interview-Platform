@@ -93,7 +93,14 @@
   color: var(--ap-label);
 }
 
-/* ── Dark, deliberately (not an inversion) ───────────────────────────────── */
+/* ── Dark, deliberately (not an inversion) ─────────────────────────────────
+   DARK-OFF: switched off with the rest of the dark ground (see
+   DARK_GROUND_ENABLED in src/lib/workspaceGround.ts). This block is the one
+   place the candidate surface went dark on its own — off the app's ground
+   entirely, straight off the operating system's setting — so leaving it in
+   would have given a candidate on a dark-mode laptop the one dark screen
+   left in the product. Uncomment it when the ground comes back.
+
 @media (prefers-color-scheme: dark) {
   [data-surface='candidate'] {
     --ap-ground: #000000;
@@ -119,6 +126,7 @@
     --ap-shadow-sheet: 0 -8px 48px -12px rgba(0, 0, 0, 0.7);
   }
 }
+*/
 
 /* ── §14: the three signals, all three honoured ──────────────────────────── */
 
