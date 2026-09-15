@@ -15,6 +15,26 @@ import { useEffect, useSyncExternalStore } from 'react'
 
 export type WorkspaceGround = 'room' | 'record'
 
+/* ── TEMP: the dark ground is switched off platform-wide ─────────────────────
+   Recruiter AND candidate. Nothing is deleted and no palette is edited — `room`
+   simply stops being reachable, so every surface resolves to `record`.
+
+   It is done HERE rather than by editing tokens.css because the dark palette is
+   contrast-gated by scripts/contrast-audit.mjs and asserted by schemes.test.ts;
+   removing the tokens would break both, and re-adding them later would mean
+   re-deriving a palette that already exists and already passes. Collapsing the
+   CHOICE instead leaves the dark world intact and unreachable.
+
+   To bring dark back: set this to true. Every site that honours it routes
+   through `resolveGround` or reads this constant directly, and each one is
+   marked DARK-OFF. */
+export const DARK_GROUND_ENABLED = false
+
+/** Collapses any ground to the one that is currently switched on. */
+export function resolveGround(ground: WorkspaceGround): WorkspaceGround {
+  return DARK_GROUND_ENABLED ? ground : 'record'
+}
+
 /**
  * Pin the document's ground while the calling surface is mounted.
  *
@@ -25,15 +45,18 @@ export type WorkspaceGround = 'room' | 'record'
  * value is restored on unmount so nested surfaces unwind correctly.
  */
 export function useDocumentGround(ground: WorkspaceGround): void {
+  // DARK-OFF: resolved here as well as at the call sites, so a surface that
+  // pins a literal ground cannot reopen the dark world on the document root.
+  const resolved = resolveGround(ground)
   useEffect(() => {
     const el = document.documentElement
     const prev = el.dataset.ground
-    el.dataset.ground = ground
+    el.dataset.ground = resolved
     return () => {
       if (prev === undefined) delete el.dataset.ground
       else el.dataset.ground = prev
     }
-  }, [ground])
+  }, [resolved])
 }
 
 const KEY = 'mimic-workspace-ground'
@@ -54,14 +77,20 @@ const KEY = 'mimic-workspace-ground'
 const CHOSEN = 'mimic-workspace-ground-chosen'
 
 function readStored(): WorkspaceGround {
+  // DARK-OFF: a stored `room` is kept in localStorage but not honoured, so a
+  // recruiter who was on dark before this went out finds their choice waiting
+  // rather than overwritten when it is switched back on.
   try {
-    return localStorage.getItem(KEY) === 'record' ? 'record' : 'room'
+    return resolveGround(localStorage.getItem(KEY) === 'record' ? 'record' : 'room')
   } catch {
-    return 'room'
+    return resolveGround('room')
   }
 }
 
 export function hasGroundChoice(): boolean {
+  // DARK-OFF: there is nothing to choose between, so the first-run picker is
+  // answered before it is asked.
+  if (!DARK_GROUND_ENABLED) return true
   try {
     return localStorage.getItem(CHOSEN) === '1'
   } catch {
@@ -91,13 +120,18 @@ export function setWorkspaceGround(ground: WorkspaceGround): void {
      dark is what most people keep — so returning early without recording it
      would show the picker again on the next visit. */
   markChosen()
-  if (ground === current) return
-  current = ground
+  /* DARK-OFF: the REQUEST is what gets stored, so a preference outlives the
+     switch-off and comes back intact; only the APPLIED value is collapsed. The
+     write moved above the early return for that reason — a request that does not
+     change the applied ground still changes the stored preference. */
   try {
     localStorage.setItem(KEY, ground)
   } catch {
     /* private mode — the choice still applies for this session */
   }
+  const next = resolveGround(ground)
+  if (next === current) return
+  current = next
   listeners.forEach((fn) => fn())
 }
 

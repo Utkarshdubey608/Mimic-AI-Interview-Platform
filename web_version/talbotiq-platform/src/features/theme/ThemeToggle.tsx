@@ -15,7 +15,7 @@
 import { Moon, Sun } from 'lucide-react'
 
 import { cn } from '@/components/ui'
-import { setWorkspaceGround, useWorkspaceGround, type WorkspaceGround } from '@/lib/workspaceGround'
+import { DARK_GROUND_ENABLED, setWorkspaceGround, useWorkspaceGround, type WorkspaceGround } from '@/lib/workspaceGround'
 
 const OPTIONS: { value: WorkspaceGround; label: string; Icon: typeof Sun }[] = [
   { value: 'record', label: 'Light', Icon: Sun },
@@ -28,6 +28,14 @@ export function ThemeToggle({ className, compact = false }: {
   compact?: boolean
 }) {
   const ground = useWorkspaceGround()
+  /* DARK-OFF: with only one ground reachable there is nothing to toggle, and a
+     switch that cannot change anything is worse than no switch. This is the
+     single hiding place for the login screen, the candidate header and the
+     scheme picker — all three render this component.
+
+     After the hook, not before it: an early return above a hook is a
+     rules-of-hooks violation even when the condition is a module constant. */
+  if (!DARK_GROUND_ENABLED) return null
 
   return (
     <div

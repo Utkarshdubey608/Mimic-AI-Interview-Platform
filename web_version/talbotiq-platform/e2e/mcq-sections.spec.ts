@@ -164,7 +164,7 @@ test.describe('authoring the new question types', () => {
     const store: Store = { sets: [] }
     await openNewAssessment(page, store)
 
-    await page.getByRole('button', { name: 'Match' }).click()
+    await page.getByRole('button', { name: 'Match pairs' }).click()
 
     // Seeded with the fewest rows a pairing can ask, and they cannot be removed.
     await expect(page.getByLabel('Question 1 pair 1 item')).toBeVisible()
@@ -194,8 +194,8 @@ test.describe('authoring the new question types', () => {
     await openNewAssessment(page, store)
 
     await page.getByLabel('Question 1 option A').fill('Elastic Compute Cloud')
-    await page.getByRole('button', { name: 'Match' }).click()
-    await page.getByRole('button', { name: 'One answer' }).click()
+    await page.getByRole('button', { name: 'Match pairs' }).click()
+    await page.getByRole('button', { name: 'Pick one' }).click()
     await expect(page.getByLabel('Question 1 option A')).toHaveValue('Elastic Compute Cloud')
   })
 
@@ -205,8 +205,8 @@ test.describe('authoring the new question types', () => {
     const store: Store = { sets: [] }
     await openNewAssessment(page, store)
 
-    await page.getByRole('button', { name: 'Add a code snippet' }).click()
-    await page.getByLabel('Code snippet').fill('def f(n):\n    return n // 2')
+    await page.getByRole('button', { name: 'Show them some code with this question' }).click()
+    await page.getByLabel('Code they read').fill('def f(n):\n    return n // 2')
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect.poll(() => store.lastSave?.questions?.[0]?.code).toContain('\n')
@@ -221,13 +221,13 @@ test.describe('authoring the new question types', () => {
     await openNewAssessment(page, store)
 
     await page.getByLabel('Question 1 text').fill('Match the algorithm to its complexity.')
-    await page.getByRole('button', { name: 'Match', exact: true }).click()
+    await page.getByRole('button', { name: 'Match pairs', exact: true }).click()
     await page.getByLabel('Question 1 pair 1 item').fill('Binary search')
     await page.getByLabel('Question 1 pair 1 match').fill('O(log n)')
     await page.getByLabel('Question 1 pair 2 item').fill('Bubble sort')
     await page.getByLabel('Question 1 pair 2 match').fill('O(n squared)')
 
-    await expect(page.getByText('Needs at least two options.')).toHaveCount(0)
+    await expect(page.getByText('Add at least two answers to choose from.')).toHaveCount(0)
     await expect(page.getByText('Ready to send')).toBeVisible()
   })
 
@@ -237,7 +237,7 @@ test.describe('authoring the new question types', () => {
     await openNewAssessment(page, store)
 
     await page.getByLabel('Question 1 text').fill('Match them.')
-    await page.getByRole('button', { name: 'Match', exact: true }).click()
+    await page.getByRole('button', { name: 'Match pairs', exact: true }).click()
     await page.getByLabel('Question 1 pair 1 item').fill('A')
     await page.getByLabel('Question 1 pair 1 match').fill('Same')
     await page.getByLabel('Question 1 pair 2 item').fill('B')

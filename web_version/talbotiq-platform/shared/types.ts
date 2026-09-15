@@ -1160,6 +1160,18 @@ export interface SessionListItem {
    * behind it, which is every one created before that record existed.
    */
   testId?: string | null
+  /**
+   * Which ROUND of that test this session is, from the shared assignment.
+   *
+   * The recruiter list stores one row per candidate PER ROUND, so without these the
+   * same person appears several times with nothing on the row naming which round it
+   * was. `roundId` is the identity — two rounds can share a title — and is what the
+   * rounds view groups candidates by. All three are null for a session that predates
+   * the timeline and belongs to no round.
+   */
+  roundId?: string | null
+  roundOrder?: number | null
+  roundTitle?: string | null
   templateId: string
   templateName: string
   track: TrackType
@@ -1588,8 +1600,29 @@ export interface InterviewRound {
   isRecruiterScored: boolean
 }
 
+/** One person's place in a round, straight from their assignment. */
+export interface RoundRosterEntry {
+  /** The assignment's own id — NOT a session id. */
+  id: string
+  email: string
+  name: string
+  /** The assignment's status: `assigned` until they engage with it. */
+  status: string
+}
+
 export interface TimelineResponse {
   rounds: InterviewRound[]
+  /**
+   * Who is in each round, keyed by `roundId`; the empty string holds assignments
+   * that belong to no round.
+   *
+   * Sent because the browser cannot work it out: the sessions list is built from web
+   * SESSION rows, and somebody assigned to a round has no session row until they open
+   * it — so they were invisible to every round-scoped view at exactly the moment a
+   * recruiter wants to see them. Carries no score; merge with the sessions list for
+   * that.
+   */
+  rosters: Record<string, RoundRosterEntry[]>
   /**
    * Assignments that belong to NO round. Non-zero means the test was created as a
    * single round and given rounds afterwards — those are invisible to every

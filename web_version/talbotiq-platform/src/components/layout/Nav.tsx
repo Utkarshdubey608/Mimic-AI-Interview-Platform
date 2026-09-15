@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LogOut, Menu, X, Files, GitBranch, FileText, ListChecks, ListTodo,
-  Code2, Workflow,
+  Workflow, // Code2 — restore alongside the commented-out Coding problems entry below
   BarChart3, UserSquare2, Settings as SettingsIcon, KeyRound,
 } from 'lucide-react'
 import { cn } from '@/components/ui'
 import { useAppStore } from '@/store/useAppStore'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { MimicMark } from '@/components/brand/MimicMark'
-import { setWorkspaceGround, useWorkspaceGround } from '@/lib/workspaceGround'
+import { setWorkspaceGround, DARK_GROUND_ENABLED, useWorkspaceGround } from '@/lib/workspaceGround'
 
 /**
  * THE SPINE — the bundle's cover, carrying its sections.
@@ -56,10 +56,17 @@ const GROUPS: Group[] = [
       { to: '/templates',     label: 'Templates',     icon: FileText },
       { to: '/question-sets', label: 'Question sets', icon: ListChecks },
       { to: '/mcq-sets', label: 'Assessments', icon: ListTodo },
-      // Beside Assessments rather than under Configuration: a coding problem is
-      // a thing a candidate is set, like a paper, not a setting.
+      /* ── Coding interviews are switched off in the web app ────────────────
+         Commented out rather than deleted, so turning the feature back on is
+         this line plus the route in App.tsx and the `coding` entry in
+         InviteWizard's MODES. `ALL` below feeds the command palette from this
+         same array, so hiding it here hides it there too.
+
+         Beside Assessments rather than under Configuration: a coding problem is
+         a thing a candidate is set, like a paper, not a setting.
       { to: '/coding-problems', label: 'Coding problems', icon: Code2 },
-      { to: '/essay-prompts', label: 'Essay prompts', icon: FileText },
+      */
+      { to: '/essay-prompts', label: 'Essay questions', icon: FileText },
     ],
   },
   {
@@ -100,7 +107,9 @@ const ALL: Dest[] = GROUPS.flatMap((g) => g.items)
    itself. The ground names are unchanged everywhere they matter: in the store, in
    `data-ground`, in the token layer and in every comment about them. */
 function GroundSwitch({ compact = false }: { compact?: boolean }) {
+  // DARK-OFF: nothing to switch between while the dark ground is off.
   const ground = useWorkspaceGround()
+  if (!DARK_GROUND_ENABLED) return null
   return (
     <div
       role="group"

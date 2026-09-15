@@ -1,250 +1,91 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { AlertTriangle, CalendarClock, CheckCircle2, Plus, Square, UserPlus } from 'lucide-react'
-import { Button, Card, EmptyState, ErrorState, Modal, Select, Skeleton, cn } from '@/components/ui'
+import { Button, Select, cn } from '@/components/ui'
 import { roundsApi, describeFetchError } from '@/lib/api'
-import type { InterviewRound, RoundKind, RoundState } from '@shared/types'
+import type { RoundKind } from '@shared/types'
+import { DOT_TONE, KINDS } from './roundKinds'
 
 /**
- * A test's timeline, on the shared rounds model.
+ * The pieces a rounds timeline is drawn from.
  *
- * The web had `web_pipelines` and the Flutter app had `tests/{testId}/rounds`, and
- * neither knew about the other — a candidate advanced on one was invisible on the
- * other. This is the Flutter model, which is the one being kept.
+ * This file used to own the whole surface — its own Card, its own queries, its own
+ * mutations — and `RoundsModal` rendered it next to the decision. That split was the
+ * problem the merge set out to fix: the stages and the decision are one thing read top
+ * to bottom, and a recruiter deciding a round has to be able to see who is IN it.
+ * Candidates live on the sessions list, which only `RoundsModal` has, so the stage
+ * nodes cannot be assembled here.
  *
- * **Additive, not a replacement.** The existing pipeline board still runs on
- * `web_pipelines`; the two models run in parallel until the old one is retired. This
- * panel is the capability the web genuinely lacked: authoring rounds a recruiter's
- * phone can also see.
- *
- * Two things it deliberately does NOT compute:
- *
- * • `state` comes from the server, derived from the clock. Recomputing it here would
- *   put a second answer in the product, and the two would disagree the moment a
- *   deadline passed between a fetch and a render.
- * • "Ending a round" is a server action for a reason a client cannot reproduce: each
- *   candidate's device gates on `expiresAt` on their OWN assignment, so closing a
- *   round means writing to every one of them.
+ * So this is now presentation and one small form. `RoundsModal` owns the data.
  */
-const KINDS: { id: RoundKind; label: string; hint: string }[] = [
-  { id: 'resume', label: 'Résumé screen', hint: 'They submit a CV — no interview session' },
-  { id: 'chat', label: 'Timed Q&A', hint: 'Typed answers, one question at a time' },
-  { id: 'video', label: 'Video answers', hint: 'Recorded video responses' },
-  { id: 'voice', label: 'Voice interview', hint: 'A spoken conversation with the AI' },
-  { id: 'two_way', label: 'Live interview', hint: 'A real call with a person — you score it' },
-]
 
-const STATE_STYLE: Record<RoundState, string> = {
-  open: 'border-ok-rule bg-ok-bg text-ok',
-  scheduled: 'border-border bg-neutral-50 text-neutral-500',
-  // NOT an error colour. A closed round is a normal end state, not a fault.
-  closed: 'border-border bg-neutral-100 text-neutral-600',
-}
-
-export function TimelinePanel({ testId }: { testId: string }) {
-  const qc = useQueryClient()
-  const [adding, setAdding] = useState(false)
-
-  const timeline = useQuery({
-    queryKey: ['rounds', testId],
-    queryFn: () => roundsApi.list(testId),
-    enabled: !!testId,
-  })
-
-  const refresh = () => void qc.invalidateQueries({ queryKey: ['rounds', testId] })
-
-  const end = useMutation({
-    mutationFn: (roundId: string) => roundsApi.end(testId, roundId),
-    onSuccess: (result) => {
-      /* `lockedOut` is the number that matters: stamping the round alone closes
-         nothing, so reporting "ended" without it would hide a no-op. */
-      toast.success(
-        result.lockedOut === 0
-          ? 'Round ended. Nobody had it open.'
-          : `Round ended — ${result.lockedOut} candidate${result.lockedOut === 1 ? '' : 's'} locked out.`,
-      )
-      refresh()
-    },
-    onError: (e) => toast.error(describeFetchError(e, 'Could not end the round.')),
-  })
-
-  const assign = useMutation({
-    mutationFn: (roundId: string) => roundsApi.assign(testId, roundId),
-    onSuccess: (result) => {
-      toast.success(
-        result.skipped > 0
-          ? `${result.assigned} assigned, ${result.skipped} already in this round.`
-          : `${result.assigned} candidate${result.assigned === 1 ? '' : 's'} assigned.`,
-      )
-      refresh()
-    },
-    onError: (e) => toast.error(describeFetchError(e, 'Could not assign candidates.')),
-  })
-
-  const adopt = useMutation({
-    mutationFn: (roundId: string) => roundsApi.adopt(testId, roundId),
-    onSuccess: (result) => {
-      toast.success(`${result.adopted} earlier assignment(s) moved into this round.`)
-      refresh()
-    },
-    onError: (e) => toast.error(describeFetchError(e, 'Could not adopt those.')),
-  })
-
-  const rounds = timeline.data?.rounds ?? []
-  const orphaned = timeline.data?.legacyAssignments ?? 0
-
-  return (
-    <Card className="p-0">
-      <div className="record-head flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-        <span className="section-label">Timeline</span>
-        <Button size="sm" variant="secondary" onClick={() => setAdding(true)} icon={<Plus size={14} />}>
-          Add round
-        </Button>
-      </div>
-
-      {timeline.isLoading ? (
-        <div className="space-y-2 p-4">
-          {[0, 1].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
-        </div>
-      ) : timeline.isError ? (
-        <div className="p-4">
-          <ErrorState
-            title="Couldn’t load the timeline"
-            detail={describeFetchError(timeline.error, 'The rounds are safe — this is a display problem.')}
-            onRetry={() => void timeline.refetch()}
-          />
-        </div>
-      ) : rounds.length === 0 ? (
-        <div className="p-4">
-          <EmptyState
-            icon={<CalendarClock strokeWidth={1.75} />}
-            title="One round, no timeline"
-            description="Add rounds to run this test in stages — a résumé screen, then an interview, then a live call. Candidates already assigned can be moved into the first round you create."
-          />
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {rounds.map((round) => (
-            <RoundRow
-              key={round.id}
-              round={round}
-              busy={end.isPending || assign.isPending || adopt.isPending}
-              onEnd={() => {
-                /* Irreversible for the candidates in it, so it asks — and says what
-                   actually happens rather than "are you sure?". */
-                if (
-                  !window.confirm(
-                    `End "${round.title}" now?\n\nAnyone who has not finished loses access ` +
-                      'immediately. Candidates who already completed it are unaffected.',
-                  )
-                ) return
-                end.mutate(round.id)
-              }}
-              onAssign={() => assign.mutate(round.id)}
-            />
-          ))}
-        </ul>
-      )}
-
-      {/* Named rather than hidden. These assignments predate the timeline, belong to no
-          round, and are invisible to every round-scoped view — a recruiter cannot fix
-          what nobody tells them about. Worse, assigning again creates a SECOND document
-          per candidate, so the same test shows twice on their screen. */}
-      {orphaned > 0 && rounds.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-warning/5 px-4 py-3">
-          <p className="flex items-start gap-1.5 text-xs text-warning">
-            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" aria-hidden="true" />
-            {orphaned} candidate{orphaned === 1 ? '' : 's'} {orphaned === 1 ? 'was' : 'were'} assigned
-            before this timeline existed, so {orphaned === 1 ? 'they belong' : 'they belong'} to no round.
-            Move {orphaned === 1 ? 'them' : 'them'} into the first round — their existing answers and
-            scores are kept.
-          </p>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => adopt.mutate(rounds[0].id)}
-            loading={adopt.isPending}
-          >
-            Move into “{rounds[0].title}”
-          </Button>
-        </div>
-      ) : null}
-
-      <AddRoundModal
-        open={adding}
-        onClose={() => setAdding(false)}
-        testId={testId}
-        onCreated={refresh}
-      />
-    </Card>
-  )
-}
-
-function RoundRow({
-  round,
-  busy,
-  onEnd,
-  onAssign,
+/**
+ * One step on the rail.
+ *
+ * The connecting line is a pseudo-element rather than an element, so the last node
+ * hides it with `last:before:hidden` and nothing has to be told how many siblings it
+ * has — a list that renders its own tail is a list that draws a line into nothing the
+ * first time a caller appends to it.
+ */
+export function TimelineNode({
+  tone, icon, title, chip, meta, actions, children,
 }: {
-  round: InterviewRound
-  busy: boolean
-  onEnd: () => void
-  onAssign: () => void
+  tone: keyof typeof DOT_TONE
+  icon: React.ReactNode
+  title: React.ReactNode
+  chip?: React.ReactNode
+  meta?: React.ReactNode
+  actions?: React.ReactNode
+  children?: React.ReactNode
 }) {
-  const kind = KINDS.find((k) => k.id === round.kind)
-
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs tabular-nums text-neutral-400">{round.order + 1}</span>
-          <span className="truncate text-sm font-semibold text-neutral-900">{round.title}</span>
-          {/* Straight from the server — derived there from the clock, never stored. */}
-          <span className={cn('rounded-md border px-2 py-0.5 text-[11px] font-semibold', STATE_STYLE[round.state])}>
-            {round.state}
-          </span>
-          {round.endedManually ? (
-            <span className="text-[11px] text-neutral-400">ended early</span>
-          ) : null}
-        </div>
-        <p className="mt-0.5 truncate text-xs text-neutral-500">
-          {kind?.label ?? round.kind}
-          {round.closesAt ? ` · closes ${new Date(round.closesAt).toLocaleDateString()}` : ''}
-          {/* Worth saying: nobody scores a live round but the recruiter, because there
-              is no recording for a model to read. */}
-          {round.isRecruiterScored ? ' · you score this one' : ''}
-        </p>
-      </div>
-
-      <div className="flex flex-shrink-0 gap-2">
-        <Button size="sm" variant="secondary" onClick={onAssign} disabled={busy} icon={<UserPlus size={14} />}>
-          Assign
-        </Button>
-        {round.state === 'closed' ? (
-          <span className="inline-flex items-center gap-1.5 px-2 text-xs text-neutral-400">
-            <CheckCircle2 size={14} aria-hidden="true" /> Closed
-          </span>
-        ) : (
-          <Button size="sm" variant="secondary" onClick={onEnd} disabled={busy} icon={<Square size={14} />}>
-            End now
-          </Button>
+    <li
+      className={cn(
+        'relative flex gap-3.5 pb-5 last:pb-0',
+        'before:absolute before:left-[13px] before:top-8 before:bottom-0 before:w-px before:bg-rule',
+        'last:before:hidden',
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          'relative z-10 mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border',
+          DOT_TONE[tone],
         )}
+      >
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-sm font-semibold text-ink">{title}</span>
+          {chip}
+          {actions ? <span className="ml-auto flex flex-shrink-0 gap-2">{actions}</span> : null}
+        </div>
+        {meta ? <div className="mt-0.5 text-xs leading-relaxed text-ink-muted">{meta}</div> : null}
+        {children}
       </div>
     </li>
   )
 }
 
-function AddRoundModal({
-  open,
-  onClose,
-  testId,
-  onCreated,
+/**
+ * Adding a stage, inline on the rail.
+ *
+ * This was a Modal, and it could not stay one: `RoundsModal` renders this timeline
+ * INSIDE itself, and framer-motion leaves a `transform` on the dialog panel it
+ * animates. A transformed ancestor becomes the containing block for `position:
+ * fixed`, so a nested modal would have been clipped to the panel it was trying to
+ * cover — and two focus traps would have been fighting over the same Escape key.
+ *
+ * It also reads better: everything else on this rail expands in place, so this does
+ * too.
+ */
+export function AddStageForm({
+  testId, onCreated, onCancel,
 }: {
-  open: boolean
-  onClose: () => void
   testId: string
   onCreated: () => void
+  onCancel: () => void
 }) {
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<RoundKind>('chat')
@@ -261,29 +102,29 @@ function AddRoundModal({
         closesAt: closesAt ? new Date(closesAt).toISOString() : null,
       }),
     onSuccess: () => {
-      toast.success('Round added.')
+      toast.success('Stage added.')
       setTitle('')
       setClosesAt('')
       onCreated()
-      onClose()
     },
-    onError: (e) => toast.error(describeFetchError(e, 'Could not add the round.')),
+    onError: (e) => toast.error(describeFetchError(e, 'Could not add the stage.')),
   })
 
   return (
-    <Modal open={open} onClose={onClose} title="Add a round">
-      <div className="space-y-4">
-        <label className="block">
-          <span className="field-label mb-1.5 block">Name</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Technical screen"
-            className="input-base"
-            autoFocus
-          />
-        </label>
+    <div className="mt-3 space-y-3 rounded-xl border border-border bg-surface-sunk/50 p-3.5">
+      <label className="block">
+        <span className="field-label mb-1.5 block">Call it</span>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) create.mutate() }}
+          placeholder="e.g. Technical screen"
+          className="input-base"
+          autoFocus
+        />
+      </label>
 
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className="field-label mb-1.5 block">What happens in it</span>
           <Select
@@ -291,14 +132,12 @@ function AddRoundModal({
             onChange={(e) => setKind(e.target.value as RoundKind)}
             options={KINDS.map((k) => ({ value: k.id, label: k.label }))}
           />
-          <p className="mt-1 text-xs text-neutral-500">
-            {KINDS.find((k) => k.id === kind)?.hint}
-          </p>
+          <p className="mt-1 text-xs text-ink-muted">{KINDS.find((k) => k.id === kind)?.hint}</p>
         </label>
 
         <label className="block">
           <span className="field-label mb-1.5 block">
-            Closes <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span>
+            Closes <span className="font-normal normal-case tracking-normal text-ink-faint">(optional)</span>
           </span>
           <input
             type="datetime-local"
@@ -306,24 +145,25 @@ function AddRoundModal({
             onChange={(e) => setClosesAt(e.target.value)}
             className="input-base"
           />
-          <p className="mt-1 text-xs text-neutral-500">
+          <p className="mt-1 text-xs text-ink-muted">
             {/* The deadline is what a candidate's device actually gates on, once it is
                 copied down onto their assignment. */}
-            Leave empty to keep it open until you end it yourself.
+            Leave it empty to keep it open until you end it yourself.
           </p>
         </label>
-
-        <div className="flex justify-end gap-2 border-t border-border pt-4">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button
-            onClick={() => create.mutate()}
-            loading={create.isPending}
-            disabled={!title.trim() || create.isPending}
-          >
-            Add round
-          </Button>
-        </div>
       </div>
-    </Modal>
+
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+        <Button
+          size="sm"
+          onClick={() => create.mutate()}
+          loading={create.isPending}
+          disabled={!title.trim() || create.isPending}
+        >
+          Add stage
+        </Button>
+      </div>
+    </div>
   )
 }

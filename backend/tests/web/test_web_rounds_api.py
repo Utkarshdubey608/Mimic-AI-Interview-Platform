@@ -386,3 +386,84 @@ def test_an_ordinary_interview_has_no_round_kind_to_route_on(
         r for r in authed_client.get("/api/web/sessions/mine").json() if r["id"] == "plain"
     )
     assert row["roundKind"] is None
+
+
+# ── who is actually in each round ─────────────────────────────────────────────
+
+
+def test_the_timeline_reports_who_is_in_each_round(
+    authed_client: TestClient, fake_firestore
+) -> None:
+    """The roster, keyed by roundId.
+
+    The browser cannot work this out from the sessions list: that list is built from web
+    SESSION rows, and somebody assigned to a round has no session row until they open
+    their invite — so a candidate advanced into round 2 was invisible to every
+    round-scoped view at exactly the moment a recruiter still has the option to undo it.
+    The UI showed "0 candidates" on a round the server had just refused to re-assign
+    because two people were already in it.
+    """
+    _test_doc(fake_firestore)
+    first = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Screen"}).json()
+    second = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Technical"}).json()
+
+    _assignment(fake_firestore, "a", roundId=first["id"], candidateName="Ada")
+    _assignment(fake_firestore, "b", roundId=first["id"], status="completed")
+    _assignment(fake_firestore, "c", roundId=second["id"])
+    # Predates the timeline: belongs to no round, and must not be attributed to one.
+    _assignment(fake_firestore, "d")
+
+    body = authed_client.get("/api/web/tests/t-1/rounds").json()
+    rosters = body["rosters"]
+
+    assert [r["email"] for r in rosters[first["id"]]] == ["a@example.test", "b@example.test"]
+    assert [r["email"] for r in rosters[second["id"]]] == ["c@example.test"]
+    # The empty key is where pre-timeline assignments land — the same ones
+    # `legacyAssignments` counts.
+    assert [r["email"] for r in rosters[""]] == ["d@example.test"]
+    assert body["legacyAssignments"] == 1
+
+    ada = next(r for r in rosters[first["id"]] if r["email"] == "a@example.test")
+    assert ada["name"] == "Ada"
+    # Sent raw, so the client can say "not started" without this route owning the words.
+    assert ada["status"] == "assigned"
+    assert rosters[first["id"]][1]["status"] == "completed"
+
+
+def test_a_roster_never_leaks_another_recruiters_candidates(
+    authed_client: TestClient, fake_firestore
+) -> None:
+    _test_doc(fake_firestore)
+    created = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Screen"}).json()
+
+    _assignment(fake_firestore, "mine", roundId=created["id"])
+    _assignment(fake_firestore, "theirs", roundId=created["id"], recruiterId="uid-someone-else")
+
+    rosters = authed_client.get("/api/web/tests/t-1/rounds").json()["rosters"]
+    assert [r["email"] for r in rosters[created["id"]]] == ["mine@example.test"]
+
+
+def test_assigning_a_named_list_keeps_the_candidates_names(
+    authed_client: TestClient, fake_firestore
+) -> None:
+    """Picking three people by hand used to produce three NAMELESS rows.
+
+    A supplied list is a list of addresses; the names live on the test's existing
+    assignments. Reading them either way is what makes the picker and "assign everyone"
+    produce the same rows.
+    """
+    _test_doc(fake_firestore)
+    first = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Screen"}).json()
+    second = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Technical"}).json()
+
+    _assignment(fake_firestore, "ada", roundId=first["id"], candidateName="Ada Lovelace")
+
+    moved = authed_client.post(
+        f"/api/web/tests/t-1/rounds/{second['id']}/assign",
+        json={"candidates": ["ada@example.test"]},
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["assigned"] == 1
+
+    roster = authed_client.get("/api/web/tests/t-1/rounds").json()["rosters"][second["id"]]
+    assert roster[0]["name"] == "Ada Lovelace"

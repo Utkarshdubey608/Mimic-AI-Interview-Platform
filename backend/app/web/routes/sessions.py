@@ -671,6 +671,11 @@ async def mine(request: Request, user: AuthedUser = WebUser) -> list[dict]:
             "roundOrder": (assigned.get(session.get("id") or "") or {}).get("roundOrder"),
             "roundTitle": (assigned.get(session.get("id") or "") or {}).get("roundTitle")
             or None,
+            # The round's ID, not only its name. `roundTitle` is a label and two rounds
+            # may share one; grouping a list of candidates by the round they are
+            # actually in needs the identity. Read from the same assignment as the two
+            # above, so it costs nothing extra.
+            "roundId": (assigned.get(session.get("id") or "") or {}).get("roundId") or None,
             # The ROUND's format, which on a multi-round pipeline can differ from
             # the session's own `track` — a chat round followed by a video one.
             "roundKind": (assigned.get(session.get("id") or "") or {}).get("roundKind")

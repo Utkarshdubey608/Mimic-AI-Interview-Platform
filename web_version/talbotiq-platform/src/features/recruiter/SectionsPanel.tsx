@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { GripVertical, Plus, Trash2, BookOpen, AlertTriangle } from 'lucide-react'
+import { GripVertical, Plus, Trash2, BookOpen, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button, cn } from '@/components/ui'
 import type { McqSection } from '@shared/types'
 
@@ -80,7 +80,7 @@ function SortableSection({
         <input
           value={section.name}
           onChange={(e) => onChange({ name: e.target.value })}
-          placeholder="Section name"
+          placeholder="Name this part — Aptitude, Coding, …"
           aria-label="Section name"
           className="input-base h-9 flex-1 text-sm font-semibold"
         />
@@ -102,7 +102,7 @@ function SortableSection({
       <input
         value={section.instructions ?? ''}
         onChange={(e) => onChange({ instructions: e.target.value || undefined })}
-        placeholder="Instructions shown before this section starts (optional)"
+        placeholder="Anything to tell them before this part starts (optional)"
         aria-label={`${section.name || 'Section'} instructions`}
         className="input-base mt-2 h-9 w-full text-xs"
       />
@@ -120,11 +120,11 @@ function SortableSection({
             // stores a passage only when it has content.
             onChange={(e) => onChange({ passage: e.target.value })}
             rows={4}
-            placeholder="Paste the passage. Every question in this section is about it."
+            placeholder="Paste the passage here. Every question in this section is about it."
             className="input-base w-full resize-y py-2 text-xs leading-relaxed"
           />
           <p className="mt-1 text-2xs text-ink-faint">
-            One passage per section. For a second passage, add another section.
+            One passage per section. Need a second passage? Add another section.
           </p>
         </div>
       ) : (
@@ -132,7 +132,7 @@ function SortableSection({
           onClick={() => setShowPassage(true)}
           className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"
         >
-          <BookOpen size={12} /> Add a reading passage
+          <BookOpen size={12} /> Give them something to read first
         </button>
       )}
     </div>
@@ -148,6 +148,7 @@ export function SectionsPanel({
   onChange: (sections: McqSection[]) => void
 }) {
   const [custom, setCustom] = useState('')
+  const [open, setOpen] = useState(true)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -177,14 +178,31 @@ export function SectionsPanel({
   const taken = new Set(sections.map((s) => s.name.trim().toLowerCase()))
 
   return (
+    /* Foldable, and open by default. On a long paper this panel sits between the
+       recruiter and every question below it, and once the sections are set it has
+       nothing left to say — but somebody who has never used the feature must be
+       able to SEE it, so it does not start closed. */
     <section className="rounded-2xl border border-border bg-surface-sunk/60 p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-display text-sm font-bold text-ink">Sections</h2>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="flex items-center gap-1.5 text-ink-faint transition-colors hover:text-ink"
+        >
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          <h2 className="font-display text-sm font-bold text-ink">Sections</h2>
+        </button>
+        <span className="rounded-full bg-surface-hover px-2 py-0.5 text-2xs font-semibold tabular-nums text-ink-muted">
+          {sections.length === 0 ? 'none' : sections.length}
+        </span>
         <p className="text-xs text-ink-muted">
-          The parts of the assessment, in the order a candidate meets them.
+          Split the test into parts. Candidates work through them in this order.
         </p>
       </div>
 
+      {!open ? null : (
+      <>
       {sections.length > 0 && (
         <div className="mt-3">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
@@ -249,9 +267,11 @@ export function SectionsPanel({
       {sections.length === 0 && (
         <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
           <AlertTriangle size={13} className="mt-px flex-shrink-0 text-ink-faint" />
-          An assessment with no sections still works — every question simply belongs
-          to the paper as a whole, exactly as before.
+          You don't need sections. Leave this empty and the test is just one list of
+          questions, exactly as before.
         </p>
+      )}
+      </>
       )}
     </section>
   )

@@ -143,6 +143,12 @@ async def list_rounds(
 
     return {
         "rounds": [_public(r, now) for r in found],
+        # Who is actually IN each round. One query for the whole test, grouped by
+        # `roundId` — see `rounds_writer.rosters` for why the browser cannot work this
+        # out from the sessions list on its own.
+        "rosters": await rounds_writer.rosters(
+            settings, test_id=test_id, recruiter_id=user.uid
+        ),
         # How many assignments predate the timeline. Non-zero means this test was
         # created as a single round and given rounds afterwards, and those assignments
         # belong to NO round — see the adopt route.
@@ -293,15 +299,21 @@ async def assign_round(
     test = await _owned_test_or_404(settings, test_id, user)
     existing = await _owned_round_or_404(settings, test_id, round_id, user)
 
+    # Everyone in the TEST, emailLower → name. Read even when the caller named who it
+    # wants, because that is where the NAMES are: a supplied list is a list of
+    # addresses, and assigning from it used to write `candidateName: None` — so picking
+    # three people by hand produced three nameless rows while "assign everyone"
+    # produced named ones, for no reason a recruiter could see.
+    known = await rounds_writer.candidates_of(
+        settings, test_id=test_id, recruiter_id=user.uid
+    )
+
     supplied = body.get("candidates")
     if isinstance(supplied, list) and supplied:
-        candidates = {
-            str(e).strip().lower(): None for e in supplied if str(e or "").strip()
-        }
+        wanted = [str(e).strip().lower() for e in supplied if str(e or "").strip()]
+        candidates = {e: known.get(e) for e in wanted}
     else:
-        candidates = await rounds_writer.candidates_of(
-            settings, test_id=test_id, recruiter_id=user.uid
-        )
+        candidates = known
 
     if not candidates:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No candidates to assign.")
@@ -366,3 +378,89 @@ async def adopt_round(
 
     adopted = await rounds_writer.adopt_legacy_assignments(settings, existing)
     return {"adopted": adopted}
+
+
+@router.post("/{test_id}/rounds/{round_id}/unassign", summary="Take candidates out of a round")
+async def unassign_round(
+    test_id: str,
+    round_id: str,
+    request: Request,
+    body: dict = Body(...),
+    user: AuthedUser = WebUser,
+) -> dict:
+    """Undo an advance: remove candidates from this round.
+
+    The counterpart to `assign`. A recruiter who moved the wrong person into round 3
+    had no way back — the only controls were "assign" and "end the whole round" — so
+    the mistake was permanent and visible to the candidate.
+
+    Refuses anyone who has already started, and says so rather than doing half the job
+    quietly. See `rounds_writer.unassign` for why this deletes instead of re-pointing.
+    """
+    settings = settings_of(request)
+    existing = await _owned_round_or_404(settings, test_id, round_id, user)
+
+    supplied = body.get("candidates")
+    if not isinstance(supplied, list) or not supplied:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No candidates given.")
+
+    result = await rounds_writer.unassign(
+        settings, existing, candidates=[str(e) for e in supplied]
+    )
+    logger.info(
+        "round %s/%s: %d assignment(s) removed by %s",
+        test_id,
+        round_id,
+        result["removed"],
+        user.uid,
+    )
+    return result
+
+
+@router.post("/{test_id}/close", summary="Close a test for good")
+async def close_test(
+    test_id: str, request: Request, user: AuthedUser = WebUser
+) -> dict:
+    """End every round that is still running, and stamp the test closed.
+
+    The end of a hiring round, as opposed to the end of one stage. Ending the last
+    round leaves the test itself open — nothing said "this is finished" — so a
+    recruiter had no way to stop a test accepting anything, and the mobile dashboard
+    had no way to show it as done.
+
+    Deliberately does NOT decide anything. The decision is `outcomes.decide_round`,
+    which already ranks, writes the notes and publishes; duplicating it here would put
+    a second ranking implementation in the product. The client calls that FIRST and
+    this second, so a failure here leaves the decision standing and retryable — the
+    same ordering the decide route uses for its emails.
+    """
+    import asyncio
+
+    from firebase_admin import firestore as admin_firestore
+
+    settings = settings_of(request)
+    await _owned_test_or_404(settings, test_id, user)
+
+    now = datetime.now(timezone.utc)
+    ended = 0
+    for existing in await rounds_writer.fetch_all(settings, test_id, user.uid):
+        if existing.state_at(now) == "closed":
+            continue
+        await rounds_writer.close_now(settings, existing)
+        ended += 1
+
+    def _stamp() -> None:
+        # merge=True: the test document is written the same way everywhere else, and
+        # this must add three keys rather than replace a summary mobile also reads.
+        interviews.tests_collection(settings).document(test_id).set(
+            {
+                "status": "closed",
+                "closedAt": admin_firestore.SERVER_TIMESTAMP,
+                "closedBy": user.uid,
+            },
+            merge=True,
+        )
+
+    await asyncio.to_thread(_stamp)
+    logger.info("test %s closed by %s (%d round(s) ended)", test_id, user.uid, ended)
+    return {"closed": True, "roundsEnded": ended}
