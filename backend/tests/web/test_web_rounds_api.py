@@ -232,6 +232,32 @@ def test_assigning_with_no_list_offers_everyone_in_the_test(
     assert response.json()["assigned"] == 2
 
 
+def test_assign_does_not_enforce_round_order_by_design(
+    authed_client: TestClient, fake_firestore
+) -> None:
+    """Documents current, INTENTIONAL behaviour rather than a gap.
+
+    RoundsModal's own "Add candidates" panel already relies on being able to put
+    any candidate into any round on purpose (e.g. "this one doesn't need round 2").
+    A candidate here holds no interview document for round 1 or round 2 at all, and
+    round 3 accepts them directly anyway. A future reader must not "fix" this into
+    a regression against that shipped flexibility — any round-adjacency guarantee
+    belongs at the call site (see AdvanceCandidateModal on the web, which only ever
+    offers `current + 1`), not here.
+    """
+    _test_doc(fake_firestore)
+    authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Round 1"})
+    authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Round 2"})
+    round3 = authed_client.post("/api/web/tests/t-1/rounds", json={"title": "Round 3"}).json()["id"]
+
+    response = authed_client.post(
+        f"/api/web/tests/t-1/rounds/{round3}/assign",
+        json={"candidates": ["skip-ahead@example.test"]},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["assigned"] == 1
+
+
 def test_adopting_moves_roundless_assignments_in_without_recreating_them(
     authed_client: TestClient, fake_firestore
 ) -> None:

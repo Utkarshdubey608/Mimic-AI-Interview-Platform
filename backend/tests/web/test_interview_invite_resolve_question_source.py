@@ -106,18 +106,23 @@ async def test_mixed_rejects_insufficient_question_set_size() -> None:
 
 @pytest.mark.asyncio
 async def test_mixed_supports_ad_hoc_fixed_questions_with_no_question_set() -> None:
-    """3E: fixed questions can be created on the spot instead of selecting a set."""
+    """3E: fixed questions can be created on the spot instead of selecting a set.
+
+    `fixedQuestions` is read from `config`, NOT from `mixed_config` — every real
+    caller (a manual invite's request body, a RoleConfig round's stored config)
+    sends it as a SIBLING of `mixedConfig`, never nested inside it. A test that put
+    it inside `mixed_config` here would pass while the actual route always rejected
+    a correctly-filled-in ad-hoc Mixed invite with "N fixed question(s) are
+    required." — exactly the gap `test_web_invites_from_role_pipeline.py` and
+    `test_web_invites_mode_source_validation.py` exist to catch, by calling the
+    route instead of this function directly.
+    """
     questions, screening = await interview_invite.resolve_question_source(
         _Store(),
         mode="chat",
         source="mixed",
-        config={},
-        mixed_config={
-            "totalQuestions": 4,
-            "fixedQuestionCount": 2,
-            "resumeQuestionCount": 2,
-            "fixedQuestions": ["Tell me about yourself", "Why this role?"],
-        },
+        config={"fixedQuestions": ["Tell me about yourself", "Why this role?"]},
+        mixed_config={"totalQuestions": 4, "fixedQuestionCount": 2, "resumeQuestionCount": 2},
     )
     assert questions == ["Tell me about yourself", "Why this role?"]
     assert "questionSetId" not in screening["mixedConfig"]
@@ -130,8 +135,8 @@ async def test_mixed_allows_zero_fixed_or_zero_resume() -> None:
         _Store(),
         mode="chat",
         source="mixed",
-        config={},
-        mixed_config={"totalQuestions": 3, "fixedQuestionCount": 0, "resumeQuestionCount": 3, "fixedQuestions": []},
+        config={"fixedQuestions": []},
+        mixed_config={"totalQuestions": 3, "fixedQuestionCount": 0, "resumeQuestionCount": 3},
     )
     assert screening_zero_fixed["mixedConfig"]["fixedQuestionCount"] == 0
 
@@ -139,13 +144,8 @@ async def test_mixed_allows_zero_fixed_or_zero_resume() -> None:
         _Store(),
         mode="chat",
         source="mixed",
-        config={},
-        mixed_config={
-            "totalQuestions": 3,
-            "fixedQuestionCount": 3,
-            "resumeQuestionCount": 0,
-            "fixedQuestions": ["A", "B", "C"],
-        },
+        config={"fixedQuestions": ["A", "B", "C"]},
+        mixed_config={"totalQuestions": 3, "fixedQuestionCount": 3, "resumeQuestionCount": 0},
     )
     assert questions == ["A", "B", "C"]
     assert screening_zero_resume["mixedConfig"]["resumeQuestionCount"] == 0

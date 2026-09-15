@@ -6,6 +6,7 @@ import { mcqSessionApi } from '@/lib/api'
 import type { BrandingConfig, McqPaperState } from '@shared/types'
 import { InterviewStage } from '../stage/InterviewStage'
 import { Completion } from './Completion'
+import { CircularCountdown } from '../components/CircularCountdown'
 
 /**
  * MIMIC — the MCQ paper, as a candidate sits it.
@@ -74,15 +75,44 @@ export function McqStage({
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
   const [submitting, setSubmitting] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  // Seeded from the server on every load/resync, then ticked down locally
+  // between them — the server, not this countdown, is what actually closes
+  // the paper (see the 5s resync below and sessions_mcq.py's own expiry
+  // check on every read/write).
+  const [remaining, setRemaining] = useState<number | null>(null)
 
   // Load the paper. Opening it is what marks the assessment started, server-side.
   useEffect(() => {
     let alive = true
     mcqSessionApi.paper(sessionId)
-      .then((s) => { if (!alive) return; setState(s); setAnswers((s.answers ?? {}) as Record<string, Answer>) })
+      .then((s) => {
+        if (!alive) return
+        setState(s)
+        setAnswers((s.answers ?? {}) as Record<string, Answer>)
+        setRemaining(s.remainingSeconds ?? null)
+      })
       .catch((e: Error) => { if (alive) setError(e.message) })
     return () => { alive = false }
   }, [sessionId])
+
+  // Resync with the server every 5s, same cadence useInterviewClock polls at
+  // — only while timed and not yet submitted, so an untimed paper (the
+  // common case for most papers today) costs nothing extra. This is what
+  // actually closes the paper: a client that stopped ticking, or whose local
+  // clock drifted, still finds the deadline applied the moment it next asks.
+  useEffect(() => {
+    if (!state || state.submittedAt || state.totalSeconds == null) return
+    const id = setInterval(() => {
+      mcqSessionApi.paper(sessionId).then((s) => {
+        setState(s)
+        setRemaining(s.remainingSeconds ?? null)
+        // The server may have auto-submitted between polls — the paper's
+        // own answers are authoritative once that happens.
+        if (s.submittedAt) setAnswers((s.answers ?? {}) as Record<string, Answer>)
+      }).catch(() => {})
+    }, 5_000)
+    return () => clearInterval(id)
+  }, [sessionId, state])
 
   /* Debounced auto-save. The ref holds the latest answers so the timer always
      sends what is on screen now, not what was there when it was scheduled. */
@@ -152,6 +182,25 @@ export function McqStage({
     }
   }, [sessionId, submitting])
 
+  // Local 1s tick, purely presentational — interpolates between the 5s
+  // resyncs above so the number does not visibly jump. Auto-submits at zero
+  // as a client-side courtesy; the server enforces the same deadline
+  // independently on the very next request either way.
+  useEffect(() => {
+    if (remaining === null || remaining <= 0 || !state || state.submittedAt) return
+    const id = setInterval(() => {
+      setRemaining((r) => {
+        if (r === null) return r
+        if (r <= 1) {
+          void submit()
+          return 0
+        }
+        return r - 1
+      })
+    }, 1_000)
+    return () => clearInterval(id)
+  }, [remaining, state, submit])
+
   if (error) {
     return (
       <InterviewStage branding={branding} track="mcq">
@@ -199,14 +248,37 @@ export function McqStage({
   return (
     <InterviewStage branding={branding} track="mcq">
       <div className="mx-auto max-w-2xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-muted">
             Question {index + 1} of {questions.length}
           </span>
-          <span className="flex items-center gap-2 text-xs text-ink-muted" aria-live="polite">
-            {savedAt && <><Check size={12} className="text-ok" /> Answers saved</>}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-2 text-xs text-ink-muted" aria-live="polite">
+              {savedAt && <><Check size={12} className="text-ok" /> Answers saved</>}
+            </span>
+            {/* Absent for an untimed paper — most papers today — rather than
+                showing a clock that enforces nothing. See sessions_mcq.py's
+                `remainingSeconds`. */}
+            {state.totalSeconds != null && remaining !== null && (
+              <CircularCountdown
+                remaining={remaining}
+                total={state.totalSeconds}
+                phase="answer"
+                warningThreshold={60}
+                accentColor={branding.accentColor ?? '#0E1420'}
+                size={44}
+              />
+            )}
+          </div>
         </div>
+        {/* A textual companion to the ring's colour ramp — urgency must not be
+            colour-only. Silent otherwise; the ring's own sr-only live region
+            already announces the running time on every render. */}
+        {state.totalSeconds != null && remaining !== null && remaining > 0 && remaining <= 60 && (
+          <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs font-medium text-warn">
+            <Clock size={12} /> Less than a minute left — this assessment submits automatically at zero.
+          </p>
+        )}
 
         {/* Progress by ANSWERED, not by position: it tells a candidate what is
             left to do rather than how far they have scrolled. */}

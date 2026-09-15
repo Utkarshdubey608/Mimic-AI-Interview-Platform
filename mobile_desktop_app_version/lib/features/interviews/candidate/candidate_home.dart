@@ -172,6 +172,19 @@ class _CandidateHomeState extends State<CandidateHome> {
       return;
     }
 
+    // Essay and coding rounds have no native candidate screen — nobody built
+    // one, because authoring for these tracks lives on the web (an
+    // `essayPromptId` / `codingProblemIds` reference, not the `questions`
+    // list `chat_launch_adapter` reads). Left to fall through, `mode` is
+    // non-empty so `effectiveRoundKind`'s own default-to-chat never even
+    // applies — this used to silently misroute into the native chat runner,
+    // which threw "The template references an empty question set." the
+    // moment the candidate tried to begin it. A clear message beats a crash.
+    if (interview.effectiveMode == 'essay' || interview.effectiveMode == 'coding') {
+      _showUnsupportedOnDevice(interview);
+      return;
+    }
+
     // Awaited so ONE hook covers every path. Each branch used to be fire-and-forget,
     // which meant anything that had to happen after an interview finished needed
     // wiring into all five separately — and the fifth is always the one that gets
@@ -302,6 +315,28 @@ class _CandidateHomeState extends State<CandidateHome> {
           interviewId: interview.id,
           title: interview.displayTestTitle,
         ),
+      ),
+    );
+  }
+
+  /// Essay and coding rounds: no native screen exists for either yet, so this
+  /// says so plainly instead of the candidate discovering it as a crash.
+  void _showUnsupportedOnDevice(Interview interview) {
+    final noun = interview.effectiveMode == 'essay' ? 'essay' : 'coding';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.open_in_browser_outlined),
+        title: const Text('Open this on the web'),
+        content: Text(
+          'This is a $noun assessment for "${interview.title}" — it isn\'t '
+          'available in the app yet. Open the invite link from your email in '
+          'a browser to take it.',
+        ),
+        actions: [
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Got it')),
+        ],
       ),
     );
   }

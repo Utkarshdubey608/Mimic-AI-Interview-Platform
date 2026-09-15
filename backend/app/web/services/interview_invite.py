@@ -138,7 +138,14 @@ async def resolve_question_source(
             )
         questions = set_questions[:fixed_n]  # first N — never fabricate the rest
     else:
-        inline = [str(q).strip() for q in (mixed.get("fixedQuestions") or []) if str(q).strip()]
+        # Read from `config`, not `mixed` — a request/round sends `fixedQuestions` as a
+        # SIBLING of `mixedConfig` (see `MixedConfig` in shared/types.ts and
+        # `RoleRoundSpec.config`'s doc comment), never nested inside it. Reading it from
+        # `mixed` here used to always come up empty for every ad-hoc Mixed invite,
+        # rejecting a correctly-filled-in wizard with "N fixed question(s) are
+        # required." — caught by an HTTP-layer test exercising the real route rather
+        # than calling this function directly with a hand-built, already-nested dict.
+        inline = [str(q).strip() for q in (config.get("fixedQuestions") or []) if str(q).strip()]
         if len(inline) != fixed_n:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, f"{fixed_n} fixed question(s) are required."

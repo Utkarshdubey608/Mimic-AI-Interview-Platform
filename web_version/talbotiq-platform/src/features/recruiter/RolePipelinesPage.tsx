@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { Copy, Pencil, Plus, Trash2, Workflow } from 'lucide-react'
+import { Copy, Pencil, Plus, Trash2, UserPlus, Workflow } from 'lucide-react'
 import { Badge, Button, Card, PageHeader, EmptyState, ErrorState, Skeleton } from '@/components/ui'
 import { roleConfigsApi, describeFetchError } from '@/lib/api'
 import type { RoleConfig } from '@shared/types'
@@ -106,6 +106,21 @@ export default function RolePipelinesPage() {
               </p>
 
               <div className="mt-auto flex items-center justify-end gap-1 pt-4">
+                <Button
+                  size="sm" variant="secondary" icon={<UserPlus size={13} />}
+                  disabled={rc.rounds.length === 0 || rc.rounds[0]?.kind === 'two_way'}
+                  title={
+                    rc.rounds.length === 0
+                      ? 'Add at least one round first'
+                      : rc.rounds[0]?.kind === 'two_way'
+                        ? "Round 1 can't be a live interview — edit the pipeline to start with a résumé, chat, video, or voice round"
+                        : undefined
+                  }
+                  onClick={() => navigate(`/candidates/role-pipelines/${rc.id}/apply`)}
+                  className="mr-auto"
+                >
+                  Apply to candidates
+                </Button>
                 <Button size="sm" variant="ghost" icon={<Pencil size={13} />} onClick={() => navigate(`/candidates/role-pipelines/${rc.id}`)}>
                   Edit
                 </Button>

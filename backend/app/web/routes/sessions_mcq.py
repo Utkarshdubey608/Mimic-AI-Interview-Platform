@@ -96,6 +96,14 @@ def _state(session: dict) -> dict:
         "submittedAt": session.get("mcqSubmittedAt"),
         "totalSeconds": config.get("totalSeconds"),
         "perQuestionSeconds": config.get("perQuestionSeconds"),
+        # Server-computed, from `startedAt` — the SAME deadline math
+        # `mcq_runtime` already uses for the shared `/api/interviews/{id}/mcq`
+        # routes (Flutter's path). None for an untimed paper, so the client
+        # renders no clock rather than a wrong one; never negative, 0 means
+        # time is up and `_maybe_auto_submit` has already closed the paper.
+        "remainingSeconds": mcq_runtime.remaining_seconds_for(
+            config.get("totalSeconds"), session.get("startedAt")
+        ),
         "branding": (session.get("branding") or {}),
         # The candidate is told the score only if the recruiter allows it; absent
         # by default, because a score delivered by a machine with no human in the
@@ -107,10 +115,77 @@ def _state(session: dict) -> dict:
     }
 
 
+def _expired(session: dict) -> bool:
+    """Whether the whole-paper clock has run out. False for an untimed paper."""
+    config = session.get("mcqConfig") or {}
+    remaining = mcq_runtime.remaining_seconds_for(
+        config.get("totalSeconds"), session.get("startedAt")
+    )
+    return remaining == 0
+
+
+async def _score_and_finish(
+    settings, session: dict, template: dict | None, answers: dict, *, auto: bool
+) -> dict:
+    """Score, store, and finish — shared by a candidate's own Submit and the
+    clock closing the paper for them, so a paper handed in by choice and one
+    closed out by expiry produce exactly the same kind of result.
+
+    `auto=True` records that nobody pressed Submit — the recruiter's report
+    can distinguish "they finished" from "time ran out on them," the same
+    distinction `question.autoSubmitted` already draws for the timed track.
+    """
+    paper = _paper_of(session)
+    config = session.get("mcqConfig") or {}
+    result = mcq_runtime.score(paper["questions"], answers, config=config, paper=paper)
+
+    now = _now()
+    session["mcqAnswers"] = answers
+    session["mcqResult"] = result
+    session["mcqSubmittedAt"] = now
+    session["mcqAutoSubmitted"] = auto
+    session["status"] = "completed"
+    session["completedAt"] = now
+    await session_store.save(settings, session)
+
+    store = get_store(settings)
+    await store.reports.put(
+        {
+            "sessionId": session["id"],
+            "recruiterId": session.get("recruiterId"),
+            "track": "mcq",
+            "role": (template or {}).get("role"),
+            "candidateName": (session.get("candidate") or {}).get("name"),
+            "mcq": result,
+            "createdAt": now,
+        }
+    )
+
+    logger.info(
+        "mcq %s session=%s correct=%s/%s percent=%s",
+        "auto-submitted (time expired)" if auto else "submitted",
+        session["id"], result["correctCount"], result["questionCount"], result["percent"],
+    )
+    return result
+
+
+async def _maybe_auto_submit(settings, session: dict, template: dict | None) -> bool:
+    """If the clock has run out and nobody has submitted, submit whatever is
+    already saved. Called on every read and write, the same "a client cannot
+    avoid a deadline by not asking" principle `session_store.settle` uses for
+    the other tracks — MCQ has no per-question ticks to piggyback on, so this
+    is the whole-paper equivalent. Returns True if this call just closed it.
+    """
+    if session.get("mcqSubmittedAt") or not _expired(session):
+        return False
+    await _score_and_finish(settings, session, template, session.get("mcqAnswers") or {}, auto=True)
+    return True
+
+
 @router.get("/{session_id}/mcq", summary="The MCQ paper, without the answer key")
 async def get_paper(session_id: str, request: Request, user: AuthedUser = WebUser) -> dict:
     settings = settings_of(request)
-    session, _template = await session_store.load(settings, session_id, user)
+    session, template = await session_store.load(settings, session_id, user)
     _require_mcq(session)
 
     # First open counts as starting: an assessment a candidate has seen is one they
@@ -120,6 +195,10 @@ async def get_paper(session_id: str, request: Request, user: AuthedUser = WebUse
         session["status"] = "in_progress"
         session["startedAt"] = _now()
         await session_store.save(settings, session)
+
+    # A client cannot avoid the deadline by simply not asking: every read
+    # closes an expired paper before returning its state.
+    await _maybe_auto_submit(settings, session, template)
 
     return _state(session)
 
@@ -134,8 +213,10 @@ async def save_answers(
     the answers they had already chosen.
     """
     settings = settings_of(request)
-    session, _template = await session_store.load(settings, session_id, user)
+    session, template = await session_store.load(settings, session_id, user)
     _require_mcq(session)
+
+    await _maybe_auto_submit(settings, session, template)
 
     if session.get("mcqSubmittedAt"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This assessment is already submitted.")
@@ -171,44 +252,25 @@ async def submit(session_id: str, request: Request, body: dict = Body(default={}
     if session.get("mcqSubmittedAt"):
         raise HTTPException(status.HTTP_409_CONFLICT, "This assessment is already submitted.")
 
+    # Folded in BEFORE the expiry check below, so a Submit that loses the race
+    # with the clock by a second still has ITS OWN answers scored rather than
+    # whatever the last autosave happened to catch — a submission arriving
+    # right at the deadline is late, not discarded.
     paper = _paper_of(session)
-    answers = {
+    session["mcqAnswers"] = {
         **(session.get("mcqAnswers") or {}),
         **mcq.clean_answers((body or {}).get("answers"), paper["questions"]),
     }
 
-    config = session.get("mcqConfig") or {}
     # ONE scorer, shared with `/api/interviews/{id}/mcq/submit`. The same paper sat on
     # either surface must not be able to produce two numbers, and the only way to
     # guarantee that is for there to be one implementation rather than an agreement
     # between two.
-    result = mcq_runtime.score(paper["questions"], answers, config=config, paper=paper)
+    if await _maybe_auto_submit(settings, session, template):
+        # The clock closed it in the line above, but with this request's own
+        # answers already folded in — this Submit still counts, it just tied
+        # with the deadline instead of beating it.
+        return _state(session)
 
-    now = _now()
-    session["mcqAnswers"] = answers
-    session["mcqResult"] = result
-    session["mcqSubmittedAt"] = now
-    session["status"] = "completed"
-    session["completedAt"] = now
-    await session_store.save(settings, session)
-
-    # The recruiter's report, in the same collection every other track writes to,
-    # so results, analytics and pipelines find it where they already look.
-    store = get_store(settings)
-    await store.reports.put(
-        {
-            "sessionId": session["id"],
-            "recruiterId": session.get("recruiterId"),
-            "track": "mcq",
-            "role": (template or {}).get("role"),
-            "candidateName": (session.get("candidate") or {}).get("name"),
-            "mcq": result,
-            "createdAt": now,
-        }
-    )
-
-    logger.info(
-        "mcq submitted session=%s correct=%s/%s percent=%s",
-        session["id"], result["correctCount"], result["questionCount"], result["percent"],
-    )
+    await _score_and_finish(settings, session, template, session["mcqAnswers"], auto=False)
     return _state(session)

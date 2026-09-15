@@ -503,6 +503,11 @@ export interface McqPaperState {
   submittedAt?: string | null
   totalSeconds?: number
   perQuestionSeconds?: number
+  /** Server-computed from `startedAt` — the same deadline math the shared
+   *  (Flutter-facing) MCQ runtime already used. Null for an untimed paper, so
+   *  the client renders no clock rather than a wrong one; 0 means time is up
+   *  and the server has already closed the paper. */
+  remainingSeconds?: number | null
   branding?: Partial<BrandingConfig>
   /** Only when the recruiter chose to show it, and never with the key. */
   result?: McqCandidateResult | null
@@ -1781,6 +1786,13 @@ export interface CreateInvitesFromRolePipelineResult extends CreateInvitesResult
  * action. */
 export interface CandidateBoardRound {
   interviewId: string
+  /** The `(testId, roundId)` pair this round entry actually lives at — present so
+   *  a client can call the existing `roundsApi.assign`/`unassign` directly instead
+   *  of the board inventing a new transition. Both null on an interview created
+   *  before rounds existed; treat null as "no round-scoped action available here,"
+   *  not a bug. */
+  testId: string | null
+  roundId: string | null
   roundOrder: number
   /** Absent on a round created before this existed — render "Round N" instead of a
    *  blank column header. */
@@ -1804,6 +1816,10 @@ export interface CandidateBoardCard {
   currentStatus: string
   currentScore: number | null
   currentInterviewId: string
+  /** Convenience mirror of the current round's own testId/roundId — see
+   *  `CandidateBoardRound`'s doc comment for the same null-if-legacy caveat. */
+  currentTestId: string | null
+  currentRoundId: string | null
 }
 
 export interface CandidateBoardResult {

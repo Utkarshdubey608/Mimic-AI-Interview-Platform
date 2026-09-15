@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Card, EmptyState, ErrorState, FilterBar, FilterSelect, SearchField, Skeleton } from '@/components/ui'
 import { candidatesApi, roleConfigsApi, describeFetchError } from '@/lib/api'
 import { CandidateKanbanCard } from './CandidateKanbanCard'
+import { AdvanceCandidateModal } from './AdvanceCandidateModal'
 import type { CandidateBoardCard, CandidateBoardParams } from '@shared/types'
 
 const STATUS_OPTIONS = [
@@ -25,6 +26,7 @@ export function CandidateKanbanView() {
   const [status, setStatus] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const [actionTarget, setActionTarget] = useState<{ card: CandidateBoardCard; action: 'advance' | 'remove' } | null>(null)
 
   // Small local debounce — no shared hook for this exists elsewhere in the app.
   useEffect(() => {
@@ -137,6 +139,8 @@ export function CandidateKanbanView() {
                     key={c.email}
                     card={c}
                     roleLabel={c.roleCategory ? categoryLabel[c.roleCategory] ?? c.roleCategory : null}
+                    onAdvance={(card) => setActionTarget({ card, action: 'advance' })}
+                    onRemove={(card) => setActionTarget({ card, action: 'remove' })}
                   />
                 ))}
               </div>
@@ -144,6 +148,12 @@ export function CandidateKanbanView() {
           ))}
         </div>
       )}
+
+      <AdvanceCandidateModal
+        card={actionTarget?.card ?? null}
+        action={actionTarget?.action ?? null}
+        onClose={() => setActionTarget(null)}
+      />
     </div>
   )
 }

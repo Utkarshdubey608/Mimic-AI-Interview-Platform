@@ -30,6 +30,14 @@ def _round_entry(data: dict, interview_id: str) -> dict:
     result = data.get("result") if isinstance(data.get("result"), dict) else {}
     return {
         "interviewId": interview_id,
+        # Both already stamped on every `interviews` doc (testId at invite time,
+        # roundId denormalised by rounds_writer.assign) — surfaced here, additively,
+        # so a client can call the existing assign/unassign endpoints directly
+        # instead of the board inventing its own transition. Absent on interviews
+        # created before rounds existed at all; a client must treat null as
+        # "no round-scoped action available for this entry," not crash.
+        "testId": data.get("testId") or None,
+        "roundId": data.get("roundId") or None,
         "roundOrder": data.get("roundOrder") if isinstance(data.get("roundOrder"), int) else 0,
         # Denormalised at assignment time (see rounds_writer.assign) so the board needs
         # no second read per candidate. Absent on interviews created before this
@@ -130,6 +138,10 @@ async def board_for_recruiter(
                     "currentStatus": current["status"],
                     "currentScore": current["score"],
                     "currentInterviewId": current["interviewId"],
+                    # Convenience mirror of current["testId"/"roundId"] — same
+                    # null-if-legacy caveat as on the round entry itself.
+                    "currentTestId": current["testId"],
+                    "currentRoundId": current["roundId"],
                 }
             )
 

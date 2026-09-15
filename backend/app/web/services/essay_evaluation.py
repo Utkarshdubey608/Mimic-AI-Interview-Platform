@@ -24,6 +24,11 @@ An essay's output is per-KPI rationale plus feedback, which is not small.
 
 from __future__ import annotations
 
+import json
+import logging
+
+logger = logging.getLogger("web.essay_evaluation")
+
 # Long-form writing quality, deliberately NOT one exam's band descriptors. An
 # IELTS or UPSC flavour is a rubric a recruiter selects and reweights on top of
 # these; baking the exam in would make the mode serve two syllabuses and no one
@@ -216,3 +221,98 @@ def normalise_essay_score(raw: dict, *, rubric: dict) -> dict:
         "strengths": _clean_list(payload.get("strengths")),
         "improvements": _clean_list(payload.get("improvements")),
     }
+
+
+async def evaluate_essay(settings, session: dict) -> dict:
+    """The report for one submitted essay. The entry point this module was
+    always missing — `build_essay_scoring_body`/`normalise_essay_score` were
+    previously called only by this module's own test, never by a route.
+
+    Not `scoring.score_session`'s conversation/fixed-slot machinery (an essay is
+    neither): one Gemini call scored against `default_rubric()`, reduced to the
+    SAME report shape `scoring._report` produces — via the public
+    `average_kpis`/`weighted_overall`/`recommendation_for` — so it renders on the
+    existing report screen exactly like every other track's, with no frontend
+    change. A single synthetic `per_question` entry (`questionId: "essay"`)
+    stands in for the one long-form answer; `average_kpis` over one entry is
+    just that entry's scores, which is what "the essay's score" means here.
+
+    Never raises: degrades to the same word-length heuristic every other track
+    falls back to when no Gemini key is configured, or when the call itself
+    fails, clearly labelled `degraded: true` either way.
+    """
+    from app.web.services import gemini, scoring
+
+    prompt = session.get("essayPrompt") or {}
+    text = str(session.get("essayText") or "")
+    rubric = default_rubric()
+    kpis = enabled_kpis(rubric)
+
+    kpi_scores: dict[str, int] | None = None
+    kpi_rationale: dict[str, str] = {}
+    strengths: list[str] = []
+    improvements: list[str] = []
+    summary = ""
+
+    if kpis and await gemini.is_enabled(settings):
+        try:
+            model = await gemini.resolve_model(settings)
+            body = build_essay_scoring_body(prompt=prompt, essay=text, rubric=rubric)
+            status_code, raw, _ = await gemini.generate_content_raw(
+                settings, model=model, request_body=body
+            )
+            if status_code >= 400:
+                raise RuntimeError(f"Gemini returned {status_code}")
+            payload = json.loads(raw)
+            raw_result = json.loads(gemini.first_text(payload) or "{}")
+            result = normalise_essay_score(raw_result, rubric=rubric)
+            kpi_scores = result["kpiScores"]
+            kpi_rationale = result["kpiRationale"]
+            strengths = result["strengths"]
+            improvements = result["improvements"]
+            summary = "Scored against the essay rubric."
+        except Exception as exc:  # noqa: BLE001 - degrade rather than lose the report
+            logger.error(
+                "essay scoring failed for %s, using heuristic fallback: %s",
+                session.get("id"), exc,
+            )
+
+    degraded = kpi_scores is None
+    if degraded:
+        kpi_scores = {k["id"]: scoring.heuristic_score(text, k["id"]) for k in kpis}
+        summary = scoring.HEURISTIC_SUMMARY
+
+    overall = scoring.weighted_overall(rubric, kpi_scores)
+    feedback = "; ".join(f"{kpi_rationale}" for kpi_rationale in kpi_rationale.values() if kpi_rationale)
+    if not feedback:
+        feedback = scoring.HEURISTIC_FEEDBACK if degraded else "No feedback returned."
+
+    report: dict = {
+        "sessionId": session.get("id"),
+        "perQuestion": [
+            {
+                "questionId": "essay",
+                "kpiScores": kpi_scores,
+                "kpiRationale": kpi_rationale,
+                "feedback": feedback,
+            }
+        ],
+        "kpiAverages": kpi_scores,
+        "overallScore": overall,
+        "summary": summary,
+        "generatedAt": _now_iso(),
+        "recommendation": scoring.recommendation_for(overall),
+    }
+    if strengths:
+        report["strengths"] = strengths
+    if improvements:
+        report["improvements"] = improvements
+    if degraded:
+        report["degraded"] = True
+    return report
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()

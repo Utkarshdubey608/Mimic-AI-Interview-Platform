@@ -28,7 +28,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 
 from app.security import AuthedUser
 from app.web.deps import WebUser, assert_participant, settings_of
-from app.web.services import essay, essay_prompts
+from app.web.services import essay, essay_prompts, session_store
 from app.web.store import get_store
 
 logger = logging.getLogger("web.sessions_essay")
@@ -191,16 +191,32 @@ async def submit(
     # seconds; the flag is what lets a recruiter judge that for themselves.
     late = remaining_seconds(session, prompt) <= 0
 
-    await get_store(settings_of(request)).sessions.patch(
-        session_id,
-        {
-            "essayText": text,
-            "essayDraft": text,
-            "essaySubmittedAt": _now().isoformat(),
-            "essayWordCount": essay.count_words(text),
-            "essayCharCount": essay.count_chars(text),
-            "essayLate": late,
-        },
-    )
+    now = _now().isoformat()
+    updates = {
+        "essayText": text,
+        "essayDraft": text,
+        "essaySubmittedAt": now,
+        "essayWordCount": essay.count_words(text),
+        "essayCharCount": essay.count_chars(text),
+        "essayLate": late,
+        # Every other track stamps `status: "completed"` the moment there is
+        # nothing further for the candidate to do — essay never did, so
+        # `session_store.maybe_score` (below) never saw a session it would
+        # score, and `ReportPage.tsx`'s "still in progress" banner never cleared.
+        "status": "completed",
+        "completedAt": now,
+    }
+    settings = settings_of(request)
+    store = get_store(settings)
+    await store.sessions.patch(session_id, updates)
     logger.info("essay submitted for session %s (late=%s)", session_id, late)
+
+    # Score in the background, the same way every other track's completion path
+    # does (session_store.maybe_score) — deduplicated, and the candidate is not
+    # made to wait on a model call to be told their essay was received.
+    template = await store.templates.get(session.get("templateId") or "")
+    if template:
+        scored_session = {**session, "id": session_id, **updates}
+        await session_store.maybe_score(settings, scored_session, template)
+
     return {"ok": True, "late": late, **_counts(text)}

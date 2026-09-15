@@ -43,6 +43,8 @@ const PipelinesPage      = lazy(() => import('@/features/recruiter/PipelinesPage
 const PipelineBoardPage  = lazy(() => import('@/features/recruiter/PipelineBoardPage'))
 const RolePipelinesPage      = lazy(() => import('@/features/recruiter/RolePipelinesPage'))
 const RolePipelineEditorPage = lazy(() => import('@/features/recruiter/RolePipelineEditorPage'))
+const ApplyRolePipelinePage  = lazy(() => import('@/features/recruiter/ApplyRolePipelinePage'))
+const InviteWizardHarness    = lazy(() => import('@/features/recruiter/InviteWizardHarness'))
 const InviteWizard       = lazy(() => import('@/features/recruiter/InviteWizard'))
 const ReportPage         = lazy(() => import('@/features/recruiter/ReportPage'))
 const LiveInterviewPage  = lazy(() => import('@/features/recruiter/LiveInterviewPage'))
@@ -118,6 +120,15 @@ export default function App() {
                 control that does not toggle, a colour nobody can read. */}
             {import.meta.env.DEV && (
               <Route path="/__mcq" element={<McqSetsPage />} />
+            )}
+            {/* InviteWizard, for the same reason: whether Mixed Mode's payload
+                actually carries what the recruiter typed (fixed+résumé counts, the
+                ad-hoc question list) is a question about a network request a unit
+                test cannot see — and the one place that request is assembled.
+                Harnessed (not mounted directly like McqSetsPage) because two of its
+                children call useAuth() — see InviteWizardHarness.tsx. */}
+            {import.meta.env.DEV && (
+              <Route path="/__invite-wizard" element={<InviteWizardHarness />} />
             )}
             {/* Coding problem authoring, for the same reason: the sample/hidden
                 distinction is the one control on that page with a security
@@ -216,6 +227,7 @@ export default function App() {
                 <Route path="/candidates/role-pipelines" element={<RolePipelinesPage />} />
                 <Route path="/candidates/role-pipelines/new" element={<RolePipelineEditorPage />} />
                 <Route path="/candidates/role-pipelines/:id" element={<RolePipelineEditorPage />} />
+                <Route path="/candidates/role-pipelines/:id/apply" element={<ApplyRolePipelinePage />} />
               </Route>
             </Route>
 

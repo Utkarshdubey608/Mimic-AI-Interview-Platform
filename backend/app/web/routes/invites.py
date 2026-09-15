@@ -409,7 +409,14 @@ async def create_invites(
             store,
             mode=mode,
             source=source,
-            config={**(body.get("config") or {}), "questionSetId": question_set_id},
+            config={
+                **(body.get("config") or {}),
+                "questionSetId": question_set_id,
+                # Mixed mode's ad-hoc fixed questions — a sibling of `mixedConfig` on
+                # the request body (see `MixedConfig` in shared/types.ts), read from
+                # `config` rather than `mixedConfig` by `resolve_question_source`.
+                "fixedQuestions": body.get("fixedQuestions"),
+            },
             mixed_config=body.get("mixedConfig") if isinstance(body.get("mixedConfig"), dict) else None,
         )
 

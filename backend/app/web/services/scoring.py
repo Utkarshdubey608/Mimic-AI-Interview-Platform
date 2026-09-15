@@ -490,6 +490,14 @@ async def score_session(settings: Settings, session: dict, template: dict) -> di
     """
     import json
 
+    if session.get("track") == "essay":
+        # Not this function's conversation/fixed-slot machinery — essay has its
+        # own prompt, rubric and injection-fencing. See essay_evaluation.py's
+        # module docstring for why it still ends in the shape this file defines.
+        from app.web.services import essay_evaluation
+
+        return await essay_evaluation.evaluate_essay(settings, session)
+
     rubric = template.get("rubric") or {}
     kpis = enabled_kpis(rubric)
     is_conversation = session.get("track") in CONVERSATION_TRACKS
