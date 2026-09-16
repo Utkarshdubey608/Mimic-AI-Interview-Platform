@@ -193,13 +193,46 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
     // The shared completion screen, so a conversational interview ends exactly
     // the way a timed one does. This used to be a bespoke card with its own
     // wording, its own accent bar and its own tick plate.
+    //
+    // `layout="focus"` plus the same bounded-card treatment as the live chat,
+    // rather than the shared `layout="page"` every other track's completion
+    // uses: that pattern lets the PAGE grow past the viewport and scroll at
+    // the browser level, which reads as a jarring style switch right after
+    // the framed, fixed-height chat card the candidate was just looking at.
+    // Chat's completion scrolls INSIDE its own card instead, same as the chat
+    // itself.
     return (
-      <InterviewStage branding={branding} track="chatbot">
-        <Completion
-          branding={branding}
-          sessionId={sessionId}
-          accentClassName="bg-[#02A885] text-white hover:bg-[#029873]"
-        />
+      <InterviewStage branding={branding} track="chatbot" layout="focus">
+        <div
+          className="relative flex items-center justify-center overflow-hidden px-4 py-6 sm:px-6"
+          style={{ height: 'calc(100vh - 4rem)' }}
+        >
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse 55% 45% at 50% 0%, rgba(2,168,133,0.10), transparent 70%),' +
+                'radial-gradient(ellipse 40% 35% at 100% 100%, rgba(2,168,133,0.07), transparent 70%)',
+            }}
+          />
+          {/* `maxHeight` set directly here, not `h-full` inherited as a
+              percentage through the wrapper above — that turned out not to
+              reliably cap anything (see InterviewStage's own note on the
+              same mistake), and an uncapped completion card is exactly the
+              "footer pushed off-screen with nothing to scroll" bug this
+              whole fix is for. */}
+          <div
+            className="relative z-10 w-full max-w-2xl overflow-y-auto rounded-2xl"
+            style={{ maxHeight: 'calc(100vh - 6rem)' }}
+          >
+            <Completion
+              branding={branding}
+              sessionId={sessionId}
+              accentClassName="bg-[#02A885] text-white hover:bg-[#029873]"
+            />
+          </div>
+        </div>
       </InterviewStage>
     )
   }
@@ -226,44 +259,93 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
         ) : undefined
       }
     >
-      {/* transcript */}
-      <div ref={scrollRef} className="mx-auto w-full max-w-3xl flex-1 space-y-3.5 overflow-y-auto px-4 py-7">
-        {visibleTranscript.map((t) => (
-          <motion.div
-            key={t.id}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn('flex items-end gap-2.5', t.role === 'candidate' ? 'justify-end' : 'justify-start')}
-          >
-            {t.role !== 'candidate' && <InterviewerMark />}
-            <div
-              className={
-                t.role === 'candidate'
-                  ? 'max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white shadow-sm'
-                  : 'max-w-[76%] rounded-2xl rounded-bl-md border border-rule bg-surface px-4 py-3 text-[15px] text-ink shadow-xs'
-              }
-            >
-              <p className="whitespace-pre-wrap leading-[1.6]">{t.content}</p>
-            </div>
-          </motion.div>
-        ))}
+      {/* A bounded chat window, not a page. The transcript used to grow from
+          the top of a full-height flex column — correct for a long
+          conversation, but early on (one or two turns) it read as a tiny
+          bubble stranded at the top of an otherwise empty screen with the
+          composer stuck far below it. A framed card with its own atmosphere
+          reads as "an interview" from the very first message, not just once
+          it has filled up. */}
+      {/* `flex-1` alone does not cap this at the viewport: `InterviewStage`'s
+          root is `min-h-screen`, a FLOOR not a ceiling, so with enough
+          messages the whole page grew past 100vh instead of the transcript
+          scrolling internally — the composer (and the card's own bottom
+          edge) drifted below the fold as a conversation got longer. An
+          explicit viewport height, not a percentage inherited through an
+          auto-sized ancestor, is what actually holds the card still. */}
+      <div
+        className="relative flex items-center justify-center overflow-hidden px-4 py-6 sm:px-6"
+        style={{ height: 'calc(100vh - 4rem)' }}
+      >
+        {/* Ambient glow — Talbotiq green, faint, decorative only. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 55% 45% at 50% 0%, rgba(2,168,133,0.10), transparent 70%),' +
+              'radial-gradient(ellipse 40% 35% at 100% 100%, rgba(2,168,133,0.07), transparent 70%)',
+          }}
+        />
 
-        {/* Optimistic candidate bubble, keeps their answer on screen while the
-            interviewer "thinks" (the real turn replaces it on reveal). */}
-        {chat.pendingAnswer && chat.pendingAnswer.trim() !== '' && (
-          <div className="flex items-end justify-end gap-2.5">
-            <div className="max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white opacity-90 shadow-sm">
-              <p className="whitespace-pre-wrap leading-[1.6]">{chat.pendingAnswer}</p>
+        <div className="relative z-10 flex h-full max-h-[46rem] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-rule bg-surface shadow-lg">
+          {/* Card header — a chat window's title bar, so the card reads as
+              its own place rather than a stretch of the page background. */}
+          <div className="flex flex-shrink-0 items-center gap-2.5 border-b border-rule bg-surface-sunk/50 px-5 py-3.5">
+            {/* Black/ink lockup, matching every message-row mark — the logo
+                itself stays brand-black regardless of the chat track's green
+                accent elsewhere on this screen. */}
+            <MimicMark size="md" />
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-ink">AI Interviewer</p>
+              <p className="truncate text-2xs text-ink-muted">Live chat interview · Talbotiq</p>
             </div>
+            <span
+              className="ml-auto flex h-2 w-2 flex-shrink-0 rounded-full"
+              style={{ backgroundColor: TALBOTIQ_GREEN }}
+              aria-hidden="true"
+            />
+            <span className="sr-only" role="status">Connected</span>
           </div>
-        )}
 
-        {interviewerThinking && <ThinkingIndicator reduce={reduce} accent={TALBOTIQ_GREEN} />}
-      </div>
+          {/* transcript */}
+          <div ref={scrollRef} className="flex-1 space-y-3.5 overflow-y-auto px-4 py-6 sm:px-6">
+            {visibleTranscript.map((t) => (
+              <motion.div
+                key={t.id}
+                initial={reduce ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn('flex items-end gap-2.5', t.role === 'candidate' ? 'justify-end' : 'justify-start')}
+              >
+                {t.role !== 'candidate' && <InterviewerMark />}
+                <div
+                  className={
+                    t.role === 'candidate'
+                      ? 'max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white shadow-sm'
+                      : 'max-w-[76%] rounded-2xl rounded-bl-md border border-rule bg-surface px-4 py-3 text-[15px] text-ink shadow-xs'
+                  }
+                >
+                  <p className="whitespace-pre-wrap leading-[1.6]">{t.content}</p>
+                </div>
+              </motion.div>
+            ))}
 
-      {/* composer */}
-      <div className="sticky bottom-0 border-t border-rule bg-ground/95 backdrop-blur">
-        <div className="mx-auto w-full max-w-3xl px-4 py-3.5">
+            {/* Optimistic candidate bubble, keeps their answer on screen while the
+                interviewer "thinks" (the real turn replaces it on reveal). */}
+            {chat.pendingAnswer && chat.pendingAnswer.trim() !== '' && (
+              <div className="flex items-end justify-end gap-2.5">
+                <div className="max-w-[76%] rounded-2xl rounded-br-md bg-[#02A885] px-4 py-3 text-[15px] text-white opacity-90 shadow-sm">
+                  <p className="whitespace-pre-wrap leading-[1.6]">{chat.pendingAnswer}</p>
+                </div>
+              </div>
+            )}
+
+            {interviewerThinking && <ThinkingIndicator reduce={reduce} accent={TALBOTIQ_GREEN} />}
+          </div>
+
+          {/* composer */}
+          <div className="flex-shrink-0 border-t border-rule bg-surface px-4 py-3.5 sm:px-6">
           {inThinkingPhase && s && (
             <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-rule bg-surface px-4 py-3 shadow-xs">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-rule bg-surface-sunk text-ink-body">
@@ -433,6 +515,7 @@ export function ChatbotStage({ sessionId, branding, onIntegrity }: Props) {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
     </InterviewStage>

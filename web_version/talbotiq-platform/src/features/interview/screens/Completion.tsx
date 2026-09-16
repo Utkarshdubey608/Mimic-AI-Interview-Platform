@@ -44,7 +44,15 @@ export function Completion({
   const [done, setDone] = useState(false)
 
   return (
-    <>
+    // Self-contained: capped to the viewport and scrollable AS ONE UNIT
+    // (title card, feedback, the "go to Mimic" bar), regardless of which
+    // screen renders it or how that screen's own wrapper is sized. This used
+    // to be a bare Fragment with no height of its own — on three tracks with
+    // no explicit cap anywhere in the chain, the whole page just grew past
+    // the viewport, and the callers that DID try to cap it were doing so one
+    // layer up, which turned out not to reliably constrain content one more
+    // layer down.
+    <div className="max-h-[calc(100vh-6rem)] w-full overflow-y-auto">
     <motion.div
       variants={pageVariants(reduce)}
       initial="initial"
@@ -123,6 +131,6 @@ export function Completion({
       cancellable={!done}
       accentClassName={accentClassName}
     />
-    </>
+    </div>
   )
 }

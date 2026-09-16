@@ -99,12 +99,13 @@ def test_begin_uses_questions_embedded_on_the_session_when_there_is_no_question_
         )
     )
 
-    response = _client(CANDIDATE).post(f"/api/web/sessions/{session_id}/chat/begin", json={})
+    client = _client(CANDIDATE)
+    response = client.post(f"/api/web/sessions/{session_id}/chat/begin", json={})
     assert response.status_code == 200, response.text
 
-    answered = _client(CANDIDATE).post(
+    answered = client.post(
         f"/api/web/sessions/{session_id}/chat/answer",
-        json={"answerText": "Yes, I'm ready to begin."},
+        json={"turnId": response.json()["currentTurnId"], "answerText": "Yes, I'm ready to begin."},
     )
     assert answered.status_code == 200, answered.text
     stored = fake_store.sessions.docs[session_id]
@@ -153,7 +154,7 @@ def test_begin_succeeds_and_readiness_reaches_a_real_first_question(fake_store) 
 
     answered = client.post(
         f"/api/web/sessions/{sid}/chat/answer",
-        json={"answerText": "Yes, I'm ready to begin."},
+        json={"turnId": begun.json()["currentTurnId"], "answerText": "Yes, I'm ready to begin."},
     )
     assert answered.status_code == 200, answered.text
 

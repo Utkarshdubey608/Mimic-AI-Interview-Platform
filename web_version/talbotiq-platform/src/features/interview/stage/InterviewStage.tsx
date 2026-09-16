@@ -113,7 +113,12 @@ export function InterviewStage({
       </a>
 
       {/* ═══ Header ═══════════════════════════════════════════════════════ */}
-      <header className="relative z-sticky flex-shrink-0 border-b border-rule bg-surface/80 backdrop-blur-md">
+      {/* `sticky top-0`, not `relative` — a card's own internal scroll is
+          contained, but any residual scroll on the page itself (a rounding
+          pixel here, a taller-than-expected `focus`-layout screen there)
+          would otherwise drag the header along with it. Pinning it outright
+          removes the question entirely: this bar never moves, full stop. */}
+      <header className="sticky top-0 z-sticky flex-shrink-0 border-b border-rule bg-surface/80 backdrop-blur-md">
         <div className={cn('mx-auto flex h-14 items-center justify-between gap-4 px-4 sm:px-5', layout === 'page' ? 'max-w-4xl' : 'w-full')}>
           {/* Identity, the PRODUCT, not the employer.
               This showed the tenant's initial on their accent colour beside
@@ -171,18 +176,39 @@ export function InterviewStage({
         )}
       </header>
 
-      {/* ═══ Stage ════════════════════════════════════════════════════════ */}
+      {/* ═══ Stage ════════════════════════════════════════════════════════
+          `page` used to be `flex-1` inside a `min-h-screen` root — a FLOOR,
+          not a ceiling, so a card taller than the viewport just grew the
+          whole page past 100vh and left the browser to scroll it, instead of
+          the card scrolling internally. An explicit viewport height (not a
+          percentage inherited through that auto-sized ancestor) is what
+          actually holds every `page`-layout screen — the pre-flight cards,
+          MCQ, essay, timed Q&A, and the completion screen — to one fixed,
+          "crisp" frame no matter how much content is inside it. */}
       <main
         id="interview-main"
         tabIndex={-1}
         className={cn(
-          'relative z-raised flex flex-1 outline-none',
+          'relative z-raised flex outline-none',
           layout === 'page'
-            ? 'items-start justify-center px-4 py-8 sm:px-5 sm:py-10'
-            : 'min-h-0 flex-col',
+            ? 'items-center justify-center px-4 py-6 sm:px-5 sm:py-8'
+            : 'flex-1 min-h-0 flex-col',
         )}
       >
-        {layout === 'page' ? <div className="w-full max-w-2xl">{children}</div> : children}
+        {layout === 'page' ? (
+          // `maxHeight` computed from the viewport directly, on THIS element —
+          // not `h-full` inherited as a percentage through an ancestor whose
+          // own height was itself in question. That was the first attempt at
+          // this fix, and it silently failed: the card grew to its content's
+          // full height with no scrollbar anywhere, so a card taller than the
+          // screen just hid its own footer with no way to reach it at all.
+          <div
+            className="flex w-full max-w-3xl flex-col overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 6rem)' }}
+          >
+            {children}
+          </div>
+        ) : children}
       </main>
 
       {/* ═══ Transport ════════════════════════════════════════════════════

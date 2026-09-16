@@ -38,9 +38,19 @@ MAX_RESUME_CHARS = 14_000
 # where the interviewer is actually reasoning about their experience.
 GREETING_RESUME_CHARS = 1_500
 
+ANSWER_QUALITIES = ("sufficient", "partial", "weak", "incorrect", "irrelevant", "no_answer")
+
 TURN_SCHEMA = {
     "type": "object",
     "properties": {
+        # Ordered BEFORE `action` on purpose: a structured-output model commits to
+        # whatever field it fills in first, so asking it to name the quality of the
+        # answer before it picks next_question/follow_up is what makes the picking
+        # answer a REASON rather than a guess — the same "judge, then decide" shape
+        # every real interviewer uses, not a second label bolted onto an unrelated
+        # choice. Never sent to the candidate — see `answer_quality` on the stored
+        # turn in `_advance_adaptive`, and its absence from `ChatbotTurnView`.
+        "answerQuality": {"type": "string", "enum": list(ANSWER_QUALITIES)},
         "acknowledgment": {"type": "string"},
         "message": {"type": "string"},
         "action": {
@@ -48,8 +58,8 @@ TURN_SCHEMA = {
             "enum": ["next_question", "follow_up", "end_interview"],
         },
     },
-    "required": ["message", "action"],
-    "propertyOrdering": ["acknowledgment", "message", "action"],
+    "required": ["answerQuality", "message", "action"],
+    "propertyOrdering": ["answerQuality", "acknowledgment", "message", "action"],
 }
 
 # Questions used when generation is unavailable. Ordinary interview openers, so a
@@ -154,12 +164,20 @@ def append_interviewer(
     turn_type: str,
     question_index: int | None = None,
     is_follow_up: bool = False,
+    *,
+    answer_quality: str | None = None,
 ) -> dict:
     """Add an interviewer turn.
 
     The clock is deliberately NOT armed here. It starts when the client reports the
     question presented, so the "Thinking…" beat and any acknowledgment bubble do not
     come out of the candidate's answer time.
+
+    `answer_quality` — the model's judgment of the answer THIS turn is responding
+    to (see `ANSWER_QUALITIES`) — is stored on the turn but deliberately has no
+    entry in `ChatbotTurnView`/`compute_chatbot_state`'s allow-list, so it never
+    reaches the candidate. It exists for future recruiter-facing debugging/scoring,
+    not for anything shown live.
     """
     turn = {
         "id": str(uuid.uuid4()),
@@ -170,12 +188,20 @@ def append_interviewer(
         "isFollowUp": is_follow_up,
         "createdAt": _now(),
     }
+    if answer_quality is not None:
+        turn["answerQuality"] = answer_quality
     session.setdefault("transcript", []).append(turn)
     return turn
 
 
 def append_ack_then_question(
-    session: dict, ack: str, question: str, question_index: int, is_follow_up: bool
+    session: dict,
+    ack: str,
+    question: str,
+    question_index: int,
+    is_follow_up: bool,
+    *,
+    answer_quality: str | None = None,
 ) -> None:
     """The acknowledgment as its own bubble, then the question.
 
@@ -185,13 +211,14 @@ def append_ack_then_question(
     is never scored and never times anything.
     """
     if (ack or "").strip():
-        append_interviewer(session, ack.strip(), "acknowledgment")
+        append_interviewer(session, ack.strip(), "acknowledgment", answer_quality=answer_quality)
     append_interviewer(
         session,
         question,
         "follow_up" if is_follow_up else "question",
         question_index,
         is_follow_up,
+        answer_quality=answer_quality,
     )
 
 
@@ -297,16 +324,50 @@ def build_system_instruction(session: dict, template: dict, *, phase: str) -> st
         )
     else:
         lines += [
-            'After EVERY answer you MUST fill the "acknowledgment" field with ONE short, '
-            "warm, GENUINE sentence that positively acknowledges and encourages the "
-            "candidate about what they just said (make it specific to their answer when you "
-            'can), and put ONLY the next question in the "message" field. ALWAYS keep the '
-            "acknowledgment positive and motivating, never critical or lukewarm, even if the "
-            "answer was weak. Vary it every single time and never reuse a phrase. Never "
-            "leave the acknowledgment empty on an answer, and never put the acknowledgment "
-            'inside "message".',
-            "Then decide: ask a sharp FOLLOW-UP that drills into the previous answer, or "
-            "move to the NEXT primary question.",
+            "First judge the candidate's last answer AGAINST THE QUESTION THAT WAS JUST "
+            'ASKED and put your judgment in "answerQuality":\n'
+            '  "sufficient" — correctly and adequately addresses the question. A SHORT '
+            'answer can be sufficient ("Resource not found" fully answers "what does '
+            'HTTP 404 mean?") — judge substance, not length or keyword matches. A LONG '
+            "answer with little real content is NOT sufficient just because it is long.\n"
+            '  "partial" — shows real understanding but misses a significant piece of '
+            "what the question asked for.\n"
+            '  "weak" — vague, generic, or too thin to tell whether the candidate '
+            "actually understands the concept.\n"
+            '  "incorrect" — confidently states something factually wrong.\n'
+            '  "irrelevant" — does not address the question at all (off-topic, or '
+            "answers a different question than the one asked).\n"
+            '  "no_answer" — empty, "I don\'t know", or equivalent.\n'
+            "Base this ONLY on what the candidate actually wrote — never assume, infer, "
+            "or invent content they did not say, and never treat their résumé as if it "
+            "were part of their answer.",
+            'Then fill "acknowledgment" with ONE short, genuine sentence reacting to '
+            "what they said (specific to their answer, not generic), and put ONLY the "
+            'next question in "message". Let the TONE of the acknowledgment follow '
+            "your judgment honestly, the way a real interviewer sounds, not a scripted "
+            'cheerleader: warm for "sufficient", measured/encouraging for "partial" or '
+            '"weak", and calm and neutral for "incorrect"/"irrelevant"/"no_answer" — '
+            'never enthusiastic praise for an answer that was not sufficient, and never '
+            'critical, dismissive, or a flat "that\'s wrong" either (see the CASES '
+            "below). Vary the phrasing every time; never reuse the same sentence twice. "
+            'Never leave the acknowledgment empty on an answer, and never put it inside '
+            '"message".',
+            "Then decide the action:\n"
+            '  If "answerQuality" is "sufficient" — normally move straight to the next '
+            "planned question. Do not manufacture a follow-up just because one is "
+            "allowed; probing an answer that already showed understanding wastes the "
+            "candidate's time and reads as suspicious of a correct answer.\n"
+            '  If "partial" or "weak" — a follow-up is usually the right call. Make it '
+            "a SPECIFIC probe into the exact piece that was missing or vague (not a "
+            'generic "can you elaborate?"), and keep it anchored to the CURRENT '
+            "question's topic — it is a deeper look at the same thing, never a new, "
+            "unrelated question.\n"
+            '  If "incorrect" — give ONE gentle opening to reconsider (e.g. ask them to '
+            "look at it from another angle) rather than stating they are wrong. If they "
+            "were already given that chance on this same question, move on.\n"
+            '  If "irrelevant" — redirect back to the actual question once. If the '
+            "redirect is ALSO not answered, move on rather than repeating it again.\n"
+            '  If "no_answer" — do not press. Move on straight away.',
             _budget_line(session, template),
         ]
         if not adaptive.get("allowFollowUps"):
@@ -399,8 +460,14 @@ def normalise_decision(raw: object) -> dict:
     data = raw if isinstance(raw, dict) else {}
     message = (data.get("message") or "").strip()
     action = data.get("action")
+    answer_quality = data.get("answerQuality")
 
     return {
+        # Unknown/missing degrades to "partial" rather than crashing or silently
+        # dropping the field — a middling default is the safest wrong guess: it
+        # neither forces a needless follow-up (as "weak" would bias toward) nor
+        # skips one a genuinely thin answer needed (as "sufficient" would).
+        "answerQuality": answer_quality if answer_quality in ANSWER_QUALITIES else "partial",
         "acknowledgment": clean_ack(data.get("acknowledgment") or ""),
         # A blank message would appear as an empty bubble the candidate cannot answer.
         "message": conversation.humanize_punctuation(
@@ -634,6 +701,10 @@ async def _advance_adaptive(
     transcript_length = len(session.get("transcript") or [])
 
     fallback = {
+        # Gemini being unreachable says nothing about the answer's quality — this
+        # is a transport fallback, not a judgment, so it stays "partial": the
+        # neutral non-signal, never stored as if the model actually looked.
+        "answerQuality": "partial",
         "acknowledgment": "" if at_last_primary else fallback_ack(transcript_length),
         "message": "" if at_last_primary else generic_question((session.get("currentIndex") or 0) + 1),
         "action": "end_interview" if at_last_primary else "next_question",
@@ -674,6 +745,7 @@ async def _advance_adaptive(
             decision["message"] or "Could you go a little deeper on that?",
             session.get("currentIndex") or 0,
             True,
+            answer_quality=decision["answerQuality"],
         )
         return
 
@@ -691,7 +763,9 @@ async def _advance_adaptive(
     if not message or looks_like_closing(message):
         message = generic_question(next_index)
 
-    append_ack_then_question(session, ack, message, next_index, False)
+    append_ack_then_question(
+        session, ack, message, next_index, False, answer_quality=decision["answerQuality"]
+    )
 
 
 CLOSING_MARKERS = ("thank you", "concludes", "all the questions", "that's all", "that’s all")

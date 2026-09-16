@@ -1,4 +1,4 @@
-import { Clock, EyeOff, Lock, ArrowRight, ShieldCheck, MessagesSquare, Mic } from 'lucide-react'
+import { Clock, EyeOff, Lock, ArrowRight, ShieldCheck, MessagesSquare, Mic, AlignLeft, MonitorCheck } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { PreflightCard, ExpectationRow, type PreflightStep } from '../stage/Preflight'
 import type { BrandingConfig, PublicTimingView, TrackType } from '@shared/types'
@@ -43,6 +43,7 @@ export function Welcome({ branding, timing, track, steps, onContinue }: Props) {
   const plural = timing.answerSeconds >= 120 ? 's' : ''
   const timed = isTimed(track)
   const spoken = track === 'voice' || track === 'video_avatar' || track === 'two_way'
+  const chat = track === 'chatbot'
 
   /* `welcomeMessage` is tenant-supplied prose, and it was previously rendered AS
      the h1. That produced a four-line, 30px display heading out of what is
@@ -74,34 +75,52 @@ export function Welcome({ branding, timing, track, steps, onContinue }: Props) {
       <ul className="space-y-5">
         {timed ? (
           <>
-            <ExpectationRow icon={<Clock size={17} strokeWidth={1.75} />} title="The clock">
+            <ExpectationRow icon={<Clock size={19} strokeWidth={1.75} />} title="The clock">
               Each question gives you{' '}
               <strong className="font-semibold text-ink">{timing.prepSeconds} seconds</strong> to prepare,
               then <strong className="font-semibold text-ink">{answerMinutes} minute{plural}</strong> to answer.
             </ExpectationRow>
 
-            <ExpectationRow icon={<Lock size={17} strokeWidth={1.75} />} title="One pass, forwards">
+            <ExpectationRow icon={<Lock size={19} strokeWidth={1.75} />} title="One pass, forwards">
               Your answer submits automatically when the timer ends. You cannot return
               to an earlier question or edit an answer you have already given.
             </ExpectationRow>
           </>
         ) : (
           <ExpectationRow
-            icon={spoken ? <Mic size={17} strokeWidth={1.75} /> : <MessagesSquare size={17} strokeWidth={1.75} />}
-            title="A conversation, not a form"
+            icon={spoken ? <Mic size={19} strokeWidth={1.75} /> : <MessagesSquare size={19} strokeWidth={1.75} />}
+            title={chat ? 'A written conversation' : 'A conversation, not a form'}
           >
             {spoken
               ? 'Your interviewer asks a question, you answer out loud, and it follows up on what you say. There is no per-question countdown, so take the time you need to think.'
-              : 'Your interviewer asks a question, you reply, and it follows up on what you say. Answer in your own words; there is no word count to hit.'}
+              : chat
+                ? 'Your interviewer asks one question at a time, in writing, and follows up on what you say — the same way a real interviewer would. Read each question carefully before you reply.'
+                : 'Your interviewer asks a question, you reply, and it follows up on what you say. Answer in your own words; there is no word count to hit.'}
           </ExpectationRow>
         )}
 
-        <ExpectationRow icon={<EyeOff size={17} strokeWidth={1.75} />} title="One question at a time">
+        {chat && (
+          <ExpectationRow icon={<AlignLeft size={19} strokeWidth={1.75} />} title="Answer fully">
+            Write a complete, considered response for every question — explain your
+            reasoning and give concrete detail, the way you would in person. A short or
+            vague reply is the one thing that reads poorly here.
+          </ExpectationRow>
+        )}
+
+        <ExpectationRow icon={<EyeOff size={19} strokeWidth={1.75} />} title="One question at a time">
           Questions come one at a time, and later ones stay hidden until it is their
           turn. There is nothing to read ahead to.
         </ExpectationRow>
 
-        <ExpectationRow icon={<ShieldCheck size={17} strokeWidth={1.75} />} title="Who sees this">
+        {chat && (
+          <ExpectationRow icon={<MonitorCheck size={19} strokeWidth={1.75} />} title="Stay on this tab">
+            Keep this tab focused and in fullscreen for the whole interview. Switching
+            to another tab, app, or window is recorded, and repeated switches will end
+            the interview automatically.
+          </ExpectationRow>
+        )}
+
+        <ExpectationRow icon={<ShieldCheck size={19} strokeWidth={1.75} />} title="Who sees this">
           Your answers go to the hiring team and no one else. You can read the full
           terms at any time from the help button in the corner.
         </ExpectationRow>

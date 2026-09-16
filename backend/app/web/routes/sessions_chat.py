@@ -183,6 +183,21 @@ async def chat_answer(
             status_code=status.HTTP_409_CONFLICT,
         )
 
+    # Same idiom as the fixed-slot track's own guard against this exact bug class
+    # (routes/sessions.py's `question.get("id") != body.get("questionId")`): the
+    # client already sends `turnId` on every submit (`useChatbotSession.ts`), but
+    # nothing here ever checked it. A double-click or a network retry would
+    # silently answer whatever turn happened to be current BY THEN — appending a
+    # second candidate turn, advancing the interview twice, and burning a second
+    # Gemini call for one submission. Strict on purpose: a missing turnId fails
+    # this the same way a wrong one does, exactly like the fixed-slot check does
+    # for a missing `questionId`.
+    if turn.get("id") != body.get("turnId"):
+        return JSONResponse(
+            {"error": "Not the current turn", "state": _state(session, template, questions)},
+            status_code=status.HTTP_409_CONFLICT,
+        )
+
     # A late answer is still an answer, but it is recorded as auto-advanced: the window
     # had already closed, and treating it as a deliberate submission would overstate it.
     expired = conversation.advance_chatbot_timing(

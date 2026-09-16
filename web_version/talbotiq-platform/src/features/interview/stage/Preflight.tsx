@@ -56,27 +56,38 @@ export function PreflightCard({
   const index = steps.indexOf(step)
 
   return (
+    // The step meter and the footer (the Continue button) are `flex-shrink-0`
+    // — always visible, never scrolled away — and only the body in between
+    // scrolls. The card itself is capped to the viewport, the same
+    // pinned-header/scrolling-middle/pinned-footer shape as the chat card.
+    // A single `overflow-hidden` + unconstrained height on the WHOLE card
+    // (the previous shape) had no ceiling of its own: a body with five rules
+    // just pushed the footer below the fold with nothing to scroll — the
+    // Continue button was there, just permanently off-screen.
     <motion.div
       variants={pageVariants(reduce)}
       initial="initial"
       animate="animate"
       exit="exit"
-      className={cn('overflow-hidden rounded-xl border border-rule bg-surface shadow-lg', className)}
+      className={cn(
+        'flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-xl border border-rule bg-surface shadow-lg',
+        className,
+      )}
     >
       {steps.length > 1 && <StepMeter steps={steps} current={index} />}
 
-      <div className="p-6 sm:p-8">
-        <h1 className="text-balance font-display text-[26px] font-bold leading-[1.15] text-ink sm:text-[30px]">
+      <div className="flex-1 overflow-y-auto p-7 sm:p-10">
+        <h1 className="text-balance font-display text-[28px] font-bold leading-[1.15] text-ink sm:text-[34px]">
           {title}
         </h1>
         {description && (
-          <p className="measure mt-3 text-[15px] leading-relaxed text-ink-muted">{description}</p>
+          <p className="measure mt-3 text-base leading-relaxed text-ink-muted">{description}</p>
         )}
         {children && <div className="mt-7">{children}</div>}
       </div>
 
       {footer && (
-        <div className="border-t border-rule bg-surface-sunk px-6 py-5 sm:px-8">{footer}</div>
+        <div className="flex-shrink-0 border-t border-rule bg-surface-sunk px-7 py-5 sm:px-10">{footer}</div>
       )}
     </motion.div>
   )
@@ -92,7 +103,7 @@ export function PreflightCard({
  */
 function StepMeter({ steps, current }: { steps: PreflightStep[]; current: number }) {
   return (
-    <nav aria-label="Interview setup progress" className="border-b border-rule bg-surface-sunk px-6 py-3 sm:px-8">
+    <nav aria-label="Interview setup progress" className="border-b border-rule bg-surface-sunk px-7 py-3 sm:px-10">
       <ol className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         {steps.map((s, i) => {
           const done = i < current
@@ -149,16 +160,16 @@ export function ExpectationRow({
   children: React.ReactNode
 }) {
   return (
-    <li className="flex items-start gap-3.5">
+    <li className="flex items-start gap-4">
       <span
-        className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-rule bg-surface-sunk text-ink-body"
+        className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md border border-rule bg-surface-sunk text-ink-body"
         aria-hidden="true"
       >
         {icon}
       </span>
       <div className="min-w-0 pt-1">
-        {title && <p className="text-sm font-semibold text-ink">{title}</p>}
-        <p className={cn('text-sm leading-relaxed text-ink-body', title && 'mt-0.5 text-ink-muted')}>
+        {title && <p className="text-base font-semibold text-ink">{title}</p>}
+        <p className={cn('text-[15px] leading-relaxed text-ink-body', title && 'mt-1 text-ink-muted')}>
           {children}
         </p>
       </div>
