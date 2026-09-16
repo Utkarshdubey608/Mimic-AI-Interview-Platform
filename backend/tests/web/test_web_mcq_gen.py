@@ -252,11 +252,16 @@ class TestTheMistakeHasNowhereToLive:
 
     def test_both_generators_go_through_it(self):
         """Asserted on the source, because the point is that no caller hand-rolls
-        the dict any more — a future one that did would reintroduce the bug."""
+        the dict any more — a future one that did would reintroduce the bug.
+
+        3, not 2: Mode B's per-section generator (`_call_section_batch`,
+        added alongside `generate_for_section`) is a third caller using the
+        exact same safe helper — not a new way of building the message.
+        """
         from pathlib import Path
 
         source = Path("app/web/services/mcq_gen.py").read_text(encoding="utf-8")
-        assert source.count("gemini.user_turn(") == 2
+        assert source.count("gemini.user_turn(") == 3
         assert "to_contents(" not in source
 
 

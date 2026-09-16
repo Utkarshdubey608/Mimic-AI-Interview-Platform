@@ -72,6 +72,46 @@ MAX_IMAGE_DATA_URL = 300_000
 # unsectioned question is unsectioned, exactly as it always was.
 DEFAULT_SECTION_IDS = frozenset({"diagram-questions"})
 
+# Predefined section TYPES, offered to a recruiter as a quick-start picker —
+# not an enum enforced at save time. A section's `name` stays the free-text
+# field it always was; `sectionType` is metadata that lets the template
+# builder and the generator understand what a section is FOR (which prompt
+# brief to use, which icon to show) without constraining what recruiters can
+# call it or forcing every section into one of these five. "custom" is the
+# default for a section with no recognised type, including every section
+# authored before this field existed.
+SECTION_TYPES: dict[str, dict[str, str]] = {
+    "aptitude": {
+        "label": "Aptitude",
+        "description": "Numerical and logical aptitude",
+    },
+    "quantitative": {
+        "label": "Quantitative Ability",
+        "description": "Mathematical reasoning and problem solving",
+    },
+    "reading_comprehension": {
+        "label": "Reading Comprehension",
+        "description": "Passage-based comprehension questions",
+    },
+    "verbal_reasoning": {
+        "label": "Verbal Reasoning",
+        "description": "Language and verbal logic",
+    },
+    "diagram": {
+        "label": "Diagram / Visual Reasoning",
+        "description": "Image and diagram-based reasoning",
+    },
+    "custom": {
+        "label": "Custom",
+        "description": "A section of your own",
+    },
+}
+
+# What a question may be tagged with to say how it entered the paper. Server-
+# side bookkeeping only — deliberately not part of `mcq_public_question`'s
+# allow-list (see mcq_scoring.py), so it never reaches a candidate.
+QUESTION_SOURCES = ("manual", "imported", "ai_generated")
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -124,6 +164,17 @@ def clean_section(raw: object, index: int) -> dict:
     # recruiter who wants two passages adds two sections.
     if passage := text_of(raw.get("passage"), MAX_PASSAGE):
         section["passage"] = passage
+    # A quick-start category (see SECTION_TYPES) — never enforced, only offered.
+    # Anything unrecognised (including a section saved before this field
+    # existed) is "custom" rather than raising, since the type is a picker
+    # convenience, not a constraint on what a recruiter may name a section.
+    section_type = text_of(raw.get("sectionType"), 40).lower()
+    section["sectionType"] = section_type if section_type in SECTION_TYPES else "custom"
+    # How many questions this section is meant to end up with. 0 means "no
+    # target set" — a recruiter who never opens the count picker gets the
+    # section behaving exactly as it always did, with no target to chase.
+    target = int_of(raw.get("targetQuestionCount"), 0)
+    section["targetQuestionCount"] = min(max(target, 0), MAX_QUESTIONS)
     return section
 
 
@@ -272,6 +323,12 @@ def with_question_extras(question: dict, raw: dict) -> dict:
         question["difficulty"] = difficulty
     if explanation := text_of(raw.get("explanation"), MAX_TEXT):
         question["explanation"] = explanation
+    # How this question entered the paper — recruiter bookkeeping only (see
+    # QUESTION_SOURCES's docstring). Defaults to "manual" so a question saved
+    # before this field existed, or one a client omits it for, backfills to
+    # the one source that was always true of every question until now.
+    source = text_of(raw.get("source"), 20).lower()
+    question["source"] = source if source in QUESTION_SOURCES else "manual"
 
     return question
 

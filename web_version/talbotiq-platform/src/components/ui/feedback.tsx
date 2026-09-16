@@ -85,6 +85,44 @@ export function StatusMark({
   )
 }
 
+/* ═══ Progress ═════════════════════════════════════════════════════════════
+   A bounded quantity moving toward a target — a section's question count
+   toward its target, an import batch's rows processed. The bar is never the
+   only carrier: `label` is shown beside it AND read by assistive technology
+   through `aria-label`, the same "colour/glyph/word" discipline as
+   `StatusMark` above, applied to a continuous rather than a discrete value. */
+
+export function Progress({
+  value, max, label, className,
+}: {
+  value: number
+  max: number
+  /** e.g. "8 / 10 questions". Shown beside the bar and announced by a screen reader. */
+  label?: string
+  className?: string
+}) {
+  const pct = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0
+  const complete = max > 0 && value >= max
+  return (
+    <div className={cn('flex flex-col gap-1', className)}>
+      <div
+        role="progressbar"
+        aria-valuenow={value}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(max, 1)}
+        aria-label={label}
+        className="h-1.5 w-full overflow-hidden rounded-full bg-surface-hover"
+      >
+        <div
+          className={cn('h-full rounded-full transition-[width] duration-fast ease-out', complete ? 'bg-ok' : 'bg-ink')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {label && <p className="text-xs text-ink-muted">{label}</p>}
+    </div>
+  )
+}
+
 /* ═══ Skeleton ═════════════════════════════════════════════════════════════
    Shaped like the content it replaces, never a spinner, and never taller or
    shorter than the real thing — a skeleton whose height differs from the loaded

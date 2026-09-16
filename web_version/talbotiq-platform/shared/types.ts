@@ -149,6 +149,17 @@ export type McqAnswerType = 'single' | 'multi' | 'match'
  * representations of the same thing drift, and a stored index that disagrees with
  * the array is a bug with no obvious right answer.
  */
+/** The predefined quick-start categories offered by "Add Section" — see
+ *  `mcqSectionTypes.ts`. Never enforced server-side: a section's `name` stays
+ *  free text, and an unrecognised/absent type is "custom". */
+export type McqSectionType =
+  | 'aptitude'
+  | 'quantitative'
+  | 'reading_comprehension'
+  | 'verbal_reasoning'
+  | 'diagram'
+  | 'custom'
+
 export interface McqSection {
   id: string
   name: string
@@ -163,6 +174,13 @@ export interface McqSection {
    * has to know passages exist. Two passages = two sections.
    */
   passage?: string
+  /** A quick-start category — drives which icon/label shows and which AI
+   *  prompt brief is used, never a constraint on what the section may hold. */
+  sectionType?: McqSectionType
+  /** How many questions this section is meant to end up with. `0` (or
+   *  absent) means no target was set — the template builder's "target /
+   *  added / remaining" progress only appears once this is > 0. */
+  targetQuestionCount?: number
 }
 
 /** One row of a match-the-following question, as the recruiter authors it. */
@@ -208,6 +226,9 @@ export interface McqQuestion {
   difficulty?: 'easy' | 'medium' | 'hard'
   /** Shown in the recruiter's report, and to the candidate only after scoring. */
   explanation?: string
+  /** How this question entered the paper. Recruiter-side bookkeeping only —
+   *  never sent to a candidate. Absent/unrecognised backfills to "manual". */
+  source?: 'manual' | 'imported' | 'ai_generated'
 }
 
 /** What a candidate actually receives. No key, by construction. */

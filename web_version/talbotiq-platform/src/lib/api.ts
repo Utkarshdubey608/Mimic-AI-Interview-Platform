@@ -424,6 +424,57 @@ export const mcqSetsApi = {
       method: 'POST',
       body: JSON.stringify({ count }),
     }),
+
+  /* ── Mode B: fill ONE section toward its target ───────────────────────────
+     Same "returns for review, never saves" contract. The server derives the
+     count from the section's own target when none is sent — never trust a
+     client-sent total over what the section actually still needs. */
+
+  /** Exactly what the section is missing, excluding duplicates of what it
+   *  already has. Omit `count` to let the server derive it from the
+   *  section's own target. */
+  generateForSection: (setId: string, sectionId: string, body: {
+    count?: number
+    difficulty?: 'easy' | 'medium' | 'hard' | 'mixed'
+    role?: string
+  } = {}) =>
+    http<{ questions: McqQuestion[]; passage: string | null; requested: number; delivered: number }>(
+      `/mcq-sets/${setId}/sections/${sectionId}/generate`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+
+  /** Replace ONE question — the model is excluded from every OTHER question
+   *  in the section, so it cannot just hand the same one back. */
+  regenerateQuestion: (setId: string, sectionId: string, questionId: string) =>
+    http<{ questions: McqQuestion[]; passage: string | null; requested: number; delivered: number }>(
+      `/mcq-sets/${setId}/sections/${sectionId}/generate`,
+      { method: 'POST', body: JSON.stringify({ regenerateQuestionId: questionId }) },
+    ),
+
+  /**
+   * A document or spreadsheet, extracted for review — never saved. Buckets
+   * mirror the recruiter's review step: `valid` needs nothing, `needsReview`
+   * carries a reason (an unresolved answer, a possible duplicate), `rejected`
+   * could not be turned into a question at all.
+   */
+  importIntoSection: async (
+    setId: string, sectionId: string, file: File,
+  ): Promise<{
+    valid: { row: number; question: McqQuestion }[]
+    needsReview: { row: number; question: McqQuestion; reason: string }[]
+    rejected: { row: number; reason: string; text?: string }[]
+  }> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`${BASE}/mcq-sets/${setId}/sections/${sectionId}/import`, {
+      method: 'POST', body: fd,
+    })
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
+    if (!res.ok) throw new ApiError((data && data.error) || `Import failed (${res.status})`, res.status, data)
+    return data
+  },
 }
 
 /* ─── Question Sets ─────────────────────────────────────────────────────── */

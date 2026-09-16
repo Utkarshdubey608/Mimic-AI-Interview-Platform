@@ -255,6 +255,173 @@ def normalise_generated(
     return questions[:MAX_QUESTIONS]
 
 
+# ── Mode B: filling ONE typed section to its target count ────────────────────
+#
+# Mode A (above) writes a whole paper in one shot, split across up to two
+# hardcoded sections ("technical"/"non_technical"). Mode B is a different
+# shape: the recruiter has already chosen a SECTION (one of the predefined
+# types in `mcq_authoring.SECTION_TYPES`, or a custom one), it may already
+# have some questions in it, and the request is "write exactly the N more
+# this section still needs" — never a fresh batch the caller then discards
+# most of.
+
+SECTION_TYPE_BRIEFS: dict[str, str] = {
+    "aptitude": (
+        "APTITUDE questions test numerical and logical aptitude: number "
+        "series, ratios, logical deduction, pattern recognition, simple "
+        "probability, and short word problems. Solvable with reasoning and "
+        "arithmetic alone — no specialist domain knowledge required."
+    ),
+    "quantitative": (
+        "QUANTITATIVE ABILITY questions test mathematical reasoning and "
+        "problem solving: algebra, percentages, ratios and proportions, "
+        "time-speed-distance, profit and loss, basic data interpretation. "
+        "Each has a single defensible numeric or algebraic answer."
+    ),
+    "reading_comprehension": (
+        "READING COMPREHENSION questions are answered from a passage. "
+        "Every question must be answerable ONLY by reading the passage — "
+        "main idea, inference, vocabulary-in-context, the author's tone — "
+        "never from general knowledge alone."
+    ),
+    "verbal_reasoning": (
+        "VERBAL REASONING questions test language and verbal logic: "
+        "analogies, sentence correction, synonyms/antonyms in context, "
+        "logical ordering of statements, and drawing a valid conclusion "
+        "from a short argument. Each has exactly one defensible answer."
+    ),
+}
+
+# A section this large above a document limit is not realistic, and bounding
+# it keeps one over-eager request from becoming an unbounded prompt.
+MAX_EXCLUDED_QUESTIONS = 60
+
+
+def remaining_count(target: int, existing: int) -> int:
+    """How many MORE questions a section needs. Never negative.
+
+    Named and tested on its own because "never generate more than the
+    section actually needs" is a hard product requirement, not a detail —
+    the caller must not be able to get this arithmetic wrong.
+    """
+    return max(0, target - max(0, existing))
+
+
+def normalised_for_dedup(text: str) -> str:
+    """Case/whitespace-insensitive key for exact-and-near-exact duplicate
+    detection. Deliberately NOT semantic — two questions that merely share a
+    topic are not duplicates, and an embedding-similarity threshold risks
+    rejecting valid, differently-worded questions. This catches the
+    unambiguous case: the same question, retyped or re-spaced.
+
+    Public (not `_`-prefixed): `mcq_import.py` reuses this exact definition
+    for import-time duplicate detection, so "duplicate" means the same thing
+    whether a question arrived by AI generation or by file import.
+    """
+    return " ".join(text.lower().split())
+
+
+def drop_duplicate_questions(
+    questions: list[dict], exclude_texts: list[str]
+) -> tuple[list[dict], int]:
+    """`questions` with any exact/normalised-text duplicate removed — against
+    `exclude_texts` (the section's existing questions) AND against an earlier
+    question already kept from this same batch. Returns (kept, dropped_count).
+    """
+    seen = {normalised_for_dedup(t) for t in exclude_texts}
+    kept: list[dict] = []
+    dropped = 0
+    for question in questions:
+        key = normalised_for_dedup(question.get("text") or "")
+        if key and key in seen:
+            dropped += 1
+            continue
+        if key:
+            seen.add(key)
+        kept.append(question)
+    return kept, dropped
+
+
+SECTION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        # Only meaningful for a reading_comprehension section with no passage
+        # yet — see `build_section_prompt`. Ignored otherwise.
+        "passage": {"type": "string"},
+        "questions": PAPER_SCHEMA["properties"]["questions"],
+    },
+    "required": ["questions"],
+}
+
+
+def build_section_prompt(
+    *,
+    section_type: str,
+    section_name: str,
+    role: str,
+    count: int,
+    difficulty: str,
+    exclude_texts: list[str],
+    existing_passage: str | None,
+) -> str:
+    brief = SECTION_TYPE_BRIEFS.get(
+        section_type,
+        f'Write questions appropriate for a section named "{section_name}", '
+        f"screening a {role}.",
+    )
+    spread = (
+        "Mix easy, medium and hard across these questions."
+        if difficulty == "mixed"
+        else f"Every question should be {difficulty} difficulty."
+    )
+
+    passage_instruction = ""
+    if section_type == "reading_comprehension":
+        if existing_passage:
+            passage_instruction = (
+                "\n\nThis section's passage already exists — write questions "
+                f'about THIS passage, do not invent a new one:\n"""{existing_passage}"""'
+            )
+        else:
+            passage_instruction = (
+                '\n\nFirst write ONE passage (150-300 words), general enough '
+                'to need no specialist background, and put it in "passage". '
+                "Every question must be answerable only by reading it."
+            )
+
+    avoid = ""
+    if exclude_texts:
+        listed = "\n".join(f"- {t}" for t in exclude_texts[:MAX_EXCLUDED_QUESTIONS])
+        avoid = (
+            "\n\nThis section ALREADY has these questions. Do not repeat any "
+            "of them, and do not write a trivial variation of one (the same "
+            "question with different numbers is a duplicate, not a new "
+            f"question) — cover different ground:\n{listed}"
+        )
+
+    return (
+        f"Write {count} multiple-choice question{'' if count == 1 else 's'} for "
+        f'the "{section_name}" section of an assessment screening a {role}.\n\n'
+        f"{brief}{passage_instruction}{avoid}\n\n"
+        f"{spread}\n"
+        "Every question has exactly ONE correct option.\n\n"
+        "What makes these questions good, and what usually makes them bad:\n"
+        "- The WRONG options are the hard part. Each should be something a "
+        "candidate with a partial or outdated understanding would actually "
+        "choose — an obviously wrong option means every candidate rules it "
+        "out and the question separates nobody.\n"
+        "- Four options each.\n"
+        "- Never 'all of the above', 'none of the above', or joke options.\n"
+        "- Do not make the correct option noticeably longer or more detailed "
+        "than the others.\n"
+        "- Vary the underlying concept, scenario and wording across these "
+        "questions — never the same question restated with different numbers.\n"
+        "- Each question stands alone and never refers to another.\n"
+        "- Give a one-sentence explanation of why the correct answer is correct.\n"
+        "- Mark exactly which option is correct."
+    )
+
+
 def build_topic_prompt(role: str) -> str:
     return (
         f"List the skill areas a multiple-choice screening test for a {role} should cover.\n\n"

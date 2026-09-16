@@ -8,8 +8,8 @@
  * rather than a big bang, and no import path in the codebase moves.
  *
  *   primitives.tsx  Button, Input, Textarea, Select, Checkbox, Toggle, Slider
- *   feedback.tsx    Badge, StatusMark, Skeleton, Empty/NoResults/Error states,
- *                   InlineNotice, ProvenanceMark
+ *   feedback.tsx    Badge, StatusMark, Progress, Skeleton, Empty/NoResults/Error
+ *                   states, InlineNotice, ProvenanceMark
  *   layout.tsx      Page, PageHeader, Breadcrumbs, RecordSection, Card,
  *                   ExhibitTab, Citation, StatFigure, InfoRow
  *   overlay.tsx     Modal, Drawer, ConfirmDialog
@@ -28,7 +28,7 @@ export { cn } from './cn'
 export { Button, Input, Textarea, Select, Checkbox, Toggle, Slider } from './primitives'
 
 export {
-  Badge, StatusMark, Skeleton, RecordRows, RecordCards,
+  Badge, StatusMark, Progress, Skeleton, RecordRows, RecordCards,
   EmptyState, NoResultsState, ErrorState, InlineNotice, ProvenanceMark,
 } from './feedback'
 

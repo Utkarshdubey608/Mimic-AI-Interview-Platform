@@ -68,6 +68,14 @@ class McqQuestionDraft {
   final String? explanation;
   final double points;
 
+  /// How this question entered the paper — `manual`, `imported` or
+  /// `ai_generated`. Recruiter-side bookkeeping only, mirroring the
+  /// backend's `mcq_authoring.QUESTION_SOURCES`; never sent to a candidate.
+  /// Defaults to "manual" so a question saved before this field existed
+  /// backfills to the one source that was always true of every question
+  /// until now.
+  final String source;
+
   const McqQuestionDraft({
     required this.id,
     this.text = '',
@@ -82,6 +90,7 @@ class McqQuestionDraft {
     this.sectionId,
     this.explanation,
     this.points = 1,
+    this.source = 'manual',
   });
 
   bool get isPairing => type == 'match';
@@ -121,6 +130,7 @@ class McqQuestionDraft {
       sectionId: nonEmpty(json['sectionId'] ?? json['section']),
       explanation: nonEmpty(json['explanation']),
       points: (json['points'] as num?)?.toDouble() ?? 1,
+      source: (json['source'] ?? 'manual').toString(),
     );
   }
 
@@ -133,6 +143,7 @@ class McqQuestionDraft {
       'text': text,
       'type': type,
       'points': points,
+      'source': source,
       if (code != null && code!.isNotEmpty) 'code': code,
       if (topic != null && topic!.isNotEmpty) 'topic': topic,
       if (sectionId != null && sectionId!.isNotEmpty) 'sectionId': sectionId,
@@ -169,6 +180,7 @@ class McqQuestionDraft {
     String? sectionId,
     String? explanation,
     double? points,
+    String? source,
     bool clearSection = false,
   }) =>
       McqQuestionDraft(
@@ -185,6 +197,7 @@ class McqQuestionDraft {
         sectionId: clearSection ? null : (sectionId ?? this.sectionId),
         explanation: explanation ?? this.explanation,
         points: points ?? this.points,
+        source: source ?? this.source,
       );
 }
 
@@ -202,11 +215,24 @@ class McqSectionDraft {
   /// passages means two sections.
   final String? passage;
 
+  /// A quick-start category — mirrors `mcq_authoring.SECTION_TYPES`
+  /// (`aptitude`, `quantitative`, `reading_comprehension`, `verbal_reasoning`,
+  /// `diagram`, `custom`). Never enforced: `name` stays free text, and an
+  /// unrecognised/absent type is "custom", same as a section saved before
+  /// this field existed.
+  final String sectionType;
+
+  /// How many questions this section is meant to end up with. `0` means no
+  /// target was set.
+  final int targetQuestionCount;
+
   const McqSectionDraft({
     required this.id,
     this.name = '',
     this.instructions,
     this.passage,
+    this.sectionType = 'custom',
+    this.targetQuestionCount = 0,
   });
 
   factory McqSectionDraft.fromJson(Map<String, dynamic> json) {
@@ -220,6 +246,8 @@ class McqSectionDraft {
       name: (json['name'] ?? '').toString(),
       instructions: nonEmpty(json['instructions']),
       passage: nonEmpty(json['passage']),
+      sectionType: (json['sectionType'] ?? 'custom').toString(),
+      targetQuestionCount: (json['targetQuestionCount'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -228,14 +256,24 @@ class McqSectionDraft {
         'name': name,
         if (instructions != null && instructions!.isNotEmpty) 'instructions': instructions,
         if (passage != null && passage!.isNotEmpty) 'passage': passage,
+        'sectionType': sectionType,
+        'targetQuestionCount': targetQuestionCount,
       };
 
-  McqSectionDraft copyWith({String? name, String? instructions, String? passage}) =>
+  McqSectionDraft copyWith({
+    String? name,
+    String? instructions,
+    String? passage,
+    String? sectionType,
+    int? targetQuestionCount,
+  }) =>
       McqSectionDraft(
         id: id,
         name: name ?? this.name,
         instructions: instructions ?? this.instructions,
         passage: passage ?? this.passage,
+        sectionType: sectionType ?? this.sectionType,
+        targetQuestionCount: targetQuestionCount ?? this.targetQuestionCount,
       );
 }
 

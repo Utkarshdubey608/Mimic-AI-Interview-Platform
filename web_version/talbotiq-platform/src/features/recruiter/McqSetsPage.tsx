@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -11,14 +12,16 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   Plus, Copy, Trash2, Save, GripVertical, ListChecks, ListPlus, AlertTriangle, Sparkles,
   RefreshCw, Tag, Check, CircleDot, Lock, Code, ChevronDown, ChevronRight, FoldVertical,
-  UnfoldVertical, Image as ImageIcon,
+  UnfoldVertical, Image as ImageIcon, FolderPlus,
 } from 'lucide-react'
 import {
   PageHeader, Page, Card, Button, ConfirmDialog, EmptyState, Skeleton, Badge, cn,
 } from '@/components/ui'
 import { mcqSetsApi, describeFetchError } from '@/lib/api'
-import type { McqQuestionSet, McqQuestion, McqOption, McqSection, McqPair } from '@shared/types'
-import { SectionsPanel } from './SectionsPanel'
+import type { McqQuestionSet, McqQuestion, McqOption, McqSection, McqPair, McqSectionType } from '@shared/types'
+import { SectionBoard } from './SectionBoard'
+import { AddSectionModal } from './AddSectionModal'
+import { SectionEditorDrawer } from './SectionEditorDrawer'
 import { GenerateMcqModal } from './GenerateMcqModal'
 import { TemplateGalleryModal } from './TemplateGalleryModal'
 import { NewAssessmentModal } from './NewAssessmentModal'
@@ -69,7 +72,7 @@ import { DIAGRAM_SECTION_ID, withDefaultSections } from './mcqSections'
  */
 
 /* ── One answer row ──────────────────────────────────────────────────────── */
-function OptionRow({
+export function OptionRow({
   option, isMulti, checked, onToggle, onText, onRemove, canRemove, index, questionIndex,
 }: {
   option: McqOption
@@ -138,7 +141,7 @@ function OptionRow({
 }
 
 /** Why this question cannot be used, or null when it is fine. */
-function faultOf(q: McqQuestion): string | null {
+export function faultOf(q: McqQuestion): string | null {
   if (!q.text.trim()) return 'Type the question.'
 
   // TYPE-AWARE, and it has to be: a pairing has no answers at all, so the answer
@@ -164,18 +167,18 @@ function faultOf(q: McqQuestion): string | null {
   return null
 }
 
-const TYPES = [
+export const TYPES = [
   { value: 'single', label: 'Pick one', hint: 'One right answer out of several' },
   { value: 'multi', label: 'Pick many', hint: 'More than one answer is right' },
   { value: 'match', label: 'Match pairs', hint: 'Line up each item with its match' },
 ] as const
 
-const typeLabel = (t: McqQuestion['type'] | undefined) =>
+export const typeLabel = (t: McqQuestion['type'] | undefined) =>
   TYPES.find((x) => x.value === (t ?? 'single'))?.label ?? 'Pick one'
 
 /* ── One editable question ───────────────────────────────────────────────── */
-function SortableMcq({
-  q, index, sections, folded, onFold, onChange, onRemove,
+export function SortableMcq({
+  q, index, sections, folded, onFold, onChange, onRemove, extra,
 }: {
   q: McqQuestion
   index: number
@@ -184,6 +187,11 @@ function SortableMcq({
   onFold: () => void
   onChange: (p: Partial<McqQuestion>) => void
   onRemove: () => void
+  /** Extension point for a caller-specific header action — the section
+   *  editor uses it for a source badge + "Regenerate" on an AI-written
+   *  question. The unsectioned fallback list below passes nothing, so its
+   *  header renders exactly as it always has. */
+  extra?: ReactNode
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: q.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1, zIndex: isDragging ? 10 : undefined }
@@ -334,6 +342,7 @@ function SortableMcq({
               {fault && <AlertTriangle size={14} className="text-warn" aria-label="Not finished" />}
             </>
           )}
+          {extra}
           {/* A bare number box next to two dropdowns taught nobody what it was.
               It now says what it is, in the place where the question's own
               properties live. */}
@@ -545,7 +554,7 @@ function SortableMcq({
   )
 }
 
-const blankQuestion = (): McqQuestion => ({
+export const blankQuestion = (): McqQuestion => ({
   id: crypto.randomUUID(),
   text: '',
   type: 'single',
@@ -574,6 +583,9 @@ export default function McqSetsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   /** Folded question ids. View state only — it never reaches the draft. */
   const [folded, setFolded] = useState<Set<string>>(new Set())
+  /** Which section's drawer is open. View state only. */
+  const [openSectionId, setOpenSectionId] = useState<string | null>(null)
+  const [addSectionOpen, setAddSectionOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -668,15 +680,19 @@ export default function McqSetsPage() {
     onError: (e: Error) => toast.error(e.message),
   })
   const save = useMutation({
-    mutationFn: () =>
+    // `silent` distinguishes an explicit click (toast, as always) from the
+    // debounced autosave below (no toast per keystroke pause — the inline
+    // Saving/Saved indicator in the header carries that instead).
+    mutationFn: (_opts?: { silent?: boolean }) =>
       mcqSetsApi.update(draft!.id, {
         name: draft!.name,
         sections: draft!.sections ?? [],
         questions: draft!.questions,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, opts) => {
       if (draft) setSaved(JSON.stringify(draft))
-      invalidate(); toast.success('Assessment saved')
+      invalidate()
+      if (!opts?.silent) toast.success('Assessment saved')
     },
     onError: (e: Error) => toast.error(e.message),
   })
@@ -691,11 +707,109 @@ export default function McqSetsPage() {
     return counts
   }, [draft])
 
+  /* Sections indexed by id, and this set's questions grouped the same way —
+     what the board's cards and the drawer both actually need, computed once. */
+  const questionsBySection = useMemo(() => {
+    const bySection: Record<string, McqQuestion[]> = {}
+    for (const q of draft?.questions ?? []) {
+      if (q.sectionId) (bySection[q.sectionId] ??= []).push(q)
+    }
+    return bySection
+  }, [draft])
+  const openSection = (draft?.sections ?? []).find((s) => s.id === openSectionId) ?? null
+  const unsectionedQuestions = (draft?.questions ?? []).filter(
+    (q) => !q.sectionId || !(draft?.sections ?? []).some((s) => s.id === q.sectionId),
+  )
+
+  /* Light debounced autosave: the same dirty-check and the same mutation the
+     manual Save button already uses, just fired automatically a few seconds
+     after the last change rather than requiring a click. Restarts on every
+     edit, so a recruiter mid-sentence in a question is never interrupted by
+     a save landing on top of them — it only fires once they pause. */
+  const draftJson = useMemo(() => (draft ? JSON.stringify(draft) : null), [draft])
+  useEffect(() => {
+    if (!draft || !draftJson || draftJson === saved || save.isPending) return
+    const timer = setTimeout(() => save.mutate({ silent: true }), 3000)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftJson])
+
+  const addSection = (input: { name: string; sectionType: McqSectionType; targetQuestionCount: number }) => {
+    if (!draft) return
+    const section: McqSection = {
+      id: crypto.randomUUID(),
+      name: input.name,
+      sectionType: input.sectionType,
+      targetQuestionCount: input.targetQuestionCount,
+    }
+    setDraft({ ...draft, sections: [...(draft.sections ?? []), section] })
+    setOpenSectionId(section.id)
+  }
+
+  const removeSection = (sectionId: string) => {
+    if (!draft) return
+    setDraft({
+      ...draft,
+      sections: (draft.sections ?? []).filter((s) => s.id !== sectionId),
+      // Its questions are not deleted — they lose their section and fall
+      // back to the unsectioned list, exactly as `SectionsPanel` always did.
+      questions: draft.questions.map((q) => (q.sectionId === sectionId ? { ...q, sectionId: undefined } : q)),
+    })
+    if (openSectionId === sectionId) setOpenSectionId(null)
+  }
+
+  const duplicateSection = (sectionId: string) => {
+    if (!draft) return
+    const sections = draft.sections ?? []
+    const index = sections.findIndex((s) => s.id === sectionId)
+    const original = sections[index]
+    if (!original) return
+
+    const newSectionId = crypto.randomUUID()
+    const clonedQuestions = draft.questions
+      .filter((q) => q.sectionId === sectionId)
+      .map((q) => {
+        // New ids throughout — the copy must never share a question or
+        // option id with the original, or editing one could silently edit
+        // both.
+        const optionIdMap = new Map(q.options.map((o) => [o.id, crypto.randomUUID().slice(0, 8)]))
+        return {
+          ...q,
+          id: crypto.randomUUID(),
+          sectionId: newSectionId,
+          options: q.options.map((o) => ({ ...o, id: optionIdMap.get(o.id)! })),
+          correctOptionIds: q.correctOptionIds.map((id) => optionIdMap.get(id)!),
+        }
+      })
+    const copy: McqSection = { ...original, id: newSectionId, name: `${original.name} Copy` }
+    const nextSections = [...sections]
+    nextSections.splice(index + 1, 0, copy)
+    setDraft({ ...draft, sections: nextSections, questions: [...draft.questions, ...clonedQuestions] })
+    toast.success('Section duplicated')
+  }
+
+  /* Reorders WITHIN the unsectioned subset only, splicing the reordered
+     subset back into the exact absolute slots it already occupied — the
+     same reasoning as `SectionEditorDrawer`'s `reorderWithinSection`.
+     Plain `arrayMove` on the full array would be wrong here: the two
+     dragged items' absolute positions can have SECTIONED questions
+     between them (new questions are always appended to the end, so
+     sectioned and unsectioned items end up interleaved by creation order),
+     and moving between two far-apart absolute indices would drag those
+     unrelated sectioned questions along with it. */
   const onDragEnd = (e: DragEndEvent) => {
     if (!draft || !e.over || e.active.id === e.over.id) return
-    const from = draft.questions.findIndex((q) => q.id === e.active.id)
-    const to = draft.questions.findIndex((q) => q.id === e.over!.id)
-    setDraft({ ...draft, questions: arrayMove(draft.questions, from, to) })
+    const subset = unsectionedQuestions
+    const from = subset.findIndex((q) => q.id === e.active.id)
+    const to = subset.findIndex((q) => q.id === e.over!.id)
+    if (from === -1 || to === -1) return
+    const reordered = arrayMove(subset, from, to)
+    let cursor = 0
+    const isUnsectioned = new Set(subset.map((q) => q.id))
+    setDraft({
+      ...draft,
+      questions: draft.questions.map((q) => (isUnsectioned.has(q.id) ? reordered[cursor++] : q)),
+    })
   }
 
   const toggleFold = (id: string) =>
@@ -710,6 +824,18 @@ export default function McqSetsPage() {
   const totalPoints = draft?.questions.reduce((sum, q) => sum + (q.points ?? 1), 0) ?? 0
   const dirty = draft !== null && saved !== null && JSON.stringify(draft) !== saved
   const allFolded = draft !== null && draft.questions.length > 0 && draft.questions.every((q) => folded.has(q.id))
+
+  /* The template-level summary: which sections still owe questions toward
+     their own target, on top of the per-question faults already tracked
+     above. Client-side approximation of the server's own readiness check —
+     good enough to tell a recruiter what's missing without porting the
+     full validation rules twice. */
+  const sectionsUnderTarget = (draft?.sections ?? []).filter((s) => {
+    const target = s.targetQuestionCount ?? 0
+    return target > 0 && (sectionCounts[s.id] ?? 0) < target
+  })
+  const readyToPublish =
+    draft !== null && draft.questions.length > 0 && faults === 0 && sectionsUnderTarget.length === 0
 
   /* A question you just asked for arrives open, whatever the rest of the paper is
      doing — its id is new, so it is not in the folded set, and "Fold all" flips
@@ -879,7 +1005,15 @@ export default function McqSetsPage() {
                     <Check size={13} /> Ready to send
                   </span>
                 )}
-                {dirty && <Badge variant="warning">Unsaved</Badge>}
+                {save.isPending ? (
+                  <Badge variant="info">Saving…</Badge>
+                ) : save.isError && dirty ? (
+                  <Badge variant="danger">Unable to save</Badge>
+                ) : dirty ? (
+                  <Badge variant="warning">Unsaved</Badge>
+                ) : (
+                  <Badge variant="success">Saved</Badge>
+                )}
 
                 <div className="ml-auto flex items-center gap-2">
                   <Button size="sm" variant="outline" icon={<Copy size={14} />} loading={duplicate.isPending} onClick={() => duplicate.mutate(draft.id)}>
@@ -900,7 +1034,7 @@ export default function McqSetsPage() {
                     size="sm"
                     icon={<Save size={14} />}
                     loading={save.isPending}
-                    onClick={() => save.mutate()}
+                    onClick={() => save.mutate(undefined)}
                   >
                     Save
                   </Button>
@@ -908,20 +1042,65 @@ export default function McqSetsPage() {
               </div>
 
               <div className="space-y-4 p-4">
-                <SectionsPanel
-                  sections={draft.sections ?? []}
-                  questionCounts={sectionCounts}
-                  onChange={(sections) => setDraft({ ...draft, sections })}
-                />
+                {/* The template-level summary — sections, total questions, and
+                    exactly what's missing, without hunting through every card. */}
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-sunk/60 px-3.5 py-2.5">
+                  <span className="text-xs font-semibold text-ink">
+                    {(draft.sections ?? []).length} section{(draft.sections ?? []).length === 1 ? '' : 's'}
+                  </span>
+                  <span className="text-ink-faint">·</span>
+                  <span className="text-xs font-semibold text-ink">
+                    {draft.questions.length} question{draft.questions.length === 1 ? '' : 's'}
+                  </span>
+                  {readyToPublish ? (
+                    <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-ok">
+                      <Check size={13} /> Ready to publish
+                    </span>
+                  ) : (
+                    <span className="ml-auto flex flex-wrap items-center gap-2 text-xs font-medium text-warn">
+                      <AlertTriangle size={13} className="flex-shrink-0" />
+                      {faults > 0 && <span>{faults} question{faults === 1 ? '' : 's'} need finishing</span>}
+                      {sectionsUnderTarget.map((s) => (
+                        <span key={s.id}>
+                          {s.name || 'Untitled section'} ({sectionCounts[s.id] ?? 0}/{s.targetQuestionCount})
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
 
                 <div>
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="section-label">Questions</span>
+                    <span className="section-label">Sections</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<FolderPlus size={14} />}
+                      onClick={() => setAddSectionOpen(true)}
+                      className="ml-auto"
+                    >
+                      Add section
+                    </Button>
+                  </div>
+                  <SectionBoard
+                    sections={draft.sections ?? []}
+                    questionsBySection={questionsBySection}
+                    onReorder={(sections) => setDraft({ ...draft, sections })}
+                    onOpen={setOpenSectionId}
+                    onRemove={removeSection}
+                    onDuplicate={duplicateSection}
+                  />
+                </div>
+
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span className="section-label">Other questions</span>
                     <span className="text-xs font-semibold tabular-nums text-ink-faint">
-                      {draft.questions.length}
+                      {unsectionedQuestions.length}
                     </span>
+                    <span className="text-xs text-ink-muted">— not in any section</span>
                     <span className="ml-auto flex items-center gap-2">
-                      {draft.questions.length > 1 && (
+                      {unsectionedQuestions.length > 1 && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -936,29 +1115,34 @@ export default function McqSetsPage() {
                     </span>
                   </div>
 
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-                    <SortableContext items={draft.questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-                      <div className="space-y-2">
-                        {draft.questions.map((q, i) => (
-                          <SortableMcq
-                            key={q.id}
-                            q={q}
-                            index={i}
-                            sections={draft.sections ?? []}
-                            folded={folded.has(q.id)}
-                            onFold={() => toggleFold(q.id)}
-                            onChange={(patch) =>
-                              setDraft({
-                                ...draft,
-                                questions: draft.questions.map((x) => (x.id === q.id ? { ...x, ...patch } : x)),
-                              })
-                            }
-                            onRemove={() => setDraft({ ...draft, questions: draft.questions.filter((x) => x.id !== q.id) })}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </DndContext>
+                  {unsectionedQuestions.length > 0 && (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+                      <SortableContext items={unsectionedQuestions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-2">
+                          {unsectionedQuestions.map((q) => {
+                            const i = draft.questions.findIndex((x) => x.id === q.id)
+                            return (
+                              <SortableMcq
+                                key={q.id}
+                                q={q}
+                                index={i}
+                                sections={draft.sections ?? []}
+                                folded={folded.has(q.id)}
+                                onFold={() => toggleFold(q.id)}
+                                onChange={(patch) =>
+                                  setDraft({
+                                    ...draft,
+                                    questions: draft.questions.map((x) => (x.id === q.id ? { ...x, ...patch } : x)),
+                                  })
+                                }
+                                onRemove={() => setDraft({ ...draft, questions: draft.questions.filter((x) => x.id !== q.id) })}
+                              />
+                            )
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  )}
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button
@@ -989,6 +1173,33 @@ export default function McqSetsPage() {
             </Card>
           )}
         </div>
+      )}
+
+      <AddSectionModal
+        open={addSectionOpen}
+        onClose={() => setAddSectionOpen(false)}
+        onAdd={addSection}
+      />
+
+      {draft && (
+        <SectionEditorDrawer
+          open={openSectionId !== null}
+          onClose={() => setOpenSectionId(null)}
+          section={openSection}
+          sections={draft.sections ?? []}
+          allQuestions={draft.questions}
+          setId={draft.id}
+          onSectionChange={(patch) => {
+            if (!openSectionId) return
+            setDraft({
+              ...draft,
+              sections: (draft.sections ?? []).map((s) => (s.id === openSectionId ? { ...s, ...patch } : s)),
+            })
+          }}
+          onQuestionsUpdate={(next) => setDraft({ ...draft, questions: next })}
+          folded={folded}
+          onToggleFold={toggleFold}
+        />
       )}
 
       <ConfirmDialog

@@ -73,17 +73,52 @@ GENERIC_QUESTIONS = (
     "Tell me about a time you had to learn something new quickly.",
 )
 
-# Always-positive openers, rotated so they do not repeat. Every answer earns one — a
-# candidate who gets silence after speaking assumes something broke.
-MOTIVATIONS = (
+# A candidate who gets silence after speaking assumes something broke, so every
+# answer still earns SOME acknowledgment when the model leaves one blank — but
+# which rotation depends on `answerQuality`, never a blind default. Only a
+# confirmed "sufficient" answer earns WARM_ACKS; everything else (including an
+# unknown/None quality — a transport failure, or the non-adaptive fixed-question
+# track that never judged anything) gets a plain, non-evaluative line, so a
+# fallback can never itself become the false-praise bug it exists to avoid.
+WARM_ACKS = (
     "Excellent answer!",
     "Great, that's really well explained!",
     "Love that, thank you for sharing!",
     "Nice, that's a strong response!",
-    "Awesome, I really appreciate the detail!",
     "Perfect, that paints a clear picture!",
     "Brilliant, thank you for that!",
     "Wonderful, that's really helpful!",
+)
+MEASURED_ACKS = (
+    "Thanks for sharing that.",
+    "Okay, appreciate you walking through that.",
+    "Got it, thanks for that.",
+    "Thanks — that gives me a sense of it.",
+)
+NEUTRAL_ACKS = (
+    "Understood.",
+    "Okay, noted.",
+    "Alright, thank you.",
+    "Got it.",
+)
+
+# Praise language the rubric already tells the model never to use for anything
+# less than "sufficient" — enforced here as a backstop in case the model writes
+# it anyway (see `normalise_decision`), not used to judge the candidate's answer.
+_PRAISE_MARKERS = (
+    "great answer",
+    "great job",
+    "well done",
+    "excellent",
+    "awesome",
+    "amazing",
+    "brilliant",
+    "wonderful",
+    "perfect",
+    "love that",
+    "impressive",
+    "fantastic",
+    "outstanding",
 )
 
 TIME_GREETINGS = {
@@ -128,8 +163,24 @@ def generic_question(index: int) -> str:
     return GENERIC_QUESTIONS[index % len(GENERIC_QUESTIONS)]
 
 
-def fallback_ack(seed: int) -> str:
-    return MOTIVATIONS[abs(seed) % len(MOTIVATIONS)]
+def fallback_ack(seed: int, quality: str | None = None) -> str:
+    """A rotating acknowledgment for when the model leaves one blank (or writes
+    one `normalise_decision` had to discard — see `_PRAISE_MARKERS`).
+
+    Tiered by `quality` so a fallback can never itself be the false-praise bug:
+    only a confirmed "sufficient" answer gets `WARM_ACKS`; "partial"/"weak" get
+    `MEASURED_ACKS`; everything else — "incorrect"/"irrelevant"/"no_answer", and
+    an unknown quality (`None`, e.g. a Gemini-unreachable fallback or the
+    non-adaptive fixed-question track, neither of which judged anything) —
+    defaults to `NEUTRAL_ACKS`.
+    """
+    if quality == "sufficient":
+        bank = WARM_ACKS
+    elif quality in ("partial", "weak"):
+        bank = MEASURED_ACKS
+    else:
+        bank = NEUTRAL_ACKS
+    return bank[abs(seed) % len(bank)]
 
 
 def clean_ack(text: str) -> str:
@@ -337,7 +388,10 @@ def build_system_instruction(session: dict, template: dict, *, phase: str) -> st
             '  "incorrect" — confidently states something factually wrong.\n'
             '  "irrelevant" — does not address the question at all (off-topic, or '
             "answers a different question than the one asked).\n"
-            '  "no_answer" — empty, "I don\'t know", or equivalent.\n'
+            '  "no_answer" — empty, "I don\'t know", or equivalent, including a '
+            'stalling/deferral reply that contains no actual answer content yet '
+            '(e.g. "let me think about it", "give me a second", "I need a moment", '
+            '"hold on").\n'
             "Base this ONLY on what the candidate actually wrote — never assume, infer, "
             "or invent content they did not say, and never treat their résumé as if it "
             "were part of their answer.",
@@ -367,7 +421,12 @@ def build_system_instruction(session: dict, template: dict, *, phase: str) -> st
             "were already given that chance on this same question, move on.\n"
             '  If "irrelevant" — redirect back to the actual question once. If the '
             "redirect is ALSO not answered, move on rather than repeating it again.\n"
-            '  If "no_answer" — do not press. Move on straight away.',
+            '  If "no_answer" — if this question has not yet had a follow-up and '
+            "budget allows, give ONE brief, patient invitation to still answer — "
+            "reflect back what you're looking for, not a new probe (e.g. \"Take "
+            'your time — when you\'re ready, walk me through it.\"). Do not press '
+            "further than that: if the candidate still gives no meaningful answer "
+            "after that chance, or no follow-up budget remains, move on.",
             _budget_line(session, template),
         ]
         if not adaptive.get("allowFollowUps"):
@@ -376,6 +435,18 @@ def build_system_instruction(session: dict, template: dict, *, phase: str) -> st
             )
 
     return "\n".join(line for line in lines if line)
+
+
+def global_follow_up_budget(planned: int) -> int:
+    """How many follow-ups the WHOLE interview may spend, not just one question.
+
+    Without this, every single planned question could use its own per-question
+    follow-up, potentially doubling the interview's length. Derived from the
+    planned question count alone — no recruiter-facing config, nothing new to
+    validate — and deliberately small: 1 for a short interview, scaling up to a
+    hard ceiling of 3 for a long one.
+    """
+    return max(1, min(3, planned // 4))
 
 
 def _budget_line(session: dict, template: dict) -> str:
@@ -392,10 +463,14 @@ def _budget_line(session: dict, template: dict) -> str:
     )
     planned = session.get("plannedQuestionCount") or adaptive.get("numberOfQuestions") or 5
     primaries_left = max(0, planned - ((session.get("currentIndex") or 0) + 1))
+    global_follow_ups_left = max(
+        0, global_follow_up_budget(planned) - (session.get("followUpsUsed") or 0)
+    )
 
     return (
-        f"Budget — follow-ups left for the current question: {follow_ups_left}; primary "
-        f"questions left after this one: {primaries_left}. If follow-ups left is 0, do not "
+        f"Budget — follow-ups left for the current question: {follow_ups_left}; follow-ups "
+        f"left for the rest of the interview: {global_follow_ups_left}; primary questions "
+        f"left after this one: {primaries_left}. If either follow-up number is 0, do not "
         'follow up. You MUST NOT use "end_interview" while any primary questions remain — '
         "keep going until primary questions left reaches 0, then close warmly with "
         '"end_interview".'
@@ -461,14 +536,23 @@ def normalise_decision(raw: object) -> dict:
     message = (data.get("message") or "").strip()
     action = data.get("action")
     answer_quality = data.get("answerQuality")
+    # Unknown/missing degrades to "partial" rather than crashing or silently
+    # dropping the field — a middling default is the safest wrong guess: it
+    # neither forces a needless follow-up (as "weak" would bias toward) nor
+    # skips one a genuinely thin answer needed (as "sufficient" would).
+    answer_quality = answer_quality if answer_quality in ANSWER_QUALITIES else "partial"
+
+    ack = clean_ack(data.get("acknowledgment") or "")
+    # The rubric already tells the model never to praise anything less than
+    # "sufficient" — this is the backstop for when it does anyway. Blanking
+    # (rather than rewriting) lets `_advance_adaptive`'s existing empty-ack
+    # fallback substitute the correctly-toned line for this same quality.
+    if answer_quality != "sufficient" and any(marker in ack.lower() for marker in _PRAISE_MARKERS):
+        ack = ""
 
     return {
-        # Unknown/missing degrades to "partial" rather than crashing or silently
-        # dropping the field — a middling default is the safest wrong guess: it
-        # neither forces a needless follow-up (as "weak" would bias toward) nor
-        # skips one a genuinely thin answer needed (as "sufficient" would).
-        "answerQuality": answer_quality if answer_quality in ANSWER_QUALITIES else "partial",
-        "acknowledgment": clean_ack(data.get("acknowledgment") or ""),
+        "answerQuality": answer_quality,
+        "acknowledgment": ack,
         # A blank message would appear as an empty bubble the candidate cannot answer.
         "message": conversation.humanize_punctuation(
             message or "Thanks, could you tell me a little more about that?"
@@ -550,6 +634,7 @@ async def begin_conversation(
     session["transcript"] = []
     session["currentIndex"] = 0
     session["followUpsThisQuestion"] = 0
+    session["followUpsUsed"] = 0
     session["mode"] = template.get("mode") or "conversational"
     session["plannedQuestionCount"] = conversation.planned_count_for(
         template, fixed_question_count=len(fixed_questions or [])
@@ -725,9 +810,15 @@ async def _advance_adaptive(
     if action == "end_interview" and not at_last_primary:
         action = "next_question"
 
-    budget_left = bool(adaptive.get("allowFollowUps")) and (
-        session.get("followUpsThisQuestion") or 0
-    ) < (adaptive.get("maxFollowUpsPerQuestion") or 0)
+    planned = session.get("plannedQuestionCount") or adaptive.get("numberOfQuestions") or 5
+    per_question_ok = (session.get("followUpsThisQuestion") or 0) < (
+        adaptive.get("maxFollowUpsPerQuestion") or 0
+    )
+    # The per-question cap alone would let EVERY planned question spend its one
+    # follow-up, potentially doubling the interview. This global cap bounds the
+    # total regardless of how it is spread across questions.
+    global_ok = (session.get("followUpsUsed") or 0) < global_follow_up_budget(planned)
+    budget_left = bool(adaptive.get("allowFollowUps")) and per_question_ok and global_ok
     if action == "follow_up" and not budget_left:
         action = "next_question"
 
@@ -735,10 +826,13 @@ async def _advance_adaptive(
         end_conversation(session, decision["message"] or "Thank you, that concludes our interview.")
         return
 
-    ack = (decision["acknowledgment"] or "").strip() or fallback_ack(transcript_length)
+    ack = (decision["acknowledgment"] or "").strip() or fallback_ack(
+        transcript_length, decision["answerQuality"]
+    )
 
     if action == "follow_up":
         session["followUpsThisQuestion"] = (session.get("followUpsThisQuestion") or 0) + 1
+        session["followUpsUsed"] = (session.get("followUpsUsed") or 0) + 1
         append_ack_then_question(
             session,
             ack,

@@ -44,7 +44,15 @@ def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
 
 
-def _seed(fake_store, *, adaptive: dict | None = None, current_index: int = 0, follow_ups: int = 0) -> str:
+def _seed(
+    fake_store,
+    *,
+    adaptive: dict | None = None,
+    current_index: int = 0,
+    follow_ups: int = 0,
+    planned_count: int = 5,
+    follow_ups_used: int = 0,
+) -> str:
     """An in-progress adaptive chat session, already past the greeting/readiness
     turns and sitting on a real primary question — the state `/chat/answer`
     actually runs against."""
@@ -70,7 +78,8 @@ def _seed(fake_store, *, adaptive: dict | None = None, current_index: int = 0, f
                 "resumeText": "Backend engineer, 3 years, mostly Python and SQL.",
                 "currentIndex": current_index,
                 "followUpsThisQuestion": follow_ups,
-                "plannedQuestionCount": 5,
+                "followUpsUsed": follow_ups_used,
+                "plannedQuestionCount": planned_count,
                 "transcript": [
                     {"id": "turn-question-1", "role": "interviewer", "content": "Tell me about a recent project.",
                      "turnType": "question", "questionIndex": current_index, "isFollowUp": False},
@@ -305,3 +314,156 @@ def test_answer_quality_is_stored_server_side_but_never_sent_to_the_candidate(fa
     body = r.json()
     for turn in body["transcript"]:
         assert "answerQuality" not in turn
+
+
+# ── never falsely praise a non-answer (the reported bug) ──────────────────────
+
+
+def test_no_answer_with_an_empty_model_acknowledgment_is_never_praised(fake_store, monkeypatch) -> None:
+    """The exact reported bug: candidate says "let me think about it," the
+    model correctly judges no_answer but (as it did live) leaves the
+    acknowledgment blank. The old fallback substituted an always-positive
+    MOTIVATIONS phrase — e.g. "Awesome, I really appreciate the detail!" —
+    with zero regard for the judgment. It must now pick a neutral one."""
+    sid = _seed(fake_store)
+    _stub_gemini(monkeypatch, {
+        "answerQuality": "no_answer", "acknowledgment": "",
+        "message": "Describe a difficult bug you tracked down.", "action": "next_question",
+    })
+
+    r = _client(CANDIDATE).post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": "turn-question-1", "answerText": "let me think about it",
+    })
+    assert r.status_code == 200, r.text
+
+    stored = fake_store.sessions.docs[sid]
+    ack_turns = [t for t in stored["transcript"] if t.get("turnType") == "acknowledgment"]
+    assert ack_turns, "an acknowledgment turn should still be recorded"
+    ack_text = ack_turns[0]["content"]
+    assert ack_text in chat_engine.NEUTRAL_ACKS
+    assert ack_text not in chat_engine.WARM_ACKS
+    assert "appreciate the detail" not in ack_text.lower()
+
+
+def test_a_praise_coded_acknowledgment_is_replaced_for_a_non_sufficient_answer(fake_store, monkeypatch) -> None:
+    """Even if the model itself violates its own tone instruction and writes
+    enthusiastic praise for a bad answer, the pipeline must catch it — this is
+    the backstop `normalise_decision` adds, not a change to how the answer
+    itself is evaluated."""
+    sid = _seed(fake_store)
+    _stub_gemini(monkeypatch, {
+        "answerQuality": "incorrect", "acknowledgment": "Great answer, that's brilliant!",
+        "message": "Let's look at that from another angle.", "action": "next_question",
+    })
+
+    r = _client(CANDIDATE).post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": "turn-question-1", "answerText": "A confidently wrong answer.",
+    })
+    assert r.status_code == 200, r.text
+
+    stored = fake_store.sessions.docs[sid]
+    ack_turns = [t for t in stored["transcript"] if t.get("turnType") == "acknowledgment"]
+    assert ack_turns
+    ack_text = ack_turns[0]["content"]
+    assert ack_text != "Great answer, that's brilliant!"
+    assert ack_text in chat_engine.NEUTRAL_ACKS
+
+
+def test_gemini_unreachable_fallback_never_praises(fake_store, monkeypatch) -> None:
+    """Section 23's requirement: an AI failure must not be silently treated as
+    a good answer. The transport-fallback acknowledgment must be neutral, not
+    a WARM_ACKS phrase, even though it carries no real quality judgment."""
+    sid = _seed(fake_store)
+
+    async def _false(*_args, **_kwargs):
+        return False
+
+    monkeypatch.setattr(gemini, "is_enabled", _false)
+
+    r = _client(CANDIDATE).post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": "turn-question-1", "answerText": "An answer while Gemini is down.",
+    })
+    assert r.status_code == 200, r.text
+
+    stored = fake_store.sessions.docs[sid]
+    ack_turns = [t for t in stored["transcript"] if t.get("turnType") == "acknowledgment"]
+    assert ack_turns
+    assert ack_turns[0]["content"] in chat_engine.NEUTRAL_ACKS
+
+
+def test_a_first_no_answer_gets_one_patient_chance_then_a_repeat_moves_on(fake_store, monkeypatch) -> None:
+    """The master prompt's own worked example: "let me think about it" should
+    not jump straight to an unrelated next question — it should get one
+    patient invitation to still answer. Only a SECOND non-answer (or an
+    exhausted budget) should move the interview on."""
+    sid = _seed(fake_store, adaptive={"allowFollowUps": True, "maxFollowUpsPerQuestion": 1}, follow_ups=0)
+    client = _client(CANDIDATE)
+
+    _stub_gemini(monkeypatch, {
+        "answerQuality": "no_answer", "acknowledgment": "",
+        "message": "Take your time — when you're ready, walk me through it.",
+        "action": "follow_up",
+    })
+    first = client.post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": "turn-question-1", "answerText": "let me think about it",
+    })
+    assert first.status_code == 200, first.text
+    stored = fake_store.sessions.docs[sid]
+    assert stored["followUpsThisQuestion"] == 1  # granted, not clamped
+    assert stored["followUpsUsed"] == 1
+    assert stored["currentIndex"] == 0  # still the same primary question
+    next_turn_id = first.json()["currentTurnId"]
+
+    # Budget for this question is now exhausted — even if the model asks for
+    # another follow-up, the clamp must move on.
+    _stub_gemini(monkeypatch, {
+        "answerQuality": "no_answer", "acknowledgment": "",
+        "message": "Let's move to the next question.", "action": "follow_up",
+    })
+    second = client.post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": next_turn_id, "answerText": "I actually don't know.",
+    })
+    assert second.status_code == 200, second.text
+    stored = fake_store.sessions.docs[sid]
+    assert stored["currentIndex"] == 1  # moved on
+    assert stored["followUpsThisQuestion"] == 0  # reset for the new question
+
+
+# ── the whole-interview follow-up budget ───────────────────────────────────────
+
+
+def test_global_follow_up_budget_formula() -> None:
+    """clamp(floor(planned / 4), 1, 3) — small interviews still get one
+    follow-up to spend; long ones are capped at 3 regardless of length."""
+    assert chat_engine.global_follow_up_budget(3) == 1
+    assert chat_engine.global_follow_up_budget(5) == 1
+    assert chat_engine.global_follow_up_budget(8) == 2
+    assert chat_engine.global_follow_up_budget(12) == 3
+    assert chat_engine.global_follow_up_budget(20) == 3
+
+
+def test_the_global_budget_binds_even_when_the_per_question_budget_allows_more(fake_store, monkeypatch) -> None:
+    """A 3-question interview has a global budget of 1 (see the formula test).
+    This question's OWN counter is still 0 (per-question budget would allow a
+    follow-up), but the interview has already spent its one global follow-up
+    on an earlier question — the model's request must still be clamped."""
+    sid = _seed(
+        fake_store,
+        adaptive={"allowFollowUps": True, "maxFollowUpsPerQuestion": 1},
+        follow_ups=0,
+        planned_count=3,
+        follow_ups_used=1,
+    )
+    _stub_gemini(monkeypatch, {
+        "answerQuality": "weak", "acknowledgment": "Thanks for that.",
+        "message": "Can you say more?", "action": "follow_up",
+    })
+
+    r = _client(CANDIDATE).post(f"/api/web/sessions/{sid}/chat/answer", json={
+        "turnId": "turn-question-1", "answerText": "A vague answer.",
+    })
+    assert r.status_code == 200, r.text
+
+    stored = fake_store.sessions.docs[sid]
+    assert stored["currentIndex"] == 1  # clamped to next_question, not follow_up
+    assert stored["followUpsUsed"] == 1  # unchanged — no follow-up was actually granted

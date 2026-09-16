@@ -32,17 +32,21 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Body, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, File, HTTPException, Request, Response, UploadFile, status
 
 from app.security import AuthedUser
 from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
 from app import mcq_authoring
-from app.web.services import mcq_diagrams, mcq_gen, question_gen
+from app.web.services import mcq_diagrams, mcq_gen, mcq_import, question_gen
 from app.web.store import get_store
 
 logger = logging.getLogger("web.mcq_sets")
 
 router = APIRouter(prefix="/mcq-sets", tags=["web:mcq-sets"])
+
+# Shared with the invite-extract upload — one ceiling for "a file a recruiter
+# drops into a review step", rather than a new number to keep in sync.
+MAX_IMPORT_BYTES = 10 * 1024 * 1024
 
 # The cleaning, the validation and the completeness rules live in the KERNEL, so both
 # surfaces enforce the same ones — see app/mcq_authoring.py. This module is now the web
@@ -92,6 +96,16 @@ async def _owned_or_404(store, set_id: str, recruiter_id: str) -> dict:
     if not doc or doc.get("recruiterId") != recruiter_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such MCQ set.")
     return doc
+
+
+def _section_or_404(doc: dict, section_id: str) -> dict:
+    """One section of an already-owned set, or 404 — same reasoning as
+    `_owned_or_404`: a section id that does not belong to this set is
+    indistinguishable, to the caller, from one that never existed."""
+    for section in doc.get("sections") or []:
+        if section.get("id") == section_id:
+            return section
+    raise HTTPException(status.HTTP_404_NOT_FOUND, "No such section.")
 
 
 @router.get("", summary="This recruiter's MCQ sets, by name")
@@ -311,3 +325,174 @@ async def generate_diagram_questions(
     count = max(1, min(mcq_gen.MAX_QUESTIONS, count))
     questions = mcq_diagrams.generate_diagram_questions(count)
     return {"questions": questions}
+
+
+# ── Mode B: fill ONE section toward its target (does not save) ──────────────
+#
+# Mode A above writes a whole paper in one shot. This is the template
+# builder's own action: the recruiter has a section that may already have
+# some questions, and asks for exactly what it still needs — never a fresh
+# batch most of which gets thrown away, and never more than the section's
+# own target calls for.
+
+
+@router.post(
+    "/{set_id}/sections/{section_id}/generate",
+    summary="Generate the remaining questions for one section, or regenerate one (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def generate_section_questions(
+    set_id: str,
+    section_id: str,
+    request: Request,
+    body: dict = Body(default={}),
+    user: AuthedUser = WebUser,
+) -> dict:
+    """Same "returns for review, never saves" contract as `/generate` — the
+    caller appends the result into its draft and saves separately.
+    """
+    store = get_store(settings_of(request))
+    doc = await _owned_or_404(store, set_id, user.uid)
+    section = _section_or_404(doc, section_id)
+
+    existing = [q for q in doc.get("questions") or [] if q.get("sectionId") == section_id]
+    existing_texts = [q.get("text") or "" for q in existing if (q.get("text") or "").strip()]
+
+    regenerate_id = _text((body or {}).get("regenerateQuestionId"), 64)
+    if regenerate_id:
+        if not any(q.get("id") == regenerate_id for q in existing):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "That question is not in this section.")
+        # Exclude every OTHER question in the section — not the one being
+        # replaced — so the model cannot just hand the same one back.
+        exclude_texts = [
+            q.get("text") or ""
+            for q in existing
+            if q.get("id") != regenerate_id and (q.get("text") or "").strip()
+        ]
+        count = 1
+    else:
+        exclude_texts = existing_texts
+        requested = _int((body or {}).get("count"), 0)
+        target = int(section.get("targetQuestionCount") or 0)
+        # A client-sent count is honoured (an ad-hoc "generate 5 more" on a
+        # section with no formal target set); otherwise the SERVER derives
+        # the shortfall from the section's own target, rather than trust a
+        # client-sent total that could ask for more than is actually needed.
+        count = requested if requested > 0 else mcq_gen.remaining_count(target, len(existing))
+        count = max(0, min(mcq_gen.MAX_QUESTIONS, count))
+
+    if count <= 0:
+        return {"questions": [], "passage": section.get("passage"), "requested": 0, "delivered": 0}
+
+    role = _text((body or {}).get("role"), 120) or _text(doc.get("name"), 120) or "this role"
+    difficulty = _text((body or {}).get("difficulty"), 12).lower()
+    if difficulty not in mcq_gen.DIFFICULTIES:
+        difficulty = "mixed"
+
+    settings = settings_of(request)
+    try:
+        result = await mcq_gen.generate_for_section(
+            settings,
+            role=role,
+            section_type=str(section.get("sectionType") or "custom"),
+            section_name=str(section.get("name") or "This section"),
+            count=count,
+            difficulty=difficulty,
+            exclude_texts=exclude_texts,
+            existing_passage=section.get("passage"),
+        )
+    except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+        logger.exception("mcq section generation failed")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+        ) from exc
+
+    if not result["questions"]:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Nothing usable came back. Every generated question was missing its "
+            "options or its correct answer, so none were kept — try again.",
+        )
+
+    for question in result["questions"]:
+        question["sectionId"] = section_id
+
+    return {
+        "questions": result["questions"],
+        "passage": result["passage"],
+        "requested": count,
+        "delivered": len(result["questions"]),
+    }
+
+
+# ── Import: a document or spreadsheet, reviewed before anything is added ────
+#
+# Same "returns for review, never saves" contract as generation — an import
+# is not a create-or-update. The recruiter confirms in the review UI, and the
+# accepted rows ride the ordinary `PUT /mcq-sets/{id}` save like any manually
+# typed question.
+
+
+@router.post(
+    "/{set_id}/sections/{section_id}/import",
+    summary="Extract questions from an uploaded file, for review (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def import_section_questions(
+    set_id: str,
+    section_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    user: AuthedUser = WebUser,
+) -> dict:
+    store = get_store(settings_of(request))
+    doc = await _owned_or_404(store, set_id, user.uid)
+    _section_or_404(doc, section_id)
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No file uploaded.")
+    if len(data) > MAX_IMPORT_BYTES:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "That file is too large.")
+
+    filename = file.filename or ""
+    content_type = file.content_type or ""
+    existing_texts = [
+        q.get("text") or ""
+        for q in doc.get("questions") or []
+        if q.get("sectionId") == section_id and (q.get("text") or "").strip()
+    ]
+
+    if mcq_import.is_spreadsheet(filename, content_type):
+        result = mcq_import.import_from_spreadsheet(
+            data, filename=filename, existing_texts=existing_texts
+        )
+    elif filename.lower().endswith(mcq_import.DOCUMENT_SUFFIXES) or content_type.startswith("text/") or content_type == "application/pdf" or "wordprocessingml" in content_type:
+        settings = settings_of(request)
+        try:
+            result = await mcq_import.import_from_document(
+                settings,
+                data,
+                content_type=content_type,
+                filename=filename,
+                existing_texts=existing_texts,
+            )
+        except Exception as exc:  # noqa: BLE001 - mapped to a readable message below
+            logger.exception("mcq document import failed")
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+            ) from exc
+    else:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "File type not supported. Please upload PDF, DOCX, TXT, CSV, or XLSX.",
+        )
+
+    if error := result.get("error"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, error)
+
+    for question in [*result["valid"], *result["needsReview"]]:
+        if "question" in question:
+            question["question"]["sectionId"] = section_id
+
+    return result

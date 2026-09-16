@@ -20,6 +20,7 @@ const DEFAULT_DIAGRAM_SECTION: McqSection = {
   id: DIAGRAM_SECTION_ID,
   name: 'Diagram Questions',
   instructions: 'Image-based reasoning — aptitude or directions questions with a diagram to read before answering.',
+  sectionType: 'diagram',
 }
 
 /** Sections normalised so Diagram Questions always exists, in whatever order

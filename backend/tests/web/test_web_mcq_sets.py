@@ -543,3 +543,221 @@ class TestCodeReadingQuestions:
         assert stored == code
         # The point of the separate cleaner: `_text` would have collapsed these.
         assert stored.count("\n") == 3
+
+
+def _set_with_section(*, target: int, existing_texts: list[str]) -> dict:
+    """A body for a set with ONE section already holding `existing_texts`,
+    each a valid single-answer question, plus its own target count."""
+    return {
+        "name": "Screening",
+        "sections": [{"id": "sec-1", "name": "Aptitude", "sectionType": "aptitude", "targetQuestionCount": target}],
+        "questions": [
+            {
+                "text": text,
+                "options": [{"id": "a", "text": "x"}, {"id": "b", "text": "y"}],
+                "correctOptionIds": ["a"],
+                "sectionId": "sec-1",
+            }
+            for text in existing_texts
+        ],
+    }
+
+
+class TestGenerateForSection:
+    """The template builder's own generation action: fill ONE section toward
+    its target, excluding duplicates — never trust a client-sent count over
+    what the section's own target/existing questions actually call for."""
+
+    def test_the_server_derives_the_remaining_count_from_the_sections_own_target(self, monkeypatch):
+        from app.web.services import mcq_gen
+
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=["Q1", "Q2", "Q3", "Q4"])
+        ).json()
+
+        seen = {}
+
+        async def fake_generate(settings, **kwargs):
+            seen.update(kwargs)
+            return {"questions": [], "passage": None, "requested": kwargs["count"], "delivered": 0}
+
+        monkeypatch.setattr(mcq_gen, "generate_for_section", fake_generate)
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate", json={}
+        )
+        assert r.status_code == 502, r.text  # "nothing usable came back" — 0 delivered
+        assert seen["count"] == 6  # target 10, existing 4 -> exactly 6, never 10
+        assert set(seen["exclude_texts"]) == {"Q1", "Q2", "Q3", "Q4"}
+
+    def test_a_client_sent_count_is_honoured_for_a_section_with_no_target(self, monkeypatch):
+        """An ad-hoc "generate 5 more" on a section that never had a formal
+        target — ONLY meaningful because the server otherwise derives from
+        the target; with none set, the client's own count is all there is."""
+        from app.web.services import mcq_gen
+
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=0, existing_texts=[])
+        ).json()
+
+        seen = {}
+
+        async def fake_generate(settings, **kwargs):
+            seen.update(kwargs)
+            return {
+                "questions": [
+                    {"id": "new1", "text": "Generated one", "options": [{"id": "x", "text": "1"}],
+                     "correctOptionIds": ["x"], "type": "single", "source": "ai_generated"}
+                ],
+                "passage": None, "requested": kwargs["count"], "delivered": 1,
+            }
+
+        monkeypatch.setattr(mcq_gen, "generate_for_section", fake_generate)
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate", json={"count": 5}
+        )
+        assert r.status_code == 200, r.text
+        assert seen["count"] == 5
+        assert r.json()["questions"][0]["sectionId"] == "sec-1"
+
+    def test_zero_remaining_returns_immediately_with_no_generation_call(self, monkeypatch):
+        """A section already AT its target must not trigger a Gemini call at
+        all — the whole point of "generate only what's missing"."""
+        from app.web.services import mcq_gen
+
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=2, existing_texts=["Q1", "Q2"])
+        ).json()
+
+        called = {"n": 0}
+
+        async def fake_generate(settings, **kwargs):
+            called["n"] += 1
+            return {"questions": [], "passage": None, "requested": 0, "delivered": 0}
+
+        monkeypatch.setattr(mcq_gen, "generate_for_section", fake_generate)
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate", json={}
+        )
+        assert r.status_code == 200, r.text
+        assert r.json() == {"questions": [], "passage": None, "requested": 0, "delivered": 0}
+        assert called["n"] == 0
+
+    def test_regenerating_one_question_excludes_every_OTHER_question_only(self, monkeypatch):
+        from app.web.services import mcq_gen
+
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=3, existing_texts=["Q1", "Q2", "Q3"])
+        ).json()
+        target_id = created["questions"][1]["id"]  # "Q2"
+
+        seen = {}
+
+        async def fake_generate(settings, **kwargs):
+            seen.update(kwargs)
+            return {
+                "questions": [
+                    {"id": "new1", "text": "Replacement", "options": [{"id": "x", "text": "1"}],
+                     "correctOptionIds": ["x"], "type": "single", "source": "ai_generated"}
+                ],
+                "passage": None, "requested": 1, "delivered": 1,
+            }
+
+        monkeypatch.setattr(mcq_gen, "generate_for_section", fake_generate)
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate",
+            json={"regenerateQuestionId": target_id},
+        )
+        assert r.status_code == 200, r.text
+        assert seen["count"] == 1
+        assert set(seen["exclude_texts"]) == {"Q1", "Q3"}  # NOT Q2 — it's being replaced
+
+    def test_regenerating_a_question_not_in_this_section_is_refused(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=2, existing_texts=["Q1", "Q2"])
+        ).json()
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate",
+            json={"regenerateQuestionId": "not-a-real-id"},
+        )
+        assert r.status_code == 400, r.text
+
+    def test_a_different_recruiter_cannot_generate_into_this_set(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+        r = _client(OTHER).post(f"/api/web/mcq-sets/{created['id']}/sections/sec-1/generate", json={})
+        assert r.status_code == 404, r.text
+
+    def test_an_unknown_section_id_is_refused(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/not-a-real-section/generate", json={}
+        )
+        assert r.status_code == 404, r.text
+
+
+class TestImportIntoSection:
+    """Import returns for review — never saves. `mcq_import`'s own unit
+    tests cover the classification logic; these pin the HTTP/auth layer."""
+
+    def test_a_csv_upload_returns_review_buckets(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+        csv_bytes = b"question,option_a,option_b,correct_answer\nWhat is 2+2?,3,4,B\n"
+
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/import",
+            files={"file": ("questions.csv", csv_bytes, "text/csv")},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert len(body["valid"]) == 1
+        assert body["valid"][0]["question"]["sectionId"] == "sec-1"
+
+    def test_an_unsupported_file_type_is_refused_clearly(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/import",
+            files={"file": ("questions.exe", b"not a real file", "application/octet-stream")},
+        )
+        assert r.status_code == 400, r.text
+        assert "not supported" in r.json()["detail"].lower()
+
+    def test_a_document_upload_goes_through_the_extraction_pipeline(self, monkeypatch):
+        from app.web.services import mcq_import
+
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+
+        async def fake_extract(settings, data, **kwargs):
+            return {
+                "valid": [{"row": 1, "question": {
+                    "id": "q1", "text": "Extracted?", "options": [{"id": "a", "text": "1"}],
+                    "correctOptionIds": ["a"], "type": "single", "source": "imported",
+                }}],
+                "needsReview": [], "rejected": [],
+            }
+
+        monkeypatch.setattr(mcq_import, "import_from_document", fake_extract)
+        r = _client(RECRUITER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/import",
+            files={"file": ("paper.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["valid"][0]["question"]["sectionId"] == "sec-1"
+
+    def test_a_different_recruiter_cannot_import_into_this_set(self):
+        created = _client(RECRUITER).post(
+            "/api/web/mcq-sets", json=_set_with_section(target=10, existing_texts=[])
+        ).json()
+        r = _client(OTHER).post(
+            f"/api/web/mcq-sets/{created['id']}/sections/sec-1/import",
+            files={"file": ("q.csv", b"question,option_a,option_b\nQ?,1,2\n", "text/csv")},
+        )
+        assert r.status_code == 404, r.text

@@ -37,6 +37,11 @@ normalise_topics = mcq_gen.normalise_topics
 normalise_generated = mcq_gen.normalise_generated
 build_topic_prompt = mcq_gen.build_topic_prompt
 build_paper_prompt = mcq_gen.build_paper_prompt
+SECTION_TYPE_BRIEFS = mcq_gen.SECTION_TYPE_BRIEFS
+remaining_count = mcq_gen.remaining_count
+normalised_for_dedup = mcq_gen.normalised_for_dedup
+drop_duplicate_questions = mcq_gen.drop_duplicate_questions
+build_section_prompt = mcq_gen.build_section_prompt
 
 
 async def suggest_topics(settings: Settings, *, role: str) -> list[str]:
@@ -93,3 +98,96 @@ async def generate_paper(
         logger.warning("mcq_gen: paper response was not JSON")
         return []
     return normalise_generated(payload, sections=tuple(split))
+
+
+async def _call_section_batch(
+    settings: Settings,
+    *,
+    role: str,
+    section_type: str,
+    section_name: str,
+    count: int,
+    difficulty: str,
+    exclude_texts: list[str],
+    existing_passage: str | None,
+) -> tuple[list[dict], str | None]:
+    """One Gemini call for Mode B. Raises on transport failure; the caller
+    decides how many top-up attempts that is worth."""
+    prompt = mcq_gen.build_section_prompt(
+        section_type=section_type,
+        section_name=section_name,
+        role=role,
+        count=count,
+        difficulty=difficulty,
+        exclude_texts=exclude_texts,
+        existing_passage=existing_passage,
+    )
+    text = await gemini.generate_text(
+        settings,
+        contents=gemini.user_turn(prompt),
+        response_schema=mcq_gen.SECTION_SCHEMA,
+        response_mime_type="application/json",
+    )
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        logger.warning("mcq_gen: section response was not JSON")
+        return [], None
+    passage = None
+    if isinstance(payload, dict):
+        # Line breaks matter for a passage's paragraphing, so this trims
+        # rather than word-joins — the same distinction `mcq_authoring`
+        # draws between `text_of` and `multiline_of`.
+        cleaned = str(payload.get("passage") or "").strip()[:8000]
+        passage = cleaned or None
+    return normalise_generated(payload, sections=()), passage
+
+
+async def generate_for_section(
+    settings: Settings,
+    *,
+    role: str,
+    section_type: str,
+    section_name: str,
+    count: int,
+    difficulty: str,
+    exclude_texts: list[str],
+    existing_passage: str | None = None,
+) -> dict:
+    """Exactly `count` NEW questions for ONE section, excluding duplicates of
+    `exclude_texts`. One bounded top-up attempt covers the realistic case
+    where the first batch's duplicate check drops a question — this
+    regenerates only the shortfall, never restarts the whole batch.
+    """
+    collected: list[dict] = []
+    exclude = list(exclude_texts)
+    passage = existing_passage
+    attempts_left = 2  # the initial batch, plus one top-up for any shortfall
+    remaining = count
+
+    while remaining > 0 and attempts_left > 0:
+        attempts_left -= 1
+        batch, batch_passage = await _call_section_batch(
+            settings,
+            role=role,
+            section_type=section_type,
+            section_name=section_name,
+            count=remaining,
+            difficulty=difficulty,
+            exclude_texts=exclude,
+            existing_passage=passage,
+        )
+        passage = passage or batch_passage
+        kept, _dropped = mcq_gen.drop_duplicate_questions(batch, exclude)
+        for question in kept[:remaining]:
+            question["source"] = "ai_generated"
+            collected.append(question)
+            exclude.append(question.get("text") or "")
+        remaining = count - len(collected)
+
+    return {
+        "questions": collected,
+        "passage": passage,
+        "requested": count,
+        "delivered": len(collected),
+    }
