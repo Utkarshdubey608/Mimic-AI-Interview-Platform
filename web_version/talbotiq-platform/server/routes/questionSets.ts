@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import multer from 'multer'
 import { db } from '../store/db'
 import { ah, HttpError } from '../util/ah'
-import { generateQuestionsFromPdf, geminiEnabled } from '../services/gemini'
+import { generateQuestionsFromPdf, generateMoreQuestions, geminiEnabled } from '../services/gemini'
+import { extractQuestions } from '../services/questionExtract'
 import type { QuestionSet, FixedQuestion, QuestionStyle, DifficultyChoice } from '../../shared/types'
 
 export const questionSetsRouter = Router()
@@ -84,6 +85,77 @@ questionSetsRouter.post('/generate', upload.single('resume'), ah(async (req, res
   const suggestedName =
     (typeof req.body?.name === 'string' && req.body.name.trim()) || `${role || 'Candidate'} — Résumé Screen`
   res.json({ questions, suggestedName })
+}))
+
+/**
+ * Read questions OUT of a file the recruiter uploaded — the wizard's
+ * "Upload photo / PDF / spreadsheet" path. Returns rows to review; persists
+ * nothing (the wizard saves through POST / like every other path).
+ *
+ * The file-type routing, and which formats need a Gemini key, live in
+ * services/questionExtract.ts.
+ */
+questionSetsRouter.post('/extract', upload.single('file'), ah(async (req, res) => {
+  const file = (req as typeof req & { file?: { buffer: Buffer; mimetype: string; originalname: string } }).file
+  if (!file) throw new HttpError(400, 'No file uploaded')
+
+  const apiKeyOverride = typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined
+  const model = typeof req.body?.model === 'string' ? req.body.model : undefined
+
+  try {
+    const result = await extractQuestions({
+      buffer: file.buffer, mimetype: file.mimetype, filename: file.originalname, model, apiKeyOverride,
+    })
+    res.json(result)
+  } catch (err) {
+    // A 400 from the extractor is a message written FOR the recruiter ("that
+    // PDF is a scan", "unsupported file type") — pass it through untouched.
+    if (err instanceof HttpError) throw err
+    console.error('[question-sets/extract] failed:', err)
+    throw new HttpError(502, friendlyGeminiError(err))
+  }
+}))
+
+/**
+ * Write the questions a draft set is still missing.
+ *
+ * The recruiter named a target count in Step 1 and got fewer — a paste that ran
+ * short, a photo of one page of two, or they simply stopped typing. `existing`
+ * is the whole draft, sent so the model writes around it instead of over it.
+ */
+questionSetsRouter.post('/generate-more', ah(async (req, res) => {
+  const count = clampInt(req.body?.count, 1, 25, 5)
+  const existing = Array.isArray(req.body?.existing)
+    ? (req.body.existing as unknown[]).map((t) => String(t ?? '').trim()).filter(Boolean)
+    : []
+  const apiKeyOverride = typeof req.body?.apiKey === 'string' ? req.body.apiKey : undefined
+  const model = typeof req.body?.model === 'string' ? req.body.model : undefined
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+
+  if (!geminiEnabled(apiKeyOverride))
+    throw new HttpError(400, 'No Gemini API key configured. Add one in Settings to have questions written for you.')
+
+  let questions
+  try {
+    questions = await generateMoreQuestions({
+      count,
+      existing,
+      role: str(req.body?.role),
+      setName: str(req.body?.setName),
+      topic: str(req.body?.topic),
+      difficulty: req.body?.difficulty as DifficultyChoice | undefined,
+      style: req.body?.style as QuestionStyle | undefined,
+      model,
+      apiKeyOverride,
+    })
+  } catch (err) {
+    console.error('[question-sets/generate-more] gemini error:', err)
+    throw new HttpError(502, friendlyGeminiError(err))
+  }
+  if (!questions.length)
+    throw new HttpError(502, 'Gemini returned no new questions. Try again, or add the rest yourself.')
+
+  res.json({ questions })
 }))
 
 questionSetsRouter.post('/', ah((req, res) => {

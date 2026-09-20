@@ -1423,6 +1423,48 @@ export interface GenerateQuestionSetResult {
   suggestedName: string
 }
 
+/* ─── Question-set wizard: importing and topping up ──────────────────────
+ * The wizard's two server calls. Both return questions for the recruiter to
+ * review in the draft — neither one saves anything.
+ */
+
+/** How a question got into the draft. Shown as a chip on the review step, so a
+ *  recruiter can tell at a glance which rows a model wrote or transcribed. */
+export type ImportedQuestionSource = 'spreadsheet' | 'document' | 'image' | 'paste' | 'manual' | 'ai'
+
+/** One question parsed out of a paste or a file. Mirrors `ParsedQuestion` in
+ *  shared/questionParse.ts — that module is the pure implementation, this is
+ *  the wire shape. */
+export interface ImportedQuestion {
+  text: string
+  category?: string
+  idealAnswerNotes?: string
+}
+
+/** POST /api/question-sets/extract — a file the recruiter uploaded. */
+export interface ExtractQuestionsResult {
+  questions: ImportedQuestion[]
+  /** Things the recruiter must check before saving: a guessed column, an AI
+   *  transcription, a workbook with sheets that were not read. */
+  warnings: string[]
+  source: ImportedQuestionSource
+}
+
+/** POST /api/question-sets/generate-more — fill the gap to the target count. */
+export interface GenerateMoreQuestionsRequest {
+  count: number
+  /** Every question already in the draft, so the model does not repeat one. */
+  existing: string[]
+  role?: string
+  setName?: string
+  topic?: string
+  difficulty?: DifficultyChoice
+  style?: QuestionStyle
+}
+export interface GenerateMoreQuestionsResult {
+  questions: ImportedQuestion[]
+}
+
 /** Server settings status — the key value is NEVER returned, only a masked hint. */
 export interface AppSettingsStatus {
   geminiKeySet: boolean
