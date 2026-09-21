@@ -32,6 +32,7 @@ const SettingsPage       = lazy(() => import('@/pages/SettingsPage'))
 const TemplatesPage      = lazy(() => import('@/features/recruiter/TemplatesPage'))
 const TemplateEditorPage = lazy(() => import('@/features/recruiter/TemplateEditorPage'))
 const QuestionSetsPage   = lazy(() => import('@/features/recruiter/QuestionSetsPage'))
+const QuestionSetWizard  = lazy(() => import('@/features/recruiter/QuestionSetWizard'))
 const McqSetsPage        = lazy(() => import('@/features/recruiter/McqSetsPage'))
 // Coding interviews are switched off in the web app — see Nav.tsx.
 // const CodingProblemsPage = lazy(() => import('@/features/recruiter/CodingProblemsPage'))
@@ -130,6 +131,13 @@ export default function App() {
             {import.meta.env.DEV && (
               <Route path="/__invite-wizard" element={<InviteWizardHarness />} />
             )}
+            {/* The question-set builder, for the same reason: whether a paste,
+                a spreadsheet and a photo all land in the same reviewable draft
+                is a question about a screen, not about a function. Mounted
+                directly — nothing in this tree calls useAuth. */}
+            {import.meta.env.DEV && (
+              <Route path="/__question-set-wizard" element={<QuestionSetWizard />} />
+            )}
             {/* Coding problem authoring, for the same reason: the sample/hidden
                 distinction is the one control on that page with a security
                 consequence, and whether it reads clearly is not something a unit
@@ -209,6 +217,11 @@ export default function App() {
                 {/* AI Interview module */}
                 <Route path="/templates" element={<TemplatesPage />} />
                 <Route path="/templates/:id" element={<TemplateEditorPage />} />
+                {/* /new before the list's own path is irrelevant here (there is
+                    no /question-sets/:id route), but it stays above for the same
+                    reason the role-pipeline routes do: the guided builder is the
+                    entry point, the list is where you land afterwards. */}
+                <Route path="/question-sets/new" element={<QuestionSetWizard />} />
                 <Route path="/question-sets" element={<QuestionSetsPage />} />
                 <Route path="/mcq-sets" element={<McqSetsPage />} />
                 {/* Coding authoring is switched off — the candidate-side

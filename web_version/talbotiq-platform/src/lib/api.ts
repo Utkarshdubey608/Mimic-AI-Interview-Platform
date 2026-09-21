@@ -15,6 +15,9 @@ import type {
   TrackType,
   AppSettingsStatus,
   GenerateQuestionSetResult,
+  ExtractQuestionsResult,
+  GenerateMoreQuestionsRequest,
+  GenerateMoreQuestionsResult,
   ChatbotSessionState,
   SubmitChatAnswerRequest,
   SaveChatDraftRequest,
@@ -496,6 +499,30 @@ export const questionSetsApi = {
     if (!res.ok) throw new ApiError((data && data.error) || `Generation failed (${res.status})`, res.status, data)
     return data as GenerateQuestionSetResult
   },
+  /**
+   * Read questions out of an uploaded file (photo, PDF, Word, text, Excel/CSV)
+   * for the creation wizard. Returns rows to review — saves nothing.
+   *
+   * Multipart, so it goes through `fetch` directly rather than `http`, exactly
+   * as `generateFromResume` and `invitesApi.extract` do. No API key is sent:
+   * the server holds the credential, and the one branch that needs it says so
+   * rather than asking the browser for one.
+   */
+  extract: async (file: File): Promise<ExtractQuestionsResult> => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch(`${BASE}/question-sets/extract`, { method: 'POST', body: fd })
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : undefined
+    if (res.status === 429) throw rateLimitError(res, data)
+    if (!res.ok) throw new ApiError((data && data.error) || `Import failed (${res.status})`, res.status, data)
+    return data as ExtractQuestionsResult
+  },
+  /** Write the questions a draft set is still short of its target count. */
+  generateMore: (body: GenerateMoreQuestionsRequest) =>
+    http<GenerateMoreQuestionsResult>('/question-sets/generate-more', {
+      method: 'POST', body: JSON.stringify(body),
+    }),
 }
 
 /* ─── Settings (server-side Gemini key) ─────────────────────────────────── */

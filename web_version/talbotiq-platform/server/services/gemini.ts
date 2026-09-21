@@ -258,6 +258,162 @@ Return ONLY JSON matching the provided schema.`
   return [...tech, ...nonTech]
 }
 
+/* ─── Question-set wizard: reading a photo, and filling the gap ─────────── */
+
+/** The JSON shape both wizard helpers below ask Gemini for. */
+const QUESTION_LIST_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    questions: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          text: { type: Type.STRING },
+          category: { type: Type.STRING },
+          idealAnswerNotes: { type: Type.STRING },
+        },
+        required: ['text', 'category', 'idealAnswerNotes'],
+      },
+    },
+  },
+  required: ['questions'],
+} as const
+
+const readQuestionList = (raw: string | undefined): GeneratedQuestion[] => {
+  const parsed = JSON.parse(raw ?? '{"questions":[]}') as { questions?: GeneratedQuestion[] }
+  return (Array.isArray(parsed.questions) ? parsed.questions : [])
+    .map((q) => ({
+      text: cleanQuestionText(q?.text),
+      category: (q?.category ?? '').trim(),
+      idealAnswerNotes: (q?.idealAnswerNotes ?? '').trim(),
+    }))
+    .filter((q) => q.text.length > 0)
+}
+
+/**
+ * Read interview questions off an IMAGE or a scanned PDF — a photo of a printed
+ * question sheet, a whiteboard, a screenshot of somebody's doc.
+ *
+ * This is the only import path that must go through a model: a born-digital PDF
+ * or a spreadsheet is parsed locally by `shared/questionParse`, which is instant
+ * and needs no key. Transcription only — the instruction forbids inventing a
+ * question that is not in the picture, because a recruiter checking an import
+ * reads for typos, not for questions that were never on the page.
+ */
+export async function extractQuestionsFromMedia(opts: {
+  base64: string
+  mimeType: string
+  model?: string
+  apiKeyOverride?: string
+}): Promise<GeneratedQuestion[]> {
+  const { base64, mimeType, model, apiKeyOverride } = opts
+
+  const res = await withRetry(() =>
+    ai(apiKeyOverride).models.generateContent({
+      model: modelName(model),
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType, data: base64 } },
+          {
+            text:
+              'Transcribe every interview question visible in this file, in the order they appear.\n' +
+              'Transcribe ONLY what is written — never invent, complete or improve a question, and never add one that is not there. If a question is cut off or unreadable, transcribe the part you can read.\n' +
+              'Ignore page numbers, headers, footers, logos and answer choices.\n' +
+              'If a section heading groups some questions (e.g. "Technical", "Behavioural"), use it as their category; otherwise give each question a one or two word category of your own.\n' +
+              'If the page also states an expected or model answer for a question, put it in idealAnswerNotes; otherwise leave idealAnswerNotes empty.\n' +
+              'Return ONLY JSON matching the provided schema. If the file contains no interview questions at all, return an empty list.',
+          },
+        ],
+      }],
+      config: {
+        systemInstruction:
+          'You are a careful transcriber of interview question sheets. You reproduce exactly what is on the page and never author new questions.',
+        responseMimeType: 'application/json',
+        responseSchema: QUESTION_LIST_SCHEMA,
+      },
+    }),
+  )
+  return readQuestionList(res.text)
+}
+
+/**
+ * Write the questions a half-finished set is still missing.
+ *
+ * The recruiter said how many they wanted in Step 1 and got fewer — from a
+ * paste, a photo, or from stopping halfway through typing. `existing` is every
+ * question already in the draft, sent verbatim so the model can avoid repeating
+ * them; that is the whole reason this is a separate call from the résumé
+ * generator, which has no draft to look at.
+ */
+export async function generateMoreQuestions(opts: {
+  count: number
+  existing: string[]
+  role?: string
+  setName?: string
+  topic?: string
+  difficulty?: DifficultyChoice
+  style?: QuestionStyle
+  model?: string
+  apiKeyOverride?: string
+}): Promise<GeneratedQuestion[]> {
+  const { count, existing, role, setName, topic, difficulty, style, model, apiKeyOverride } = opts
+
+  const styleLine =
+    style === 'technical' ? 'Every question must be TECHNICAL — about tools, systems, and how the candidate works with them.'
+    : style === 'non_technical' ? 'Every question must be NON-TECHNICAL — behavioural, situational, or about ways of working.'
+    : 'Mix technical and behavioural questions.'
+  const difficultyLine =
+    !difficulty || difficulty === 'mixed'
+      ? 'Vary the difficulty from warm-up to genuinely challenging.'
+      : `Pitch every question at ${difficulty} difficulty.`
+  const already = existing.filter((t) => t.trim()).slice(0, 60)
+  const context = [
+    role?.trim() ? `Role: ${role.trim()}.` : '',
+    setName?.trim() ? `The set is called "${setName.trim()}".` : '',
+    topic?.trim() ? `Subject areas to cover: ${topic.trim()}.` : '',
+  ].filter(Boolean).join(' ')
+
+  const prompt = `Write exactly ${count} more interview question${count === 1 ? '' : 's'} to finish a question set a recruiter is building.
+${context}
+${styleLine}
+${difficultyLine}
+Keep each question SHORT and conversational: one or two sentences, at most ~30 words, asking one clear thing. Plain text only, no markdown, no bullets, no numbering, and no em dashes.
+Give each one a one or two word category, and one sentence of ideal-answer notes a human scorer can use.
+${already.length
+    ? `These questions are ALREADY in the set. Do not repeat them, do not rephrase them, and do not ask about the same thing from a different angle. Cover what they leave out:\n${already.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+    : 'The set is empty so far, so cover the ground a first-round interview for this role should cover.'}
+Return ONLY JSON matching the provided schema.`
+
+  const res = await withRetry(() =>
+    ai(apiKeyOverride).models.generateContent({
+      model: modelName(model),
+      contents: prompt,
+      config: {
+        systemInstruction:
+          'You are an expert interviewer completing a colleague\'s draft question set. You never duplicate a question they have already written.',
+        responseMimeType: 'application/json',
+        responseSchema: QUESTION_LIST_SCHEMA,
+      },
+    }),
+  )
+
+  // Belt and braces on the "no duplicates" instruction: the model is good at it,
+  // but a repeat that reaches the draft is the recruiter's job to spot, and they
+  // asked us to fill a gap, not to hand them the same question twice.
+  const seen = new Set(already.map((t) => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()))
+  const out: GeneratedQuestion[] = []
+  for (const q of readQuestionList(res.text)) {
+    const key = q.text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(q)
+    if (out.length === count) break
+  }
+  return out
+}
+
 /* ─── Scoring ───────────────────────────────────────────────────────────── */
 
 export interface RawScore {

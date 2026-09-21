@@ -32,7 +32,7 @@ from fastapi import (
 from app.security import AuthedUser
 from app.web.services import users
 from app.web.deps import RateLimitGenerateWeb, WebUser, settings_of
-from app.web.services import gemini, question_gen
+from app.web.services import gemini, question_gen, question_import
 from app.web.store import get_store
 
 logger = logging.getLogger("web.question_sets")
@@ -173,6 +173,119 @@ async def generate(
 
     suggested = name.strip() or f"{cleaned_role or 'Candidate'} — Résumé Screen"
     return {"questions": questions, "suggestedName": suggested}
+
+
+@router.post(
+    "/extract",
+    summary="Read questions out of an uploaded file (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def extract(
+    request: Request,
+    file: UploadFile = File(...),
+    user: AuthedUser = WebUser,
+) -> dict:
+    """The creation wizard's "upload a photo / PDF / spreadsheet" path.
+
+    Spreadsheets, PDFs with a text layer, Word and text files are parsed locally
+    with no model call at all — a recruiter's Excel question bank must import on
+    a deployment with no Gemini key. Photos and scans have nothing to parse, so
+    they are transcribed by the model and every row comes back flagged for the
+    recruiter to check. `services/question_import.py` decides which.
+
+    Rate-limited with the other generate routes because one of its branches does
+    bill per request. Returns rows for review; saves nothing.
+    """
+    settings = settings_of(request)
+
+    data = await file.read()
+    if not data:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No file uploaded")
+    if len(data) > question_gen.MAX_PDF_BYTES:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "That file is too large."
+        )
+
+    try:
+        return await question_import.extract_questions(
+            settings,
+            data,
+            content_type=file.content_type or "",
+            filename=file.filename or "",
+        )
+    except question_import.ImportUnsupported as exc:
+        # Already written FOR the recruiter ("that PDF is a scan", "save it as
+        # .xlsx") — passed through rather than replaced with a generic message.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - translated for the wizard
+        logger.error("question import failed: %s", exc)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+        ) from exc
+
+
+@router.post(
+    "/generate-more",
+    summary="Write the questions a draft set is still missing (does not save)",
+    dependencies=[RateLimitGenerateWeb],
+)
+async def generate_more(
+    body: dict, request: Request, user: AuthedUser = WebUser
+) -> dict:
+    """Fill the gap between a draft and the count the recruiter asked for.
+
+    Distinct from `/generate`, which tailors a whole set to one résumé: this one
+    is handed the DRAFT — every question already written, whatever way it got
+    there — and writes around it. Without that, "give me three more" reliably
+    returns three the recruiter already has.
+    """
+    settings = settings_of(request)
+    body = body or {}
+
+    count = question_gen.clamp_int(body.get("count"), 1, question_import.MAX_GENERATE, 5)
+    existing = [
+        str(item).strip()
+        for item in (body.get("existing") or [])
+        if isinstance(item, (str, int, float)) and str(item).strip()
+    ]
+
+    def _text(field: str) -> str | None:
+        value = body.get(field)
+        return value.strip() or None if isinstance(value, str) else None
+
+    difficulty = body.get("difficulty")
+    style = body.get("style")
+
+    if not await gemini.is_enabled(settings):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "No Gemini API key configured. Add one in Settings to have questions "
+            "written for you.",
+        )
+
+    try:
+        questions = await question_import.generate_more(
+            settings,
+            count=count,
+            existing=existing,
+            role=_text("role"),
+            set_name=_text("setName"),
+            topic=_text("topic"),
+            difficulty=difficulty if difficulty in question_gen.DIFFICULTIES else "mixed",
+            style=style if style in question_gen.STYLES else "mix",
+        )
+    except Exception as exc:  # noqa: BLE001 - translated for the wizard
+        logger.error("generate-more failed: %s", exc)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, question_gen.friendly_error(exc)
+        ) from exc
+
+    if not questions:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Gemini returned no new questions. Try again, or add the rest yourself.",
+        )
+    return {"questions": questions}
 
 
 @router.get("/{set_id}", summary="One question set")
